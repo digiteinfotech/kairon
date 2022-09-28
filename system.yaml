@@ -135,3 +135,11 @@ plugins:
   location:
     enable: ${ENABLE_LOCATION_PLUGIN}
     token: ${LOCATION_PLUGIN_TOKEN}
+
+idp:
+  enable: ${IDP_ENABLED:true}
+  server_url: ${KEYCLOAK_SERVER_URL:http://localhost:8080/auth}
+  admin_username: ${ADMIN_USERNAME:kaironkeycloak}
+  admin_password: ${ADMIN_PASSWORD:kaironkeycloak}
+  callback_frontend_url: ${CALLBACK_FRONTEND_URL:https://b83b-2405-201-23-90ed-252c-5e50-a9ab-561a.in.ngrok.io}
+  type: ${IDP_TYPE:idp}

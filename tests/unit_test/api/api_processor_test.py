@@ -22,7 +22,7 @@ from starlette.responses import RedirectResponse
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.actions.models import ActionType
 from kairon.shared.auth import Authentication, LoginSSOFactory
-from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account
+from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
@@ -2062,3 +2062,37 @@ class TestAccountProcessor:
 
     def test_list_fingerprint_not_exists(self):
         assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == []
+
+    def test_upsert_organization_add(self):
+        org_name = {"name": "test"}
+        mail = "test@demo.in"
+        account = "1234"
+        user = User(account=account, email=mail)
+        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+
+        result = Organization.objects().get(account=account)
+        assert result.name == org_name.get("name")
+
+    def test_upsert_organization_update(self):
+        org_name = {"name": "new_test"}
+        mail = "test@demo.in"
+        account = "1234"
+        user = User(account=account, email=mail)
+        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+
+        result = Organization.objects().get(account=account)
+        assert result.name == org_name.get("name")
+
+        with pytest.raises(DoesNotExist):
+            Organization.objects().get(name="test")
+
+    def test_get_organization_exists(self):
+        account = "1234"
+        result = AccountProcessor.get_organization(account=account)
+        assert result.get("name") == "new_test"
+
+    def test_get_organization_not_exists(self):
+        account = "12345"
+        result = AccountProcessor.get_organization(account=account)
+        assert result.get("name") is None
+        assert result == {}

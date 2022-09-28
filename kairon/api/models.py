@@ -745,3 +745,22 @@ class EventConfig(BaseModel):
         if not v or len(v) < 1:
             v = {}
         return v
+
+
+class IDPConfig(BaseModel):
+    config: dict
+    organization: str
+
+    @validator("config")
+    def validate_config(cls, v, values, **kwargs):
+        if not v or len(v) == 0:
+            v = {}
+        return v
+
+    @validator("organization")
+    def validate_organization(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("Organization can not be empty")
+        return v

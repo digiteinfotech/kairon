@@ -10,9 +10,10 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
+from kairon.idp.data_objects import IdpConfig
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
-    MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice
+    MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice, Organization
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.base_data import AuditLogData
@@ -883,3 +884,35 @@ class AccountProcessor:
     def get_auditlog_for_user(user, start_idx: int = 0, page_size: int = 10):
         auditlog_data = AuditLogData.objects(user=user).skip(start_idx).limit(page_size).exclude('id').to_json()
         return json.loads(auditlog_data)
+
+    @staticmethod
+    def upsert_organization(user, org_name):
+        try:
+            org = Organization.objects(account=user.account).get()
+            org.name = org_name.get("name")
+            org.save()
+            try:
+                idp_config = IdpConfig.objects(account=user.account, organization=org_name).get()
+                idp_config.organization = org_name.get("name")
+                result = idp_config.config("config")
+                result["client_id"] = Utility.decrypt_message(result["client_id"])
+                result["client_secret"] = Utility.decrypt_message(result["client_secret"])
+                idp_config.config = result
+                idp_config.save()
+            except DoesNotExist:
+                pass
+        except DoesNotExist:
+            Organization(user=user.email,
+                         account=user.account,
+                         name=org_name.get("name")
+                         ).save()
+
+    @staticmethod
+    def get_organization(account):
+        try:
+            org = Organization.objects(account=account).get()
+            data = org.to_mongo().to_dict()
+            data.pop("_id")
+            return data
+        except DoesNotExist:
+            return {}
