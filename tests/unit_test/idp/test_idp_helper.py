@@ -33,8 +33,7 @@ class TestIDP:
         monkeypatch.setitem(Utility.environment['idp'], 'admin_password', 'sample')
         monkeypatch.setitem(Utility.environment['idp'], 'admin_client_secret', '8e5b7371-be31-4a5c-8b58-a4f1baf519c9')
         monkeypatch.setitem(Utility.environment['idp'], 'type', "idp")
-        monkeypatch.setitem(Utility.environment['idp'], 'callback_uri',
-                            'https://9722-2405-201-23-90ed-b834-5dbc-794f-adb.in.ngrok.io/login/idp/callback/REALM_NAME')
+        monkeypatch.setitem(Utility.environment['idp'], 'callback_frontend_url', 'https://localhost:3000')
 
     @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
@@ -208,7 +207,7 @@ class TestIDP:
                 "config_sub_type": "azure_oidc",
                 "client_id": "95280cec-93ca-4a94-a852-c23aa1039beb",
                 "client_secret": "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075eheP8cLk",
-                "tenant": "fa1b21ce-4ca5-4009-bdf5-09f040b36c64"
+                "tenant": "fa1b21ce-4ca5-4009"
             }
         }
         add_realm_url = Utility.environment["idp"]["server_url"] + IDPURLConstants.ADD_REALM_URL.value
@@ -271,7 +270,7 @@ class TestIDP:
         assert idp_config["client_id"] == "95280cec-93ca-4a94-a852-c23aa10*****"
         assert idp_config["client_secret"] == "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
         assert idp_config["organization"] == "Test"
-        assert idp_config["tenant"] == "fa1b21ce-4ca5-4009-bdf5-09f040b36c64"
+        assert idp_config["tenant"] == "fa1b21ce-4ca5-4009"
 
     def test_get_idp_config_not_exists(self):
         account = "5"
@@ -299,7 +298,7 @@ class TestIDP:
                 "config_sub_type": "azure_oidc",
                 "client_id": "95280cec-93ca-4a94-a852-c23aa1039beb",
                 "client_secret": "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075eheP8cLk",
-                "tenant": "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+                "tenant": "fa1b21ce-4ca5-4009_new"
             }
         }
 
@@ -310,8 +309,8 @@ class TestIDP:
         assert updated_idp_config["client_id"] == "95280cec-93ca-4a94-a852-c23aa10*****"
         assert updated_idp_config["client_secret"] == "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
         assert updated_idp_config["organization"] == "Test"
-        assert updated_idp_config["tenant"] != "fa1b21ce-4ca5-4009-bdf5-09f040b36c64"
-        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+        assert updated_idp_config["tenant"] != "fa1b21ce-4ca5-4009"
+        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009_new"
 
     def test_update_idp_config_client_id(self, monkeypatch, set_idp_props):
         def _get_admin_token(*args, **kwargs):
@@ -334,7 +333,7 @@ class TestIDP:
                 "config_sub_type": "azure_oidc",
                 "client_id": "new_95280cec-93ca-4a94-a852-c23aa1039beb",
                 "client_secret": "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075eheP8cLk",
-                "tenant": "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+                "tenant": "fa1b21ce-4ca5-4009_new"
             }
         }
 
@@ -346,7 +345,7 @@ class TestIDP:
         assert updated_idp_config["client_id"] != "95280cec-93ca-4a94-a852-c23aa10*****"
         assert updated_idp_config["client_secret"] == "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
         assert updated_idp_config["organization"] == "Test"
-        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009_new"
 
     def test_update_idp_config_client_secret(self, monkeypatch, set_idp_props):
         def _get_admin_token(*args, **kwargs):
@@ -369,7 +368,7 @@ class TestIDP:
                 "config_sub_type": "azure_oidc",
                 "client_id": "new_95280cec-93ca-4a94-a852-c23aa1039beb",
                 "client_secret": "new_F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075eheP8cLk",
-                "tenant": "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+                "tenant": "fa1b21ce-4ca5-4009_new"
             }
         }
 
@@ -382,7 +381,7 @@ class TestIDP:
         assert updated_idp_config["client_secret"] != "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
         assert updated_idp_config["client_secret"] == "new_F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
         assert updated_idp_config["organization"] == "Test"
-        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009-bdf5-09f040b36c64_new"
+        assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009_new"
 
     def test_delete_idp_config(self):
         realm_name = "IDPTEST"
@@ -390,5 +389,5 @@ class TestIDP:
 
     def test_get_idp_config_after_delete(self):
         user = get_user()
-        with pytest.raises(AppException, match="IDP config is deleted or disabled"):
-            IDPProcessor.get_idp_config(account=user.account)
+        fetched_idp_config = IDPProcessor.get_idp_config(account=user.account)
+        assert fetched_idp_config == {}

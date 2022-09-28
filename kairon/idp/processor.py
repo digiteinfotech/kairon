@@ -80,10 +80,8 @@ class IDPProcessor:
     @staticmethod
     def get_idp_config(account):
         try:
-            idp_config_data = IdpConfig.objects(account=account).get()
+            idp_config_data = IdpConfig.objects(account=account, status=True).get()
             idp_config = idp_config_data.to_mongo().to_dict()
-            if not idp_config_data.status:
-                raise AppException("IDP config is deleted or disabled")
             result = idp_config.pop("config")
             result["client_id"] = Utility.decrypt_message(result["client_id"])[:-5] + "*****"
             result["client_secret"] = Utility.decrypt_message(result["client_secret"])[:-5] + "*****"
@@ -100,7 +98,10 @@ class IDPProcessor:
     @staticmethod
     def get_redirect_uri(realm_name):
         helper = IDPFactory.get_supported_idp(Utility.environment["idp"]["type"])
-        idp = helper.get_fastapi_idp_object(realm_name)
+        try:
+            idp = helper.get_fastapi_idp_object(realm_name)
+        except AppException:
+            return Utility.environment["app"]["frontend_url"] + "/login"
         query_param = {
             "response_type": "code",
             "client_id": idp.client_id,
