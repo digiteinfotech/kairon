@@ -1,5 +1,5 @@
 import os
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 from urllib.parse import urljoin
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
@@ -1470,3 +1470,21 @@ async def get_auditlog_for_bot(
         "total": row_cnt
     }
     return Response(data=data)
+
+
+@router.get("/logs/download/{log_type}", response_model=Response)
+async def download_logs(
+        background_tasks: BackgroundTasks,
+        start_date: datetime, end_date: datetime,
+        log_type: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    logs = mongo_processor.get_logs(current_user.get_bot(), log_type, start_date, end_date)
+    file, temp_path = Utility.download_csv(logs, message=f"{log_type} logs not found!")
+    response = FileResponse(
+        file, filename=os.path.basename(file), background=background_tasks
+    )
+    response.headers[
+        "Content-Disposition"
+    ] = "attachment; filename=" + os.path.basename(file)
+    background_tasks.add_task(Utility.delete_directory, temp_path)
+    return response

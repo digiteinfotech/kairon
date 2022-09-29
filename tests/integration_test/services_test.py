@@ -1843,6 +1843,16 @@ def test_train_on_updated_data(monkeypatch):
     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
+def test_download_model_training_logs(monkeypatch):
+    start_date = datetime.utcnow() - timedelta(days=1)
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
+
+
 @pytest.fixture
 def mock_is_training_inprogress_exception(monkeypatch):
     def _inprogress_execption_response(*args, **kwargs):
@@ -1959,6 +1969,16 @@ def test_get_model_testing_logs():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
+
+
+def test_download_model_testing_logs(monkeypatch):
+    start_date = datetime.utcnow() - timedelta(days=1)
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_testing?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
 
 
 def test_get_file_training_history():
@@ -11157,6 +11177,17 @@ def test_data_generation_in_progress(monkeypatch):
     assert not response["success"]
 
 
+def test_download_logs(monkeypatch):
+    start_date = datetime.utcnow()
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response == {'success': False, 'message': 'model_training logs not found!', 'data': None, 'error_code': 422}
+
+
 def test_get_auditlog_for_user_1():
     email = "integration1234567890@demo.ai"
     response = client.post(
@@ -11219,6 +11250,88 @@ def test_get_auditlog_for_user_2():
     assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
     assert audit_log_data[0]["entity"] == "Slots"
     assert audit_log_data[0]["user"] == email
+
+
+@responses.activate
+def test_idp_provider_fields():
+    response = client.get(
+        "/api/idp/provider/fields",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    actual_data = Utility.system_metadata["providers"]
+
+    assert response["data"] == actual_data
+    assert len(response["data"]["oidc"]["azure_oidc"]["required_fields"]) == 4
+
+
+@responses.activate
+def test_add_organization():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.post(
+        "/api/account/organization",
+        json={"data": {"name": "sample"}},
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['message'] == "organization added"
+
+
+@responses.activate
+def test_get_organization():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        "/api/account/organization",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['data'] is not None
+    assert result['data']["name"] == "sample"
+    assert result['data']["user"] == "integration1234567890@demo.ai"
+
+
+@responses.activate
+def test_update_organization():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.post(
+        "/api/account/organization",
+        json={"data": {"name": "updated_sample"}},
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['message'] == "organization added"
+
+
+@responses.activate
+def test_get_organization_after_update():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        "/api/account/organization",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['data'] is not None
+    assert result['data']["name"] == "updated_sample"
+    assert result['data']["user"] == "integration1234567890@demo.ai"
 
 
 def test_delete_account():
@@ -11440,3 +11553,12 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     response = passwrd_rechange_response.json()
     message = response.get("message")
     assert message == "You have already used that password, try another"
+
+
+def test_idp_provider_fields_unauth():
+    response = client.get(
+        "/api/idp/provider/fields",
+        headers={"Authorization": pytest.token_type + " worng_token"},
+    ).json()
+
+    assert response["error_code"] == 401

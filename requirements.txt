@@ -60,3 +60,4 @@ dramatiq
 dramatiq-mongodb
 keybert
 bs4
+fastapi-keycloak
