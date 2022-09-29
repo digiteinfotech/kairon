@@ -185,6 +185,17 @@ class AuditlogActions(str, Enum):
     BULK_UPDATE = "bulk_update"
 
 
+class LogType(str, Enum):
+    multilingual = "multilingual"
+    model_training = "model_training"
+    model_testing = "model_testing"
+    audit_logs = "audit_logs"
+    history_deletion = "history_deletion"
+    action_logs = "action_logs"
+    training_data_generator = "training_data_generator"
+    data_importer = "data_importer"
+
+
 class TrainingDataSourceType(str, Enum):
     website = "website"
     document = "document"

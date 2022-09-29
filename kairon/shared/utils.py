@@ -908,18 +908,23 @@ class Utility:
         return config
 
     @staticmethod
-    def download_csv(conversation: Dict, message):
+    def download_csv(data, message, filename="conversation_history.csv"):
         import pandas as pd
 
-        if not conversation.get("conversation_data"):
+        if not data:
             if not message:
                 raise AppException("No data available!")
             else:
                 raise AppException(message)
         else:
-            df = pd.json_normalize(conversation.get("conversation_data"))
+            df = pd.json_normalize(data)
+            for col in df.columns:
+                if col.endswith(".$date"):
+                    col_name = col.replace(".$date", "")
+                    df[col_name] = pd.to_datetime(df[col], unit="ms")
+                    df = df.drop(col, axis=1)
             temp_path = tempfile.mkdtemp()
-            file_path = os.path.join(temp_path, "conversation_history.csv")
+            file_path = os.path.join(temp_path, filename)
             df.to_csv(file_path, index=False)
             return file_path, temp_path
 

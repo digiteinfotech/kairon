@@ -49,6 +49,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault
                                              )
+from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
@@ -58,7 +59,10 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     HttpActionRequestBody
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, HttpContentType
+from kairon.shared.multilingual.processor import MultilingualLogProcessor
+from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
 from kairon.shared.data.constant import ENDPOINT_TYPE
@@ -8546,6 +8550,64 @@ class TestMongoProcessor:
         processor.delete_secret(key, bot)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
+
+    def test_get_logs(self):
+        bot = "test_get_logs"
+        user = "testUser2"
+        start_time = datetime.utcnow() - timedelta(days=1)
+        end_time = datetime.utcnow() + timedelta(days=1)
+        processor = MongoProcessor()
+        TrainingDataGenerationProcessor.set_status(
+            bot=bot,
+            user=user,
+            document_path='document/doc.pdf',
+            status='Completed'
+        )
+        TrainingDataGenerationProcessor.set_status(
+            bot=bot,
+            user=user,
+            document_path='document/doc.pdf',
+            status='Completed'
+        )
+        log_one = processor.get_logs(bot,"training_data_generator", start_time, end_time)
+        assert len(log_one) == 2
+        ModelProcessor.set_training_status(bot, user, "Done")
+        ModelProcessor.set_training_status(bot, user, "Done")
+        log_two = processor.get_logs(bot, "model_training", start_time, end_time)
+        assert len(log_two) == 2
+        ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
+                         url="http://kairon-api.digite.com/api/bot",
+                         request_params={}, api_response="Response", bot_response="Bot Response", bot=bot,
+                         status="FAILURE").save()
+        ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
+                         request_params={}, api_response="Response", bot_response="Bot Response",
+                         bot=bot).save()
+        log_three = processor.get_logs(bot, "action_logs", start_time, end_time)
+        assert len(log_three) == 2
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
+        log_four = processor.get_logs(bot, "data_importer", start_time, end_time)
+        assert len(log_four) == 2
+        HistoryDeletionLogProcessor.add_log(bot, user, 1, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, 1, status='Completed')
+        log_five = processor.get_logs(bot, "history_deletion", start_time, end_time)
+        assert len(log_five) == 2
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
+        log_six = processor.get_logs(bot, "multilingual", start_time, end_time)
+        assert len(log_six) == 2
+        ModelTestingLogProcessor.log_test_result(bot, user,
+                                                 stories_result={},
+                                                 nlu_result={},
+                                                 event_status='Completed')
+        ModelTestingLogProcessor.log_test_result(bot, user,
+                                                 stories_result={},
+                                                 nlu_result={},
+                                                 event_status='Completed')
+        log_seven = processor.get_logs(bot, "model_testing", start_time, end_time)
+        assert len(log_seven) == 2
+        log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)
+        assert len(log_eight) == 2
 
 
 class TestTrainingDataProcessor:
