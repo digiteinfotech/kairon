@@ -1172,16 +1172,16 @@ class Utility:
         return Utility.get_latest_file(model_file, "*.tar.gz")
 
     @staticmethod
-    def delete_models(bot: Text, retain_cnt: int = 4):
+    def delete_models(bot: Text):
         """
         fetches the latest model from the path
 
         :param bot: bot id
-        :param retain_cnt: number of models
         :return: latest model path
         """
         from rasa.shared.constants import DEFAULT_MODELS_PATH
 
+        retain_cnt = Utility.environment["model"]["retention"]
         model_file = os.path.join(DEFAULT_MODELS_PATH, bot, "old_model", "*.tar.gz")
         file_list = glob(model_file)
         file_list.sort(key=os.path.getctime, reverse=True)
