@@ -1176,6 +1176,25 @@ class TestMongoProcessor:
         folder = os.path.join("models/tests", '*.tar.gz')
         assert len(list(glob.glob(folder))) == 1
 
+    def test_train_model_validate_deletion(self, monkeypatch):
+        file = glob.glob(os.path.join("models/tests", '*.tar.gz'))[0]
+        for i in range(7):
+            shutil.copy(file, os.path.join("models/tests", "old_model", f"{i}.tar.gz"))
+
+        def _mock_train(*args, **kwargs):
+            ob = object()
+            ob.model = file
+            return ob
+
+        with patch("rasa.train") as mock_tr:
+            mock_tr.side_effect = _mock_train
+            model = train_model_for_bot("tests")
+        assert model
+        folder = os.path.join("models/tests", '*.tar.gz')
+        assert len(list(glob.glob(folder))) == 1
+        folder = os.path.join("models/tests", "old_model", "*.tar.gz")
+        assert len(list(glob.glob(folder))) == 4
+
     @pytest.mark.asyncio
     async def test_train_model_empty_data(self):
         with pytest.raises(AppException):
