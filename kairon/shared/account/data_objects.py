@@ -147,3 +147,11 @@ class TrustedDevice(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+
+class Organization(Document):
+    name = StringField(required=True)
+    user = StringField(required=True)
+    account = LongField(required=True)
+    tags = ListField()
+    timestamp = DateTimeField(default=datetime.utcnow)
