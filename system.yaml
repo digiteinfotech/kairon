@@ -49,6 +49,7 @@ augmentation:
   paraphrase_gpt_url: ${PARAPHRASE_GPT_URL:"http://localhost:8000/paraphrases/gpt"}
 
 model:
+  retention: ${MODEL_RETENTION_COUNT:4}
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
   test:
