@@ -35,6 +35,7 @@ RUN python -m pip install jira
 RUN python -m pip install zenpy
 RUN python -m pip install pipedrive-python-lib
 RUN python -m pip install google-cloud-translate
+RUN python -m pip install fastapi-keycloak
 
 RUN mkdir ssl
 RUN mkdir data_generator
