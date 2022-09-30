@@ -85,6 +85,9 @@ async def add_secure_headers(request: Request, call_next):
     """add security headers"""
     response = await call_next(request)
     secure_headers.framework.fastapi(response)
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
     return response
 
 
