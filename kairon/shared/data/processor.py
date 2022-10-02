@@ -59,7 +59,7 @@ from .constant import (
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
-    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES
+    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, LogType, ACCESS_ROLES
 )
 from .data_objects import (
     Responses,
@@ -82,7 +82,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig
+    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
@@ -4368,3 +4368,41 @@ class MongoProcessor:
         auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').to_json()
         return json.loads(auditlog_data)
 
+    def get_logs(self, bot: Text, logtype: str, start_time: datetime, end_time: datetime):
+        """
+        create zip file containing download data
+
+        :param bot: bot id
+        :param logtype: log type
+        :param start_time: start time
+        :param end_time: end time
+        :return: zip file path
+        """
+        from .data_objects import ModelTraining, ConversationsHistoryDeleteLogs
+        from kairon.shared.test.data_objects import ModelTestingLogs
+        from kairon.shared.multilingual.data_objects import BotReplicationLogs
+        from kairon.shared.importer.data_objects import ValidationLogs
+        logs = {
+                LogType.training_data_generator.value: TrainingDataGenerator,
+                LogType.model_training.value: ModelTraining,
+                LogType.model_testing.value: ModelTestingLogs,
+                LogType.action_logs.value: ActionServerLogs,
+                LogType.audit_logs.value: AuditLogData,
+                LogType.data_importer.value: ValidationLogs,
+                LogType.history_deletion.value: ConversationsHistoryDeleteLogs,
+                LogType.multilingual.value: BotReplicationLogs
+        }
+        if logtype in {LogType.action_logs.value, LogType.audit_logs.value}:
+            filter_query = {
+                "bot": bot,
+                "timestamp__gte": start_time,
+                "timestamp__lte": end_time
+            }
+        else:
+            filter_query = {
+                "bot": bot,
+                "start_timestamp__gte": start_time,
+                "start_timestamp__lte": end_time
+            }
+        value = json.loads(logs[logtype].objects(**filter_query).to_json())
+        return value

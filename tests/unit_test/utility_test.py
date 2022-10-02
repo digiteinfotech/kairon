@@ -432,18 +432,18 @@ class TestUtility:
         assert not request_body
 
     def test_download_csv(self):
-        file_path, temp_path = Utility.download_csv({"conversation_data": [{"test": "test_val"}]}, None)
+        file_path, temp_path = Utility.download_csv([{"test": "test_val"}], None)
         assert file_path.endswith(".csv")
         assert "tmp" in str(temp_path).lower()
 
     def test_download_csv_no_data(self):
         with pytest.raises(AppException) as e:
-            Utility.download_csv({"conversation_data": []}, None)
+            Utility.download_csv([], None)
         assert str(e).__contains__("No data available")
 
     def test_download_csv_error_message(self):
         with pytest.raises(AppException) as e:
-            Utility.download_csv({"conversation_data": []}, "error_message")
+            Utility.download_csv([], "error_message")
         assert str(e).__contains__("error_message")
 
     def test_extract_db_config_without_login(self):

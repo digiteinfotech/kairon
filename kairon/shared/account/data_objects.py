@@ -151,3 +151,11 @@ class TrustedDevice(DynamicDocument):
     timestamp = DateTimeField(default=datetime.utcnow)
     confirmation_timestamp = DateTimeField(default=None)
     status = BooleanField(default=True)
+
+
+class Organization(Document):
+    name = StringField(required=True)
+    user = StringField(required=True)
+    account = LongField(required=True)
+    tags = ListField()
+    timestamp = DateTimeField(default=datetime.utcnow)

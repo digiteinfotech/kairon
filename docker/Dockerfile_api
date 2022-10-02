@@ -53,6 +53,7 @@ RUN python -m pip install dramatiq
 RUN python -m pip install dramatiq-mongodb
 RUN python -m pip install keybert
 RUN python -m pip install  bs4
+RUN python -m pip install fastapi-keycloak
 
 RUN mkdir ssl
 RUN mkdir data_generator

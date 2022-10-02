@@ -921,18 +921,23 @@ class Utility:
         return config
 
     @staticmethod
-    def download_csv(conversation: Dict, message):
+    def download_csv(data, message, filename="conversation_history.csv"):
         import pandas as pd
 
-        if not conversation.get("conversation_data"):
+        if not data:
             if not message:
                 raise AppException("No data available!")
             else:
                 raise AppException(message)
         else:
-            df = pd.json_normalize(conversation.get("conversation_data"))
+            df = pd.json_normalize(data)
+            for col in df.columns:
+                if col.endswith(".$date"):
+                    col_name = col.replace(".$date", "")
+                    df[col_name] = pd.to_datetime(df[col], unit="ms")
+                    df = df.drop(col, axis=1)
             temp_path = tempfile.mkdtemp()
-            file_path = os.path.join(temp_path, "conversation_history.csv")
+            file_path = os.path.join(temp_path, filename)
             df.to_csv(file_path, index=False)
             return file_path, temp_path
 
@@ -1183,6 +1188,24 @@ class Utility:
 
         model_file = os.path.join(DEFAULT_MODELS_PATH, bot)
         return Utility.get_latest_file(model_file, "*.tar.gz")
+
+    @staticmethod
+    def delete_models(bot: Text):
+        """
+        fetches the latest model from the path
+
+        :param bot: bot id
+        :return: latest model path
+        """
+        from rasa.shared.constants import DEFAULT_MODELS_PATH
+
+        retain_cnt = Utility.environment["model"]["retention"]
+        model_file = os.path.join(DEFAULT_MODELS_PATH, bot, "old_model", "*.tar.gz")
+        file_list = glob(model_file)
+        file_list.sort(key=os.path.getctime, reverse=True)
+        for file in file_list[retain_cnt:]:
+            os.remove(file)
+        return file_list
 
     @staticmethod
     def is_model_file_exists(bot: Text, raise_exc: bool = True):

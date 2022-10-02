@@ -49,6 +49,7 @@ augmentation:
   paraphrase_gpt_url: ${PARAPHRASE_GPT_URL:"http://localhost:8000/paraphrases/gpt"}
 
 model:
+  retention: ${MODEL_RETENTION_COUNT:4}
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
   test:
@@ -135,3 +136,11 @@ plugins:
   location:
     enable: ${ENABLE_LOCATION_PLUGIN}
     token: ${LOCATION_PLUGIN_TOKEN}
+
+idp:
+  enable: ${IDP_ENABLED:false}
+  server_url: ${KEYCLOAK_SERVER_URL}
+  admin_username: ${ADMIN_USERNAME}
+  admin_password: ${ADMIN_PASSWORD}
+  callback_frontend_url: ${CALLBACK_FRONTEND_URL}
+  type: ${IDP_TYPE:idp}

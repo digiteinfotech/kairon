@@ -41,7 +41,6 @@ class ActionUtility:
         if not headers:
             headers = {}
         headers.update({
-            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
             REQUEST_TIMESTAMP_HEADER: datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         })
 
