@@ -8,6 +8,7 @@ from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
+from starlette.requests import Request
 from validators import ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
@@ -15,12 +16,13 @@ from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
     MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
-from kairon.shared.constants import UserActivityType
+from kairon.shared.constants import UserActivityType, PluginTypes
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
+from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -622,7 +624,8 @@ class AccountProcessor:
                 bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
                 user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
                 update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
-                untrusted_login=open('template/emails/untrusted_login.html', 'r').read(),
+                untrusted_login=open('template/emails/untrustedLogin.html', 'r').read(),
+                add_trusted_device=open('template/emails/addTrustedDevice.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -637,6 +640,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
         Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
         Utility.email_conf['email']['templates']['untrusted_login'] = system_properties['mail_templates']['untrusted_login']
+        Utility.email_conf['email']['templates']['add_trusted_device'] = system_properties['mail_templates']['add_trusted_device']
 
     @staticmethod
     async def confirm_email(token: str):
@@ -713,13 +717,15 @@ class AccountProcessor:
             UserActivityLogger.is_password_reset_request_limit_exceeded(mail)
             token_expiry = Utility.environment['user']['reset_password_cooldown_period'] or 120
             uuid_value = str(uuid.uuid1())
-            token = Utility.generate_token_payload({"mail_id": mail, "uuid":uuid_value}, token_expiry * 60)
+            token = Utility.generate_token_payload({"mail_id": mail, "uuid": uuid_value}, token_expiry * 60)
             user = AccountProcessor.get_user(mail)
             link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
             UserActivityLogger.add_log(account=user['account'], email=mail, a_type=UserActivityType.reset_password_request.value)
-            data={"status":"pending","uuid":uuid_value}
-            UserActivityLogger.add_log(account=user['account'], email=mail, a_type=UserActivityType.link_usage.value,
-                                      message=["Send Reset Link"], data=data)
+            data = {"status": "pending", "uuid": uuid_value}
+            UserActivityLogger.add_log(
+                account=user['account'], email=mail, a_type=UserActivityType.link_usage.value,
+                message=["Send Reset Link"], data=data
+            )
             return mail, user['first_name'], link
         else:
             raise AppException("Error! Email verification is not enabled")
@@ -740,7 +746,8 @@ class AccountProcessor:
         uuid_value = decoded_jwt.get("uuid")
         if uuid_value is not None and Utility.is_exist(
                 UserActivityLog, raise_error=False, user=email, type=UserActivityType.link_usage.value,
-                data={"status":"done","uuid":uuid_value}):
+                data={"status": "done", "uuid": uuid_value}
+        ):
             raise AppException("Link is already being used, Please raise new request")
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
@@ -863,14 +870,38 @@ class AccountProcessor:
         UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_account.value)
 
     @staticmethod
-    def add_trusted_device(user: Text, fingerprint: Text):
-        if not Utility.is_exist(TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint):
-            TrustedDevice(user=user, fingerprint=fingerprint).save()
+    def add_trusted_device(user: Text, fingerprint: Text, request: Request):
+        link = None
+        ip = request.headers.get('X-Forwarded-For')
+        geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
+        if not Utility.is_exist(TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint, status=True):
+            device = TrustedDevice(user=user, fingerprint=fingerprint, geo_location=geo_location)
+            if Utility.email_conf["email"]["enable"]:
+                payload = {"mail_id": user, "fingerprint": fingerprint}
+                token = Utility.generate_token_payload(payload, minutes_to_expire=120)
+                link = Utility.email_conf["app"]["url"] + '/device/trusted/confirm/' + token
+            else:
+                device.is_confirmed = True
+                device.confirmation_timestamp = datetime.utcnow()
+            device.save()
+            return link, geo_location
+
+    @staticmethod
+    def confirm_add_trusted_device(user: Text, fingerprint: Text):
+        if not Utility.is_exist(
+            TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint, is_confirmed=False,
+            status=True
+        ):
+            raise AppException("Device not found!")
+        device = TrustedDevice.objects(user=user, fingerprint=fingerprint, is_confirmed=False, status=True).get()
+        device.is_confirmed = True
+        device.confirmation_timestamp = datetime.utcnow()
+        device.save()
 
     @staticmethod
     def remove_trusted_device(user: Text, fingerprint: Text):
         try:
-            trusted_device = TrustedDevice.objects(user=user, fingerprint=fingerprint).get()
+            trusted_device = TrustedDevice.objects(user=user, fingerprint=fingerprint, status=True).get()
             trusted_device.status = False
             trusted_device.save()
         except DoesNotExist as e:
@@ -878,7 +909,15 @@ class AccountProcessor:
 
     @staticmethod
     def list_trusted_device_fingerprints(user: Text):
-        return list(TrustedDevice.objects(user=user, status=True).values_list("fingerprint"))
+        return list(TrustedDevice.objects(user=user, is_confirmed=True, status=True).values_list("fingerprint"))
+
+    @staticmethod
+    def list_trusted_devices(user: Text):
+        for device in TrustedDevice.objects(user=user, is_confirmed=True, status=True):
+            device = device.to_mongo().to_dict()
+            device["_id"] = device["_id"].__str__()
+            device.pop("fingerprint")
+            yield device
 
     @staticmethod
     def get_auditlog_for_user(user, start_idx: int = 0, page_size: int = 10):

@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, Security, Form, Path
 from fastapi import BackgroundTasks
+from starlette.requests import Request
+
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, RegisterAccount, TextData, Password, FeedbackRequest, DictData, \
     RecaptchaVerifiedTextData
@@ -22,6 +24,62 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
         return {"message": "Account Registered! A confirmation link has been sent to your mail"}
     else:
         return {"message": "Account Registered!"}
+
+
+@router.post("/device/trusted", response_model=Response)
+async def add_trusted_device(
+        background_tasks: BackgroundTasks, request: Request, fingerprint: TextData,
+        current_user: User = Depends(Authentication.get_current_user)
+):
+    """
+    Add a device as trusted device.
+    """
+    url, geo_location = AccountProcessor.add_trusted_device(current_user.email, fingerprint.data, request)
+    if Utility.email_conf["email"]["enable"]:
+        background_tasks.add_task(
+            Utility.format_and_send_mail, mail_type='add_trusted_device', email=current_user.email,
+            first_name=current_user.first_name, url=url, **geo_location
+        )
+        return {"message": "A confirmation link has been sent to your registered mail address"}
+    else:
+        return {"message": "Trusted device added!"}
+
+
+@router.post("/device/trusted/verify", response_model=Response)
+async def is_trusted_device(fingerprint: TextData, current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Verifies whether device is trusted.
+    """
+    return Response(data={
+        "is_trusted_device": fingerprint.data in AccountProcessor.list_trusted_device_fingerprints(current_user.email)
+    })
+
+
+@router.post("/device/trusted/confirm", response_model=Response)
+async def confirm_add_trusted_device(token: RecaptchaVerifiedTextData):
+    """
+    Confirm addition of device as trusted device.
+    """
+    decoded_jwt = Utility.decode_limited_access_token(token.data)
+    AccountProcessor.confirm_add_trusted_device(decoded_jwt.get('mail_id'), decoded_jwt.get('fingerprint'))
+    return {"message": "Trusted device added!"}
+
+
+@router.get("/device/trusted", response_model=Response)
+async def list_trusted_device(current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Verifies whether device is trusted.
+    """
+    return Response(data={"trusted_devices": list(AccountProcessor.list_trusted_devices(current_user.email))})
+
+
+@router.delete("/device/trusted/{fingerprint}", response_model=Response)
+async def remove_trusted_device(fingerprint: str, current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Verifies whether device is trusted.
+    """
+    AccountProcessor.remove_trusted_device(current_user.email, fingerprint)
+    return {"message": "Trusted device removed!"}
 
 
 @router.post("/email/confirmation", response_model=Response)

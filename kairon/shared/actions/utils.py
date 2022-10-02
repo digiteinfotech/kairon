@@ -374,7 +374,8 @@ class ActionUtility:
         for event in msgtrail:
             msg = ""
             if list(event.keys())[0] == 'bot':
-                msg = bot_msg_template.replace('BOT_MESSAGE', event.get('bot', ""))
+                bot_reply = event.get('bot') if event.get('bot') else ""
+                msg = bot_msg_template.replace('BOT_MESSAGE', bot_reply)
             elif list(event.keys())[0] == 'user':
                 msg = user_msg_template.replace('USER_MESSAGE', event.get('user', ""))
             html_output = f"{html_output}{msg}"

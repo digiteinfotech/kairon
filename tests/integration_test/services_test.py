@@ -115,6 +115,7 @@ def test_api_wrong_login():
     assert value[0]["timestamp"]
     assert len(value) == 1
 
+
 def test_account_registration_error():
     response = client.post(
         "/api/account/registration",
@@ -399,12 +400,115 @@ def test_api_login():
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+
+
+def test_add_trusted_device(monkeypatch):
+    monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/account/device/trusted",
+            json={"data": "0987654321234567890"},
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        ).json()
+    assert response['message'] == 'A confirmation link has been sent to your registered mail address'
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_add_trusted_device_email_disabled():
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/account/device/trusted",
+            json={"data": "098765432123456456734567"},
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        ).json()
+    assert response['message'] == 'Trusted device added!'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_list_trusted_device():
     response = client.get(
-        "/api/user/details",
+        "/api/account/device/trusted",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    account = response["data"]["user"]["account"]
-    assert MeteringProcessor.get_metric_count(account, metric_type=MetricType.user_login.value) == 2
+    assert len(response['data']['trusted_devices']) == 1
+    assert not response['data']['trusted_devices'][0].get('fingerprint')
+    assert response['data']['trusted_devices'][0]['is_confirmed']
+    assert response['data']['trusted_devices'][0]['geo_location'] == {'City': 'Mumbai', 'Network': 'CATO'}
+    assert response['data']['trusted_devices'][0]['geo_location']
+    assert response['data']['trusted_devices'][0]['confirmation_timestamp']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_confirm_trusted_device():
+    payload = {"mail_id": "integration@demo.ai", "fingerprint": "0987654321234567890"}
+    token = Utility.generate_token_payload(payload, minutes_to_expire=120)
+    response = client.post(
+        "/api/account/device/trusted/confirm",
+        json={"data": token}
+    ).json()
+    assert response['message'] == 'Trusted device added!'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_list_trusted_device_2():
+    response = client.get(
+        "/api/account/device/trusted",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['trusted_devices']) == 2
+    assert not response['data']['trusted_devices'][0].get('fingerprint')
+    assert response['data']['trusted_devices'][0]['is_confirmed']
+    assert response['data']['trusted_devices'][0]['geo_location'] == {'City': 'Mumbai', 'Network': 'CATO'}
+    assert response['data']['trusted_devices'][0]['geo_location']
+    assert response['data']['trusted_devices'][0]['confirmation_timestamp']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_verify_is_trusted():
+    response = client.post(
+        "/api/account/device/trusted/verify",
+        json={"data": "098765432123456456734567"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['data'] == {"is_trusted_device": True}
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.post(
+        "/api/account/device/trusted/verify",
+        json={"data": "76645657"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['data'] == {"is_trusted_device": False}
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_remove_trusted_device():
+    response = client.delete(
+        "/api/account/device/trusted/098765432123456456734567",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.get(
+        "/api/account/device/trusted",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['trusted_devices']) == 1
 
 
 def test_add_bot():

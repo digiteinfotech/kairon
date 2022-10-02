@@ -8,7 +8,7 @@ from mongoengine import (
     LongField,
     SequenceField,
     DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument, ListField,
-    DynamicField
+    DynamicField, DynamicDocument
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
@@ -126,6 +126,7 @@ class MailTemplates(EmbeddedDocument):
     user_msg_conversation = StringField()
     update_role = StringField()
     untrusted_login = StringField()
+    add_trusted_device = StringField()
 
 
 class SystemProperties(Document):
@@ -142,8 +143,11 @@ class UserActivityLog(Document):
     data = DynamicField()
 
 
-class TrustedDevice(Document):
+class TrustedDevice(DynamicDocument):
     fingerprint = StringField(required=True)
     user = StringField(required=True)
+    is_confirmed = BooleanField(default=False)
+    geo_location = DictField()
     timestamp = DateTimeField(default=datetime.utcnow)
+    confirmation_timestamp = DateTimeField(default=None)
     status = BooleanField(default=True)

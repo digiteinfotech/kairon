@@ -17,3 +17,5 @@ email:
         add_member_subject: ${EMAIL_TEMPLATES_ADD_MEMBER_SUBJECT:"Invitation to collaborate on BOT_NAME bot"}
         add_member_confirmation_subject: ${EMAIL_TEMPLATES_ADD_MEMBER_CONFIRMATION_SUBJECT:"Invitation accepted by INVITED_PERSON_NAME"}
         password_generated_subject: ${EMAIL_TEMPLATES_PASSWORD_GENERATED_SUBJECT:"Welcome to kAIron!"}
+        untrusted_login_subject: ${EMAIL_TEMPLATES_UNTRUSTED_LOGIN_SUBJECT:"Suspicious sign-in detected!"}
+        add_trusted_device: ${EMAIL_TEMPLATES_ADD_TRUSTED_DEVICE_SUBJECT:"Request to add truted device!"}

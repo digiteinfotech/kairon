@@ -16,15 +16,15 @@ router = APIRouter()
 
 @router.post("/login", response_model=Response)
 async def login_for_access_token(
-        background_tasks: BackgroundTasks, form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()
+        background_tasks: BackgroundTasks, request: Request,
+        form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()
 ):
     """
     Authenticates the user and generates jwt token
     """
     access_token = Authentication.authenticate(form_data.username, form_data.password)
     background_tasks.add_task(
-        Authentication.validate_trusted_device_and_log, form_data.username,
-        form_data.fingerprint, form_data.remote_ip, form_data.add_trusted_device, form_data.remove_trusted_device
+        Authentication.validate_trusted_device, form_data.username, form_data.fingerprint, request
     )
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},

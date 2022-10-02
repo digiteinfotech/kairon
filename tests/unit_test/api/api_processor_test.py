@@ -22,7 +22,7 @@ from starlette.responses import RedirectResponse
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.actions.models import ActionType
 from kairon.shared.auth import Authentication, LoginSSOFactory
-from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account
+from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
@@ -2017,8 +2017,44 @@ class TestAccountProcessor:
         AccountProcessor.remove_trusted_device("udit.pandey@digite.com", "1234567890fghj")
 
     def test_add_trusted_device(self):
-        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "1234567890fghj")
-        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879")
+        request = Request({'type': 'http', 'headers': Headers({}).raw})
+        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "1234567890fghj", request)
+        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", request)
+
+    def test_add_trusted_device_email_enabled(self, monkeypatch):
+        monkeypatch.setitem(Utility.email_conf["email"], 'enable', True)
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
+        url, geo_location = AccountProcessor.add_trusted_device("trust@digite.com", "1234567890fghj", request)
+        assert not Utility.check_empty_string(url)
+
+    def test_list_all_trusted_device(self):
+        devices = list(AccountProcessor.list_trusted_devices("udit.pandey@digite.com"))
+        assert devices[0]['_id']
+        assert devices[0]['confirmation_timestamp']
+        assert devices[0]['timestamp']
+        assert devices[0]['status']
+        assert devices[0]['is_confirmed']
+        assert devices[0]['user']
+        assert len(devices) == 2
+        assert list(AccountProcessor.list_trusted_devices("trust@digite.com")) == []
+        device = TrustedDevice.objects(user="trust@digite.com").get()
+        assert device.fingerprint == "1234567890fghj"
+        assert not device.confirmation_timestamp
+        assert not device.is_confirmed
+
+    def test_confirm_add_trusted_device(self):
+        AccountProcessor.confirm_add_trusted_device("trust@digite.com", "1234567890fghj")
+        devices = list(AccountProcessor.list_trusted_devices("trust@digite.com"))
+        assert devices[0]['_id']
+        assert devices[0]['confirmation_timestamp']
+        assert devices[0]['timestamp']
+        assert devices[0]['status']
+        assert devices[0]['is_confirmed']
+        assert devices[0]['user']
+
+    def test_confirm_add_trusted_device_not_found(self):
+        with pytest.raises(AppException, match="Device not found!"):
+            AccountProcessor.confirm_add_trusted_device("trust@digite.com", "1234567890fghj")
 
     @pytest.mark.asyncio
     async def test_validate_trusted_device_add_device(self, monkeypatch):
@@ -2047,16 +2083,9 @@ class TestAccountProcessor:
         }
         responses.start()
         responses.add("GET", url, json=expected)
-        await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879",
-                                                             "10.11.12.13", True)
-        account_details = AccountProcessor.get_user_details("pandey.udit867@gmail.com")
-        log = MeteringProcessor.get_logs(account=account_details["account"], metric_type='user_login')
-        del log[0]['timestamp']
-        del log[0]['account']
-        assert log[0] == {'metric_type': 'user_login', 'user_id': 'pandey.udit867@gmail.com', 'ip': '10.11.12.13',
-                          'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
-                          'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-        assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == ["kjhdsaqewrrtyuio879"]
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            await Authentication.validate_trusted_device("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", request)
         responses.stop()
         responses.reset()
 
@@ -2067,8 +2096,8 @@ class TestAccountProcessor:
     @pytest.mark.asyncio
     async def test_validate_trusted_device(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
-        await Authentication.validate_trusted_device_and_log("udit.pandey@digite.com", "kjhdsaqewrrtyuio879",
-                                                             "10.11.12.13")
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
+        await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", request)
 
     @pytest.mark.asyncio
     async def test_validate_trusted_device_invalid(self, monkeypatch):
@@ -2091,16 +2120,16 @@ class TestAccountProcessor:
         }
         responses.start()
         responses.add("GET", url, json=expected)
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
         with patch("kairon.shared.utils.SMTP", autospec=True):
-            await Authentication.validate_trusted_device_and_log("udit.pandey@digite.com", "kjhdsaqewrrtyuio87",
-                                                                 "10.11.12.13")
+            await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio87", request)
         responses.stop()
         responses.reset()
 
     @pytest.mark.asyncio
     async def test_remove_trusted_device_not_exists_2(self):
-        await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879",
-                                                             "10.11.12.13", remove_trusted_device=True)
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
+        await Authentication.validate_trusted_device("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", request)
 
     def test_list_fingerprint_not_exists(self):
         assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == []
