@@ -109,7 +109,11 @@ def test_api_wrong_login():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                }
     value = list(Metering.objects(username="test@demo.ai"))
     assert value[0]["metric_type"] == "invalid_login"
     assert value[0]["timestamp"]
@@ -284,7 +288,11 @@ def test_account_registration():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                }
 
 
 def test_account_registration_enable_sso_only(monkeypatch):
@@ -452,7 +460,11 @@ def test_add_bot():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                }
     response = response.json()
     assert response['message'] == 'Bot created'
     assert response['error_code'] == 0
@@ -2194,8 +2206,8 @@ def test_integration_token():
     assert token["data"]["token_type"]
     assert (
             token["message"]
-            == """This token will be shown only once. Please copy this somewhere safe.
-            It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
+            == """This token will be shown only once. Please copy this somewhere safe. 
+                It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     )
 
     response = client.get(
@@ -2266,8 +2278,8 @@ def test_integration_token_missing_x_user():
     assert actual["data"]["token_type"]
     assert (
             actual["message"]
-            == """This token will be shown only once. Please copy this somewhere safe.
-            It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
+            == """This token will be shown only once. Please copy this somewhere safe. 
+                        It is your responsibility to keep the token secret. If leaked, others may have access to your system."""
     )
     response = client.get(
         f"/api/bot/{pytest.bot}/intents",
@@ -3630,7 +3642,7 @@ def test_overwrite_password_enabled_sso_only(monkeypatch):
         json={
             "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
             "password": "Welcome@2",
-            "confirm_password": "Welcume@2"},
+            "confirm_password": "Welcome@2"},
     )
     actual = response.json()
     assert actual["message"] == "This feature is disabled"
@@ -8071,15 +8083,18 @@ def test_list_sso_enabled():
     Utility.environment['sso']['google']['enable'] = True
 
     response = client.get(
-        url=f"/api/auth/login/sso/list/enabled", allow_redirects=False
+        url=f"/api/auth/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-            'facebook': False,
-            'linkedin': True,
-            'google': True
+            'sso': {
+                'facebook': False,
+                'linkedin': True,
+                'google': True
+            },
+            'enable_sso_only': False
         }
 
 
