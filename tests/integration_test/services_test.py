@@ -109,7 +109,11 @@ def test_api_wrong_login():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                }
     value = list(Metering.objects(username="test@demo.ai"))
     assert value[0]["metric_type"] == "invalid_login"
     assert value[0]["timestamp"]
@@ -285,7 +289,31 @@ def test_account_registration():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                }
+
+
+def test_account_registration_enable_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "integration@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integration",
+            "bot": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "This feature is disabled"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
 
 
 def test_api_wrong_password():
@@ -511,6 +539,19 @@ def test_remove_trusted_device():
     assert len(response['data']['trusted_devices']) == 1
 
 
+def test_api_login_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert actual["message"] == "This feature is disabled"
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_add_bot():
     response = client.post(
         "/api/account/bot",
@@ -523,7 +564,11 @@ def test_add_bot():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                }
     response = response.json()
     assert response['message'] == 'Bot created'
     assert response['error_code'] == 0
@@ -2991,6 +3036,21 @@ def test_account_registration_with_confirmation(monkeypatch):
     pytest.add_member_bot = response['data']['account_owned'][0]['_id']
 
 
+def test_account_registration_with_confirmation_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post("/api/account/email/confirmation",
+                           json={
+                               'data': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20'},
+                           )
+    actual = response.json()
+    Utility.email_conf["email"]["enable"] = False
+
+    assert actual['message'] == "This feature is disabled"
+    assert actual['data'] is None
+    assert not actual['success']
+    assert actual['error_code'] == 422
+
+
 def test_invalid_token_for_confirmation():
     response = client.post("/api/account/email/confirmation",
                            json={
@@ -3584,6 +3644,19 @@ def test_reset_password_for_valid_id(monkeypatch):
     assert actual['data'] is None
 
 
+def test_reset_password_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post(
+        "/api/account/password/reset",
+        json={"data": "integ1@gmail.com"},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "This feature is disabled"
+    assert actual['data'] is None
+
+
 def test_reset_password_for_invalid_id():
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
@@ -3624,6 +3697,19 @@ def test_send_link_for_valid_id(monkeypatch):
     assert actual['data'] is None
 
 
+def test_send_link_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post("/api/account/email/confirmation/link",
+                           json={
+                               'data': 'integration@demo.ai'},
+                           )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "This feature is disabled"
+    assert actual['data'] is None
+
+
 def test_send_link_for_confirmed_id():
     Utility.email_conf["email"]["enable"] = True
     response = client.post("/api/account/email/confirmation/link",
@@ -3649,6 +3735,22 @@ def test_overwrite_password_for_non_matching_passwords():
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual['data'] is None
+
+
+def test_overwrite_password_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
+            "password": "Welcome@2",
+            "confirm_password": "Welcome@2"},
+    )
+    actual = response.json()
+    assert actual["message"] == "This feature is disabled"
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual['data'] is None
@@ -8108,17 +8210,21 @@ def test_sso_redirect_url_invalid_type():
     assert not actual["success"]
 
 
-def test_list_sso_not_enabled():
+def test_list_sso_not_enabled(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
     response = client.get(
-        url=f"/api/auth/login/sso/list/enabled", allow_redirects=False
+        url=f"/api/auth/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-            'facebook': False,
-            'linkedin': False,
-            'google': False
+            'sso': {
+                'facebook': False,
+                'linkedin': False,
+                'google': False
+            },
+            'enable_sso_only': True
         }
 
 
@@ -8185,15 +8291,18 @@ def test_list_sso_enabled():
     Utility.environment['sso']['google']['enable'] = True
 
     response = client.get(
-        url=f"/api/auth/login/sso/list/enabled", allow_redirects=False
+        url=f"/api/auth/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-            'facebook': False,
-            'linkedin': True,
-            'google': True
+            'sso': {
+                'facebook': False,
+                'linkedin': True,
+                'google': True
+            },
+            'enable_sso_only': False
         }
 
 

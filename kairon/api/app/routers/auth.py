@@ -23,6 +23,7 @@ async def login_for_access_token(
     """
     Authenticates the user and generates jwt token
     """
+    Utility.validate_enable_sso_only()
     access_token = Authentication.authenticate(form_data.username, form_data.password)
     background_tasks.add_task(
         Authentication.validate_trusted_device, form_data.username, form_data.fingerprint, request
@@ -98,12 +99,12 @@ async def get_integrations(
     return Response(data=list(IntegrationProcessor.get_integrations(current_user.get_bot())))
 
 
-@router.get("/login/sso/list/enabled", response_model=Response)
-async def sso_enabled_login_list():
+@router.get("/properties", response_model=Response)
+async def get_app_properties():
     """
     List social media logins enabled.
     """
-    return Response(data=Utility.get_enabled_sso())
+    return Response(data=Utility.get_app_properties())
 
 
 @router.get('/login/sso/{sso_type}')

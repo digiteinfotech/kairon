@@ -1266,12 +1266,16 @@ class Utility:
         return is_enabled
 
     @staticmethod
-    def get_enabled_sso():
-        return {
-            'facebook': Utility.check_is_enabled('facebook', False),
-            'linkedin': Utility.check_is_enabled('linkedin', False),
-            'google': Utility.check_is_enabled('google', False)
+    def get_app_properties():
+        properties = {
+            'sso': {
+                'facebook': Utility.check_is_enabled('facebook', False),
+                'linkedin': Utility.check_is_enabled('linkedin', False),
+                'google': Utility.check_is_enabled('google', False)
+            },
+            'enable_sso_only': Utility.environment["app"]["enable_sso_only"]
         }
+        return properties
 
     @staticmethod
     def push_notification(channel: Text, event_type: Text, collection: Text, metadata: dict):
@@ -1606,3 +1610,8 @@ class Utility:
             q_filter.pop("name__iexact")
             q_filter["action_name__iexact"] = name
         Utility.is_exist(document, **q_filter)
+
+    @staticmethod
+    def validate_enable_sso_only():
+        if Utility.environment["app"]["enable_sso_only"]:
+            raise AppException("This feature is disabled")

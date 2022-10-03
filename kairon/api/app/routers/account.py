@@ -18,6 +18,7 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
     """
     Registers a new account
     """
+    Utility.validate_enable_sso_only()
     user, mail, url = await AccountProcessor.account_setup(register_account.dict())
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=user['first_name'], url=url)
@@ -87,6 +88,7 @@ async def verify(token: RecaptchaVerifiedTextData, background_tasks: BackgroundT
     """
     Used to verify an account after the user has clicked the verification link in their mail
     """
+    Utility.validate_enable_sso_only()
     token_data = token.data
     mail, first_name = await AccountProcessor.confirm_email(token_data)
     background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification_confirmation', email=mail, first_name=first_name)
@@ -98,6 +100,7 @@ async def password_link_generate(mail: RecaptchaVerifiedTextData, background_tas
     """
     Used to send a password reset link when the user clicks on the "Forgot Password" link and enters his/her mail id
     """
+    Utility.validate_enable_sso_only()
     email = mail.data
     mail, first_name, url = await AccountProcessor.send_reset_link(email.strip())
     background_tasks.add_task(Utility.format_and_send_mail, mail_type='password_reset', email=mail, first_name=first_name, url=url)
@@ -109,6 +112,7 @@ async def password_change(data: Password, background_tasks: BackgroundTasks):
     """
     Used to overwrite the account's password after the user has changed his/her password with a new one
     """
+    Utility.validate_enable_sso_only()
     mail, first_name = await AccountProcessor.overwrite_password(data.data, data.password.get_secret_value())
     background_tasks.add_task(Utility.format_and_send_mail, mail_type='password_reset_confirmation', email=mail, first_name=first_name)
     return {"message": "Success! Your password has been changed"}
@@ -119,6 +123,7 @@ async def send_confirm_link(email: RecaptchaVerifiedTextData, background_tasks: 
     """
     Used to send the account verification link to the mail id of the user
     """
+    Utility.validate_enable_sso_only()
     email = email.data
     mail, first_name, url = await AccountProcessor.send_confirmation_link(email)
     background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=first_name, url=url)
