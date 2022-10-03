@@ -5,6 +5,7 @@ database:
 
 app:
   server_url: ${APP_SERVER_URL:"http://testserver"}
+  enable_sso_only: ${ENABLE_SSO_ONLY:false}
 
 user:
   reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
