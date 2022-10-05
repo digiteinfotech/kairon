@@ -645,18 +645,30 @@ class TestActions:
         request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert request_params == {'intent': 'restart', 'user_msg': {'sender_id': 'kairon_user@digite.com',
                                                                     'session_started': '2021-12-31 16:59:38',
-                                                                    'conversation': [{'user': 'hi'},
-                                                                                     {'bot': 'are you ok?'},
-                                                                                     {'user': 'yes'},
-                                                                                     {'bot': 'Great, carry on!'},
+                                                                    'conversation': [{'user': 'hi'}, {
+                                                                        'bot': {'text': 'are you ok?', 'elements': None,
+                                                                                'quick_replies': None, 'buttons': None,
+                                                                                'attachment': None, 'image': None,
+                                                                                'custom': None}}, {'user': 'yes'}, {
+                                                                                         'bot': {
+                                                                                             'text': 'Great, carry on!',
+                                                                                             'elements': None,
+                                                                                             'quick_replies': None,
+                                                                                             'buttons': None,
+                                                                                             'attachment': None,
+                                                                                             'image': None,
+                                                                                             'custom': None}},
                                                                                      {'user': '/restart'}]}}
-        assert log == {'intent': 'restart', 'user_msg': {'sender_id': 'kairon_user@digite.com',
-                                                                    'session_started': '2021-12-31 16:59:38',
-                                                                    'conversation': [{'user': 'hi'},
-                                                                                     {'bot': 'are you ok?'},
-                                                                                     {'user': 'yes'},
-                                                                                     {'bot': 'Great, carry on!'},
-                                                                                     {'user': '/restart'}]}}
+        assert log == {'intent': 'restart',
+                       'user_msg': {'sender_id': 'kairon_user@digite.com', 'session_started': '2021-12-31 16:59:38',
+                                    'conversation': [{'user': 'hi'}, {
+                                        'bot': {'text': 'are you ok?', 'elements': None, 'quick_replies': None,
+                                                'buttons': None, 'attachment': None, 'image': None, 'custom': None}},
+                                                     {'user': 'yes'}, {
+                                                         'bot': {'text': 'Great, carry on!', 'elements': None,
+                                                                 'quick_replies': None, 'buttons': None,
+                                                                 'attachment': None, 'image': None, 'custom': None}},
+                                                     {'user': '/restart'}]}}
 
     def test_prepare_request_user_message(self):
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
