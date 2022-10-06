@@ -1,4 +1,6 @@
+import io
 import json
+import logging
 from typing import Text
 
 from loguru import logger
@@ -19,12 +21,22 @@ class ChatUtils:
 
     @staticmethod
     async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False):
+        model_logger = logging.getLogger()
+        model_logger.setLevel(logging.DEBUG)
+        log_capture_string = io.StringIO()
+        ch = logging.StreamHandler(log_capture_string)
+        ch.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        model_logger.addHandler(ch)
         model = AgentProcessor.get_agent(bot)
         msg = UserMessage(data, sender_id=user, metadata={"is_integration_user": is_integration_user, "bot": bot,
                                                           "account": account, "channel_type": "chat_client"})
         chat_response = await model.handle_message(msg)
+        model_logs = log_capture_string.getvalue()
+        log_capture_string.close()
         ChatUtils.__attach_agent_handoff_metadata(account, bot, user, chat_response, model.tracker_store)
-        return chat_response
+        return chat_response, model_logs
 
     @staticmethod
     def reload(bot: Text):
