@@ -135,7 +135,7 @@ class IDPHelper:
                 client_secret=config.idp_client_secret,
                 admin_client_secret=config.idp_admin_client_secret,
                 realm=realm_name,
-                callback_uri=Utility.environment["idp"]["callback_frontend_url"] + f"/loing/idp/callback/{realm_name}"
+                callback_uri=Utility.environment["idp"]["callback_frontend_url"] + f"/login/idp/callback/{realm_name}"
             )
 
         except Exception as ex:
@@ -182,7 +182,7 @@ class IDPHelper:
             body = body.replace("REALM_NAME", realm_name)
             body = body.replace("REDIRECT_URI",
                                 Utility.environment["idp"][
-                                    "callback_frontend_url"] + f"/loing/idp/callback/{realm_name}")
+                                    "callback_frontend_url"] + f"/login/idp/callback/{realm_name}")
 
             Utility.execute_http_request("POST", http_url=url, request_body=json.loads(body), headers=headers,
                                          return_json=False)
