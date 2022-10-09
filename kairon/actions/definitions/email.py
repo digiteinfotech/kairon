@@ -9,7 +9,7 @@ from kairon.shared.utils import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, EmailActionConfig
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
+from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT, ActionParameterType
 from kairon.shared.actions.utils import ActionUtility
 
 
@@ -60,7 +60,7 @@ class ActionEmail(ActionsBase):
             password = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_password, self.bot)
             userid = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_userid, self.bot)
             for mail in to_email:
-                body = ActionUtility.prepare_email_body(tracker.events, action_config['subject'], mail)
+                body = ActionUtility.prepare_email_body(tracker_data[ActionParameterType.chat_log.value], action_config['subject'], mail)
                 await Utility.trigger_email(email=[mail],
                                             subject=f"{tracker.sender_id} {action_config['subject']}",
                                             body=body,

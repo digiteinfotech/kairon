@@ -174,7 +174,11 @@ class ActionUtility:
         for event in tracker_events:
             if event.get('event') == 'session_started' and event.get('timestamp'):
                 initiated_at = datetime.utcfromtimestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
-            elif event.get('event') == 'user' or event.get('event') == 'bot':
+            elif event.get('event') == 'bot':
+                data = {"text": event.get('text')}
+                data.update(event.get('data'))
+                message_trail.append({event['event']: data})
+            elif event.get('event') == 'user':
                 message_trail.append({event['event']: event.get('text')})
 
         return initiated_at, message_trail
@@ -369,11 +373,10 @@ class ActionUtility:
         conversation_mail_template = Utility.email_conf['email']['templates']['conversation']
         bot_msg_template = Utility.email_conf['email']['templates']['bot_msg_conversation']
         user_msg_template = Utility.email_conf['email']['templates']['user_msg_conversation']
-        iat, msgtrail = ActionUtility.prepare_message_trail(tracker_events)
-        for event in msgtrail:
+        for event in tracker_events:
             msg = ""
             if list(event.keys())[0] == 'bot':
-                bot_reply = event.get('bot') if event.get('bot') else ""
+                bot_reply = ActionUtility.__format_bot_reply(event.get('bot'))
                 msg = bot_msg_template.replace('BOT_MESSAGE', bot_reply)
             elif list(event.keys())[0] == 'user':
                 msg = user_msg_template.replace('USER_MESSAGE', event.get('user', ""))
@@ -384,6 +387,37 @@ class ActionUtility:
         conversation_mail_template.replace('This email was sent to USER_EMAIL', '')
         conversation_mail_template = conversation_mail_template.replace('CONVERSATION_REPLACE', html_output)
         return conversation_mail_template
+
+    @staticmethod
+    def __format_bot_reply(reply: dict):
+        bot_reply = ""
+
+        if reply.get('text'):
+            bot_reply = reply['text']
+        elif reply.get("custom"):
+            custom_data = reply["custom"]['data']
+            bot_reply = list(map(lambda x: ActionUtility.__format_custom_bot_reply(x), custom_data))
+            bot_reply = "".join(bot_reply)
+        return bot_reply
+
+    @staticmethod
+    def __format_custom_bot_reply(data):
+        if data.get('text') is not None:
+            return data['text']
+
+        reply = list(map(lambda x: ActionUtility.__format_custom_bot_reply(x), data['children']))
+        reply = "".join(reply)
+
+        if data.get('type') == "image":
+            reply = f'<span><img src="{data.get("src")}" alt="{data.get("alt")}" width="150" height="150"/><br/><p>{data.get("alt")}</p></span>'
+        elif data.get('type') == "paragraph":
+            reply = f'<p>{reply}</p>'
+        elif data.get('type') == "link":
+            reply = f'<a target="_blank" href="{data.get("href")}">{reply}</a>'
+        elif data.get('type') == "video":
+            reply = f'<a target="_blank" href="{data.get("url")}">{data.get("url")}</a>'
+
+        return reply
 
     @staticmethod
     def get_jira_client(url: str, username: str, api_token: str):
