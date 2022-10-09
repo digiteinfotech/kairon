@@ -327,6 +327,7 @@ class Authentication:
         if Utility.environment['user']['validate_trusted_device']:
             trusted_fingerprints = AccountProcessor.list_trusted_device_fingerprints(user)
             if fingerprint not in trusted_fingerprints and Utility.email_conf["email"]["enable"]:
+                trust_device_url = AccountProcessor.add_trusted_device(user, fingerprint, True, **geo_location)
                 await Utility.format_and_send_mail(
-                    mail_type='untrusted_login', email=user, first_name=user, **geo_location
+                    mail_type='untrusted_login', email=user, first_name=user, url=trust_device_url, **geo_location
                 )

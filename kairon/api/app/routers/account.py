@@ -14,12 +14,13 @@ router = APIRouter()
 
 
 @router.post("/registration", response_model=Response)
-async def register_account(register_account: RegisterAccount, background_tasks: BackgroundTasks):
+async def register_account(register_account: RegisterAccount, background_tasks: BackgroundTasks, request: Request):
     """
     Registers a new account
     """
     Utility.validate_enable_sso_only()
     user, mail, url = await AccountProcessor.account_setup(register_account.dict())
+    AccountProcessor.get_location_and_add_trusted_device(user, register_account.fingerprint, request, False)
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=user['first_name'], url=url)
         return {"message": "Account Registered! A confirmation link has been sent to your mail"}
@@ -35,7 +36,7 @@ async def add_trusted_device(
     """
     Add a device as trusted device.
     """
-    url, geo_location = AccountProcessor.add_trusted_device(current_user.email, fingerprint.data, request)
+    url, geo_location = AccountProcessor.get_location_and_add_trusted_device(current_user.email, fingerprint.data, request, raise_err=True)
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(
             Utility.format_and_send_mail, mail_type='add_trusted_device', email=current_user.email,
@@ -69,7 +70,7 @@ async def confirm_add_trusted_device(token: RecaptchaVerifiedTextData):
 @router.get("/device/trusted", response_model=Response)
 async def list_trusted_device(current_user: User = Depends(Authentication.get_current_user)):
     """
-    Verifies whether device is trusted.
+    List trusted devices.
     """
     return Response(data={"trusted_devices": list(AccountProcessor.list_trusted_devices(current_user.email))})
 
@@ -77,7 +78,7 @@ async def list_trusted_device(current_user: User = Depends(Authentication.get_cu
 @router.delete("/device/trusted/{fingerprint}", response_model=Response)
 async def remove_trusted_device(fingerprint: str, current_user: User = Depends(Authentication.get_current_user)):
     """
-    Verifies whether device is trusted.
+    Removes trusted device.
     """
     AccountProcessor.remove_trusted_device(current_user.email, fingerprint)
     return {"message": "Trusted device removed!"}

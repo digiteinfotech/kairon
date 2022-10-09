@@ -870,13 +870,25 @@ class AccountProcessor:
         UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_account.value)
 
     @staticmethod
-    def add_trusted_device(user: Text, fingerprint: Text, request: Request):
-        link = None
+    def get_location_and_add_trusted_device(
+            user: Text, fingerprint: Text, request: Request, send_confirmation: bool = True, raise_err: bool = False
+    ):
         ip = request.headers.get('X-Forwarded-For')
         geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
+        if Utility.environment['user']['validate_trusted_device']:
+            link = AccountProcessor.add_trusted_device(user, fingerprint, send_confirmation, **geo_location)
+            return link, geo_location
+        else:
+            if raise_err:
+                raise AppException("Trusted devices are disabled!")
+            return None, None
+
+    @staticmethod
+    def add_trusted_device(user: Text, fingerprint: Text, send_confirmation: bool = True, **geo_location):
+        link = None
         if not Utility.is_exist(TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint, status=True):
             device = TrustedDevice(user=user, fingerprint=fingerprint, geo_location=geo_location)
-            if Utility.email_conf["email"]["enable"]:
+            if Utility.email_conf["email"]["enable"] and send_confirmation:
                 payload = {"mail_id": user, "fingerprint": fingerprint}
                 token = Utility.generate_token_payload(payload, minutes_to_expire=120)
                 link = Utility.email_conf["app"]["url"] + '/device/trusted/confirm/' + token
@@ -884,7 +896,7 @@ class AccountProcessor:
                 device.is_confirmed = True
                 device.confirmation_timestamp = datetime.utcnow()
             device.save()
-            return link, geo_location
+            return link
 
     @staticmethod
     def confirm_add_trusted_device(user: Text, fingerprint: Text):

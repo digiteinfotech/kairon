@@ -69,6 +69,8 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         OAuth2PasswordRequestForm.__init__(self, grant_type, username, password, scope, client_id, client_secret)
         self.recaptcha_response = recaptcha_response
         self.remote_ip = remote_ip
+        if Utility.environment["user"]["validate_trusted_device"] and Utility.check_empty_string(fingerprint):
+            raise AppException("fingerprint is required")
         self.fingerprint = fingerprint
 
 
@@ -115,6 +117,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     password: SecretStr
     confirm_password: SecretStr
     account: str
+    fingerprint: str = None
 
     # file deepcode ignore E0213: Method definition is predefined
     @validator("password")
@@ -134,6 +137,14 @@ class RegisterAccount(RecaptchaVerifiedRequest):
                 and v.get_secret_value() != values["password"].get_secret_value()
         ):
             raise ValueError("Password and Confirm Password does not match")
+        return v
+
+    @validator("fingerprint")
+    def validate_fingerprint(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.environment['user']['validate_trusted_device'] and not v:
+            raise ValueError("fingerprint is required")
         return v
 
 

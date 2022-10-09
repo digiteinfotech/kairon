@@ -668,10 +668,13 @@ class Utility:
             subject = Utility.email_conf['email']['templates']['password_generated_subject']
         elif mail_type == 'untrusted_login':
             geo_location = ""
+            reset_password_url = Utility.email_conf["app"]["url"] + "/reset_password"
             body = Utility.email_conf['email']['templates']['untrusted_login']
             for key, value in kwargs.items():
                 geo_location = f"{geo_location}<li>{key}: {value}</li>"
             body = body.replace('GEO_LOCATION', geo_location)
+            body = body.replace('TRUST_DEVICE_URL', url)
+            body = body.replace('RESET_PASSWORD_URL', reset_password_url)
             subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
         elif mail_type == 'add_trusted_device':
             geo_location = ""

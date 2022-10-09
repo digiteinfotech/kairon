@@ -2016,15 +2016,17 @@ class TestAccountProcessor:
     def test_remove_trusted_device(self):
         AccountProcessor.remove_trusted_device("udit.pandey@digite.com", "1234567890fghj")
 
-    def test_add_trusted_device(self):
+    def test_add_trusted_device(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
         request = Request({'type': 'http', 'headers': Headers({}).raw})
-        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "1234567890fghj", request)
-        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", request)
+        AccountProcessor.get_location_and_add_trusted_device("udit.pandey@digite.com", "1234567890fghj", request)
+        AccountProcessor.get_location_and_add_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", request)
 
     def test_add_trusted_device_email_enabled(self, monkeypatch):
         monkeypatch.setitem(Utility.email_conf["email"], 'enable', True)
+        monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
         request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
-        url, geo_location = AccountProcessor.add_trusted_device("trust@digite.com", "1234567890fghj", request)
+        url, geo_location = AccountProcessor.get_location_and_add_trusted_device("trust@digite.com", "1234567890fghj", request)
         assert not Utility.check_empty_string(url)
 
     def test_list_all_trusted_device(self):

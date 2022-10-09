@@ -428,9 +428,61 @@ def test_api_login():
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+    
+    
+def test_api_login_enabled_with_fingerprint(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert actual["message"] == "fingerprint is required"
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_trusted_device_on_signup_error(monkeypatch):
+    monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "recaptcha_response": "1234567890",
+            "remote_ip": "58.0.127.89",
+            "email": "integration1234567@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integration1234567",
+            "bot": "integration",
+            "fingerprint": None
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'fingerprint'], 'msg': 'fingerprint is required', 'type': 'value_error'}]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+
+
+def test_add_trusted_device_disabled(monkeypatch):
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    response = client.post(
+        "/api/account/device/trusted",
+        json={"data": "0987654321234567890"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['message'] == 'Trusted devices are disabled!'
+    assert not response['data']
+    assert response['error_code'] == 422
+    assert not response['success']
 
 
 def test_add_trusted_device(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
     monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
     monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
@@ -448,7 +500,8 @@ def test_add_trusted_device(monkeypatch):
     assert response['success']
 
 
-def test_add_trusted_device_email_disabled():
+def test_add_trusted_device_email_disabled(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
         mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
         response = client.post(
