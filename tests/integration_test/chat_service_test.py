@@ -226,7 +226,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat,
                                                       channel_type="chat_client") >= 2
 

@@ -1,6 +1,8 @@
 import ast
 import asyncio
+import io
 import json
+import logging
 import os
 import re
 import shutil
@@ -636,7 +638,8 @@ class Utility:
             subject = subject.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
         elif mail_type == 'update_role_member_mail':
             body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_member_mail_body'])
+            body = body.replace('MAIL_BODY_HERE',
+                                Utility.email_conf['email']['templates']['update_role_member_mail_body'])
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
             body = body.replace('STATUS', kwargs.get('status', ""))
@@ -645,7 +648,8 @@ class Utility:
             subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'update_role_owner_mail':
             body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_owner_mail_body'])
+            body = body.replace('MAIL_BODY_HERE',
+                                Utility.email_conf['email']['templates']['update_role_owner_mail_body'])
             body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
@@ -655,7 +659,8 @@ class Utility:
             subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'transfer_ownership_mail':
             body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])
+            body = body.replace('MAIL_BODY_HERE',
+                                Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])
             body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
@@ -1602,3 +1607,24 @@ class Utility:
     def validate_enable_sso_only():
         if Utility.environment["app"]["enable_sso_only"]:
             raise AppException("This feature is disabled")
+
+
+class LogStreamReader:
+
+    def __init__(self):
+        self.log_capture_string = None
+
+    def start(self):
+        model_logger = logging.getLogger()
+        model_logger.setLevel(logging.DEBUG)
+        self.log_capture_string = io.StringIO()
+        ch = logging.StreamHandler(self.log_capture_string)
+        ch.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        model_logger.addHandler(ch)
+
+    def stop_stream_and_get_logs(self):
+        model_logs = self.log_capture_string.getvalue()
+        self.log_capture_string.close()
+        return model_logs
