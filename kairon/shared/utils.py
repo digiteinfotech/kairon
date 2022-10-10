@@ -1,6 +1,5 @@
 import ast
 import asyncio
-import io
 import json
 import logging
 import os
@@ -13,7 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
 from html import escape
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
@@ -1617,7 +1616,7 @@ class LogStreamReader:
     def start(self):
         model_logger = logging.getLogger()
         model_logger.setLevel(logging.DEBUG)
-        self.log_capture_string = io.StringIO()
+        self.log_capture_string = StringIO()
         ch = logging.StreamHandler(self.log_capture_string)
         ch.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
