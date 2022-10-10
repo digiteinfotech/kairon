@@ -104,7 +104,7 @@ class IDPProcessor:
         try:
             idp = helper.get_fastapi_idp_object(realm_name)
         except AppException:
-            return Utility.environment["app"]["frontend_url"] + "/login"
+            return Utility.environment["idp"]["callback_frontend_url"] + "/login"
         query_param = {
             "response_type": "code",
             "client_id": idp.client_id,

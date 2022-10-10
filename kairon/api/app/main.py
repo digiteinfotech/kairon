@@ -88,6 +88,8 @@ async def add_secure_headers(request: Request, call_next):
     response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    requested_origin = request.headers.get("origin")
+    response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else "*"
     return response
 
 
