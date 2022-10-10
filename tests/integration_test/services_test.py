@@ -112,7 +112,8 @@ def test_api_wrong_login():
                                 'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
                                 'Cross-Origin-Embedder-Policy': 'require-corp',
                                 'Cross-Origin-Opener-Policy': 'same-origin',
-                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                'Cross-Origin-Resource-Policy': 'same-origin',
+                                'Access-Control-Allow-Origin': '*'
                                 }
     value = list(Metering.objects(username="test@demo.ai"))
     assert value[0]["metric_type"] == "invalid_login"
@@ -292,7 +293,8 @@ def test_account_registration():
                                 'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
                                 'Cross-Origin-Embedder-Policy': 'require-corp',
                                 'Cross-Origin-Opener-Policy': 'same-origin',
-                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                'Cross-Origin-Resource-Policy': 'same-origin',
+                                'Access-Control-Allow-Origin': '*'
                                 }
 
 
@@ -620,7 +622,8 @@ def test_add_bot():
                                 'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
                                 'Cross-Origin-Embedder-Policy': 'require-corp',
                                 'Cross-Origin-Opener-Policy': 'same-origin',
-                                'Cross-Origin-Resource-Policy': 'same-origin'
+                                'Cross-Origin-Resource-Policy': 'same-origin',
+                                'Access-Control-Allow-Origin': '*'
                                 }
     response = response.json()
     assert response['message'] == 'Bot created'

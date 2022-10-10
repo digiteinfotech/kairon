@@ -180,7 +180,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
             headers = list(response.headers.get_all())
             assert headers[0] == ('Server', 'Secure')
             assert headers[1] == ('Content-Type', 'application/json')
@@ -213,7 +213,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
 
             response = self.fetch(
                 f"/api/bot/{bot}/chat",
@@ -226,7 +226,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat,
                                                       channel_type="chat_client") >= 2
 
@@ -246,7 +246,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
 
     def test_chat_model_not_trained(self):
         response = self.fetch(
@@ -334,7 +334,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
 
     def test_chat_with_limited_access(self):
         access_token = Authentication.generate_integration_token(
