@@ -44,13 +44,15 @@ RUN python -m pip install pipedrive-python-lib
 RUN python -m pip install google-api-python-client
 RUN python -m pip install cryptography
 RUN python -m pip install dramatiq
-RUN python -m pip install dramatiq-mongodb
+RUN python -m pip install dramatiq-mongodb==0.6.1
 RUN python -m pip install google-cloud-translate
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install sentence-transformers
 RUN python -m pip install keybert
 RUN python -m pip install bs4
+RUN python -m pip install mongoengine==0.23.1
+RUN python -m pip install pymongo==3.12.0
 
 RUN mkdir data_generator
 RUN mkdir training_data
