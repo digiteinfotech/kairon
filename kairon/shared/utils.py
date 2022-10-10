@@ -672,11 +672,21 @@ class Utility:
             subject = Utility.email_conf['email']['templates']['password_generated_subject']
         elif mail_type == 'untrusted_login':
             geo_location = ""
+            reset_password_url = Utility.email_conf["app"]["url"] + "/reset_password"
             body = Utility.email_conf['email']['templates']['untrusted_login']
             for key, value in kwargs.items():
                 geo_location = f"{geo_location}<li>{key}: {value}</li>"
             body = body.replace('GEO_LOCATION', geo_location)
+            body = body.replace('TRUST_DEVICE_URL', url)
+            body = body.replace('RESET_PASSWORD_URL', reset_password_url)
             subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
+        elif mail_type == 'add_trusted_device':
+            geo_location = ""
+            body = Utility.email_conf['email']['templates']['add_trusted_device']
+            for key, value in kwargs.items():
+                geo_location = f"{geo_location}<li>{key}: {value}</li>"
+            body = body.replace('GEO_LOCATION', geo_location)
+            subject = Utility.email_conf['email']['templates']['add_trusted_device']
         else:
             logger.debug('Skipping sending mail as no template found for the mail type')
             return
@@ -852,7 +862,7 @@ class Utility:
         return encoded_jwt
 
     @staticmethod
-    def generate_token_payload(payload:dict, minutes_to_expire=1440):
+    def generate_token_payload(payload: dict, minutes_to_expire=1440):
         """
         Used to encode the payload of type dict into a token.
 
@@ -1270,7 +1280,8 @@ class Utility:
                 'linkedin': Utility.check_is_enabled('linkedin', False),
                 'google': Utility.check_is_enabled('google', False)
             },
-            'enable_sso_only': Utility.environment["app"]["enable_sso_only"]
+            'enable_sso_only': Utility.environment["app"]["enable_sso_only"],
+            'validate_trusted_device': Utility.environment["user"]["validate_trusted_device"]
         }
         return properties
 

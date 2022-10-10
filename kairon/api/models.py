@@ -43,9 +43,7 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
             client_secret: Optional[str] = Form(None),
             recaptcha_response: str = Form(None),
             remote_ip: str = Form(None),
-            fingerprint: str = Form(None),
-            add_trusted_device: bool = Form(False),
-            remove_trusted_device: bool = Form(False),
+            fingerprint: str = Form(None)
     ):
         """
         @param grant_type: the OAuth2 spec says it is required and MUST be the fixed string "password".
@@ -62,8 +60,6 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         @param recaptcha_response: optional string. recaptcha response.
         @param remote_ip: optional string.  remote ip address.
         @param fingerprint: optional string. device fingerprint.
-        @param add_trusted_device: Add device as a trusted device. False, by default.
-        @param remove_trusted_device: Removes trusted device. False, by default.
         """
         from kairon.shared.utils import Utility
 
@@ -73,9 +69,9 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         OAuth2PasswordRequestForm.__init__(self, grant_type, username, password, scope, client_id, client_secret)
         self.recaptcha_response = recaptcha_response
         self.remote_ip = remote_ip
+        if Utility.environment["user"]["validate_trusted_device"] and Utility.check_empty_string(fingerprint):
+            raise AppException("fingerprint is required")
         self.fingerprint = fingerprint
-        self.add_trusted_device = add_trusted_device
-        self.remove_trusted_device = remove_trusted_device
 
 
 class Token(BaseModel):
@@ -121,6 +117,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     password: SecretStr
     confirm_password: SecretStr
     account: str
+    fingerprint: str = None
 
     # file deepcode ignore E0213: Method definition is predefined
     @validator("password")
@@ -140,6 +137,14 @@ class RegisterAccount(RecaptchaVerifiedRequest):
                 and v.get_secret_value() != values["password"].get_secret_value()
         ):
             raise ValueError("Password and Confirm Password does not match")
+        return v
+
+    @validator("fingerprint")
+    def validate_fingerprint(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.environment['user']['validate_trusted_device'] and not v:
+            raise ValueError("fingerprint is required")
         return v
 
 

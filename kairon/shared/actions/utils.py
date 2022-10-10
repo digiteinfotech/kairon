@@ -391,13 +391,28 @@ class ActionUtility:
     @staticmethod
     def __format_bot_reply(reply: dict):
         bot_reply = ""
+        button_template = Utility.email_conf['email']['templates']['button_template']
 
         if reply.get('text'):
             bot_reply = reply['text']
+        elif reply.get('buttons'):
+            for btn in reply['buttons']:
+                btn_reply = """
+                <div style="font-size: 14px; color: #000000; font-weight: 400; padding: 12px; overflow: hidden; word-wrap: break-word;
+                            border: 2px solid #ffffff; margin: 8px 0px 0px 0px; text-align: center; border-radius: 20px; background: transparent;
+                            background-color: inherit; color: #000; max-width: 250px; box-sizing: border-box;">
+                    BUTTON_TEXT
+                </div>
+                """.replace('BUTTON_TEXT', btn.get('text', ''))
+                bot_reply = f"{bot_reply}\n{btn_reply}"
+            bot_reply = button_template.replace('ALL_BUTTONS', bot_reply)
         elif reply.get("custom"):
-            custom_data = reply["custom"]['data']
-            bot_reply = list(map(lambda x: ActionUtility.__format_custom_bot_reply(x), custom_data))
-            bot_reply = "".join(bot_reply)
+            if reply["custom"].get('data'):
+                custom_data = reply["custom"]['data']
+                bot_reply = list(map(lambda x: ActionUtility.__format_custom_bot_reply(x), custom_data))
+                bot_reply = "".join(bot_reply)
+            else:
+                bot_reply = str(reply["custom"])
         return bot_reply
 
     @staticmethod

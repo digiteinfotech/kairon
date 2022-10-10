@@ -1,3 +1,4 @@
+from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
@@ -14,7 +15,8 @@ class EventFactory:
         EventClass.model_testing: ModelTestingEvent,
         EventClass.delete_history: DeleteHistoryEvent,
         EventClass.data_importer: TrainingDataImporterEvent,
-        EventClass.multilingual: MultilingualEvent
+        EventClass.multilingual: MultilingualEvent,
+        EventClass.data_generator: DataGenerationEvent
     }
 
     @staticmethod

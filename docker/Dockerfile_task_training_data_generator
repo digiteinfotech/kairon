@@ -43,13 +43,4 @@ ENV TYPE default
 ENV WEBSITE_URL default
 ENV DEPTH default
 
-if [ $TYPE == "--from-website" ]
-then
-    CMD ["sh","-c","python -m kairon generate-data ${BOT} ${USER} ${TYPE} ${WEBSITE_URL} ${DEPTH}"]
-elif [ $TYPE == "--from-document" ]
-then
-    CMD ["sh","-c","python -m kairon generate-data ${BOT} ${USER} ${TYPE}"]
-else
-    echo "Invalid option supplied"
-    exit 1
-fi
+CMD ["sh","-c","python -m kairon generate-data ${BOT} ${USER} ${TYPE} ${WEBSITE_URL} ${DEPTH}"]

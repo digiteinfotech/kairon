@@ -120,6 +120,7 @@ def test_api_wrong_login():
     assert value[0]["timestamp"]
     assert len(value) == 1
 
+
 def test_account_registration_error():
     response = client.post(
         "/api/account/registration",
@@ -429,12 +430,168 @@ def test_api_login():
     )
     assert actual["success"]
     assert actual["error_code"] == 0
-    response = client.get(
-        "/api/user/details",
+
+
+def test_api_login_enabled_with_fingerprint(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert actual["message"] == "fingerprint is required"
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_trusted_device_on_signup_error(monkeypatch):
+    monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "recaptcha_response": "1234567890",
+            "remote_ip": "58.0.127.89",
+            "email": "integration1234567@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integration1234567",
+            "bot": "integration",
+            "fingerprint": None
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'fingerprint'], 'msg': 'fingerprint is required', 'type': 'value_error'}]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+
+
+def test_add_trusted_device_disabled(monkeypatch):
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    response = client.post(
+        "/api/account/device/trusted",
+        json={"data": "0987654321234567890"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    account = response["data"]["user"]["account"]
-    assert MeteringProcessor.get_metric_count(account, metric_type=MetricType.user_login.value) == 2
+    assert response['message'] == 'Trusted devices are disabled!'
+    assert not response['data']
+    assert response['error_code'] == 422
+    assert not response['success']
+
+
+def test_add_trusted_device(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
+    monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/account/device/trusted",
+            json={"data": "0987654321234567890"},
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        ).json()
+    assert response['message'] == 'A confirmation link has been sent to your registered mail address'
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_add_trusted_device_email_disabled(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/account/device/trusted",
+            json={"data": "098765432123456456734567"},
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        ).json()
+    assert response['message'] == 'Trusted device added!'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_list_trusted_device():
+    response = client.get(
+        "/api/account/device/trusted",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['trusted_devices']) == 1
+    assert not response['data']['trusted_devices'][0].get('fingerprint')
+    assert response['data']['trusted_devices'][0]['is_confirmed']
+    assert response['data']['trusted_devices'][0]['geo_location'] == {'City': 'Mumbai', 'Network': 'CATO'}
+    assert response['data']['trusted_devices'][0]['geo_location']
+    assert response['data']['trusted_devices'][0]['confirmation_timestamp']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_confirm_trusted_device():
+    payload = {"mail_id": "integration@demo.ai", "fingerprint": "0987654321234567890"}
+    token = Utility.generate_token_payload(payload, minutes_to_expire=120)
+    response = client.post(
+        "/api/account/device/trusted/confirm",
+        json={"data": token}
+    ).json()
+    assert response['message'] == 'Trusted device added!'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_list_trusted_device_2():
+    response = client.get(
+        "/api/account/device/trusted",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['trusted_devices']) == 2
+    assert not response['data']['trusted_devices'][0].get('fingerprint')
+    assert response['data']['trusted_devices'][0]['is_confirmed']
+    assert response['data']['trusted_devices'][0]['geo_location'] == {'City': 'Mumbai', 'Network': 'CATO'}
+    assert response['data']['trusted_devices'][0]['geo_location']
+    assert response['data']['trusted_devices'][0]['confirmation_timestamp']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_verify_is_trusted():
+    response = client.post(
+        "/api/account/device/trusted/verify",
+        json={"data": "098765432123456456734567"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['data'] == {"is_trusted_device": True}
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.post(
+        "/api/account/device/trusted/verify",
+        json={"data": "76645657"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['data'] == {"is_trusted_device": False}
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_remove_trusted_device():
+    response = client.delete(
+        "/api/account/device/trusted/098765432123456456734567",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.get(
+        "/api/account/device/trusted",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['trusted_devices']) == 1
 
 
 def test_api_login_enabled_sso_only(monkeypatch):
@@ -6158,21 +6315,6 @@ def test_get_client_config_refresh(monkeypatch):
     assert actual["message"] == 'Access denied for this endpoint'
 
 
-def test_get_metering():
-    response = client.get(
-        f"/api/bot/{pytest.bot}/metric/test_chat",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': 0, 'error_code': 0}
-    response = client.get(
-        f"/api/bot/{pytest.bot}/metric/prod_chat",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual == {'success': True, 'message': None, 'data': 0, 'error_code': 0}
-
-
 def test_get_chat_client_config_multilingual_enabled_no_bots_enabled():
     from bson import ObjectId
 
@@ -6274,6 +6416,21 @@ def test_get_chat_client_config_multilingual_enabled():
     assert len(actual["data"]['multilingual']['bots']) == 3
     assert actual["data"]['multilingual']['bots'][0]['is_enabled']
     assert not actual["data"]['multilingual']['bots'][1]['is_enabled']
+
+
+def test_get_metering():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/test_chat",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual == {'success': True, 'message': None, 'data': 0, 'error_code': 0}
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/prod_chat",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual == {'success': True, 'message': None, 'data': 0, 'error_code': 0}
 
 
 def test_add_story_with_no_type():
@@ -8122,8 +8279,7 @@ def test_list_sso_not_enabled(monkeypatch):
                 'facebook': False,
                 'linkedin': False,
                 'google': False
-            },
-            'enable_sso_only': True
+            }, 'enable_sso_only': True, 'validate_trusted_device': False
         }
 
 
@@ -8201,7 +8357,7 @@ def test_list_sso_enabled():
                 'linkedin': True,
                 'google': True
             },
-            'enable_sso_only': False
+            'enable_sso_only': False, 'validate_trusted_device': False
         }
 
 
@@ -9026,27 +9182,9 @@ def test_edit_kairon_two_stage_fallback_action_not_exists():
 
 
 def test_add_kairon_two_stage_fallback_action():
-    response = client.post(
-        f"/api/bot/{pytest.bot}/stories",
-        json={
-            "name": "kairon_two_stage_fallback_action",
-            "type": "RULE",
-            "template_type": "Q&A",
-            "steps": [
-                {"name": "greet", "type": "INTENT"},
-                {"name": "utter_greet_delete", "type": "BOT"},
-            ],
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["message"] == "Flow added successfully"
-    assert actual["success"]
-    assert actual["error_code"] == 0
-
     action = {
         "num_text_recommendations": 0,
-        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+        "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/fallback/two_stage",
@@ -9063,7 +9201,7 @@ def test_add_kairon_two_stage_fallback_action():
 def test_add_kairon_two_stage_fallback_action_exists():
     action = {
         "num_text_recommendations": 0,
-        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+        "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/fallback/two_stage",
@@ -10318,7 +10456,8 @@ def test_channels_params():
     assert actual["error_code"] == 0
     assert "slack" in list(actual['data'].keys())
     assert ["bot_user_oAuth_token", "slack_signing_secret", "client_id", "client_secret"] == actual['data']['slack']['required_fields']
-    assert ["slack_channel", "is_primary", "team"] == actual['data']['slack']['optional_fields']
+    assert ["slack_channel", "team", "is_primary"] == actual['data']['slack']['optional_fields']
+    assert ["team", "is_primary"] == actual['data']['slack']['disabled_fields']
 
 
 def test_get_channel_endpoint_not_configured():
