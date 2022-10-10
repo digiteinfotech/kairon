@@ -4273,9 +4273,9 @@ class MongoProcessor:
             bot=bot, status=True
         )
         trigger_rules = [rule['payload'] for rule in request_data.get('trigger_rules') or []]
-        rules_present = self.fetch_rule_block_names(bot)
-        if trigger_rules and set(trigger_rules).difference(set(rules_present)):
-            raise AppException(f"Rule {set(trigger_rules).difference(set(rules_present))} do not exist in the bot")
+        intent_present = self.fetch_intents(bot)
+        if trigger_rules and set(trigger_rules).difference(set(intent_present)):
+            raise AppException(f"Intent {set(trigger_rules).difference(set(intent_present))} do not exist in the bot")
         request_data['bot'] = bot
         request_data['user'] = user
         request_data['name'] = KAIRON_TWO_STAGE_FALLBACK
@@ -4300,9 +4300,9 @@ class MongoProcessor:
         ):
             raise AppException(f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found')
         trigger_rules = [rule['payload'] for rule in request_data.get('trigger_rules') or []]
-        rules_present = self.fetch_rule_block_names(bot)
-        if trigger_rules and set(trigger_rules).difference(set(rules_present)):
-            raise AppException(f"Rule {set(trigger_rules).difference(set(rules_present))} do not exist in the bot")
+        intent_present = self.fetch_rule_block_names(bot)
+        if trigger_rules and set(trigger_rules).difference(set(intent_present)):
+            raise AppException(f"Intent {set(trigger_rules).difference(set(intent_present))} do not exist in the bot")
         action = KaironTwoStageFallbackAction.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         action.trigger_rules = [QuickReplies(**rule) for rule in request_data.get('trigger_rules') or []]
         action.num_text_recommendations = request_data['num_text_recommendations']

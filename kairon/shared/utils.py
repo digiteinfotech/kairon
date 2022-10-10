@@ -1276,7 +1276,8 @@ class Utility:
                 'linkedin': Utility.check_is_enabled('linkedin', False),
                 'google': Utility.check_is_enabled('google', False)
             },
-            'enable_sso_only': Utility.environment["app"]["enable_sso_only"]
+            'enable_sso_only': Utility.environment["app"]["enable_sso_only"],
+            'validate_trusted_device': Utility.environment["user"]["validate_trusted_device"]
         }
         return properties
 

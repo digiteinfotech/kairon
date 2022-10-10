@@ -1410,6 +1410,7 @@ class TestActionServer(AsyncHTTPTestCase):
         Utility.email_conf['email']['templates']['conversation'] = open('template/emails/conversation.html', 'rb').read().decode()
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = open('template/emails/bot_msg_conversation.html', 'rb').read().decode()
         Utility.email_conf['email']['templates']['user_msg_conversation'] = open('template/emails/user_msg_conversation.html', 'rb').read().decode()
+        Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html', 'rb').read().decode()
 
         action_name = "test_run_email_action"
         action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
@@ -1510,6 +1511,8 @@ class TestActionServer(AsyncHTTPTestCase):
             'template/emails/bot_msg_conversation.html', 'rb').read().decode()
         Utility.email_conf['email']['templates']['user_msg_conversation'] = open(
             'template/emails/user_msg_conversation.html', 'rb').read().decode()
+        Utility.email_conf['email']['templates']['button_template'] = open('template/emails/button.html',
+                                                                           'rb').read().decode()
 
         action_name = "test_email_action_execution_varied_utterances"
         action = Actions(name=action_name, type=ActionType.email_action.value, bot="bot", user="user")
@@ -1855,6 +1858,104 @@ class TestActionServer(AsyncHTTPTestCase):
         assert str(args[2]).__contains__(action_config.subject)
         assert str(args[2]).__contains__("Content-Type: text/html")
         assert str(args[2]).__contains__("Subject: default test")
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{'event': 'session_started', 'timestamp': 1664983829.6084516},
+                           {'event': 'action', 'timestamp': 1664983829.608483, 'name': 'action_listen', 'policy': None,
+                            'confidence': None, 'action_text': None, 'hide_rule_turn': False},
+                           {'event': 'user', 'timestamp': 1664983829.919788, 'text': 'link', 'parse_data': {
+                               'intent': {'id': 2015045187461877599, 'name': 'link', 'confidence': 0.9997459053993225},
+                               'entities': [], 'text': 'link', 'message_id': '76f5c53fc6ff4692a61550f598986ab1',
+                               'metadata': {}, 'intent_ranking': [
+                                   {'id': 2015045187461877599, 'name': 'link', 'confidence': 0.9997459053993225},
+                                   {'id': -8857672120535800139, 'name': 'mail', 'confidence': 0.00020965914882253855},
+                                   {'id': -7823499171713963943, 'name': 'video', 'confidence': 4.25996768171899e-05},
+                                   {'id': 8484017656191423660, 'name': 'image', 'confidence': 1.9194467313354835e-06}],
+                               'response_selector': {'all_retrieval_intents': [], 'default': {
+                                   'response': {'id': None, 'responses': None, 'response_templates': None,
+                                                'confidence': 0.0, 'intent_response_key': None,
+                                                'utter_action': 'utter_None', 'template_name': 'utter_None'},
+                                   'ranking': []}}}, 'input_channel': None,
+                            'message_id': '76f5c53fc6ff4692a61550f598986ab1', 'metadata': {}},
+                           {'event': 'user_featurization', 'timestamp': 1664983830.0568683,
+                            'use_text_for_featurization': False},
+                           {'event': 'action', 'timestamp': 1664983830.0568924, 'name': 'utter_link',
+                            'policy': 'policy_0_MemoizationPolicy', 'confidence': 1.0, 'action_text': None,
+                            'hide_rule_turn': False},
+                           {'event': 'bot', 'timestamp': 1664983830.0570993, 'metadata': {'utter_action': 'utter_link'},
+                            'text': None,
+                            'data': {'elements': None, 'quick_replies': None, 'buttons': None, 'attachment': None,
+                                     'image': None, 'custom': {"type": "custom", "text": "hello"}}},
+                           {'event': 'action', 'timestamp': 1664983829.608483, 'name': 'action_listen', 'policy': None,
+                            'confidence': None, 'action_text': None, 'hide_rule_turn': False},
+                           {'event': 'user', 'timestamp': 1664983829.919788, 'text': 'link', 'parse_data': {
+                               'intent': {'id': 2015045187461877599, 'name': 'link', 'confidence': 0.9997459053993225},
+                               'entities': [], 'text': 'link', 'message_id': '76f5c53fc6ff4692a61550f598986ab1',
+                               'metadata': {}, 'intent_ranking': [
+                                   {'id': 2015045187461877599, 'name': 'link', 'confidence': 0.9997459053993225},
+                                   {'id': -8857672120535800139, 'name': 'mail', 'confidence': 0.00020965914882253855},
+                                   {'id': -7823499171713963943, 'name': 'video', 'confidence': 4.25996768171899e-05},
+                                   {'id': 8484017656191423660, 'name': 'image', 'confidence': 1.9194467313354835e-06}],
+                               'response_selector': {'all_retrieval_intents': [], 'default': {
+                                   'response': {'id': None, 'responses': None, 'response_templates': None,
+                                                'confidence': 0.0, 'intent_response_key': None,
+                                                'utter_action': 'utter_None', 'template_name': 'utter_None'},
+                                   'ranking': []}}}, 'input_channel': None,
+                            'message_id': '76f5c53fc6ff4692a61550f598986ab1', 'metadata': {}},
+                           {'event': 'user_featurization', 'timestamp': 1664983830.0568683,
+                            'use_text_for_featurization': False},
+                           {'event': 'action', 'timestamp': 1664983830.0568924, 'name': 'utter_link',
+                            'policy': 'policy_0_MemoizationPolicy', 'confidence': 1.0, 'action_text': None,
+                            'hide_rule_turn': False},
+                           {'event': 'bot', 'timestamp': 1664983830.0570993, 'metadata': {'utter_action': 'utter_link'},
+                            'text': None,
+                            'data': {'elements': None, 'quick_replies': None, 'buttons': [
+                                {"text": "hi", "payload": "hi"}, {"text": "bye", "payload": "/goodbye"}], 'attachment': None,
+                                     'image': None, 'custom': None}},
+                           {'event': 'action', 'timestamp': 1664983830.194102, 'name': 'action_listen',
+                            'policy': 'policy_0_MemoizationPolicy', 'confidence': 1.0, 'action_text': None,
+                            'hide_rule_turn': False}
+                           ],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        mock_action.side_effect = _get_action
+        mock_action_config.side_effect = _get_action_config
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': "Email Triggered"}])
+        self.assertEqual(response_json['responses'][0]['text'],
+                         "Email Triggered")
+        logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
+        assert logs.status == "SUCCESS"
 
     @patch("kairon.shared.actions.utils.ActionUtility.get_action")
     @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")

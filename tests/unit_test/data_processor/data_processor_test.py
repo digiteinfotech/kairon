@@ -8305,27 +8305,17 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
                                      {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
-        with pytest.raises(AppException, match=r"Rule {.+} do not exist in the bot"):
+        with pytest.raises(AppException, match=r"Intent {.+} do not exist in the bot"):
             processor.add_two_stage_fallback_action(request, bot, user)
 
     def test_add_custom_2_stage_fallback_action_rules_only(self):
         processor = MongoProcessor()
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "greet"},
                                      {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
-        steps = [
-            {"name": "mail", "type": "INTENT"},
-            {"name": "action_send_mail", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
-        steps = [
-            {"name": "contact", "type": "INTENT"},
-            {"name": "action_call", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
+        processor.add_intent("greet", bot, user, False)
+        processor.add_intent("call", bot, user, False)
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
@@ -8388,7 +8378,7 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}], "num_text_recommendations": 0}
 
-        with pytest.raises(AppException, match=f"Rule {set(['send_dm'])} do not exist in the bot"):
+        with pytest.raises(AppException, match=f"Intent {set(['send_dm'])} do not exist in the bot"):
             processor.edit_two_stage_fallback_action(request, bot, user)
 
     def test_delete_2_stage_fallback_action(self):

@@ -626,6 +626,7 @@ class AccountProcessor:
                 update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
                 untrusted_login=open('template/emails/untrustedLogin.html', 'r').read(),
                 add_trusted_device=open('template/emails/addTrustedDevice.html', 'r').read(),
+                button_template=open('template/emails/button.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -641,6 +642,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
         Utility.email_conf['email']['templates']['untrusted_login'] = system_properties['mail_templates']['untrusted_login']
         Utility.email_conf['email']['templates']['add_trusted_device'] = system_properties['mail_templates']['add_trusted_device']
+        Utility.email_conf['email']['templates']['button_template'] = system_properties['mail_templates']['button_template']
 
     @staticmethod
     async def confirm_email(token: str):

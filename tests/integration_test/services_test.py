@@ -8276,8 +8276,7 @@ def test_list_sso_not_enabled(monkeypatch):
                 'facebook': False,
                 'linkedin': False,
                 'google': False
-            },
-            'enable_sso_only': True
+            }, 'enable_sso_only': True, 'validate_trusted_device': False
         }
 
 
@@ -8355,7 +8354,7 @@ def test_list_sso_enabled():
                 'linkedin': True,
                 'google': True
             },
-            'enable_sso_only': False
+            'enable_sso_only': False, 'validate_trusted_device': False
         }
 
 
@@ -9180,27 +9179,9 @@ def test_edit_kairon_two_stage_fallback_action_not_exists():
 
 
 def test_add_kairon_two_stage_fallback_action():
-    response = client.post(
-        f"/api/bot/{pytest.bot}/stories",
-        json={
-            "name": "kairon_two_stage_fallback_action",
-            "type": "RULE",
-            "template_type": "Q&A",
-            "steps": [
-                {"name": "greet", "type": "INTENT"},
-                {"name": "utter_greet_delete", "type": "BOT"},
-            ],
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["message"] == "Flow added successfully"
-    assert actual["success"]
-    assert actual["error_code"] == 0
-
     action = {
         "num_text_recommendations": 0,
-        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+        "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/fallback/two_stage",
@@ -9217,7 +9198,7 @@ def test_add_kairon_two_stage_fallback_action():
 def test_add_kairon_two_stage_fallback_action_exists():
     action = {
         "num_text_recommendations": 0,
-        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+        "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/fallback/two_stage",
