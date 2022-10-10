@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import os
 import re
 import shutil
@@ -17,6 +18,7 @@ from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
 from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
+from slack.web.slack_response import SlackResponse
 
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
@@ -24,16 +26,19 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
-from kairon.shared.end_user_metrics.data_objects import EndUserMetrics
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE
+from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
+    KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.data_object import Metering
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
@@ -104,8 +109,16 @@ def test_api_wrong_login():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
-
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin',
+                                'Access-Control-Allow-Origin': '*'
+                                }
+    value = list(Metering.objects(username="test@demo.ai"))
+    assert value[0]["metric_type"] == "invalid_login"
+    assert value[0]["timestamp"]
+    assert len(value) == 1
 
 def test_account_registration_error():
     response = client.post(
@@ -169,6 +182,7 @@ def test_recaptcha_verified_request(monkeypatch):
                 "confirm_password": "Welcome@1",
                 "account": "integration1234567",
                 "bot": "integration",
+                "add_trusted_device": True
             },
         )
         actual = response.json()
@@ -275,7 +289,32 @@ def test_account_registration():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin',
+                                'Access-Control-Allow-Origin': '*'
+                                }
+
+
+def test_account_registration_enable_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "integration@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integration",
+            "bot": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "This feature is disabled"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
 
 
 def test_api_wrong_password():
@@ -286,6 +325,11 @@ def test_api_wrong_password():
     assert actual["error_code"] == 401
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
+    value = list(Metering.objects(username="INTEGRATION@DEMO.AI"))
+    assert value[0]["metric_type"] == "invalid_login"
+    assert value[0]["timestamp"]
+    assert value[0]["error"] == "Incorrect username or password"
+    assert len(value) == 1
 
 
 def test_api_login_with_recaptcha(monkeypatch):
@@ -385,6 +429,25 @@ def test_api_login():
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    account = response["data"]["user"]["account"]
+    assert MeteringProcessor.get_metric_count(account, metric_type=MetricType.user_login.value) == 2
+
+
+def test_api_login_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert actual["message"] == "This feature is disabled"
+    assert not actual["success"]
+    assert actual["error_code"] == 422
 
 
 def test_add_bot():
@@ -399,7 +462,12 @@ def test_add_bot():
                                 'x-content-type-options': 'nosniff',
                                 'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
                                 'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()'}
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'Cross-Origin-Embedder-Policy': 'require-corp',
+                                'Cross-Origin-Opener-Policy': 'same-origin',
+                                'Cross-Origin-Resource-Policy': 'same-origin',
+                                'Access-Control-Allow-Origin': '*'
+                                }
     response = response.json()
     assert response['message'] == 'Bot created'
     assert response['error_code'] == 0
@@ -685,30 +753,31 @@ def test_model_testing_not_trained(monkeypatch):
 
 def test_get_data_importer_logs():
     response = client.get(
-        f"/api/bot/{pytest.bot}/importer/logs",
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 4
-    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert set(actual['data'][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
-    assert actual['data'][0]['is_data_uploaded']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['end_timestamp']
+    assert len(actual["data"]["logs"]) == 4
+    assert actual["data"]["total"] == 4
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert set(actual['data']["logs"][0]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['end_timestamp']
 
-    assert actual['data'][1]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][1]['status'] == 'Success'
-    assert set(actual['data'][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
-    assert actual['data'][1]['is_data_uploaded']
-    assert actual['data'][1]['start_timestamp']
-    assert actual['data'][1]['end_timestamp']
-    del actual['data'][1]['start_timestamp']
-    del actual['data'][1]['end_timestamp']
-    del actual['data'][1]['files_received']
-    assert actual['data'][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
+    assert actual['data']["logs"][1]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][1]['status'] == 'Success'
+    assert set(actual['data']["logs"][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data']["logs"][1]['is_data_uploaded']
+    assert actual['data']["logs"][1]['start_timestamp']
+    assert actual['data']["logs"][1]['end_timestamp']
+    del actual['data']["logs"][1]['start_timestamp']
+    del actual['data']["logs"][1]['end_timestamp']
+    del actual['data']["logs"][1]['files_received']
+    assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
                                  'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
                                             'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
@@ -725,33 +794,33 @@ def test_get_data_importer_logs():
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
 
-    assert actual['data'][2]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][2]['status'] == 'Failure'
-    assert set(actual['data'][2]['files_received']) == {'stories', 'nlu', 'domain', 'config'}
-    assert actual['data'][2]['is_data_uploaded']
-    assert actual['data'][2]['start_timestamp']
-    assert actual['data'][2]['end_timestamp']
+    assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][2]['status'] == 'Failure'
+    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config'}
+    assert actual['data']["logs"][2]['is_data_uploaded']
+    assert actual['data']["logs"][2]['start_timestamp']
+    assert actual['data']["logs"][2]['end_timestamp']
 
-    assert actual['data'][3]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][3]['status'] == 'Failure'
-    assert set(actual['data'][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config', 'actions'}
-    assert actual['data'][3]['is_data_uploaded']
-    assert actual['data'][3]['start_timestamp']
-    assert actual['data'][3]['end_timestamp']
-    assert actual['data'][3]['intents']['count'] == 16
-    assert len(actual['data'][3]['intents']['data']) == 21
-    assert actual['data'][3]['utterances']['count'] == 25
-    assert len(actual['data'][3]['utterances']['data']) == 13
-    assert actual['data'][3]['stories']['count'] == 16
-    assert len(actual['data'][3]['stories']['data']) == 1
-    assert actual['data'][3]['rules']['count'] == 3
-    assert len(actual['data'][3]['rules']['data']) == 0
-    assert actual['data'][3]['training_examples']['count'] == 292
-    assert len(actual['data'][3]['training_examples']['data']) == 0
-    assert actual['data'][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
+    assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][3]['status'] == 'Failure'
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert actual['data']["logs"][3]['is_data_uploaded']
+    assert actual['data']["logs"][3]['start_timestamp']
+    assert actual['data']["logs"][3]['end_timestamp']
+    assert actual['data']["logs"][3]['intents']['count'] == 16
+    assert len(actual['data']["logs"][3]['intents']['data']) == 21
+    assert actual['data']["logs"][3]['utterances']['count'] == 25
+    assert len(actual['data']["logs"][3]['utterances']['data']) == 13
+    assert actual['data']["logs"][3]['stories']['count'] == 16
+    assert len(actual['data']["logs"][3]['stories']['data']) == 1
+    assert actual['data']["logs"][3]['rules']['count'] == 3
+    assert len(actual['data']["logs"][3]['rules']['data']) == 0
+    assert actual['data']["logs"][3]['training_examples']['count'] == 292
+    assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
                                            'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
-    assert actual['data'][3]['config'] == {'count': 0, 'data': []}
-    assert actual['data'][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
+    assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
+    assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
@@ -759,8 +828,8 @@ def test_get_data_importer_logs():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}]
-    assert actual['data'][3]['is_data_uploaded']
-    assert set(actual['data'][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain', 'actions'}
+    assert actual['data']["logs"][3]['is_data_uploaded']
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain', 'actions'}
 
 
 def test_get_slots():
@@ -1822,6 +1891,16 @@ def test_train_on_updated_data(monkeypatch):
     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
+def test_download_model_training_logs(monkeypatch):
+    start_date = datetime.utcnow() - timedelta(days=1)
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
+
+
 @pytest.fixture
 def mock_is_training_inprogress_exception(monkeypatch):
     def _inprogress_execption_response(*args, **kwargs):
@@ -1923,7 +2002,7 @@ def test_model_testing_in_progress():
 
 def test_get_model_testing_logs():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/logs/test",
+        url=f"/api/bot/{pytest.bot}/logs/test?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -1932,12 +2011,22 @@ def test_get_model_testing_logs():
     assert actual["success"]
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/logs/test?log_type=stories&reference_id={actual['data'][0]['reference_id']}",
+        url=f"/api/bot/{pytest.bot}/logs/test?log_type=stories&reference_id={actual['data']['logs'][0]['reference_id']}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
+
+
+def test_download_model_testing_logs(monkeypatch):
+    start_date = datetime.utcnow() - timedelta(days=1)
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_testing?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
 
 
 def test_get_file_training_history():
@@ -2793,6 +2882,10 @@ def test_api_login_with_account_not_verified():
     assert actual['error_code'] == 422
     assert actual['data'] is None
     assert actual['message'] == 'Please verify your mail'
+    value = list(Metering.objects(username="integration@demo.ai").order_by("-timestamp"))[0]
+    assert value["metric_type"] == "invalid_login"
+    assert value["timestamp"]
+    assert value["error"] == "Please verify your mail"
 
 
 def test_account_registration_with_confirmation(monkeypatch):
@@ -2840,6 +2933,21 @@ def test_account_registration_with_confirmation(monkeypatch):
         headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
     ).json()
     pytest.add_member_bot = response['data']['account_owned'][0]['_id']
+
+
+def test_account_registration_with_confirmation_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post("/api/account/email/confirmation",
+                           json={
+                               'data': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20'},
+                           )
+    actual = response.json()
+    Utility.email_conf["email"]["enable"] = False
+
+    assert actual['message'] == "This feature is disabled"
+    assert actual['data'] is None
+    assert not actual['success']
+    assert actual['error_code'] == 422
 
 
 def test_invalid_token_for_confirmation():
@@ -3435,6 +3543,19 @@ def test_reset_password_for_valid_id(monkeypatch):
     assert actual['data'] is None
 
 
+def test_reset_password_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post(
+        "/api/account/password/reset",
+        json={"data": "integ1@gmail.com"},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "This feature is disabled"
+    assert actual['data'] is None
+
+
 def test_reset_password_for_invalid_id():
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
@@ -3475,6 +3596,19 @@ def test_send_link_for_valid_id(monkeypatch):
     assert actual['data'] is None
 
 
+def test_send_link_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post("/api/account/email/confirmation/link",
+                           json={
+                               'data': 'integration@demo.ai'},
+                           )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "This feature is disabled"
+    assert actual['data'] is None
+
+
 def test_send_link_for_confirmed_id():
     Utility.email_conf["email"]["enable"] = True
     response = client.post("/api/account/email/confirmation/link",
@@ -3500,6 +3634,22 @@ def test_overwrite_password_for_non_matching_passwords():
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual['data'] is None
+
+
+def test_overwrite_password_enabled_sso_only(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
+    response = client.post(
+        "/api/account/password/change",
+        json={
+            "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
+            "password": "Welcome@2",
+            "confirm_password": "Welcome@2"},
+    )
+    actual = response.json()
+    assert actual["message"] == "This feature is disabled"
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual['data'] is None
@@ -4319,7 +4469,7 @@ def test_update_http_action_wrong_parameter():
     assert actual["error_code"] == 422
     assert actual["message"]
     assert not actual["success"]
-    
+
     request_body = {
         "auth_token": "bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf",
         "action_name": "test_update_http_action_6",
@@ -4590,7 +4740,7 @@ def test_train_using_event(monkeypatch):
 
 def test_update_training_data_generator_status(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED
+        "status": EVENT_STATUS.INITIATED.value
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -4627,7 +4777,7 @@ def test_update_training_data_generator_status_completed(monkeypatch):
          "training_examples": ["example3", "example4"],
          "response": "response2"}]
     request_body = {
-        "status": EVENT_STATUS.COMPLETED,
+        "status": EVENT_STATUS.COMPLETED.value,
         "response": training_data
     }
     response = client.put(
@@ -4755,7 +4905,7 @@ def test_get_training_data_history_1(monkeypatch):
 
 def test_update_training_data_generator_status_exception(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED.value,
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -4769,7 +4919,7 @@ def test_update_training_data_generator_status_exception(monkeypatch):
     assert actual["message"] == "Status updated successfully!"
 
     request_body = {
-        "status": EVENT_STATUS.FAIL,
+        "status": EVENT_STATUS.FAIL.value,
         "exception": 'Exception message'
     }
     response = client.put(
@@ -4803,7 +4953,7 @@ def test_get_training_data_history_2(monkeypatch):
 
 def test_fetch_latest(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED,
+        "status": EVENT_STATUS.INITIATED.value,
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -4899,7 +5049,7 @@ def test_file_upload_error(mock_file_upload, monkeypatch):
 
 def test_list_action_server_logs_empty():
     response = client.get(
-        f"/api/bot/{pytest.bot}/actions/logs",
+        f"/api/bot/{pytest.bot}/actions/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token})
 
     actual = response.json()
@@ -4993,7 +5143,7 @@ def test_list_action_server_logs():
 
 def test_add_training_data_invalid_id(monkeypatch):
     request_body = {
-        "status": EVENT_STATUS.INITIATED
+        "status": EVENT_STATUS.COMPLETED.value
     }
     client.put(
         f"/api/bot/{pytest.bot}/update/data/generator/status",
@@ -5422,22 +5572,23 @@ def test_upload_with_http_error():
     assert actual["success"]
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/importer/logs",
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 4
-    assert actual['data'][0]['status'] == 'Failure'
-    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][0]['is_data_uploaded']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['start_timestamp']
-    print(actual['data'][0]['actions'])
-    assert 'Required http action fields' in actual['data'][0]['actions'][0]['data'][0]
-    assert actual['data'][0]['config']['data'] == ['Invalid component XYZ']
+    assert len(actual["data"]["logs"]) == 4
+    assert actual["data"]["total"] == 4
+    assert actual['data']["logs"][0]['status'] == 'Failure'
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['start_timestamp']
+    print(actual['data']["logs"][0]['actions'])
+    assert 'Required http action fields' in actual['data']["logs"][0]['actions'][0]['data'][0]
+    assert actual['data']["logs"][0]['config']['data'] == ['Invalid component XYZ']
 
 
 def test_upload_actions_and_config():
@@ -5457,19 +5608,20 @@ def test_upload_actions_and_config():
     assert actual["success"]
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/importer/logs",
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 5
-    assert actual['data'][0]['status'] == 'Success'
-    assert actual['data'][0]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data'][0]['is_data_uploaded']
-    assert actual['data'][0]['start_timestamp']
-    assert actual['data'][0]['end_timestamp']
-    assert actual['data'][0]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
+    assert len(actual["data"]["logs"]) == 5
+    assert actual["data"]["total"] == 5
+    assert actual['data']["logs"][0]['status'] == 'Success'
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['end_timestamp']
+    assert actual['data']["logs"][0]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
@@ -5477,7 +5629,7 @@ def test_upload_actions_and_config():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0}]
-    assert not actual['data'][0]['config']['data']
+    assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
         f"/api/bot/{pytest.bot}/action/httpaction",
@@ -6004,6 +6156,21 @@ def test_get_client_config_refresh(monkeypatch):
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == 'Access denied for this endpoint'
+
+
+def test_get_metering():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/test_chat",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual == {'success': True, 'message': None, 'data': 0, 'error_code': 0}
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/prod_chat",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual == {'success': True, 'message': None, 'data': 0, 'error_code': 0}
 
 
 def test_get_chat_client_config_multilingual_enabled_no_bots_enabled():
@@ -7942,17 +8109,21 @@ def test_sso_redirect_url_invalid_type():
     assert not actual["success"]
 
 
-def test_list_sso_not_enabled():
+def test_list_sso_not_enabled(monkeypatch):
+    monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
     response = client.get(
-        url=f"/api/auth/login/sso/list/enabled", allow_redirects=False
+        url=f"/api/auth/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-            'facebook': False,
-            'linkedin': False,
-            'google': False
+            'sso': {
+                'facebook': False,
+                'linkedin': False,
+                'google': False
+            },
+            'enable_sso_only': True
         }
 
 
@@ -8019,15 +8190,18 @@ def test_list_sso_enabled():
     Utility.environment['sso']['google']['enable'] = True
 
     response = client.get(
-        url=f"/api/auth/login/sso/list/enabled", allow_redirects=False
+        url=f"/api/auth/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
     assert actual["data"] == {
-            'facebook': False,
-            'linkedin': True,
-            'google': True
+            'sso': {
+                'facebook': False,
+                'linkedin': True,
+                'google': True
+            },
+            'enable_sso_only': False
         }
 
 
@@ -8454,7 +8628,7 @@ def test_add_google_search_exists():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == 'Action with name "google_custom_search" exists'
+    assert actual["message"] == 'Action exists!'
 
 
 def test_add_google_search_different_parameter_types():
@@ -8791,6 +8965,155 @@ def test_delete_hubspot_forms_action():
     assert actual["message"] == 'Action deleted'
 
 
+def test_get_kairon_two_stage_fallback_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Action not found"
+
+
+def test_add_kairon_two_stage_fallback_action_error():
+    action = {
+        "num_text_recommendations": 0,
+        "trigger_rules": []
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'One of num_text_recommendations or trigger_rules should be defined', 'type': 'value_error'}]
+
+    action = {
+        "num_text_recommendations": -1,
+        "trigger_rules": [{"text": "hi", "payload": "greet"}]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', '__root__'], 'msg': 'num_text_recommendations cannot be negative', 'type': 'value_error'}]
+
+
+def test_edit_kairon_two_stage_fallback_action_not_exists():
+    action = {
+        "num_text_recommendations": 0,
+        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'
+
+
+def test_add_kairon_two_stage_fallback_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "kairon_two_stage_fallback_action",
+            "type": "RULE",
+            "template_type": "Q&A",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet_delete", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Flow added successfully"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    action = {
+        "num_text_recommendations": 0,
+        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["message"])
+    assert actual["message"] == "Action added!"
+
+
+def test_add_kairon_two_stage_fallback_action_exists():
+    action = {
+        "num_text_recommendations": 0,
+        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action exists!'
+
+
+def test_edit_kairon_two_stage_fallback_action_action():
+    action = {
+        "num_text_recommendations": 4
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated!'
+
+
+def test_get_kairon_two_stage_fallback_action_1():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    del actual['data']['timestamp']
+    assert actual["data"] == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 4, 'trigger_rules': []}
+
+
+def test_delete_kairon_two_stage_fallback_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/{KAIRON_TWO_STAGE_FALLBACK}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
 def test_disable_integration_token():
     response = client.put(
         f"/api/auth/{pytest.bot}/integration/token",
@@ -8987,7 +9310,10 @@ def test_add_channel_config_error():
     data = {"connector_type": "custom",
             "config": {
                 "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878"
+            }}
     response = client.post(
         f"/api/bot/{pytest.bot}/channels",
         json=data,
@@ -8997,7 +9323,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'connector_type'], 'msg': 'Invalid channel type custom', 'type': 'value_error'}]
+        {'loc': ['body', '__root__'], 'msg': 'Invalid channel type custom', 'type': 'value_error'}]
 
     data = {"connector_type": "slack",
             "config": {
@@ -9012,7 +9338,7 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config",
+        {'loc': ['body', '__root__'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config",
          'type': 'value_error'}]
 
     data = {"connector_type": "slack",
@@ -9027,8 +9353,25 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'config'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret'] all or any in config",
+        {'loc': ['body', '__root__'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config",
          'type': 'value_error'}]
+
+    data = {"connector_type": "slack",
+            "config": {
+                "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878", "is_primary": False
+            }}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels",
+        json=data,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Cannot edit secondary slack app. Please delete and install the app again using oAuth.'
 
 
 def test_add_channel_config(monkeypatch):
@@ -9036,12 +9379,34 @@ def test_add_channel_config(monkeypatch):
     data = {"connector_type": "slack",
             "config": {
                 "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
-    response = client.post(
-        f"/api/bot/{pytest.bot}/channels",
-        json=data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878"
+            }}
+    with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
+        mock_slack_resp.return_value = SlackResponse(
+            client=None,
+            http_verb="POST",
+            api_url="https://slack.com/api/team.info",
+            req_args={},
+            data={
+                "ok": True,
+                "team": {
+                    "id": "T03BNQE7HLX",
+                    "name": "helicopter",
+                    "avatar_base_url": "https://ca.slack-edge.com/",
+                    "is_verified": False
+                }
+            },
+            headers=dict(),
+            status_code=200,
+            use_sync_aiohttp=False,
+        ).validate()
+        response = client.post(
+            f"/api/bot/{pytest.bot}/channels",
+            json=data,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -9071,11 +9436,12 @@ def test_get_channels_config():
     assert actual["error_code"] == 0
     assert actual["message"] is None
     assert len(actual['data']) == 1
+    pytest.slack_channel_id = actual['data'][0]['_id']
 
 
 def test_delete_channels_config():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/channels/slack",
+        f"/api/bot/{pytest.bot}/channels/{pytest.slack_channel_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -9951,8 +10317,8 @@ def test_channels_params():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert "slack" in list(actual['data'].keys())
-    assert ["bot_user_oAuth_token", "slack_signing_secret"] == actual['data']['slack']['required_fields']
-    assert ["slack_channel"] == actual['data']['slack']['optional_fields']
+    assert ["bot_user_oAuth_token", "slack_signing_secret", "client_id", "client_secret"] == actual['data']['slack']['required_fields']
+    assert ["slack_channel", "is_primary", "team"] == actual['data']['slack']['optional_fields']
 
 
 def test_get_channel_endpoint_not_configured():
@@ -10347,19 +10713,20 @@ def test_get_live_agent_config_after_delete():
 
 def test_get_end_user_metrics_empty():
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs",
+        f"/api/bot/{pytest.bot}/metric/user/logs/prod_chat?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] == []
+    assert actual["data"]["logs"] == []
+    assert actual["data"]["total"] == 0
 
 
 def test_add_end_user_metrics():
     log_type = "user_metrics"
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English"}}
     )
@@ -10390,7 +10757,7 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
     }
     responses.add("GET", url, json=expected)
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English", "ip": ip}}
     )
@@ -10411,7 +10778,7 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
     url = f"https://ipinfo.io/{ip}?token={token}"
     responses.add("GET", url, status=500)
     response = client.post(
-        f"/api/bot/{pytest.bot}/metrics/user/logs/{log_type}",
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json = {"data": {"source": "Digite.com", "language": "English"}}
     )
@@ -10422,36 +10789,55 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
 
 
 def test_get_end_user_metrics():
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
-    EndUserMetrics(log_type="agent_handoff", bot=pytest.bot, sender_id="test_user").save()
+    response = client.get(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    account = response["data"]["user"]["account"]
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs",
+        f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     print(actual["data"])
-    assert len(actual["data"]) == 8
-    actual["data"][5].pop('timestamp')
-    assert actual["data"][5] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+    assert len(actual["data"]["logs"]) == 5
+    assert actual["data"]["total"] == 8
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    assert len(actual["data"]["logs"]) == 3
+    assert actual["data"]["total"] == 8
+    actual["data"]["logs"][0].pop('timestamp')
+    actual["data"]["logs"][0].pop('account')
+    assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
                            'source': 'Digite.com', 'language': 'English'}
-    actual["data"][6].pop('timestamp')
-    actual["data"][7].pop('timestamp')
-    assert actual["data"][6] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+    actual["data"]["logs"][1].pop('timestamp')
+    actual["data"]["logs"][1].pop('account')
+    actual["data"]["logs"][2].pop('timestamp')
+    actual["data"]["logs"][2].pop('account')
+    assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"][7] == {'log_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+    assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3",
+        f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff?start_idx=3",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10459,13 +10845,14 @@ def test_get_end_user_metrics():
     assert actual["error_code"] == 0
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/metrics/user/logs?start_idx=3&page_size=1",
+        f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff?start_idx=3&page_size=1",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 1
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 8
 
 
 def test_get_roles():
@@ -10616,11 +11003,12 @@ def get_client_config_valid_domain():
 
 def test_multilingual_translate_logs_empty():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        url=f"/api/bot/{pytest.bot}/multilingual/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual['data'] == []
+    assert actual['data']['logs'] == []
+    assert actual['data']['total'] == 0
 
 
 @responses.activate
@@ -10749,28 +11137,29 @@ def test_multilingual_translate_in_progress():
 
 def test_multilingual_translate_logs():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/multilingual/logs",
+        url=f"/api/bot/{pytest.bot}/multilingual/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
 
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 2
-    assert actual["data"][0]["d_lang"] == 'es'
-    assert actual["data"][0]["copy_type"] == 'Translation'
-    assert actual["data"][0]["translate_responses"]
-    assert actual["data"][0]["translate_actions"]
-    assert actual["data"][0]["event_status"] == 'Enqueued'
-    assert actual["data"][0]["start_timestamp"]
-    assert actual["data"][1]["d_lang"] == 'es'
-    assert actual["data"][1]["copy_type"] == 'Translation'
-    assert actual["data"][1]["translate_responses"] == False
-    assert actual["data"][1]["translate_actions"] == False
-    assert actual["data"][1]["event_status"] == 'Completed'
-    assert actual["data"][1]["status"] == 'Success'
-    assert actual["data"][1]["start_timestamp"]
-    assert actual["data"][1]["end_timestamp"]
+    assert len(actual["data"]["logs"]) == 2
+    assert actual["data"]["total"] == 2
+    assert actual["data"]["logs"][0]["d_lang"] == 'es'
+    assert actual["data"]["logs"][0]["copy_type"] == 'Translation'
+    assert actual["data"]["logs"][0]["translate_responses"]
+    assert actual["data"]["logs"][0]["translate_actions"]
+    assert actual["data"]["logs"][0]["event_status"] == 'Enqueued'
+    assert actual["data"]["logs"][0]["start_timestamp"]
+    assert actual["data"]["logs"][1]["d_lang"] == 'es'
+    assert actual["data"]["logs"][1]["copy_type"] == 'Translation'
+    assert actual["data"]["logs"][1]["translate_responses"] == False
+    assert actual["data"]["logs"][1]["translate_actions"] == False
+    assert actual["data"]["logs"][1]["event_status"] == 'Completed'
+    assert actual["data"]["logs"][1]["status"] == 'Success'
+    assert actual["data"]["logs"][1]["start_timestamp"]
+    assert actual["data"]["logs"][1]["end_timestamp"]
 
 
 def test_multilingual_language_support(monkeypatch):
@@ -10788,6 +11177,272 @@ def test_multilingual_language_support(monkeypatch):
     assert response['data'] == ['es', 'en', 'hi']
     assert response['success']
     assert response['error_code'] == 0
+
+
+@responses.activate
+def test_data_generation_from_website(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_generator}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
+        match=[
+            responses.json_params_matcher({
+                'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
+                'website_url': 'website.com', 'depth': 1
+            })],
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com&depth=1",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["success"]
+    assert response["message"] == "Story generator in progress! Check logs."
+    assert response["error_code"] == 0
+    TrainingDataGenerationProcessor.set_status(pytest.bot, "integ1@gmail.com", status="Completed")
+
+
+def test_data_generation_invalid_bot_id():
+    response = client.post(
+        f"/api/bot/{pytest.bot+'0'}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "Access to bot is denied"
+    assert response["error_code"] == 422
+
+
+def test_data_generation_no_website_url(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == [
+        {
+            "loc": [
+                "query",
+                "website_url"
+            ],
+            "msg": "field required",
+            "type": "value_error.missing"
+        }
+    ]
+    assert response["error_code"] == 422
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url= ",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert not response["success"]
+    assert response["message"] == "website_url cannot be empty"
+    assert response["error_code"] == 422
+
+
+@responses.activate
+def test_data_generation_limit_exceeded(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 0)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["message"] == 'Daily limit exceeded.'
+    assert response["error_code"] == 422
+    assert not response["success"]
+
+
+def test_data_generation_in_progress(monkeypatch):
+    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+
+    event_url = urljoin(Utility.environment['events']['server_url'],
+                        f"/api/events/execute/{EventClass.data_generator}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
+        match=[
+            responses.json_params_matcher({
+                'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
+                'website_url': 'website.com', 'depth': 0
+            })],
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["success"]
+    assert response["message"] == "Story generator in progress! Check logs."
+    assert response["error_code"] == 0
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response["error_code"] == 422
+    assert response['message'] == 'Event already in progress! Check logs.'
+    assert not response["success"]
+
+
+def test_download_logs(monkeypatch):
+    start_date = datetime.utcnow()
+    end_date = datetime.utcnow() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response == {'success': False, 'message': 'model_training logs not found!', 'data': None, 'error_code': 422}
+
+
+def test_get_auditlog_for_user_1():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        f"/api/user/auditlog/data",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    actual = response.json()
+    assert actual["data"] is not None
+    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
+    assert actual["data"][0]["entity"] == "Slots"
+    assert actual["data"][0]["user"] == email
+
+    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
+
+
+def test_get_auditlog_for_bot():
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/auditlog/data/{from_date}/{to_date}?start_idx=0&page_size=100",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    audit_log_data = actual["data"]["logs"]
+    assert audit_log_data is not None
+    actions = [d['action'] for d in audit_log_data]
+    from collections import Counter
+    counter = Counter(actions)
+    assert counter.get(AuditlogActions.SAVE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.UPDATE.value) > 5
+
+
+def test_get_auditlog_for_user_2():
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login_2 = response.json()
+    response = client.get(
+        f"/api/user/auditlog/data?start_idx=0&page_size=100",
+        headers={"Authorization": login_2["data"]["token_type"] + " " + login_2["data"]["access_token"]}
+    )
+    actual = response.json()
+    audit_log_data = actual["data"]
+    assert audit_log_data is not None
+    actions = [d['action'] for d in audit_log_data]
+    from collections import Counter
+    counter = Counter(actions)
+    assert counter.get(AuditlogActions.SAVE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.UPDATE.value) > 5
+
+    assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
+    assert audit_log_data[0]["entity"] == "Slots"
+    assert audit_log_data[0]["user"] == email
+
+
+@responses.activate
+def test_idp_provider_fields():
+    response = client.get(
+        "/api/idp/provider/fields",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    actual_data = Utility.system_metadata["providers"]
+
+    assert response["data"] == actual_data
+    assert len(response["data"]["oidc"]["azure_oidc"]["required_fields"]) == 4
+
+
+@responses.activate
+def test_add_organization():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.post(
+        "/api/account/organization",
+        json={"data": {"name": "sample"}},
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['message'] == "organization added"
+
+
+@responses.activate
+def test_get_organization():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        "/api/account/organization",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['data'] is not None
+    assert result['data']["name"] == "sample"
+    assert result['data']["user"] == "integration1234567890@demo.ai"
+
+
+@responses.activate
+def test_update_organization():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.post(
+        "/api/account/organization",
+        json={"data": {"name": "updated_sample"}},
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['message'] == "organization added"
+
+
+@responses.activate
+def test_get_organization_after_update():
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        "/api/account/organization",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['data'] is not None
+    assert result['data']["name"] == "updated_sample"
+    assert result['data']["user"] == "integration1234567890@demo.ai"
 
 
 def test_delete_account():
@@ -10924,6 +11579,10 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
+    value = list(Metering.objects(username="integ1@gmail.com").order_by("-timestamp"))[0]
+    assert value["metric_type"] == "invalid_login"
+    assert value["timestamp"]
+    assert value["error"] == "Incorrect username or password"
 
 
 def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
@@ -11005,3 +11664,12 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     response = passwrd_rechange_response.json()
     message = response.get("message")
     assert message == "You have already used that password, try another"
+
+
+def test_idp_provider_fields_unauth():
+    response = client.get(
+        "/api/idp/provider/fields",
+        headers={"Authorization": pytest.token_type + " worng_token"},
+    ).json()
+
+    assert response["error_code"] == 401

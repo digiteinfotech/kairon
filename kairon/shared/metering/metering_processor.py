@@ -1,0 +1,96 @@
+import calendar
+import json
+from datetime import datetime, date
+from typing import Text
+
+
+from kairon.shared.constants import PluginTypes
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.data_object import Metering
+from kairon.shared.plugins.factory import PluginFactory
+
+
+class MeteringProcessor:
+    """
+
+    """
+
+    @staticmethod
+    def add_metrics(bot: Text, account: int, metric_type: Text, **kwargs):
+        """
+        Adds custom metrics for an end user.
+
+        :param bot: bot id
+        :param account: account id
+        :param metric_type: metric_type
+        """
+        metric = Metering(bot=bot, metric_type=metric_type, account=account)
+        for key, value in kwargs.items():
+            setattr(metric, key, value)
+        metric.save()
+
+    @staticmethod
+    def add_log(metric_type: Text, **kwargs):
+        """
+        Adds custom metrics for an end user.
+
+        :param metric_type: metric_type
+        """
+        metric = Metering(metric_type=metric_type)
+        for key, value in kwargs.items():
+            setattr(metric, key, value)
+        metric.save()
+
+    @staticmethod
+    def get_metric_count(account: int, metric_type: Text, start_date: date = None, end_date: date = None, **kwargs):
+        """
+        Retrieves custom metrics for a particular bot in a paginated fashion.
+
+        :param account: account
+        :param metric_type: metric_type
+        :param start_date: start date
+        :param end_date: end date
+        :return: all the metrics as json.
+        """
+        if not start_date:
+            start_date = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if not end_date:
+            month = datetime.utcnow().date().month
+            year = datetime.utcnow().date().year
+            end_date = datetime.utcnow().replace(day=calendar.monthrange(year, month)[1])
+        kwargs.update({"account": account, "metric_type": metric_type, "timestamp__gte": start_date,
+                       "timestamp__lte": end_date})
+        metric_count = Metering.objects(**kwargs).count()
+        return metric_count
+
+    @staticmethod
+    def add_log_with_geo_location(metric_type: MetricType, account_id: int, bot: Text = None, **kwargs):
+        if kwargs.get("ip"):
+            location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(**kwargs)
+            if location_info:
+                kwargs.update(location_info)
+        MeteringProcessor.add_metrics(bot, account_id, metric_type, **kwargs)
+
+    @staticmethod
+    def get_logs(account: int, start_idx: int = 0, page_size: int = 10, start_date: datetime = None,
+                 end_date: datetime = None, **kwargs):
+        """
+        Retrieves custom metrics for a particular bot in a paginated fashion.
+
+        :param start_date: start date
+        :param end_date: end date
+        :param account: account id
+        :param start_idx: start index of the page.
+        :param page_size: size of the page.
+        :return: all the metrics as json.
+        """
+        if not start_date:
+            start_date = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if not end_date:
+            month = datetime.utcnow().date().month
+            year = datetime.utcnow().date().year
+            end_date = datetime.utcnow().replace(day=calendar.monthrange(year, month)[1])
+        kwargs.update({"account": account, "timestamp__gte": start_date, "timestamp__lte": end_date})
+        metrics = Metering.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size) \
+            .exclude('id').to_json()
+        return json.loads(metrics)

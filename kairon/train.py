@@ -134,6 +134,7 @@ def train_model_for_bot(bot: str):
     del stories
     del config
     Utility.move_old_models(output, model)
+    Utility.delete_models(bot)
     return model
 
 

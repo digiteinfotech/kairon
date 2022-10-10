@@ -3,32 +3,39 @@ from typing import Text
 
 from loguru import logger
 from pymongo.errors import ServerSelectionTimeoutError
+from rasa.core.channels import UserMessage
 from rasa.core.tracker_store import TrackerStore
 
 from .agent_processor import AgentProcessor
 from .. import Utility
 from ..live_agent.factory import LiveAgentFactory
 from ..shared.actions.utils import ActionUtility
-from ..shared.end_user_metrics.constants import MetricTypes
-from ..shared.end_user_metrics.processor import EndUserMetricsProcessor
 from ..shared.live_agent.processor import LiveAgentsProcessor
+from ..shared.metering.constants import MetricType
+from ..shared.metering.metering_processor import MeteringProcessor
+from ..shared.utils import LogStreamReader
 
 
 class ChatUtils:
 
     @staticmethod
-    async def chat(data: Text, bot: Text, user: Text):
+    async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False):
+        log_stream_reader = LogStreamReader()
+        log_stream_reader.start()
         model = AgentProcessor.get_agent(bot)
-        chat_response = await model.handle_text(data, sender_id=user)
-        ChatUtils.__attach_agent_handoff_metadata(bot, user, chat_response, model.tracker_store)
-        return chat_response
+        msg = UserMessage(data, sender_id=user, metadata={"is_integration_user": is_integration_user, "bot": bot,
+                                                          "account": account, "channel_type": "chat_client"})
+        chat_response = await model.handle_message(msg)
+        logs = log_stream_reader.stop_stream_and_get_logs()
+        ChatUtils.__attach_agent_handoff_metadata(account, bot, user, chat_response, model.tracker_store)
+        return chat_response, logs
 
     @staticmethod
     def reload(bot: Text):
         AgentProcessor.reload(bot)
 
     @staticmethod
-    def __attach_agent_handoff_metadata(bot: Text, sender_id: Text, bot_predictions, tracker):
+    def __attach_agent_handoff_metadata(account: int, bot: Text, sender_id: Text, bot_predictions, tracker):
         metadata = {'initiate': False, 'type': None, "additional_properties": None}
         exception = None
         should_initiate_handoff = False
@@ -49,8 +56,8 @@ class ChatUtils:
             metadata['initiate'] = False
         finally:
             if not Utility.check_empty_string(exception) or should_initiate_handoff:
-                EndUserMetricsProcessor.add_log(
-                    MetricTypes.agent_handoff.value, bot, sender_id,
+                MeteringProcessor.add_metrics(
+                    bot, account, MetricType.agent_handoff, sender_id=sender_id,
                     agent_type=metadata.get("type"), bot_predictions=bot_predictions, exception=exception
                 )
 

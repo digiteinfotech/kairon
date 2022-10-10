@@ -1,6 +1,7 @@
 import ast
 import asyncio
 import json
+import logging
 import os
 import re
 import shutil
@@ -11,7 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
 from html import escape
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
@@ -47,9 +48,10 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import MaskingStrategy
+from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES
 from .constants import EventClass
-from .data.constant import TOKEN_TYPE
+from .data.base_data import AuditLogData
+from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK
 from ..exceptions import AppException
 
 
@@ -401,6 +403,7 @@ class Utility:
             fetched_documents = document.objects(**kwargs)
             if fetched_documents.count() > 0:
                 fetched_documents.delete()
+
     @staticmethod
     def extract_db_config(uri: str):
         """
@@ -634,7 +637,8 @@ class Utility:
             subject = subject.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
         elif mail_type == 'update_role_member_mail':
             body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_member_mail_body'])
+            body = body.replace('MAIL_BODY_HERE',
+                                Utility.email_conf['email']['templates']['update_role_member_mail_body'])
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
             body = body.replace('STATUS', kwargs.get('status', ""))
@@ -643,7 +647,8 @@ class Utility:
             subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'update_role_owner_mail':
             body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_owner_mail_body'])
+            body = body.replace('MAIL_BODY_HERE',
+                                Utility.email_conf['email']['templates']['update_role_owner_mail_body'])
             body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
@@ -653,7 +658,8 @@ class Utility:
             subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'transfer_ownership_mail':
             body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])
+            body = body.replace('MAIL_BODY_HERE',
+                                Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])
             body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
@@ -664,6 +670,13 @@ class Utility:
             body = Utility.email_conf['email']['templates']['password_generated']
             body = body.replace('PASSWORD', kwargs.get('password', ""))
             subject = Utility.email_conf['email']['templates']['password_generated_subject']
+        elif mail_type == 'untrusted_login':
+            geo_location = ""
+            body = Utility.email_conf['email']['templates']['untrusted_login']
+            for key, value in kwargs.items():
+                geo_location = f"{geo_location}<li>{key}: {value}</li>"
+            body = body.replace('GEO_LOCATION', geo_location)
+            subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
         else:
             logger.debug('Skipping sending mail as no template found for the mail type')
             return
@@ -905,18 +918,23 @@ class Utility:
         return config
 
     @staticmethod
-    def download_csv(conversation: Dict, message):
+    def download_csv(data, message, filename="conversation_history.csv"):
         import pandas as pd
 
-        if not conversation.get("conversation_data"):
+        if not data:
             if not message:
                 raise AppException("No data available!")
             else:
                 raise AppException(message)
         else:
-            df = pd.json_normalize(conversation.get("conversation_data"))
+            df = pd.json_normalize(data)
+            for col in df.columns:
+                if col.endswith(".$date"):
+                    col_name = col.replace(".$date", "")
+                    df[col_name] = pd.to_datetime(df[col], unit="ms")
+                    df = df.drop(col, axis=1)
             temp_path = tempfile.mkdtemp()
-            file_path = os.path.join(temp_path, "conversation_history.csv")
+            file_path = os.path.join(temp_path, filename)
             df.to_csv(file_path, index=False)
             return file_path, temp_path
 
@@ -1169,6 +1187,24 @@ class Utility:
         return Utility.get_latest_file(model_file, "*.tar.gz")
 
     @staticmethod
+    def delete_models(bot: Text):
+        """
+        fetches the latest model from the path
+
+        :param bot: bot id
+        :return: latest model path
+        """
+        from rasa.shared.constants import DEFAULT_MODELS_PATH
+
+        retain_cnt = Utility.environment["model"]["retention"]
+        model_file = os.path.join(DEFAULT_MODELS_PATH, bot, "old_model", "*.tar.gz")
+        file_list = glob(model_file)
+        file_list.sort(key=os.path.getctime, reverse=True)
+        for file in file_list[retain_cnt:]:
+            os.remove(file)
+        return file_list
+
+    @staticmethod
     def is_model_file_exists(bot: Text, raise_exc: bool = True):
         try:
             Utility.get_latest_model(bot)
@@ -1227,12 +1263,16 @@ class Utility:
         return is_enabled
 
     @staticmethod
-    def get_enabled_sso():
-        return {
-            'facebook': Utility.check_is_enabled('facebook', False),
-            'linkedin': Utility.check_is_enabled('linkedin', False),
-            'google': Utility.check_is_enabled('google', False)
+    def get_app_properties():
+        properties = {
+            'sso': {
+                'facebook': Utility.check_is_enabled('facebook', False),
+                'linkedin': Utility.check_is_enabled('linkedin', False),
+                'google': Utility.check_is_enabled('google', False)
+            },
+            'enable_sso_only': Utility.environment["app"]["enable_sso_only"]
         }
+        return properties
 
     @staticmethod
     def push_notification(channel: Text, event_type: Text, collection: Text, metadata: dict):
@@ -1248,6 +1288,18 @@ class Utility:
         payload = json.dumps(payload)
         io_loop = asyncio.get_event_loop()
         io_loop.run_until_complete(Utility.websocket_request(push_server_endpoint, payload))
+
+    @staticmethod
+    def get_slack_team_info(token: Text):
+        from slack import WebClient
+        from slack.errors import SlackApiError
+
+        try:
+            response = WebClient(token).team_info()
+            return {"id": response.data['team']['id'], "name": response.data['team']['name']}
+        except SlackApiError as e:
+            logger.exception(e)
+            raise AppException(e)
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
@@ -1502,3 +1554,82 @@ class Utility:
                 masked_value = '*' * str_len
 
         return masked_value
+
+    @staticmethod
+    def save_and_publish_auditlog(document, name, **kwargs):
+        try:
+            action = kwargs.get("action")
+            if not document.status:
+                action = AuditlogActions.SOFT_DELETE.value
+        except AttributeError:
+            action = kwargs.get("action")
+
+        audit_log = AuditLogData(bot=document.bot,
+                                 user=document.user,
+                                 action=action,
+                                 entity=name,
+                                 data=document.to_mongo().to_dict())
+        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
+        audit_log.save()
+
+    @staticmethod
+    def publish_auditlog(auditlog, event_url=None):
+        from .data.data_objects import EventConfig
+        from mongoengine.errors import DoesNotExist
+
+        try:
+            event_config = EventConfig.objects(bot=auditlog.bot).get()
+
+            headers = json.loads(Utility.decrypt_message(event_config.headers))
+            ws_url = event_config.ws_url
+            method = event_config.method
+            if ws_url is not None:
+                Utility.execute_http_request(request_method=method, http_url=ws_url,
+                                             request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
+        except (DoesNotExist, AppException):
+            return
+
+    @staticmethod
+    def is_reserved_keyword(keyword: Text):
+        return keyword in {KAIRON_TWO_STAGE_FALLBACK}.union(SYSTEM_TRIGGERED_UTTERANCES)
+
+    @staticmethod
+    def is_valid_action_name(name: Text, bot: Text, document: Document):
+        from kairon.shared.actions.data_objects import Actions
+        from kairon.shared.actions.data_objects import HttpActionConfig
+        from kairon.shared.actions.data_objects import EmailActionConfig
+
+        if Utility.is_reserved_keyword(name):
+            raise AppException(f"{name} is a reserved keyword")
+        q_filter = {"name__iexact": name, "bot": bot, "status": True, "exp_message": "Action exists!"}
+        Utility.is_exist(Actions, **q_filter)
+        if document in {HttpActionConfig, EmailActionConfig}:
+            q_filter.pop("name__iexact")
+            q_filter["action_name__iexact"] = name
+        Utility.is_exist(document, **q_filter)
+
+    @staticmethod
+    def validate_enable_sso_only():
+        if Utility.environment["app"]["enable_sso_only"]:
+            raise AppException("This feature is disabled")
+
+
+class LogStreamReader:
+
+    def __init__(self):
+        self.log_capture_string = None
+
+    def start(self):
+        model_logger = logging.getLogger()
+        model_logger.setLevel(logging.DEBUG)
+        self.log_capture_string = StringIO()
+        ch = logging.StreamHandler(self.log_capture_string)
+        ch.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        model_logger.addHandler(ch)
+
+    def stop_stream_and_get_logs(self):
+        model_logs = self.log_capture_string.getvalue()
+        self.log_capture_string.close()
+        return model_logs

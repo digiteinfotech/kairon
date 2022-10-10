@@ -3,8 +3,12 @@ channels:
     required_fields:
       - bot_user_oAuth_token
       - slack_signing_secret
+      - client_id
+      - client_secret
     optional_fields:
       - slack_channel
+      - is_primary
+      - team
   telegram:
     required_fields:
       - access_token

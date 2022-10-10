@@ -4,10 +4,12 @@ database:
 
 app:
   server_url: ${APP_SERVER_URL:"http://localhost:8000"}
+  enable_sso_only: ${ENABLE_SSO_ONLY:false}
 
 user:
   reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
   reset_password_cooldown_period: ${RESET_PASSWORD_COOLDOWN_PERIOD:120}
+  validate_trusted_device: ${VALIDATE_TRUSTED_DEVICE:false}
 
 storage:
   assets:
@@ -48,6 +50,7 @@ augmentation:
   paraphrase_gpt_url: ${PARAPHRASE_GPT_URL:"http://localhost:8000/paraphrases/gpt"}
 
 model:
+  retention: ${MODEL_RETENTION_COUNT:4}
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
   test:
@@ -104,6 +107,7 @@ events:
     data_importer: ${TRAINING_DATA_IMPORTER_TASK_DEFINITION}
     delete_history: ${DELETE_HISTORY_TASK_DEFINITION}
     multilingual: ${MULTILINGUAL_TASK_DEFINITION}
+    data_generator: ${DATA_GENERATION_TASK_DEFINITION}
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/evaluate"}
@@ -133,3 +137,11 @@ plugins:
   location:
     enable: ${ENABLE_LOCATION_PLUGIN}
     token: ${LOCATION_PLUGIN_TOKEN}
+
+idp:
+  enable: ${IDP_ENABLED:false}
+  server_url: ${KEYCLOAK_SERVER_URL}
+  admin_username: ${ADMIN_USERNAME}
+  admin_password: ${ADMIN_PASSWORD}
+  callback_frontend_url: ${CALLBACK_FRONTEND_URL}
+  type: ${IDP_TYPE:idp}

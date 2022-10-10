@@ -49,6 +49,8 @@ RUN python -m pip install google-cloud-translate
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install sentence-transformers
+RUN python -m pip install keybert
+RUN python -m pip install bs4
 
 RUN mkdir data_generator
 RUN mkdir training_data

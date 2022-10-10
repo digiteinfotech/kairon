@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from collections import ChainMap
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
@@ -41,11 +41,12 @@ from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
-    CustomActionRequestParameters
+    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType
 from kairon.shared.utils import Utility
+from .base_data import AuditLogData
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -58,7 +59,7 @@ from .constant import (
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
-    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES
+    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType
 )
 from .data_objects import (
     Responses,
@@ -81,7 +82,7 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault
+    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
@@ -2598,12 +2599,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: Http configuration id for saved Http action config
         """
-        Utility.is_exist(Actions, exp_message="Action exists",
-                         name__iexact=http_action_config.get("action_name"), bot=bot,
-                         status=True)
-        Utility.is_exist(HttpActionConfig, exp_message="Action exists",
-                         action_name__iexact=http_action_config.get("action_name"), bot=bot,
-                         status=True)
+        Utility.is_valid_action_name(http_action_config.get("action_name"), bot, HttpActionConfig)
         http_action_params = [HttpActionRequestBody(**param) for param in http_action_config.get("params_list") or []]
         headers = [HttpActionRequestBody(**param) for param in http_action_config.get("headers") or []]
         content_type = {
@@ -2707,14 +2703,7 @@ class MongoProcessor:
         :param user: user id
         :return: doc id
         """
-        Utility.is_exist(
-            Actions, f'Action with name "{action_config.get("name")}" exists', bot=bot,
-            name=action_config.get('name'), status=True
-        )
-        Utility.is_exist(
-            GoogleSearchAction, f'Action with name "{action_config.get("name")}" exists', bot=bot,
-            name=action_config.get('name'), status=True
-        )
+        Utility.is_valid_action_name(action_config.get("name"), bot, GoogleSearchAction)
         action = GoogleSearchAction(
             name=action_config['name'],
             api_key=CustomActionRequestParameters(**action_config['api_key']),
@@ -2834,14 +2823,15 @@ class MongoProcessor:
             )
 
     @staticmethod
-    def get_row_count(document: Document, bot: str):
+    def get_row_count(document: Document, bot: str, **kwargs):
         """
         Gets the count of rows in a document for a particular bot.
         :param document: Mongoengine document for which count is to be given
         :param bot: bot id
         :return: Count of rows
         """
-        return document.objects(bot=bot).count()
+        kwargs.update({"bot": bot})
+        return document.objects(**kwargs).count()
 
     @staticmethod
     def get_action_server_logs(bot: str, start_idx: int = 0, page_size: int = 10):
@@ -2919,7 +2909,7 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([
             HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
-            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction
+            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction
         ], bot=bot)
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
@@ -2975,7 +2965,6 @@ class MongoProcessor:
                     action['user'] = user
                     document_types[action_type](**action).save()
                     self.add_action(action_name, bot, user, action_type=action_type, raise_exception=False)
-        self.add_two_stage_fallback_action(bot, user)
 
     def load_action_configurations(self, bot: Text):
         """
@@ -3685,6 +3674,7 @@ class MongoProcessor:
         if Utility.check_empty_string(name):
             raise AppException('Form name cannot be empty or spaces')
         Utility.is_exist(Forms, f'Form with name "{name}" exists', name__iexact=name, bot=bot, status=True)
+        Utility.is_valid_action_name(name, bot, Forms)
         required_slots = [slots_to_fill['slot'] for slots_to_fill in path if
                           not Utility.check_empty_string(slots_to_fill['slot'])]
         self.__validate_slots_attached_to_form(set(required_slots), bot)
@@ -3839,8 +3829,7 @@ class MongoProcessor:
         set_slots = []
         if Utility.check_empty_string(action.get("name")):
             raise AppException('name cannot be empty or spaces')
-        Utility.is_exist(Actions, "Action exists!", name__iexact=action['name'], bot=bot, status=True)
-        Utility.is_exist(SlotSetAction, "Action exists!", name__iexact=action['name'], bot=bot, status=True)
+        Utility.is_valid_action_name(action.get("name"), bot, SlotSetAction)
         for slot in action["set_slots"]:
             if Utility.check_empty_string(slot.get("name")):
                 raise AppException('slot name cannot be empty or spaces')
@@ -3884,8 +3873,6 @@ class MongoProcessor:
         """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
-            if action.type == ActionType.two_stage_fallback.value and name == KAIRON_TWO_STAGE_FALLBACK:
-                raise AppException("Cannot remove default kairon action")
             MongoProcessor.get_attached_flows(bot, name, 'action')
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
@@ -3922,13 +3909,7 @@ class MongoProcessor:
         """
         action['bot'] = bot
         action['user'] = user
-        Utility.is_exist(Actions, exp_message="Action exists!",
-                         name__iexact=action.get("action_name"), bot=bot,
-                         status=True)
-        Utility.is_exist(EmailActionConfig, exp_message="Action exists!",
-                         action_name__iexact=action.get("action_name"), bot=bot,
-                         status=True)
-
+        Utility.is_valid_action_name(action.get("action_name"), bot, EmailActionConfig)
         email = EmailActionConfig(**action).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(action['action_name'], bot, user, action_type=ActionType.email_action.value,
                         raise_exception=False)
@@ -3983,13 +3964,7 @@ class MongoProcessor:
         """
         action['bot'] = bot
         action['user'] = user
-        Utility.is_exist(
-            Actions, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
-        )
-        Utility.is_exist(
-            JiraAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
-        )
-
+        Utility.is_valid_action_name(action.get("name"), bot, JiraAction)
         jira_action = JiraAction(**action).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.jira_action.value, raise_exception=False
@@ -4054,13 +4029,7 @@ class MongoProcessor:
         """
         action['bot'] = bot
         action['user'] = user
-        Utility.is_exist(
-            Actions, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
-        )
-        Utility.is_exist(
-            ZendeskAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
-        )
-
+        Utility.is_valid_action_name(action.get("name"), bot, ZendeskAction)
         zendesk_action = ZendeskAction(**action).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.zendesk_action.value, raise_exception=False
@@ -4112,12 +4081,7 @@ class MongoProcessor:
         """
         action['bot'] = bot
         action['user'] = user
-        Utility.is_exist(
-            Actions, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
-        )
-        Utility.is_exist(
-            PipedriveLeadsAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
-        )
+        Utility.is_valid_action_name(action.get("name"), bot, PipedriveLeadsAction)
         pipedrive_action = PipedriveLeadsAction(**action).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.pipedrive_leads_action.value, raise_exception=False
@@ -4169,12 +4133,7 @@ class MongoProcessor:
         """
         action['bot'] = bot
         action['user'] = user
-        Utility.is_exist(
-            Actions, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
-        )
-        Utility.is_exist(
-            HubspotFormsAction, exp_message="Action exists!", name__iexact=action.get("name"), bot=bot, status=True
-        )
+        Utility.is_valid_action_name(action.get("name"), bot, HubspotFormsAction)
         hubspot_action = HubspotFormsAction(**action).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.hubspot_forms_action.value, raise_exception=False
@@ -4296,12 +4255,154 @@ class MongoProcessor:
             raise AppException(f"Key is attached to action: {actions}")
         KeyVault.objects(key=key, bot=bot).delete()
 
-    def add_two_stage_fallback_action(self, bot: Text, user: Text, name: Text = KAIRON_TWO_STAGE_FALLBACK):
+    def add_two_stage_fallback_action(
+            self, request_data: dict, bot: Text, user: Text
+    ):
         """
-        Delete secret for bot.
+        Add 2 stage fallback config.
 
+        :param request_data: request config for fallback action
+        :param bot: bot id
+        :param user: user
+        """
+        Utility.is_exist(
+            Actions, exp_message="Action exists!", name__iexact=KAIRON_TWO_STAGE_FALLBACK, bot=bot, status=True
+        )
+        Utility.is_exist(
+            KaironTwoStageFallbackAction, exp_message="Action exists!", name__iexact=KAIRON_TWO_STAGE_FALLBACK,
+            bot=bot, status=True
+        )
+        trigger_rules = [rule['payload'] for rule in request_data.get('trigger_rules') or []]
+        rules_present = self.fetch_rule_block_names(bot)
+        if trigger_rules and set(trigger_rules).difference(set(rules_present)):
+            raise AppException(f"Rule {set(trigger_rules).difference(set(rules_present))} do not exist in the bot")
+        request_data['bot'] = bot
+        request_data['user'] = user
+        request_data['name'] = KAIRON_TWO_STAGE_FALLBACK
+        KaironTwoStageFallbackAction(**request_data).save()
+        self.add_action(
+            KAIRON_TWO_STAGE_FALLBACK, bot, user, raise_exception=False, action_type=ActionType.two_stage_fallback
+        )
+
+    def edit_two_stage_fallback_action(
+            self, request_data: dict, bot: Text, user: Text
+    ):
+        """
+        Edit 2 stage fallback config.
+
+        :param request_data: request config for fallback action
         :param bot: bot id
         :param user: user
         :param name: action name
         """
-        return self.add_action(name, bot, user, raise_exception=False, action_type=ActionType.two_stage_fallback)
+        if not Utility.is_exist(
+                KaironTwoStageFallbackAction, raise_error=False, name=KAIRON_TWO_STAGE_FALLBACK, bot=bot, status=True
+        ):
+            raise AppException(f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found')
+        trigger_rules = [rule['payload'] for rule in request_data.get('trigger_rules') or []]
+        rules_present = self.fetch_rule_block_names(bot)
+        if trigger_rules and set(trigger_rules).difference(set(rules_present)):
+            raise AppException(f"Rule {set(trigger_rules).difference(set(rules_present))} do not exist in the bot")
+        action = KaironTwoStageFallbackAction.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        action.trigger_rules = [QuickReplies(**rule) for rule in request_data.get('trigger_rules') or []]
+        action.num_text_recommendations = request_data['num_text_recommendations']
+        action.user = user
+        action.save()
+
+    def get_two_stage_fallback_action_config(self, bot: Text, name: Text = KAIRON_TWO_STAGE_FALLBACK):
+        """
+        Retrieve 2 stage fallback config.
+
+        :param bot: bot id
+        :param name: action name
+        """
+        try:
+            action = KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True).get().to_mongo().to_dict()
+            action.pop('_id')
+            action.pop('status')
+            action.pop('bot')
+            action.pop('user')
+            return action
+        except DoesNotExist as e:
+            logging.exception(e)
+            raise AppException("Action not found")
+
+    @staticmethod
+    def save_auditlog_event_config(bot, user, data):
+        headers = {} if data.get("headers") is None else data.get("headers")
+        try:
+            event_config = EventConfig.objects(bot=bot).get()
+            event_config.update(set__ws_url=data.get("ws_url"),
+                                set__headers=Utility.encrypt_message(json.dumps(headers)),
+                                set__method=data.get("method"))
+        except DoesNotExist:
+            event_config = EventConfig(
+                bot=bot,
+                user=user,
+                ws_url=data.get("ws_url"),
+                headers=headers,
+                method=data.get("method")
+            )
+            event_config.save()
+
+    @staticmethod
+    def get_auditlog_event_config(bot):
+        try:
+            event_config_data = EventConfig.objects(bot=bot).get()
+            event_config = event_config_data.to_mongo().to_dict()
+            event_config.pop("_id")
+            event_config.pop("timestamp")
+            event_config["headers"] = Utility.decrypt_message(event_config_data.headers)
+        except DoesNotExist:
+            event_config = {}
+        return event_config
+
+    @staticmethod
+    def get_auditlog_for_bot(bot, from_date=None, to_date=None, start_idx: int = 0, page_size: int = 10):
+        if not from_date:
+            from_date = datetime.utcnow().date()
+        if not to_date:
+            to_date = from_date + timedelta(days=1)
+        to_date = to_date + timedelta(days=1)
+        data_filter = {"bot": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
+        auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').to_json()
+        return json.loads(auditlog_data)
+
+    def get_logs(self, bot: Text, logtype: str, start_time: datetime, end_time: datetime):
+        """
+        create zip file containing download data
+
+        :param bot: bot id
+        :param logtype: log type
+        :param start_time: start time
+        :param end_time: end time
+        :return: zip file path
+        """
+        from .data_objects import ModelTraining, ConversationsHistoryDeleteLogs
+        from kairon.shared.test.data_objects import ModelTestingLogs
+        from kairon.shared.multilingual.data_objects import BotReplicationLogs
+        from kairon.shared.importer.data_objects import ValidationLogs
+        logs = {
+                LogType.training_data_generator.value: TrainingDataGenerator,
+                LogType.model_training.value: ModelTraining,
+                LogType.model_testing.value: ModelTestingLogs,
+                LogType.action_logs.value: ActionServerLogs,
+                LogType.audit_logs.value: AuditLogData,
+                LogType.data_importer.value: ValidationLogs,
+                LogType.history_deletion.value: ConversationsHistoryDeleteLogs,
+                LogType.multilingual.value: BotReplicationLogs
+        }
+        if logtype in {LogType.action_logs.value, LogType.audit_logs.value}:
+            filter_query = {
+                "bot": bot,
+                "timestamp__gte": start_time,
+                "timestamp__lte": end_time
+            }
+        else:
+            filter_query = {
+                "bot": bot,
+                "start_timestamp__gte": start_time,
+                "start_timestamp__lte": end_time
+            }
+        value = json.loads(logs[logtype].objects(**filter_query).to_json())
+        return value

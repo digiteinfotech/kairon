@@ -27,6 +27,16 @@ class ElementTransformerOps():
         except Exception as ex:
             raise AppException(f"Exception in ElementTransformerOps::Image_transformer: {str(ex)}")
 
+
+    def video_transformer(self, message):
+        try:
+            message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
+            op_message = self.message_extractor(message, self.message_type)
+            response = ElementTransformerOps.replace_strategy(message_template, op_message, self.channel, self.message_type)
+            return response
+        except Exception as ex:
+            raise AppException(f"Exception in ElementTransformerOps::Image_transformer: {str(ex)}")
+
     def link_transformer(self, message):
         try:
             link_extract = self.message_extractor(message, self.message_type)
@@ -59,6 +69,15 @@ class ElementTransformerOps():
                 stringbuilder = ElementTransformerOps.convertjson_to_link_format(jsoniterator)
                 body = {"data":stringbuilder}
                 return body
+            elif message_type == ELEMENT_TYPE.VIDEO.value:
+                jsoniterator = ElementTransformerOps.json_generator(json_message)
+                body = {}
+                for item in jsoniterator:
+                    if item.get("type") == ELEMENT_TYPE.VIDEO.value:
+                        body.update({"data": item.get("url")})
+                        return body
+                return body
+
         except Exception as ex:
             raise Exception(f"Exception in ElementTransformerOps::message_extractor for channel: {self.channel} "
                             f"and type: {self.message_type}: - {str(ex)}")

@@ -10,7 +10,7 @@ from nlpaug.augmenter.word import AntonymAug
 
 class AugmentationUtils:
 
-    similarity_model = SentenceTransformer('all-MiniLM-L6-v2')
+    similarity_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
     @staticmethod
     def augment_sentences_with_errors(sentences: list, stopwords: list = None, num_variations: int = 5):

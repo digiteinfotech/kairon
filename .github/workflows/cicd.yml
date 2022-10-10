@@ -10,7 +10,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  test:
     name: Python CI
     runs-on: ubuntu-latest
 
@@ -36,18 +36,13 @@ jobs:
     - name: Coverage with coveralls
       run: |
         python -m pip install coveralls
-        coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore tests/load_test/
+        coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/
     - env:
         COVERALLS_PARALLEL: true
-        COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       name: Submit to coveralls.io
       run: |
         coveralls --service=github
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel-finished: true
     - name: Generate Sphinx files
       run: |
         pip install -U sphinx
@@ -69,3 +64,12 @@ jobs:
       if: github.ref == 'refs/heads/master'
       run: |
         aws s3 sync docs/_build/html s3://${{ secrets.S3_PATH }}
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          parallel-finished: true

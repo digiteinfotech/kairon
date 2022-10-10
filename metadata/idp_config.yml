@@ -1,0 +1,8 @@
+providers:
+  oidc:
+    azure_oidc:
+      required_fields:
+        - tenant
+        - realm_name
+        - client_id
+        - client_secret

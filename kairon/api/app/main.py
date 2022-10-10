@@ -25,8 +25,8 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
     CacheControl, Secure, PermissionsPolicy
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from kairon.api.app.routers import auth, augment, history, user, account
-from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual
+from kairon.api.app.routers import auth, augment, history, user, account, idp
+from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual, metric, data_generator
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -85,6 +85,11 @@ async def add_secure_headers(request: Request, call_next):
     """add security headers"""
     response = await call_next(request)
     secure_headers.framework.fastapi(response)
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    requested_origin = request.headers.get("origin")
+    response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else "*"
     return response
 
 
@@ -276,5 +281,8 @@ app.include_router(action.router, prefix="/api/bot/{bot}/action", tags=["Action"
 app.include_router(agents.router, prefix="/api/bot/{bot}/agents", tags=["LiveAgent"])
 app.include_router(secrets.router, prefix="/api/bot/{bot}/secrets", tags=["KeyVault"])
 app.include_router(multilingual.router, prefix="/api/bot/{bot}/multilingual", tags=["Multilingual"])
+app.include_router(data_generator.router, prefix="/api/bot/{bot}/data/generator", tags=["DataGenerator"])
+app.include_router(metric.router, prefix="/api/bot/{bot}/metric", tags=["Metric"])
 app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
 app.include_router(history.router, prefix="/api/history/{bot}", tags=["History"])
+app.include_router(idp.router, prefix="/api/idp", tags=["SSO", "IDP"])

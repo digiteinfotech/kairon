@@ -1,3 +1,4 @@
+import pytest
 import responses
 
 from augmentation.knowledge_graph import training_data_generator
@@ -6,6 +7,9 @@ from augmentation.knowledge_graph.cli.utility import TrainingDataGeneratorUtil
 from augmentation.paraphrase.paraphrasing import ParaPhrasing
 from augmentation.question_generator.generator import QuestionGenerator
 from augmentation.knowledge_graph.document_parser import DocumentParser
+from augmentation.story_generator.factory import TrainingDataGeneratorFactory
+from augmentation.story_generator.website import WebsiteTrainingDataGenerator
+from kairon.exceptions import AppException
 
 pdf_file = "./tests/testing_data/file_data/sample1.pdf"
 docx_file = "./tests/testing_data/file_data/sample1.docx"
@@ -81,6 +85,12 @@ class TestDocumentParser:
         final_list = training_data_generator.TrainingDataGenerator.generate_intent(structure, list_sentences)
         expected = 'root_Demonstration-of-DOCX-support-in-calibre'
         assert any(item['intent'] == expected for item in final_list)
+
+    def test_training_data_generator_factory(self):
+        assert TrainingDataGeneratorFactory.get_instance("website") == WebsiteTrainingDataGenerator
+
+        with pytest.raises(AppException, match='document data extraction not supported yet!'):
+            TrainingDataGeneratorFactory.get_instance("document")
 
 
 class TestCli:

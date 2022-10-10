@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 from typing import Dict, Text
@@ -10,13 +11,17 @@ from pydantic import SecretStr
 from validators import ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
+from kairon.idp.data_objects import IdpConfig
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
-    MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData
+    MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice, Organization
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.constants import UserActivityType
+from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 
 Utility.load_email_configuration()
@@ -110,7 +115,6 @@ class AccountProcessor:
         processor.add_or_overwrite_config(config, bot_id, user)
         processor.add_default_fallback_data(bot_id, user, True, True)
         processor.add_system_required_slots(bot_id, user)
-        processor.add_two_stage_fallback_action(bot_id, user)
         return bot
 
     @staticmethod
@@ -465,33 +469,46 @@ class AccountProcessor:
         )
 
     @staticmethod
-    def get_user(email: str):
+    def get_user(email: str, is_login_request: bool = False):
         """
         fetch user details
 
         :param email: user login id
+        :param is_login_request: logs invalid logins if true
         :return: user details
         """
         try:
             return User.objects(email__iexact=email, status=True).get().to_mongo().to_dict()
         except Exception as e:
             logging.error(e)
+            if is_login_request:
+                MeteringProcessor.add_log(metric_type=MetricType.invalid_login.value, **{"username": email})
             raise DoesNotExist("User does not exist!")
 
     @staticmethod
-    def get_user_details(email: str):
+    def get_user_details(email: str, is_login_request: bool = False):
         """
         fetches complete user details, checks for whether it is inactive
 
         :param email: login id
+        :param is_login_request: logs invalid logins if true
         :return: dict
         """
-        user = AccountProcessor.get_user(email)
-        AccountProcessor.check_email_confirmation(user["email"])
+        user = AccountProcessor.get_user(email, is_login_request)
+        AccountProcessor.check_email_confirmation(user, is_login_request)
+        kwargs = {"username": email}
         if not user["status"]:
+            if is_login_request:
+                kwargs.update({"error": "Inactive User please contact admin!"})
+                MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
+                                              account=user["account"], **kwargs)
             raise ValidationError("Inactive User please contact admin!")
         account = AccountProcessor.get_account(user["account"])
         if not account["status"]:
+            if is_login_request:
+                kwargs.update({"error": "Inactive Account Please contact system admin!"})
+                MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
+                                              account=user["account"], **kwargs)
             raise ValidationError("Inactive Account Please contact system admin!")
         return user
 
@@ -525,7 +542,6 @@ class AccountProcessor:
         create new account
 
         :param account_setup: dict of account details
-        :param user: user id
         :return: dict user details, user email id, confirmation mail subject, mail body
         """
         from kairon.shared.data.processor import MongoProcessor
@@ -606,6 +622,7 @@ class AccountProcessor:
                 bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
                 user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
                 update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
+                untrusted_login=open('template/emails/untrusted_login.html', 'r').read(),
             )
             system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
         Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
@@ -619,6 +636,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
         Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
         Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
+        Utility.email_conf['email']['templates']['untrusted_login'] = system_properties['mail_templates']['untrusted_login']
 
     @staticmethod
     async def confirm_email(token: str):
@@ -653,17 +671,25 @@ class AccountProcessor:
             raise AppException("Please verify your mail")
 
     @staticmethod
-    def check_email_confirmation(email: str):
+    def check_email_confirmation(user_info: dict, is_login_request: bool = False):
         """
         Checks if the account is verified through mail
 
-        :param email: email of the user
+        :param user_info: details of the user
+        :param is_login_request: login request
         :return: None
         """
         email_enabled = Utility.email_conf["email"]["enable"]
 
         if email_enabled:
-            AccountProcessor.is_user_confirmed(email)
+            try:
+                AccountProcessor.is_user_confirmed(user_info["email"])
+            except Exception as e:
+                if is_login_request:
+                    kwargs = {"username": user_info["email"], "error": "Please verify your mail"}
+                    MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
+                                                  account=user_info["account"], **kwargs)
+                raise e
 
     @staticmethod
     async def send_reset_link(mail: str):
@@ -853,3 +879,58 @@ class AccountProcessor:
             yield {
                 "id": bot_id, "name": bot_info["name"], "language": bot_info['metadata']['language']
             }
+
+    @staticmethod
+    def add_trusted_device(user: Text, fingerprint: Text):
+        if not Utility.is_exist(TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint):
+            TrustedDevice(user=user, fingerprint=fingerprint).save()
+
+    @staticmethod
+    def remove_trusted_device(user: Text, fingerprint: Text):
+        try:
+            trusted_device = TrustedDevice.objects(user=user, fingerprint=fingerprint).get()
+            trusted_device.status = False
+            trusted_device.save()
+        except DoesNotExist as e:
+            logging.exception(e)
+
+    @staticmethod
+    def list_trusted_device_fingerprints(user: Text):
+        return list(TrustedDevice.objects(user=user, status=True).values_list("fingerprint"))
+
+    @staticmethod
+    def get_auditlog_for_user(user, start_idx: int = 0, page_size: int = 10):
+        auditlog_data = AuditLogData.objects(user=user).skip(start_idx).limit(page_size).exclude('id').to_json()
+        return json.loads(auditlog_data)
+
+    @staticmethod
+    def upsert_organization(user, org_name):
+        try:
+            org = Organization.objects(account=user.account).get()
+            org.name = org_name.get("name")
+            org.save()
+            try:
+                idp_config = IdpConfig.objects(account=user.account, organization=org_name).get()
+                idp_config.organization = org_name.get("name")
+                result = idp_config.config("config")
+                result["client_id"] = Utility.decrypt_message(result["client_id"])
+                result["client_secret"] = Utility.decrypt_message(result["client_secret"])
+                idp_config.config = result
+                idp_config.save()
+            except DoesNotExist:
+                pass
+        except DoesNotExist:
+            Organization(user=user.email,
+                         account=user.account,
+                         name=org_name.get("name")
+                         ).save()
+
+    @staticmethod
+    def get_organization(account):
+        try:
+            org = Organization.objects(account=account).get()
+            data = org.to_mongo().to_dict()
+            data.pop("_id")
+            return data
+        except DoesNotExist:
+            return {}

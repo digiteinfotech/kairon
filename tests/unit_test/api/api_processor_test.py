@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import os
 import uuid
+from unittest.mock import patch
 from urllib.parse import urljoin
 
 import jwt
@@ -21,12 +22,14 @@ from starlette.responses import RedirectResponse
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.actions.models import ActionType
 from kairon.shared.auth import Authentication, LoginSSOFactory
-from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot
+from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Configs, Rules, Responses
+from kairon.shared.metering.data_object import Metering
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
@@ -95,7 +98,6 @@ class TestAccountProcessor:
         assert Rules.objects(bot=bot['_id'].__str__()).get()
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot['_id'].__str__(), status=True).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
-        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot['_id'].__str__(), type=ActionType.two_stage_fallback, status=True).get()
         pytest.bot = bot_response['_id'].__str__()
 
     def test_list_bots(self):
@@ -149,7 +151,8 @@ class TestAccountProcessor:
         bot_response = AccountProcessor.add_bot("test_version_2", pytest.account, "fshaikh@digite.com", False)
         bot = Bot.objects(name="test_version_2").get().to_mongo().to_dict()
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
-        assert len(AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 2
+        assert len(
+            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 2
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
         expected_config = Utility.read_yaml('./template/config/kairon-default.yml')
         assert config['language'] == expected_config['language']
@@ -162,17 +165,20 @@ class TestAccountProcessor:
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
 
     def test_add_member_already_exists(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         with pytest.raises(AppException, match='User is already a collaborator'):
             AccountProcessor.allow_bot_and_generate_invite_url(bot_id, "fshaikh@digite.com", 'testAdmin',
                                                                pytest.account, ACCESS_ROLES.DESIGNER.value)
 
     def test_add_member_bot_not_exists(self):
         with pytest.raises(DoesNotExist, match='Bot does not exists!'):
-            AccountProcessor.allow_bot_and_generate_invite_url('bot_not_exists', "fshaikh@digite.com", 'testAdmin', pytest.account)
+            AccountProcessor.allow_bot_and_generate_invite_url('bot_not_exists', "fshaikh@digite.com", 'testAdmin',
+                                                               pytest.account)
 
     def test_list_bot_accessors_1(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
         assert len(accessors) == 1
         assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
@@ -183,16 +189,18 @@ class TestAccountProcessor:
         assert accessors[0]['timestamp']
 
     def test_update_bot_access_modify_bot_owner_access(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         with pytest.raises(AppException, match='Ownership modification denied'):
             AccountProcessor.update_bot_access(bot_id, "fshaikh@digite.com", 'testAdmin',
-                                                      ACCESS_ROLES.OWNER.value, ACTIVITY_STATUS.INACTIVE.value)
+                                               ACCESS_ROLES.OWNER.value, ACTIVITY_STATUS.INACTIVE.value)
         with pytest.raises(AppException, match='Ownership modification denied'):
             AccountProcessor.update_bot_access(bot_id, "fshaikh@digite.com", 'testAdmin',
-                                                      ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
+                                               ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value)
 
     def test_update_bot_access_user_not_exists(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         BotAccess(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
                   role='designer', status='invite_not_accepted', bot_account=pytest.account).save()
         with pytest.raises(DoesNotExist, match='User does not exist!'):
@@ -201,7 +209,8 @@ class TestAccountProcessor:
 
     def test_update_bot_access_invite_not_accepted(self, monkeypatch):
         monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         User(email='udit.pandey@digite.com', first_name='udit', last_name='pandey', password='124556779', account=10,
              user='udit.pandey@digite.com').save()
         with pytest.raises(AppException, match='User is yet to accept the invite'):
@@ -217,7 +226,8 @@ class TestAccountProcessor:
         assert invite[0]['bot_name'] == 'test_version_2'
 
     def test_accept_bot_access_invite_user_not_exists(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         token = Utility.generate_token("pandey.udit867@gmail.com")
         with pytest.raises(DoesNotExist, match='User does not exist!'):
             AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
@@ -226,7 +236,8 @@ class TestAccountProcessor:
         AccountProcessor.add_account('pandey.udit867@gmail.com', 'pandey.udit867@gmail.com')
         User(email='pandey.udit867@gmail.com', first_name='udit', last_name='pandey', password='124556779', account=10,
              user='pandey.udit867@gmail.com').save()
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         with pytest.raises(AppException, match='User not yet invited to collaborate'):
             AccountProcessor.update_bot_access(bot_id, "pandey.udit867@gmail.com",
                                                ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.INACTIVE.value)
@@ -234,9 +245,11 @@ class TestAccountProcessor:
     def test_accept_bot_access_invite(self, monkeypatch):
         def _mock_get_user(*args, **kwargs):
             return None
+
         monkeypatch.setattr(AccountProcessor, 'get_user_details', _mock_get_user)
 
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         token = Utility.generate_token("udit.pandey@digite.com")
         AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
         assert BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com", user='test',
@@ -247,7 +260,8 @@ class TestAccountProcessor:
         assert invite == []
 
     def test_update_bot_access(self):
-        account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+        account_bot_info = \
+        AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
         assert ('test_version_2', 'fshaikh@digite.com') == AccountProcessor.update_bot_access(
@@ -268,15 +282,18 @@ class TestAccountProcessor:
         assert bot_access.status == ACTIVITY_STATUS.ACTIVE.value
 
     def test_update_bot_access_invalid_role(self):
-        account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+        account_bot_info = \
+        AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
 
         with pytest.raises(ValidationError):
-            AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com", 'testAdmin', "test", ACTIVITY_STATUS.ACTIVE.value)
+            AccountProcessor.update_bot_access(bot_id, "udit.pandey@digite.com", 'testAdmin', "test",
+                                               ACTIVITY_STATUS.ACTIVE.value)
 
     def test_update_bot_access_to_same_role(self):
-        account_bot_info = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+        account_bot_info = \
+        AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
 
@@ -287,15 +304,18 @@ class TestAccountProcessor:
     def test_accept_bot_access_invite_user_not_allowed(self, monkeypatch):
         def _mock_get_user(*args, **kwargs):
             return None
+
         monkeypatch.setattr(AccountProcessor, 'get_user_details', _mock_get_user)
 
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         token = Utility.generate_token("pandey.udit867@gmail.com")
         with pytest.raises(AppException, match='No pending invite found for this bot and user'):
             AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
 
     def test_accept_bot_access_invite_token_expired(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6InBhbmRleS51ZGl0ODY3QGdtYWlsLmNvbSIsImV4cCI6MTUxNjIzOTAyMn0.dP8a4rHXb9dBrPFKfKD3_tfKu4NdwfSz213F15qej18'
         with pytest.raises(AppException, match='Invalid token'):
             AccountProcessor.validate_request_and_accept_bot_access_invite(token, bot_id)
@@ -306,7 +326,8 @@ class TestAccountProcessor:
             AccountProcessor.validate_request_and_accept_bot_access_invite(token, '61cb4e2f7c7ac78d2fa8fab7')
 
     def test_list_bot_accessors_2(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
         assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
         assert accessors[0]['role'] == 'owner'
@@ -324,10 +345,12 @@ class TestAccountProcessor:
 
     def test_invite_user_as_owner(self):
         with pytest.raises(AppException, match='There can be only 1 owner per bot'):
-            AccountProcessor.allow_bot_and_generate_invite_url('test', 'user@demo.ai', 'admin@demo.ai', 2, ACCESS_ROLES.OWNER.value)
+            AccountProcessor.allow_bot_and_generate_invite_url('test', 'user@demo.ai', 'admin@demo.ai', 2,
+                                                               ACCESS_ROLES.OWNER.value)
 
     def test_transfer_ownership(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         AccountProcessor.transfer_ownership(pytest.account, bot_id, "fshaikh@digite.com", 'udit.pandey@digite.com')
         accessors = list(AccountProcessor.list_bot_accessors(bot_id))
         assert accessors[0]['accessor_email'] == 'fshaikh@digite.com'
@@ -357,19 +380,22 @@ class TestAccountProcessor:
         assert AccountProcessor.get_bot_and_validate_status(bot_id)['account'] == pytest.account
 
     def test_transfer_ownership_to_non_member(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         User(email='udit@demo.ai', first_name='udit', last_name='pandey', password='124556779', account=10,
              user='udit@demo.ai').save()
         with pytest.raises(AppException, match='User not yet invited to collaborate'):
             AccountProcessor.transfer_ownership(pytest.account, bot_id, "fshaikh@digite.com", 'udit@demo.ai')
 
     def test_remove_bot_access_not_a_member(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         with pytest.raises(AppException, match='User not a collaborator to this bot'):
             AccountProcessor.remove_bot_access(bot_id, accessor_email='pandey.udit867@gmail.com')
 
     def test_remove_bot_access(self):
-        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]['_id']
+        bot_id = AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1][
+            '_id']
         assert not AccountProcessor.remove_bot_access(bot_id, accessor_email='udit.pandey@digite.com')
         assert len(list(AccountProcessor.list_bot_accessors(bot_id))) == 1
 
@@ -460,7 +486,7 @@ class TestAccountProcessor:
         user_detail, mail, link = loop.run_until_complete(
             AccountProcessor.account_setup(account_setup=account))
 
-        #Add shared bot
+        # Add shared bot
         bot_response = AccountProcessor.add_bot("delete_account_shared_bot", 30, "udit.pandey@digite.com", False)
         bot_id = bot_response['_id'].__str__()
         BotAccess(bot=bot_id, accessor_email="ritika@digite.com", user='testAdmin',
@@ -739,6 +765,55 @@ class TestAccountProcessor:
             user[key] is False if key == "is_integration_user" else user[key]
             for key in user.keys()
         )
+
+    def test_get_user_details_inactive_user(self, monkeypatch):
+        def _mock_get_user(*args, **kwargs):
+            return User(
+                email="nupur@gmail.com",
+                password=Utility.get_password_hash("password"),
+                first_name="nupur",
+                last_name="khare",
+                account=1001,
+                user="nupur@gmail.com",
+                status=False
+            ).to_mongo().to_dict()
+
+        monkeypatch.setattr(AccountProcessor, "get_user", _mock_get_user)
+        with pytest.raises(ValidationError):
+            AccountProcessor.get_user_details("nupur@gmail.com", True)
+        value = list(Metering.objects(username="nupur@gmail.com").order_by("-timestamp"))
+        assert value[0]["metric_type"] == "invalid_login"
+        assert value[0]["timestamp"]
+        assert value[0]["error"] == "Inactive User please contact admin!"
+
+    def test_get_user_details_inactive_account(self, monkeypatch):
+        def _mock_get_user(*args, **kwargs):
+            return User(
+                email="nupur@gmail.com",
+                password=Utility.get_password_hash("password"),
+                first_name="nupur",
+                last_name="khare",
+                account=1001,
+                user="nupur@gmail.com",
+                status=True
+            ).to_mongo().to_dict()
+
+        def _mock_get_account(*args, **kwargs):
+            return Account(
+                id=1000,
+                name="nupur",
+                user="nupur@gmail.com",
+                status=False
+            ).to_mongo().to_dict()
+
+        monkeypatch.setattr(AccountProcessor, "get_user", _mock_get_user)
+        monkeypatch.setattr(AccountProcessor, "get_account", _mock_get_account)
+        with pytest.raises(ValidationError):
+            AccountProcessor.get_user_details("nupur@gmail.com", True)
+        value = list(Metering.objects(username="nupur@gmail.com").order_by("-timestamp"))
+        assert value[0]["metric_type"] == "invalid_login"
+        assert value[0]["timestamp"]
+        assert value[0]["error"] == "Inactive Account Please contact system admin!"
 
     @pytest.fixture
     def mock_user_inactive(self, monkeypatch):
@@ -1175,7 +1250,8 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token = Authentication.generate_integration_token(bot, user, expiry=15, name='integration_token_with_expiry', role='designer')
+        token = Authentication.generate_integration_token(bot, user, expiry=15, name='integration_token_with_expiry',
+                                                          role='designer')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
@@ -1184,7 +1260,7 @@ class TestAccountProcessor:
         assert payload.get('role') == 'designer'
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
         exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
-        assert round((exp-iat).total_seconds() / 60) == 15
+        assert round((exp - iat).total_seconds() / 60) == 15
 
     def test_generate_integration_token_with_access_limit(self, monkeypatch):
         bot = 'test1'
@@ -1198,7 +1274,8 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit, name='integration_token_with_access_limit', role='admin')
+        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
+                                                          name='integration_token_with_access_limit', role='admin')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
@@ -1246,7 +1323,8 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit, token_type=TOKEN_TYPE.DYNAMIC.value)
+        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
+                                                          token_type=TOKEN_TYPE.DYNAMIC.value)
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
@@ -1311,7 +1389,8 @@ class TestAccountProcessor:
         bot = 'test1'
         user = 'test_user'
         name = 'integration_token_with_access_limit'
-        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint'], 'role': 'admin'}
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat,
+                   'access_limit': ['/api/bot/endpoint'], 'role': 'admin'}
         assert not Authentication.validate_integration_token(payload)
 
     def test_validate_integration_token_not_exists(self):
@@ -1366,7 +1445,8 @@ class TestAccountProcessor:
     def test_update_integration_disable_integration_token(self):
         bot = 'test1'
         user = 'test_user'
-        token = Authentication.update_integration_token('integration_token_with_access_limit', bot, user, int_status=INTEGRATION_STATUS.INACTIVE.value)
+        token = Authentication.update_integration_token('integration_token_with_access_limit', bot, user,
+                                                        int_status=INTEGRATION_STATUS.INACTIVE.value)
         assert not token
 
     def test_list_integrations_after_disable(self):
@@ -1397,14 +1477,16 @@ class TestAccountProcessor:
         bot = 'test1'
         user = 'test_user'
         name = 'integration_token_with_access_limit'
-        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint/new']}
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat,
+                   'access_limit': ['/api/bot/endpoint/new']}
         with pytest.raises(HTTPException):
             Authentication.validate_integration_token(payload)
 
     def test_update_integration_delete_integration_token(self):
         bot = 'test1'
         user = 'test_user'
-        token = Authentication.update_integration_token('integration_token_with_access_limit', bot, user, int_status=INTEGRATION_STATUS.DELETED.value)
+        token = Authentication.update_integration_token('integration_token_with_access_limit', bot, user,
+                                                        int_status=INTEGRATION_STATUS.DELETED.value)
         assert not token
 
     def test_list_integrations_after_deletion(self):
@@ -1430,7 +1512,8 @@ class TestAccountProcessor:
         bot = 'test1'
         user = 'test_user'
         name = 'integration_token_with_access_limit'
-        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat, 'access_limit': ['/api/bot/endpoint/new']}
+        payload = {'name': name, 'bot': bot, 'sub': user, 'iat': pytest.integration_iat,
+                   'access_limit': ['/api/bot/endpoint/new']}
         with pytest.raises(HTTPException):
             Authentication.validate_integration_token(payload)
 
@@ -1699,11 +1782,11 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                    'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
-                    'host': 'www.example.org',
-                    'accept': 'application/json',
+                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
+                'host': 'www.example.org',
+                'accept': 'application/json',
 
-                }).raw,
+            }).raw,
             "client": ("134.56.78.4", 1453),
             "server": ("www.example.org", 443),
         }
@@ -1819,19 +1902,28 @@ class TestAccountProcessor:
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
     def test_sso_login_client_linkedin(self):
-        assert LoginSSOFactory.get_client('linkedin').sso_client.client_secret == Utility.environment['sso']['linkedin']['client_secret']
-        assert LoginSSOFactory.get_client('linkedin').sso_client.client_id == Utility.environment['sso']['linkedin']['client_id']
-        assert LoginSSOFactory.get_client('linkedin').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'linkedin')
+        assert LoginSSOFactory.get_client('linkedin').sso_client.client_secret == \
+               Utility.environment['sso']['linkedin']['client_secret']
+        assert LoginSSOFactory.get_client('linkedin').sso_client.client_id == Utility.environment['sso']['linkedin'][
+            'client_id']
+        assert LoginSSOFactory.get_client('linkedin').sso_client.redirect_uri == urljoin(
+            Utility.environment['sso']['redirect_url'], 'linkedin')
 
     def test_sso_login_client_gmail(self):
-        assert LoginSSOFactory.get_client('google').sso_client.client_secret == Utility.environment['sso']['google']['client_secret']
-        assert LoginSSOFactory.get_client('google').sso_client.client_id == Utility.environment['sso']['google']['client_id']
-        assert LoginSSOFactory.get_client('google').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'google')
+        assert LoginSSOFactory.get_client('google').sso_client.client_secret == Utility.environment['sso']['google'][
+            'client_secret']
+        assert LoginSSOFactory.get_client('google').sso_client.client_id == Utility.environment['sso']['google'][
+            'client_id']
+        assert LoginSSOFactory.get_client('google').sso_client.redirect_uri == urljoin(
+            Utility.environment['sso']['redirect_url'], 'google')
 
     def test_sso_login_client_facebook(self):
-        assert LoginSSOFactory.get_client('facebook').sso_client.client_secret == Utility.environment['sso']['facebook']['client_secret']
-        assert LoginSSOFactory.get_client('facebook').sso_client.client_id == Utility.environment['sso']['facebook']['client_id']
-        assert LoginSSOFactory.get_client('facebook').sso_client.redirect_uri == urljoin(Utility.environment['sso']['redirect_url'], 'facebook')
+        assert LoginSSOFactory.get_client('facebook').sso_client.client_secret == \
+               Utility.environment['sso']['facebook']['client_secret']
+        assert LoginSSOFactory.get_client('facebook').sso_client.client_id == Utility.environment['sso']['facebook'][
+            'client_id']
+        assert LoginSSOFactory.get_client('facebook').sso_client.redirect_uri == urljoin(
+            Utility.environment['sso']['redirect_url'], 'facebook')
 
     def test_overwrite_password_with_same_password(self, monkeypatch):
         AccountProcessor.add_user(
@@ -1900,7 +1992,7 @@ class TestAccountProcessor:
     def test_valid_token_with_payload(self):
         uuid_value = str(uuid.uuid1())
         token = Utility.generate_token_payload(payload={"mail_id": "account_reuse_link@gmail.com",
-                                                                               "uuid":uuid_value})
+                                                        "uuid": uuid_value})
         decoded_jwt = Utility.verify_token(token)
         assert uuid_value == decoded_jwt.get("uuid")
         assert "account_reuse_link@gmail.com" == decoded_jwt.get("mail_id")
@@ -1920,3 +2012,129 @@ class TestAccountProcessor:
         decoded_jwt = Utility.verify_token(token)
         Utility.email_conf["email"]["enable"] = False
         assert decoded_jwt.get("uuid")
+
+    def test_remove_trusted_device(self):
+        AccountProcessor.remove_trusted_device("udit.pandey@digite.com", "1234567890fghj")
+
+    def test_add_trusted_device(self):
+        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "1234567890fghj")
+        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879")
+
+    @pytest.mark.asyncio
+    async def test_validate_trusted_device_add_device(self, monkeypatch):
+        token = "abcgd563"
+        enable = True
+
+        def _mock_get_user_details(*args, **kwargs):
+            return {"account": 10}
+
+        monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
+        monkeypatch.setitem(Utility.email_conf["email"], "enable", enable)
+        monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+        monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", enable)
+        monkeypatch.setattr(AccountProcessor, "get_user_details", _mock_get_user_details)
+
+        url = f"https://ipinfo.io/10.11.12.13?token={token}"
+        expected = {
+            "ip": "10.11.12.13",
+            "city": "Mumbai",
+            "region": "Maharashtra",
+            "country": "IN",
+            "loc": "19.0728,72.8826",
+            "org": "AS13150 CATO NETWORKS LTD",
+            "postal": "400070",
+            "timezone": "Asia/Kolkata"
+        }
+        responses.start()
+        responses.add("GET", url, json=expected)
+        await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879",
+                                                             "10.11.12.13", True)
+        account_details = AccountProcessor.get_user_details("pandey.udit867@gmail.com")
+        log = MeteringProcessor.get_logs(account=account_details["account"], metric_type='user_login')
+        del log[0]['timestamp']
+        del log[0]['account']
+        assert log[0] == {'metric_type': 'user_login', 'user_id': 'pandey.udit867@gmail.com', 'ip': '10.11.12.13',
+                          'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
+                          'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
+        assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == ["kjhdsaqewrrtyuio879"]
+        responses.stop()
+        responses.reset()
+
+    def test_list_trusted_device(self):
+        assert AccountProcessor.list_trusted_device_fingerprints("udit.pandey@digite.com") == [
+            "1234567890fghj", "kjhdsaqewrrtyuio879"]
+
+    @pytest.mark.asyncio
+    async def test_validate_trusted_device(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
+        await Authentication.validate_trusted_device_and_log("udit.pandey@digite.com", "kjhdsaqewrrtyuio879",
+                                                             "10.11.12.13")
+
+    @pytest.mark.asyncio
+    async def test_validate_trusted_device_invalid(self, monkeypatch):
+        token = "abcgd563"
+        enable = True
+        monkeypatch.setitem(Utility.environment["plugins"]["location"], "token", token)
+        monkeypatch.setitem(Utility.email_conf["email"], "enable", enable)
+        monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
+        monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", enable)
+        url = f"https://ipinfo.io/10.11.12.13?token={token}"
+        expected = {
+            "ip": "10.11.12.13",
+            "city": "Mumbai",
+            "region": "Maharashtra",
+            "country": "IN",
+            "loc": "19.0728,72.8826",
+            "org": "AS13150 CATO NETWORKS LTD",
+            "postal": "400070",
+            "timezone": "Asia/Kolkata"
+        }
+        responses.start()
+        responses.add("GET", url, json=expected)
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            await Authentication.validate_trusted_device_and_log("udit.pandey@digite.com", "kjhdsaqewrrtyuio87",
+                                                                 "10.11.12.13")
+        responses.stop()
+        responses.reset()
+
+    @pytest.mark.asyncio
+    async def test_remove_trusted_device_not_exists_2(self):
+        await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879",
+                                                             "10.11.12.13", remove_trusted_device=True)
+
+    def test_list_fingerprint_not_exists(self):
+        assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == []
+
+    def test_upsert_organization_add(self):
+        org_name = {"name": "test"}
+        mail = "test@demo.in"
+        account = "1234"
+        user = User(account=account, email=mail)
+        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+
+        result = Organization.objects().get(account=account)
+        assert result.name == org_name.get("name")
+
+    def test_upsert_organization_update(self):
+        org_name = {"name": "new_test"}
+        mail = "test@demo.in"
+        account = "1234"
+        user = User(account=account, email=mail)
+        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+
+        result = Organization.objects().get(account=account)
+        assert result.name == org_name.get("name")
+
+        with pytest.raises(DoesNotExist):
+            Organization.objects().get(name="test")
+
+    def test_get_organization_exists(self):
+        account = "1234"
+        result = AccountProcessor.get_organization(account=account)
+        assert result.get("name") == "new_test"
+
+    def test_get_organization_not_exists(self):
+        account = "12345"
+        result = AccountProcessor.get_organization(account=account)
+        assert result.get("name") is None
+        assert result == {}

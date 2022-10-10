@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from typing import List
 from starlette.datastructures import Headers, URL
@@ -34,6 +34,7 @@ from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, Act
     SetSlotsUsingActionResponse
 from kairon.shared.account.processor import AccountProcessor
 from kairon.chat.agent_processor import AgentProcessor
+from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK
@@ -48,6 +49,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault
                                              )
+from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
@@ -57,7 +59,10 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     HttpActionRequestBody
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, HttpContentType
+from kairon.shared.multilingual.processor import MultilingualLogProcessor
+from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
 from kairon.shared.data.constant import ENDPOINT_TYPE
@@ -280,10 +285,10 @@ class TestMongoProcessor:
                                     'required_slots': {'location': [{'type': 'from_entity', 'entity': 'location'}],
                                                        'application_name': [
                                                            {'type': 'from_entity', 'entity': 'application_name'}]}}}
-        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application', "kairon_two_stage_fallback",
+        assert domain.user_actions == ['action_get_google_application', 'action_get_microsoft_application',
                                        'utter_default', 'utter_goodbye', 'utter_greet', 'utter_please_rephrase']
         assert processor.fetch_actions('test_upload_case_insensitivity') == ['action_get_google_application',
-                                                                             'action_get_microsoft_application', "kairon_two_stage_fallback"]
+                                                                             'action_get_microsoft_application']
         assert domain.intents == ['back', 'deny', 'greet', 'nlu_fallback', 'out_of_scope', 'restart', 'session_start']
         assert domain.templates == {
             'utter_please_rephrase': [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
@@ -368,7 +373,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_file_form'] == {
             'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 45
         assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
         assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
         assert domain.intents.__len__() == 29
@@ -1174,6 +1179,25 @@ class TestMongoProcessor:
         assert model
         folder = os.path.join("models/tests", '*.tar.gz')
         assert len(list(glob.glob(folder))) == 1
+
+    def test_train_model_validate_deletion(self, monkeypatch):
+        file = glob.glob(os.path.join("models/tests", '*.tar.gz'))[0]
+        for i in range(7):
+            shutil.copy(file, os.path.join("models/tests", "old_model", f"{i}.tar.gz"))
+
+        def _mock_train(*args, **kwargs):
+            ob = object()
+            ob.model = file
+            return ob
+
+        with patch("rasa.train") as mock_tr:
+            mock_tr.side_effect = _mock_train
+            model = train_model_for_bot("tests")
+        assert model
+        folder = os.path.join("models/tests", '*.tar.gz')
+        assert len(list(glob.glob(folder))) == 1
+        folder = os.path.join("models/tests", "old_model", "*.tar.gz")
+        assert len(list(glob.glob(folder))) == 4
 
     @pytest.mark.asyncio
     async def test_train_model_empty_data(self):
@@ -2356,7 +2380,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2464,7 +2488,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2522,7 +2546,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 51
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2575,7 +2599,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 51
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2635,7 +2659,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 51
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -2744,7 +2768,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 6
+        assert domain.user_actions.__len__() == 5
         assert domain.intents.__len__() == 5
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 0
@@ -2772,7 +2796,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 25
         assert domain.entities.__len__() == 11
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 44
+        assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 29
 
     @pytest.fixture()
@@ -3791,6 +3815,9 @@ class TestMongoProcessor:
         actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER']
+        assert actual_config.config['host']
+        del actual_config.config['host']
+        del expected_config['host']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']
@@ -7366,7 +7393,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
-            'hubspot_forms_action': [], 'two_stage_fallback': ['kairon_two_stage_fallback'],
+            'hubspot_forms_action': [], 'two_stage_fallback': [],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -8026,7 +8053,7 @@ class TestMongoProcessor:
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
-        with pytest.raises(AppException, match='Action with name "google_custom_search" exists'):
+        with pytest.raises(AppException, match='Action exists!'):
             processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
@@ -8041,7 +8068,7 @@ class TestMongoProcessor:
             'search_engine_id': 'asdfg:123456',
             'failure_response': 'I have failed to process your request',
         }
-        with pytest.raises(AppException, match='Action with name "test_action" exists'):
+        with pytest.raises(AppException, match='Action exists!'):
             processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='test_action', status=True, bot=bot).get()
 
@@ -8237,24 +8264,141 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             HubspotFormsAction.objects(name='action_hubspot_forms', status=True, bot=bot).get()
 
-    def test_add_custom_2_stage_fallback_action(self):
+    def test_add_hubspot_forms_action_reserved_keyword(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        action = {
+            'name': KAIRON_TWO_STAGE_FALLBACK,
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': [
+                {"key": 'email', 'value': 'email_slot', 'parameter_type': 'slot'},
+                {"key": 'firstname', 'value': 'firstname_slot', 'parameter_type': 'slot'}
+            ]
+        }
+        with pytest.raises(AppException, match=f"{KAIRON_TWO_STAGE_FALLBACK} is a reserved keyword"):
+            processor.add_hubspot_forms_action(action, bot, user)
+
+    def test_add_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        ob_id = processor.add_two_stage_fallback_action(bot, user, "custom_fallback")
-        action = Actions.objects(id=ob_id).get()
-        assert action.name == "custom_fallback"
-        assert action.type == ActionType.two_stage_fallback.value
+        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        processor.add_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
+        config.pop("timestamp")
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+
+    def test_add_custom_2_stage_fallback_action_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_two_stage_fallback_action(request, bot, user)
+
+    def test_add_custom_2_stage_fallback_action_rules_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_rules_not_found'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
+                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+        with pytest.raises(AppException, match=r"Rule {.+} do not exist in the bot"):
+            processor.add_two_stage_fallback_action(request, bot, user)
+
+    def test_add_custom_2_stage_fallback_action_rules_only(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_rules_only'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
+                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+        steps = [
+            {"name": "mail", "type": "INTENT"},
+            {"name": "action_send_mail", "type": "HTTP_ACTION"},
+        ]
+        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        steps = [
+            {"name": "contact", "type": "INTENT"},
+            {"name": "action_call", "type": "HTTP_ACTION"},
+        ]
+        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        processor.add_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
+        config.pop("timestamp")
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': request['trigger_rules']}
+
+    def test_edit_custom_2_stage_fallback_action_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test_edit_custom_2_stage_fallback_action_not_found'
+        user = 'test_user'
+        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        with pytest.raises(AppException, match=f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'):
+            processor.edit_two_stage_fallback_action(request, bot, user)
+
+    def test_get_2_stage_fallback_action_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test_edit_custom_2_stage_fallback_action_not_found'
+        with pytest.raises(AppException, match="Action not found"):
+            processor.get_two_stage_fallback_action_config(bot)
+
+    def test_edit_custom_2_stage_fallback_action_recommendations_only(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_rules_only'
+        user = 'test_user'
+        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        processor.edit_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
+        config.pop("timestamp")
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+
+    def test_edit_custom_2_stage_fallback_action_rules_only(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
+                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+        steps = [
+            {"name": "mail", "type": "INTENT"},
+            {"name": "action_send_mail", "type": "HTTP_ACTION"},
+        ]
+        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        steps = [
+            {"name": "contact", "type": "INTENT"},
+            {"name": "action_call", "type": "HTTP_ACTION"},
+        ]
+        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        processor.edit_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
+        config.pop("timestamp")
+        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
+                          'trigger_rules': request['trigger_rules']}
+
+    def test_edit_custom_2_stage_fallback_action_rules_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}], "num_text_recommendations": 0}
+
+        with pytest.raises(AppException, match=f"Rule {set(['send_dm'])} do not exist in the bot"):
+            processor.edit_two_stage_fallback_action(request, bot, user)
 
     def test_delete_2_stage_fallback_action(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        processor.delete_action("custom_fallback", bot, user)
+        processor.delete_complex_story("activate two stage fallback", "RULE", bot, user)
+        processor.delete_action(KAIRON_TWO_STAGE_FALLBACK, bot, user)
         with pytest.raises(DoesNotExist):
-            Actions.objects(name="custom_fallback", status=True, bot=bot).get()
-        with pytest.raises(AppException, match="Cannot remove default kairon action"):
-            processor.delete_action(KAIRON_TWO_STAGE_FALLBACK, bot, user)
+            Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, status=True, bot=bot).get()
 
     def test_add_secret(self):
         processor = MongoProcessor()
@@ -8407,6 +8551,64 @@ class TestMongoProcessor:
         processor.delete_secret(key, bot)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
+
+    def test_get_logs(self):
+        bot = "test_get_logs"
+        user = "testUser2"
+        start_time = datetime.utcnow() - timedelta(days=1)
+        end_time = datetime.utcnow() + timedelta(days=1)
+        processor = MongoProcessor()
+        TrainingDataGenerationProcessor.set_status(
+            bot=bot,
+            user=user,
+            document_path='document/doc.pdf',
+            status='Completed'
+        )
+        TrainingDataGenerationProcessor.set_status(
+            bot=bot,
+            user=user,
+            document_path='document/doc.pdf',
+            status='Completed'
+        )
+        log_one = processor.get_logs(bot,"training_data_generator", start_time, end_time)
+        assert len(log_one) == 2
+        ModelProcessor.set_training_status(bot, user, "Done")
+        ModelProcessor.set_training_status(bot, user, "Done")
+        log_two = processor.get_logs(bot, "model_training", start_time, end_time)
+        assert len(log_two) == 2
+        ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
+                         url="http://kairon-api.digite.com/api/bot",
+                         request_params={}, api_response="Response", bot_response="Bot Response", bot=bot,
+                         status="FAILURE").save()
+        ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
+                         request_params={}, api_response="Response", bot_response="Bot Response",
+                         bot=bot).save()
+        log_three = processor.get_logs(bot, "action_logs", start_time, end_time)
+        assert len(log_three) == 2
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
+        log_four = processor.get_logs(bot, "data_importer", start_time, end_time)
+        assert len(log_four) == 2
+        HistoryDeletionLogProcessor.add_log(bot, user, 1, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, 1, status='Completed')
+        log_five = processor.get_logs(bot, "history_deletion", start_time, end_time)
+        assert len(log_five) == 2
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
+        log_six = processor.get_logs(bot, "multilingual", start_time, end_time)
+        assert len(log_six) == 2
+        ModelTestingLogProcessor.log_test_result(bot, user,
+                                                 stories_result={},
+                                                 nlu_result={},
+                                                 event_status='Completed')
+        ModelTestingLogProcessor.log_test_result(bot, user,
+                                                 stories_result={},
+                                                 nlu_result={},
+                                                 event_status='Completed')
+        log_seven = processor.get_logs(bot, "model_testing", start_time, end_time)
+        assert len(log_seven) == 2
+        log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)
+        assert len(log_eight) == 2
 
 
 class TestTrainingDataProcessor:
@@ -8561,16 +8763,16 @@ class TestTrainingDataProcessor:
         assert actual_response is False
 
     def test_daily_file_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 0)
         actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
         assert actual_response is True
 
     def test_daily_file_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 0)
         with pytest.raises(AppException) as exp:
             assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
 
-        assert str(exp.value) == "Daily file processing limit exceeded."
+        assert str(exp.value) == "Daily limit exceeded."
 
 
 class TestAgentProcessor:
@@ -8682,12 +8884,12 @@ class TestModelProcessor:
         assert actual_response is False
 
     def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 0)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
         assert actual_response is True
 
     def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 1)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 0)
         with pytest.raises(AppException) as exp:
             assert ModelProcessor.is_daily_training_limit_exceeded("tests")
 
@@ -8696,3 +8898,90 @@ class TestModelProcessor:
     def test_get_training_history(self):
         actual_response = ModelProcessor.get_training_history("tests")
         assert actual_response
+
+    def test_save_auditlog_event_config_without_eventurl(self):
+        bot = "tests"
+        user = "testuser"
+        data = {}
+        with pytest.raises(ValidationError, match='Event url can not be empty'):
+            MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+
+    def test_save_auditlog_event_config_without_headers(self):
+        bot = "tests"
+        user = "testuser"
+        data = {"ws_url": "http://localhost:5000/event_url"}
+        MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+        result = MongoProcessor.get_auditlog_event_config(bot)
+        assert result.get("ws_url") == data.get("ws_url")
+        headers = json.loads(result.get("headers"))
+        assert headers == {}
+
+    def test_save_auditlog_event_config(self):
+        bot = "tests"
+        user = "testuser"
+        data = {"ws_url": "http://localhost:5000/event_url",
+                "headers": {'Autharization': '123456789'},
+                "method": "GET"}
+        MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
+        result = MongoProcessor.get_auditlog_event_config(bot)
+        assert result.get("ws_url") == data.get("ws_url")
+        headers = json.loads(result.get("headers"))
+        assert len(headers.keys()) == 1
+        assert result.get("method") == "GET"
+
+
+    def test_auditlog_for_chat_client_config(self):
+        auditlog_data = list(AuditLogData.objects(bot='test', user='testUser', entity='ChatClientConfig'))
+        assert len(auditlog_data) > 0
+        assert auditlog_data[0] is not None
+        assert auditlog_data[0].bot == "test"
+        assert auditlog_data[0].user == "testUser"
+        assert auditlog_data[0].entity == "ChatClientConfig"
+
+    def test_auditlog_for_intent(self):
+        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='save', entity='Intents'))
+        assert len(auditlog_data) > 0
+        assert auditlog_data is not None
+        assert auditlog_data[0].bot == "tests"
+        assert auditlog_data[0].user == "testUser"
+        assert auditlog_data[0].entity == "Intents"
+
+        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='delete', entity='Intents'))
+        #No hard delete supported for intents
+        assert len(auditlog_data) == 0
+
+    def test_get_auditlog_for_invalid_bot(self):
+        bot = "invalid"
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
+        assert auditlog_data == []
+
+    def test_get_auditlog_for_bot_top_n_default(self):
+        bot = "test"
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, page_size=page_size)
+        assert len(auditlog_data) > 90
+
+    def test_get_auditlog_for_bot_date_range(self):
+        bot = "test"
+        from_date = datetime.utcnow().date() - timedelta(days=1)
+        to_date = datetime.utcnow().date()
+        page_size = 100
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
+        assert len(auditlog_data) > 90
+
+    def test_get_auditlog_for_bot_top_50(self):
+        bot = "test"
+        from_date = datetime.utcnow().date() - timedelta(days=1)
+        to_date = datetime.utcnow().date()
+        page_size = 50
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
+        assert len(auditlog_data) == 50
+
+    def test_get_auditlog_from_date_to_date_none(self):
+        bot = "test"
+        from_date = None
+        to_date = None
+        page_size = 50
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
+        assert len(auditlog_data) == 50

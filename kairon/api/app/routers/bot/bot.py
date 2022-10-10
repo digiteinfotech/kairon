@@ -1,4 +1,5 @@
 import os
+from datetime import date, datetime
 from typing import List, Optional
 from urllib.parse import urljoin
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
@@ -21,21 +22,23 @@ from kairon.api.models import (
     BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
-    TextDataLowerCase, SlotMappingRequest
+    TextDataLowerCase, SlotMappingRequest, EventConfig
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
-from kairon.shared.end_user_metrics.constants import MetricTypes
-from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
+from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.models import User
-from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType
-from kairon.shared.data.data_objects import TrainingExamples
+from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType, \
+    TrainingDataSourceType
+from kairon.shared.data.data_objects import TrainingExamples, ModelTraining
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -468,13 +471,19 @@ async def reload_model(
 
 @router.get("/train/history", response_model=Response)
 async def get_model_training_history(
+        start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
     Fetches model training history, when and who trained the bot
     """
-    training_history = list(ModelProcessor.get_training_history(current_user.get_bot()))
-    return {"data": {"training_history": training_history}}
+    training_history = list(ModelProcessor.get_training_history(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(ModelTraining, current_user.get_bot())
+    data = {
+        "logs": training_history,
+        "total": row_cnt
+    }
+    return {"data": {"training_history": data}}
 
 
 @router.post("/deploy", response_model=Response)
@@ -610,7 +619,12 @@ async def model_testing_logs(
     List model testing logs.
     """
     logs = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
-    return Response(data=logs)
+    row_cnt = mongo_processor.get_row_count(ModelTestingLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 
 @router.get("/endpoint", response_model=Response)
@@ -803,7 +817,7 @@ async def update_training_data_generator_status(
     Update training data generator status
     """
     try:
-        TrainingDataGenerationProcessor.retreive_response_and_set_status(request_data, current_user.get_bot(),
+        TrainingDataGenerationProcessor.retrieve_response_and_set_status(request_data, current_user.get_bot(),
                                                                          current_user.get_user())
     except Exception as e:
         raise AppException(e)
@@ -812,12 +826,13 @@ async def update_training_data_generator_status(
 
 @router.get("/data/generation/history", response_model=Response)
 async def get_train_data_history(
+        log_type: TrainingDataSourceType = TrainingDataSourceType.document.value,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
     Fetches File Data Generation history, when and who initiated the process
     """
-    file_history = TrainingDataGenerationProcessor.get_training_data_generator_history(current_user.get_bot())
+    file_history = TrainingDataGenerationProcessor.get_training_data_generator_history(current_user.get_bot(), log_type)
     return {"data": {"training_history": file_history}}
 
 
@@ -904,12 +919,19 @@ async def edit_slots(
 
 @router.get("/importer/logs", response_model=Response)
 async def get_data_importer_logs(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Get data importer event logs.
     """
-    logs = list(DataImporterLogProcessor.get_logs(current_user.get_bot()))
-    return Response(data=logs)
+    logs = list(DataImporterLogProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(ValidationLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 
 @router.post("/validate", response_model=Response)
@@ -1368,14 +1390,14 @@ async def get_channel_endpoint(
     return Response(data=ChatDataProcessor.get_channel_endpoint(name, current_user.get_bot()))
 
 
-@router.delete("/channels/{name}", response_model=Response)
+@router.delete("/channels/{channel_id}", response_model=Response)
 async def delete_channel_config(
-        name: str = Path(default=None, description="channel name", example="slack"),
+        channel_id: str = Path(default=None, description="channel id", example="698705012345"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     """
     Deletes the channel config.
     """
-    ChatDataProcessor.delete_channel_config(name, current_user.get_bot())
+    ChatDataProcessor.delete_channel_config(current_user.get_bot(), id=channel_id)
     return Response(message='Channel deleted')
 
 
@@ -1420,32 +1442,49 @@ async def list_bot_assets(
     return Response(data={"assets": list(AssetsProcessor.list_assets(current_user.get_bot()))})
 
 
-@router.get("/metrics/user/logs", response_model=Response)
-async def end_user_metrics(
+@router.post("/audit/event/config", response_model=Response)
+async def set_auditlog_config(request_data: EventConfig, current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    mongo_processor.save_auditlog_event_config(current_user.get_bot(), current_user.get_user(), request_data.dict())
+    return {"message": "Event config saved"}
+
+
+@router.get("/audit/event/config", response_model=Response)
+async def get_auditlog_config(current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                                             scopes=DESIGNER_ACCESS)):
+    data = mongo_processor.get_auditlog_event_config(current_user.get_bot())
+    return Response(data=data)
+
+
+@router.get("/auditlog/data/{from_date}/{to_date}", response_model=Response)
+async def get_auditlog_for_bot(
         start_idx: int = 0, page_size: int = 10,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        from_date: date = Path(default=None, description="from date in yyyy-mm-dd format", example="1999-01-01"),
+        to_date: date = Path(default=None, description="to date in yyyy-mm-dd format", example="1999-01-01"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
-    """
-    List end user logs.
-    """
-    return Response(
-        data=EndUserMetricsProcessor.get_logs(current_user.get_bot(), start_idx, page_size)
-    )
+    logs = mongo_processor.get_auditlog_for_bot(current_user.get_bot(), from_date, to_date, start_idx, page_size)
+    row_cnt = mongo_processor.get_row_count(AuditLogData, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 
-@router.post("/metrics/user/logs/{log_type}", response_model=Response)
-async def add_metrics(
-        request_data: DictData,
-        log_type: MetricTypes = Path(default=None, description="metric type", example=MetricTypes.user_metrics),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+@router.get("/logs/download/{log_type}", response_model=Response)
+async def download_logs(
+        background_tasks: BackgroundTasks,
+        start_date: datetime, end_date: datetime,
+        log_type: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
-    """
-    Stores End User Metrics
-    """
-    data = request_data.dict()["data"]
-    EndUserMetricsProcessor.add_log(
-        log_type=log_type.value, bot=current_user.get_bot(), sender_id=current_user.get_user(), **data
+    logs = mongo_processor.get_logs(current_user.get_bot(), log_type, start_date, end_date)
+    file, temp_path = Utility.download_csv(logs, message=f"{log_type} logs not found!")
+    response = FileResponse(
+        file, filename=os.path.basename(file), background=background_tasks
     )
-    return Response(
-        message='Metrics added'
-    )
+    response.headers[
+        "Content-Disposition"
+    ] = "attachment; filename=" + os.path.basename(file)
+    background_tasks.add_task(Utility.delete_directory, temp_path)
+    return response

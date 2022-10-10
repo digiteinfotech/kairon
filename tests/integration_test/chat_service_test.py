@@ -6,6 +6,7 @@ from urllib.parse import urlencode, quote_plus
 from mock import patch
 from mongoengine import connect
 from rasa.core.agent import Agent
+from slack.web.slack_response import SlackResponse
 from tornado.test.testing_test import AsyncHTTPTestCase
 
 from kairon.api.models import RegisterAccount
@@ -18,8 +19,9 @@ from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.end_user_metrics.processor import EndUserMetricsProcessor
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
 import responses
@@ -56,11 +58,31 @@ loop.run_until_complete(MongoProcessor().save_from_path(
 ))
 start_training(bot2, "test@chat.com")
 bot3 = AccountProcessor.add_bot("testChat3", user['account'], "test@chat.com")['_id'].__str__()
-ChatDataProcessor.save_channel_config({"connector_type": "slack",
-                                       "config": {
-                                           "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                                           "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}},
-                                      bot, user="test@chat.com")
+
+with patch('slack.web.client.WebClient.team_info') as mock_slack_team_info:
+    mock_slack_team_info.return_value = SlackResponse(
+        client=None,
+        http_verb="POST",
+        api_url="https://slack.com/api/team.info",
+        req_args={},
+        data={
+            "ok": True,
+            "team": {
+                "id": "T03BNQE7HLY",
+                "name": "helicopter",
+                "avatar_base_url": "https://ca.slack-edge.com/",
+                "is_verified": False
+            }
+        },
+        headers=dict(),
+        status_code=200,
+        use_sync_aiohttp=False,
+    ).validate()
+    ChatDataProcessor.save_channel_config({
+        "connector_type": "slack", "config": {
+            "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+            "slack_signing_secret": "79f036b9894eef17c064213b90d1042b", "client_id": "sdfghj34567890",
+            "client_secret": "asdf3456789gfghjkl", "is_primary": True}}, bot, user="test@chat.com")
 ChatDataProcessor.save_channel_config({
     "connector_type": "whatsapp",
     "config": {"app_secret": "jagbd34567890", "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ", "verify_token": "valid"}},
@@ -158,7 +180,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
             headers = list(response.headers.get_all())
             assert headers[0] == ('Server', 'Secure')
             assert headers[1] == ('Content-Type', 'application/json')
@@ -172,6 +194,8 @@ class TestChatServer(AsyncHTTPTestCase):
             assert headers[10] == ('Permissions-Policy',
                                    'accelerometer=(self), ambient-light-sensor=(self), autoplay=(self), battery=(self), camera=(self), cross-origin-isolated=(self), display-capture=(self), document-domain=(self), encrypted-media=(self), execution-while-not-rendered=(self), execution-while-out-of-viewport=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), keyboard-map=(self), magnetometer=(self), microphone=(self), midi=(self), navigation-override=(self), payment=(self), picture-in-picture=(self), publickey-credentials-get=(self), screen-wake-lock=(self), sync-xhr=(self), usb=(self), web-share=(self), xr-spatial-tracking=(self)')
             assert headers[11] == ('Cache-Control', 'no-store')
+            assert len(MeteringProcessor.get_logs(user['account'], metric_type=MetricType.test_chat)) > 0
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat, channel_type="chat_client") > 0
 
     def test_chat_with_user(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -189,7 +213,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
 
             response = self.fetch(
                 f"/api/bot/{bot}/chat",
@@ -202,7 +226,9 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat,
+                                                      channel_type="chat_client") >= 2
 
     def test_chat_fetch_from_cache(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -220,7 +246,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
 
     def test_chat_model_not_trained(self):
         response = self.fetch(
@@ -308,7 +334,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert Utility.check_empty_string(actual["message"])
+            assert actual["message"]
 
     def test_chat_with_limited_access(self):
         access_token = Authentication.generate_integration_token(
@@ -325,6 +351,9 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         assert actual['data']['response']
+        assert len(MeteringProcessor.get_logs(user['account'], metric_type=MetricType.prod_chat)) > 0
+        assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                  channel_type="chat_client") > 0
 
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
@@ -439,6 +468,55 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == "sjYDB2ccaT5wpcGyawz6BTDbiujZCBiVwSQR87t3Q3yqgoHFkkTy"
+
+    @patch('slack.web.client.WebClient.team_info')
+    @patch('slack.web.client.WebClient.oauth_v2_access')
+    def test_slack_install_app_using_oauth(self, mock_slack_oauth, mock_slack_team_info):
+        mock_slack_team_info.return_value = SlackResponse(
+            client=self,
+            http_verb="POST",
+            api_url="https://slack.com/api/team.info",
+            req_args={},
+            data={
+                "ok": True,
+                "team": {
+                    "id": "T03BNQE7HLZ",
+                    "name": "airbus",
+                    "avatar_base_url": "https://ca.slack-edge.com/",
+                    "is_verified": False
+                }
+            },
+            headers=dict(),
+            status_code=200,
+            use_sync_aiohttp=False,
+        ).validate()
+        mock_slack_oauth.return_value = SlackResponse(
+            client=self,
+            http_verb="POST",
+            api_url="https://slack.com/api/team.info",
+            req_args={},
+            data={
+                "ok": True,
+                "access_token": "xoxb-987654321098-801939352912-v3zq6MYNu62oSs8vammWOY8K",
+                "team": {
+                    "id": "T03BNQE7HLZ",
+                    "name": "airbus",
+                    "avatar_base_url": "https://ca.slack-edge.com/",
+                    "is_verified": False
+                }
+            },
+            headers=dict(),
+            status_code=200,
+            use_sync_aiohttp=False,
+        ).validate()
+        encoded_url_ = urlencode({'code': "98765432109765432asdfghjkl", "state": ""}, quote_via=quote_plus)
+        response = self.fetch(
+            f"/api/bot/slack/{bot}/{token}?{encoded_url_}",
+            method="GET",
+        )
+        print(response)
+        assert 'https://app.slack.com/client/T03BNQE7HLZ' == response.effective_url
+        self.assertEqual(response.code, 200)
 
     def test_slack_invalid_auth(self):
         headers = {'User-Agent': 'Slackbot 1.0 (+https://api.slack.com/robots)',
@@ -812,6 +890,8 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
+        assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                  channel_type="whatsapp") > 0
 
     @responses.activate
     def test_whatsapp_valid_button_message_request(self):
@@ -1057,7 +1137,7 @@ class TestChatServer(AsyncHTTPTestCase):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
             patch.dict(Utility.environment['action'], {"url": None})
-            with patch.object(Agent, "handle_text") as mock_agent:
+            with patch.object(Agent, "handle_message") as mock_agent:
                 mock_agent.side_effect = self.mock_agent_response
                 response = self.fetch(
                     f"/api/bot/{bot}/chat",
@@ -1089,13 +1169,14 @@ class TestChatServer(AsyncHTTPTestCase):
                                                                'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
 
-                assert len(EndUserMetricsProcessor.get_logs(bot)) == 1
+                assert len(MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")) == 1
+                assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) > 0
 
     def test_chat_with_chatwoot_agent_fallback_existing_contact(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
             patch.dict(Utility.environment['action'], {"url": None})
-            with patch.object(KaironAgent, "handle_text") as mock_agent:
+            with patch.object(KaironAgent, "handle_message") as mock_agent:
                 mock_agent.side_effect = self.mock_agent_response
                 responses.reset()
                 responses.start()
@@ -1192,7 +1273,8 @@ class TestChatServer(AsyncHTTPTestCase):
                                                                'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
                                                                'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
-                assert len(EndUserMetricsProcessor.get_logs(bot)) == 2
+                assert len(MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")) == 2
+                assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) == 2
 
     def test_chat_with_live_agent(self):
         responses.reset()
@@ -1316,7 +1398,7 @@ class TestChatServer(AsyncHTTPTestCase):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
             patch.dict(Utility.environment['action'], {"url": None})
-            with patch.object(KaironAgent, "handle_text") as mock_agent:
+            with patch.object(KaironAgent, "handle_message") as mock_agent:
                 mock_agent.side_effect = self.mock_agent_response
                 responses.reset()
                 responses.start()
@@ -1363,7 +1445,7 @@ class TestChatServer(AsyncHTTPTestCase):
                                                            'additional_properties': None}
                 responses.reset()
                 responses.stop()
-                logs = EndUserMetricsProcessor.get_logs(bot)
+                logs = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
                 assert len(logs) == 3
                 assert logs[0]['exception'] == 'Failed to create conversation: Service Unavailable'
 

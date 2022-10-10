@@ -2,7 +2,7 @@ import pytest
 from mongoengine import ValidationError
 
 from kairon.api.models import HttpActionConfigRequest, HttpActionParameters, ActionResponseEvaluation
-from kairon.shared.actions.data_objects import SetSlots, HttpActionRequestBody
+from kairon.shared.actions.data_objects import SetSlots, HttpActionRequestBody, KaironTwoStageFallbackAction
 from kairon.shared.data.data_objects import Slots, SlotMapping, Entity, StoryEvents
 
 
@@ -131,3 +131,13 @@ class TestBotModels:
         assert story_events_one == story_events_duplicate
         assert not story_events_one == story_events_two
         assert not story_events_one == other_instance_type
+
+    def test_kairon_two_stage_fallback(self):
+        with pytest.raises(ValidationError, match="num_text_recommendations cannot be negative"):
+            KaironTwoStageFallbackAction(num_text_recommendations=-1, trigger_rules=None, bot="test", user="test").save()
+
+        with pytest.raises(ValidationError, match="One of num_text_recommendations or trigger_rules should be defined"):
+            KaironTwoStageFallbackAction(num_text_recommendations=0, trigger_rules=None, bot="test", user="test").save()
+
+        with pytest.raises(ValidationError, match="One of num_text_recommendations or trigger_rules should be defined"):
+            KaironTwoStageFallbackAction(num_text_recommendations=0, trigger_rules=[], bot="test", user="test").save()

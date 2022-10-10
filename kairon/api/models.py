@@ -42,7 +42,10 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
             client_id: Optional[str] = Form(None),
             client_secret: Optional[str] = Form(None),
             recaptcha_response: str = Form(None),
-            remote_ip: str = Form(None)
+            remote_ip: str = Form(None),
+            fingerprint: str = Form(None),
+            add_trusted_device: bool = Form(False),
+            remove_trusted_device: bool = Form(False),
     ):
         """
         @param grant_type: the OAuth2 spec says it is required and MUST be the fixed string "password".
@@ -58,6 +61,9 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         using HTTP Basic auth, as: client_id:client_secret
         @param recaptcha_response: optional string. recaptcha response.
         @param remote_ip: optional string.  remote ip address.
+        @param fingerprint: optional string. device fingerprint.
+        @param add_trusted_device: Add device as a trusted device. False, by default.
+        @param remove_trusted_device: Removes trusted device. False, by default.
         """
         from kairon.shared.utils import Utility
 
@@ -65,6 +71,11 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         if Utility.environment['security']['validate_recaptcha'] and not Utility.check_empty_string(secret):
             Utility.validate_recaptcha(recaptcha_response, remote_ip)
         OAuth2PasswordRequestForm.__init__(self, grant_type, username, password, scope, client_id, client_secret)
+        self.recaptcha_response = recaptcha_response
+        self.remote_ip = remote_ip
+        self.fingerprint = fingerprint
+        self.add_trusted_device = add_trusted_device
+        self.remove_trusted_device = remove_trusted_device
 
 
 class Token(BaseModel):
@@ -669,6 +680,24 @@ class HubspotFormsActionRequest(BaseModel):
     response: str
 
 
+class QuickReplies(BaseModel):
+    text: str
+    payload: str
+
+
+class TwoStageFallbackConfigRequest(BaseModel):
+    num_text_recommendations: int = 0
+    trigger_rules: List[QuickReplies] = None
+
+    @root_validator
+    def check(cls, values):
+        if values['num_text_recommendations'] < 0:
+            raise ValueError("num_text_recommendations cannot be negative")
+        if values['num_text_recommendations'] == 0 and not values['trigger_rules']:
+            raise ValueError("One of num_text_recommendations or trigger_rules should be defined")
+        return values
+
+
 class IntegrationRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     expiry_minutes: int = 0
@@ -695,4 +724,43 @@ class KeyVaultRequest(BaseModel):
 
         if not v or Utility.check_empty_string(v):
             raise ValueError("value is required")
+        return v
+
+
+class EventConfig(BaseModel):
+    ws_url: str
+    headers: dict
+    method: str
+
+    @validator("ws_url")
+    def validate_ws_url(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("url can not be empty")
+        return v
+
+    @validator("headers")
+    def validate_headers(cls, v, values, **kwargs):
+        if not v or len(v) < 1:
+            v = {}
+        return v
+
+
+class IDPConfig(BaseModel):
+    config: dict
+    organization: str
+
+    @validator("config")
+    def validate_config(cls, v, values, **kwargs):
+        if not v or len(v) == 0:
+            v = {}
+        return v
+
+    @validator("organization")
+    def validate_organization(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("Organization can not be empty")
         return v

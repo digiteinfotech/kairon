@@ -3,6 +3,7 @@ from fastapi import Depends
 from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
+from kairon.idp.processor import IDPProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
@@ -15,11 +16,18 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=Response)
-async def login_for_access_token(form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(
+        background_tasks: BackgroundTasks, form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()
+):
     """
     Authenticates the user and generates jwt token
     """
+    Utility.validate_enable_sso_only()
     access_token = Authentication.authenticate(form_data.username, form_data.password)
+    background_tasks.add_task(
+        Authentication.validate_trusted_device_and_log, form_data.username,
+        form_data.fingerprint, form_data.remote_ip, form_data.add_trusted_device, form_data.remove_trusted_device
+    )
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
         "message": "User Authenticated",
@@ -91,12 +99,12 @@ async def get_integrations(
     return Response(data=list(IntegrationProcessor.get_integrations(current_user.get_bot())))
 
 
-@router.get("/login/sso/list/enabled", response_model=Response)
-async def sso_enabled_login_list():
+@router.get("/properties", response_model=Response)
+async def get_app_properties():
     """
     List social media logins enabled.
     """
-    return Response(data=Utility.get_enabled_sso())
+    return Response(data=Utility.get_app_properties())
 
 
 @router.get('/login/sso/{sso_type}')
@@ -127,3 +135,24 @@ async def sso_callback(
         "message": """It is your responsibility to keep the token secret.
         If leaked then other may have access to your system.""",
     }
+
+
+@router.get('/login/idp/{realm_name}')
+async def idp_login(
+        realm_name: str = Path(default=None, description="Domain name for your company", example="KAIRON")):
+    """
+    Fetch redirect url for idp realm.
+    """
+    return IDPProcessor.get_redirect_uri(realm_name)
+
+
+@router.get('/login/idp/callback/{realm_name}', response_model=Response)
+async def idp_callback(session_state: str, code: str,
+                       realm_name: str = Path(default=None, description="Realm name",
+                                              example="KAIRON"),
+                       ):
+    """
+    Identify user and create access token for user
+    """
+    access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name, session_state, code)
+    return Response(data={"access_token": access_token, "token_type": "bearer"}, message="User Authenticated")

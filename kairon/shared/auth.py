@@ -13,9 +13,13 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from kairon.api.models import TokenData
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
+from kairon.shared.constants import PluginTypes
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import User
+from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.sso.factory import LoginSSOFactory
 from kairon.shared.utils import Utility
 from kairon.shared.account.data_objects import UserActivityLog, UserActivityType
@@ -139,10 +143,10 @@ class Authentication:
 
     @staticmethod
     def __authenticate_user(username: str, password: str):
-        user = AccountProcessor.get_user_details(username)
-        if not user:
-            return False
-        if not Utility.verify_password(password, user["password"]):
+        user = AccountProcessor.get_user_details(username, is_login_request=True)
+        if not user or not Utility.verify_password(password, user["password"]):
+            kwargs = {"username": username, "error": "Incorrect username or password"}
+            MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value, account=user["account"], **kwargs)
             return False
         return user
 
@@ -163,6 +167,8 @@ class Authentication:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         access_token = Authentication.create_access_token(data={"sub": user["email"]})
+        kwargs = {"username": username}
+        MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.login.value, account=user["account"], **kwargs)
         return access_token
 
     @staticmethod
@@ -306,3 +312,33 @@ class Authentication:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Access to bot is denied',
             )
+
+    @staticmethod
+    async def validate_trusted_device_and_log(
+            user: Text, fingerprint: Text, ip: Text, add_trusted_device: bool = False,
+            remove_trusted_device: bool = False,
+    ):
+        geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip)
+        geo_location = geo_location or {}
+        user_details = AccountProcessor.get_user(user)
+        MeteringProcessor.add_metrics(None, user_details["account"], MetricType.user_login.value, user_id=user, **geo_location)
+        await Authentication.validate_trusted_device(
+            user, fingerprint, add_trusted_device, remove_trusted_device, **geo_location
+        )
+
+    @staticmethod
+    async def validate_trusted_device(
+            user: Text, fingerprint: Text, add_trusted_device: bool = False,
+            remove_trusted_device: bool = False, **geo_location
+    ):
+        if add_trusted_device:
+            AccountProcessor.add_trusted_device(user, fingerprint)
+        elif remove_trusted_device:
+            AccountProcessor.remove_trusted_device(user, fingerprint)
+        else:
+            if Utility.environment['user']['validate_trusted_device']:
+                trusted_fingerprints = AccountProcessor.list_trusted_device_fingerprints(user)
+                if fingerprint not in trusted_fingerprints and Utility.email_conf["email"]["enable"]:
+                    await Utility.format_and_send_mail(
+                        mail_type='untrusted_login', email=user, first_name=user, **geo_location
+                    )

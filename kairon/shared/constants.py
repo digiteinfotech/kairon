@@ -50,6 +50,12 @@ class EventClass(str, Enum):
     data_importer = "data_importer"
     delete_history = "delete_history"
     multilingual = "multilingual"
+    data_generator = "data_generator"
+
+
+class DataGeneratorCliTypes(str, Enum):
+    from_website = '--from-website'
+    from_document = '--from-document'
 
 
 class EventExecutor(str, Enum):
