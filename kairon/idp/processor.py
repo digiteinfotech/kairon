@@ -74,8 +74,8 @@ class IDPProcessor:
                 config=config_data
             )
             idp_config.save()
-        return urljoin(Utility.environment["idp"]["server_url"],
-                       IDPURLConstants.BROAKER_REDIRECT_URI.value.format(realm_name=config_data.get("realm_name")))
+        return Utility.environment["idp"]["server_url"] + \
+               IDPURLConstants.BROAKER_REDIRECT_URI.value.format(realm_name=config_data.get("realm_name"))
 
     @staticmethod
     def get_idp_config(account):
