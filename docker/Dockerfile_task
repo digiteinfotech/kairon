@@ -53,6 +53,7 @@ COPY system.yaml ${RASA_NLU_HOME}/
 COPY template ${RASA_NLU_HOME}/template
 COPY custom ${RASA_NLU_HOME}/custom
 COPY email.yaml ${RASA_NLU_HOME}/
+COPY augmentation ${RASA_NLU_HOME}/augmentation
 
 ENV BOT default
 ENV USER default

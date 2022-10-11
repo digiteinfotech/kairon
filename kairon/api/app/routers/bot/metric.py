@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Path, Security
+from starlette.requests import Request
 
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
@@ -53,7 +54,7 @@ async def get_end_user_metrics(
 
 @router.post("/user/logs/{metric_type}", response_model=Response)
 async def add_end_user_metrics(
-        request_data: DictData,
+        request_data: DictData, request: Request,
         metric_type: MetricType = Path(default=None, description="metric type", example=MetricType.user_metrics),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
@@ -62,7 +63,7 @@ async def add_end_user_metrics(
     """
     data = request_data.dict()["data"]
     MeteringProcessor.add_log_with_geo_location(
-        metric_type=metric_type.value, bot=current_user.get_bot(), sender_id=current_user.get_user(),
+        metric_type=metric_type.value, request=request, bot=current_user.get_bot(), sender_id=current_user.get_user(),
         account_id=current_user.account, **data
     )
     return Response(message='Metrics added')

@@ -51,6 +51,7 @@ COPY kairon/shared/data/signals.py /app/kairon/shared/data/signals.py
 COPY kairon/exceptions.py /app/kairon/exceptions.py
 COPY system.yaml /app/
 COPY email.yaml /app/
+COPY template /app/template
 
 USER 1001
 EXPOSE 5055

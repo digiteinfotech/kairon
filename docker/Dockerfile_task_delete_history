@@ -51,6 +51,7 @@ COPY system.yaml ${TASK_HOME}/
 COPY email.yaml ${TASK_HOME}/
 COPY metadata ${TASK_HOME}/metadata
 COPY template ${TASK_HOME}/template
+COPY augmentation ${TASK_HOME}/augmentation
 
 ENV BOT default
 ENV USER default

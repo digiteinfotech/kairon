@@ -46,6 +46,7 @@ COPY system.yaml ${IMPORTER_HOME}/
 COPY email.yaml ${IMPORTER_HOME}/
 COPY metadata ${IMPORTER_HOME}/metadata
 COPY template ${IMPORTER_HOME}/template
+COPY augmentation ${IMPORTER_HOME}/augmentation
 
 ENV BOT default
 ENV USER default
