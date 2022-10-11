@@ -1623,24 +1623,3 @@ class Utility:
     def validate_enable_sso_only():
         if Utility.environment["app"]["enable_sso_only"]:
             raise AppException("This feature is disabled")
-
-
-class LogStreamReader:
-
-    def __init__(self):
-        self.log_capture_string = None
-
-    def start(self):
-        model_logger = logging.getLogger()
-        model_logger.setLevel(logging.DEBUG)
-        self.log_capture_string = StringIO()
-        ch = logging.StreamHandler(self.log_capture_string)
-        ch.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        model_logger.addHandler(ch)
-
-    def stop_stream_and_get_logs(self):
-        model_logs = self.log_capture_string.getvalue()
-        self.log_capture_string.close()
-        return model_logs
