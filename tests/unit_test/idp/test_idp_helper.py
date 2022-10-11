@@ -265,9 +265,10 @@ class TestIDP:
             "POST", update_client_access_url, status=200, json={}
         )
 
-        IDPProcessor.save_idp_config(data=data, user=get_user())
+        redirect_url = IDPProcessor.save_idp_config(data=data, user=get_user())
         saved_data = IdpConfig.objects(account=get_user().account).get()
         assert saved_data.realm_name == realm_name
+        assert redirect_url == f"http://localhost:8080/auth/realms/{realm_name}/broker/{realm_name}/endpoint"
 
     def test_get_idp_config(self):
         user = get_user()
