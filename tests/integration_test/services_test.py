@@ -10897,7 +10897,7 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
     responses.add("GET", url, json=expected)
     response = client.post(
         f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token, 'X-Forwarded-For': "192.222.100.106"},
         json = {"data": {"source": "Digite.com", "language": "English", "ip": ip}}
     )
     actual = response.json()
@@ -10967,10 +10967,12 @@ def test_get_end_user_metrics():
     actual["data"]["logs"][1].pop('account')
     actual["data"]["logs"][2].pop('timestamp')
     actual["data"]["logs"][2].pop('account')
+    assert actual["data"]["logs"][1]['ip']
+    del actual["data"]["logs"][1]['ip']
     assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
-                                 'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
+                                 'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
     assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
