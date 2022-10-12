@@ -57,7 +57,8 @@ class KaironMessageProcessor(MessageProcessor):
         ):
             # this actually just calls the policy's method by the same name
             action, prediction = self.predict_next_action(tracker)
-            actions_predicted.append(action.name())
+            actions_predicted.append({"action_name": action.name(), "max_confidence": prediction.max_confidence,
+                                      "policy_name": prediction.policy_name})
 
             should_predict_another_action = await self._run_action(
                 action, tracker, output_channel, self.nlg, prediction
