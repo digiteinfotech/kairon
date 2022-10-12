@@ -30,6 +30,8 @@ RUN python -m pip install jira
 RUN python -m pip install zenpy
 RUN python -m pip install pipedrive-python-lib
 RUN python -m pip install google-cloud-translate
+RUN python -m pip install keybert
+RUN python -m pip install bs4
 RUN python -m pip install protobuf==3.20.1
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
