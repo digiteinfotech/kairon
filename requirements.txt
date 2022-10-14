@@ -47,7 +47,7 @@ fastapi_sso
 pytest-httpx==0.15.0
 json2html
 numpy==1.22.0
-protobuf==3.20.1
+protobuf==3.20.2
 google-api-python-client
 nltk==3.6.6
 blinker
@@ -61,3 +61,7 @@ dramatiq-mongodb
 keybert
 bs4
 fastapi-keycloak
+httpx>=0.23.0 # not directly required, pinned by Snyk to avoid a vulnerability
+joblib>=1.1.1 # not directly required, pinned by Snyk to avoid a vulnerability
+sanic>=20.12.6 # not directly required, pinned by Snyk to avoid a vulnerability
+ujson>=5.4.0 # not directly required, pinned by Snyk to avoid a vulnerability
