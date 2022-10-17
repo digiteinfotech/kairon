@@ -4316,16 +4316,13 @@ class MongoProcessor:
         :param bot: bot id
         :param name: action name
         """
-        try:
-            action = KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True).get().to_mongo().to_dict()
+        for action in KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True):
+            action = action.to_mongo().to_dict()
             action.pop('_id')
             action.pop('status')
             action.pop('bot')
             action.pop('user')
-            return action
-        except DoesNotExist as e:
-            logging.exception(e)
-            raise AppException("Action not found")
+            yield action
 
     @staticmethod
     def save_auditlog_event_config(bot, user, data):

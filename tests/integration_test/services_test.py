@@ -9127,10 +9127,10 @@ def test_get_kairon_two_stage_fallback_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"] == "Action not found"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert not actual["message"]
 
 
 def test_add_kairon_two_stage_fallback_action_error():
@@ -9237,8 +9237,8 @@ def test_get_kairon_two_stage_fallback_action_1():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    del actual['data']['timestamp']
-    assert actual["data"] == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 4, 'trigger_rules': []}
+    del actual['data'][0]['timestamp']
+    assert actual["data"] == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 4, 'trigger_rules': []}]
 
 
 def test_delete_kairon_two_stage_fallback_action():

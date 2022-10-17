@@ -3806,18 +3806,15 @@ class TestMongoProcessor:
                 "metadata": {"source_bot_id": None}
             }
 
-
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         expected_config = json.load(open(config_path))
-        expected_config['host'] = Utility.environment['app']['server_url']
         actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER']
         assert actual_config.config['api_server_host_url']
         del actual_config.config['api_server_host_url']
-        del expected_config['api_server_host_url']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']
@@ -8287,9 +8284,9 @@ class TestMongoProcessor:
         request = {"trigger_rules": None, "num_text_recommendations": 3}
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}]
 
     def test_add_custom_2_stage_fallback_action_exists(self):
         processor = MongoProcessor()
@@ -8318,9 +8315,9 @@ class TestMongoProcessor:
         processor.add_intent("call", bot, user, False)
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': request['trigger_rules']}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': request['trigger_rules']}]
 
     def test_edit_custom_2_stage_fallback_action_not_found(self):
         processor = MongoProcessor()
@@ -8333,8 +8330,7 @@ class TestMongoProcessor:
     def test_get_2_stage_fallback_action_not_found(self):
         processor = MongoProcessor()
         bot = 'test_edit_custom_2_stage_fallback_action_not_found'
-        with pytest.raises(AppException, match="Action not found"):
-            processor.get_two_stage_fallback_action_config(bot)
+        assert list(processor.get_two_stage_fallback_action_config(bot)) == []
 
     def test_edit_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
@@ -8343,9 +8339,9 @@ class TestMongoProcessor:
         request = {"trigger_rules": None, "num_text_recommendations": 3}
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}]
 
     def test_edit_custom_2_stage_fallback_action_rules_only(self):
         processor = MongoProcessor()
@@ -8367,10 +8363,10 @@ class TestMongoProcessor:
         processor.add_complex_story(story_dict, bot, user)
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
-                          'trigger_rules': request['trigger_rules']}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
+                          'trigger_rules': request['trigger_rules']}]
 
     def test_edit_custom_2_stage_fallback_action_rules_not_found(self):
         processor = MongoProcessor()
