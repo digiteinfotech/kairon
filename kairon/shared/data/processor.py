@@ -3463,12 +3463,12 @@ class MongoProcessor:
             client_config.config['headers'] = {}
         if not client_config.config['headers'].get('X-USER'):
             client_config.config['headers']['X-USER'] = user
-        client_config.config['host'] = Utility.environment['app']['server_url']
+        client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
         token = Authentication.generate_integration_token(
             bot, user, expiry=30,
             access_limit=[
                 '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
-                '/api/bot/.+/metric/user/logs/{log_type}'
+                '/api/bot/.+/metric/user/logs/user_metrics'
             ],
             token_type=TOKEN_TYPE.DYNAMIC.value
         )

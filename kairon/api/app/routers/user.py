@@ -2,6 +2,7 @@ from fastapi import APIRouter, Path, Security
 
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.shared.account.processor import AccountProcessor
@@ -181,3 +182,11 @@ async def get_auditlog_for_user(
     Get user specific auditlog .
     """
     return Response(data=AccountProcessor.get_auditlog_for_user(current_user.get_user(), start_idx, page_size))
+
+
+@router.get("/multilingual/languages", response_model=Response)
+async def get_supported_languages(current_user: User = Security(Authentication.get_current_user)):
+    """
+    Get supported languages for translation
+    """
+    return Response(data=Translator.get_supported_languages())

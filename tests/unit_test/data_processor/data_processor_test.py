@@ -3815,9 +3815,9 @@ class TestMongoProcessor:
         actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER']
-        assert actual_config.config['host']
-        del actual_config.config['host']
-        del expected_config['host']
+        assert actual_config.config['api_server_host_url']
+        del actual_config.config['api_server_host_url']
+        del expected_config['api_server_host_url']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']

@@ -11311,7 +11311,7 @@ def test_multilingual_language_support(monkeypatch):
     monkeypatch.setattr(Translator, "get_supported_languages", _mock_supported_languages)
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/multilingual/languages",
+        f"/api/user/multilingual/languages",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     ).json()
 
