@@ -54,14 +54,12 @@ model:
   retention: ${MODEL_RETENTION_COUNT:4}
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:2}
-    event_url: ${TRAIN_EVENT_URL}
+    default_model_training_config_path: ${DEFAULT_MODEL_TRAINING_CONFIG_PATH:"./tests/testing_data/model_training_config/config.yml"}
   test:
     limit_per_day: ${TESTING_LIMIT_PER_DAY:5}
-    event_url: ${TEST_EVENT_URL}
     augmentation_similarity_threshold: ${TEST_DATA_AUGMENTATION_SIMILARITY_THRESHOLD:0.70}
   data_importer:
     limit_per_day: ${IMPORTING_LIMIT_PER_DAY:10}
-    event_url: ${IMPORTER_EVENT_URL}
   agent:
     url: ${AGENT_URL}
   config_properties:
@@ -73,7 +71,6 @@ action:
 
 data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
-  event_url: ${EVENT_URL}
   kairon_url: ${KAIRON_URL}
 
 elasticsearch:
@@ -87,7 +84,6 @@ history_server:
   url: ${KAIRON_HISTORY_SERVER_URL:"http://localhost:8083"}
   token: ${KAIRON_HISTORY_SERVER_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
   deletion:
-    event_url: ${HISTORY_DELETION_EVENT_URL}
     archive_db: ${ARCHIVE_DB:"conversations_archive"}
 
 notifications:
@@ -116,7 +112,6 @@ evaluator:
 
 multilingual:
   project_id: ${MULTILINGUAL_TRANSLATOR_PROJECT_ID}
-  event_url: ${BOT_REPLICATION_EVENT_URL}
   limit_per_day: ${TRANSLATION_LIMIT:10}
   service_account_creds:
     type: ${SERVICE_ACCOUNT_TYPE}
