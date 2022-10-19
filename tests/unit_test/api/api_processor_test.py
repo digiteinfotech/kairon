@@ -91,8 +91,9 @@ class TestAccountProcessor:
         bot = Bot.objects(name="test").get().to_mongo().to_dict()
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
-        expected_config = Utility.read_yaml('./template/config/kairon-default.yml')
+        expected_config = Utility.read_yaml(Utility.environment["model"]["train"]["default_model_training_config_path"])
         assert config['language'] == expected_config['language']
+        print(expected_config)
         assert config['pipeline'] == expected_config['pipeline']
         assert config['policies'] == expected_config['policies']
         assert Rules.objects(bot=bot['_id'].__str__()).get()
@@ -154,13 +155,14 @@ class TestAccountProcessor:
         assert len(
             AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 2
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
-        expected_config = Utility.read_yaml('./template/config/kairon-default.yml')
+        expected_config = Utility.read_yaml(Utility.environment["model"]["train"]["default_model_training_config_path"])
+        print(expected_config)
         assert config['language'] == expected_config['language']
         assert config['pipeline'] == expected_config['pipeline']
         assert config['policies'] == expected_config['policies']
         assert config['policies'][2]['name'] == 'RulePolicy'
         assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
-        assert config['policies'][2]['core_fallback_threshold'] == 0.7
+        assert config['policies'][2]['core_fallback_threshold'] == 0.5
         assert Rules.objects(bot=bot['_id'].__str__()).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
 

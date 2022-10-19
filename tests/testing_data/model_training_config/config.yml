@@ -12,16 +12,16 @@ pipeline:
   max_ngram: 4
   min_ngram: 1
   name: CountVectorsFeaturizer
-- epochs: 50
+- epochs: 5
   name: DIETClassifier
 - name: EntitySynonymMapper
 - name: FallbackClassifier
   threshold: 0.7
-- epochs: 100
+- epochs: 10
   name: ResponseSelector
 policies:
 - name: MemoizationPolicy
-- epochs: 100
+- epochs: 10
   max_history: 5
   name: TEDPolicy
 - core_fallback_action_name: action_default_fallback
