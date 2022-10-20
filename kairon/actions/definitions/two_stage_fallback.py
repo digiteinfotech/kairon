@@ -5,6 +5,8 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.shared.actions.exception import ActionFailure
+from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.processor import MongoProcessor
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, KaironTwoStageFallbackAction
@@ -66,8 +68,15 @@ class ActionTwoStageFallback(ActionsBase):
                     logger.exception(e)
         if trigger_rules:
             for rule in trigger_rules:
-                rule['payload'] = f"/{rule['payload']}"
-                suggested_intents.append(rule)
+                btn = {}
+                if rule.get('is_dynamic_msg'):
+                    btn['payload'] = f"/{rule['payload']}{{'{KAIRON_USER_MSG_ENTITY}': '{tracker.latest_message.get('text')}'}}"
+                elif not ActionUtility.is_empty(rule.get('message')):
+                    btn['payload'] = f"/{rule['payload']}{{'{KAIRON_USER_MSG_ENTITY}': '{rule.get('message')}'}}"
+                else:
+                    btn['payload'] = f"/{rule['payload']}"
+                btn['text'] = rule['text']
+                suggested_intents.append(btn)
         dispatcher.utter_message(buttons=suggested_intents)
         ActionServerLogs(
             type=ActionType.two_stage_fallback.value,

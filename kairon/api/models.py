@@ -688,6 +688,8 @@ class HubspotFormsActionRequest(BaseModel):
 class QuickReplies(BaseModel):
     text: str
     payload: str
+    message: str = None
+    is_dynamic_msg: bool = False
 
 
 class TwoStageFallbackConfigRequest(BaseModel):

@@ -8317,7 +8317,26 @@ class TestMongoProcessor:
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
-        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': request['trigger_rules']}]
+        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
+                           'trigger_rules': [{'text': 'Mail me', 'payload': 'greet', 'is_dynamic_msg': False},
+                                             {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
+
+    def test_add_custom_2_stage_fallback_action_with_user_message(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_with_static_user_message'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "greet", "message": "my payload", "is_dynamic_msg": True},
+                                     {"text": "Contact me", "payload": "call", "message": None, "is_dynamic_msg": False}],
+                   "num_text_recommendations": 0}
+        processor.add_intent("greet", bot, user, False)
+        processor.add_intent("call", bot, user, False)
+        processor.add_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': [
+            {'text': 'Mail me', 'payload': 'greet', 'message': 'my payload', 'is_dynamic_msg': True},
+            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
 
     def test_edit_custom_2_stage_fallback_action_not_found(self):
         processor = MongoProcessor()
@@ -8347,20 +8366,11 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
-        steps = [
-            {"name": "mail", "type": "INTENT"},
-            {"name": "action_send_mail", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
-        steps = [
-            {"name": "contact", "type": "INTENT"},
-            {"name": "action_call", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail", 'message': 'my payload', 'is_dynamic_msg': False},
+                                     {"text": "Contact me", "payload": "call", "is_dynamic_msg": True}],
+                   "num_text_recommendations": 0}
+        processor.add_intent("send_mail", bot, user, False)
+        processor.add_intent("call", bot, user, False)
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))

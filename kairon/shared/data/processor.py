@@ -4300,7 +4300,7 @@ class MongoProcessor:
         ):
             raise AppException(f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found')
         trigger_rules = [rule['payload'] for rule in request_data.get('trigger_rules') or []]
-        intent_present = self.fetch_rule_block_names(bot)
+        intent_present = self.fetch_intents(bot)
         if trigger_rules and set(trigger_rules).difference(set(intent_present)):
             raise AppException(f"Intent {set(trigger_rules).difference(set(intent_present))} do not exist in the bot")
         action = KaironTwoStageFallbackAction.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()

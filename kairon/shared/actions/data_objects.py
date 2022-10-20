@@ -449,6 +449,8 @@ class HubspotFormsAction(Auditlog):
 class QuickReplies(EmbeddedDocument):
     text = StringField(required=True)
     payload = StringField(required=True)
+    message = StringField()
+    is_dynamic_msg = BooleanField(default=False)
 
 
 @auditlogger.log
