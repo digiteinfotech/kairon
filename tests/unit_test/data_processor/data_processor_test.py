@@ -3394,8 +3394,8 @@ class TestMongoProcessor:
         configs = Configs._from_son(
             read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][5]
-        del configs['pipeline'][7]
+        del configs['pipeline'][4]
+        del configs['pipeline'][6]
         del configs['policies'][1]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
@@ -3437,7 +3437,7 @@ class TestMongoProcessor:
         configs = Configs._from_son(
             read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][7]
+        del configs['pipeline'][6]
         del configs['policies'][2]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_fallback_not_configured', 'test')
@@ -3453,12 +3453,10 @@ class TestMongoProcessor:
                                                     'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
-                                                    'name': 'CountVectorsFeaturizer'},
                                                    {'epochs': 50, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.8},
                                                    {'epochs': 100, 'name': 'ResponseSelector'}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'name': 'TEDPolicy'},
                                  {'name': 'RulePolicy', 'core_fallback_action_name': 'action_say_bye',
                                   'core_fallback_threshold': 0.3}]}
         assert config == expected
