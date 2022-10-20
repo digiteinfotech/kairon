@@ -270,15 +270,16 @@ class TestIDP:
         assert saved_data.realm_name == realm_name
         assert redirect_url == f"http://localhost:8080/auth/realms/{realm_name}/broker/{realm_name}/endpoint"
 
-    def test_get_idp_config(self):
+    def test_get_idp_config(self, set_idp_props):
         user = get_user()
         idp_config = IDPProcessor.get_idp_config(account=user.account)
+        realm_name = "IDPTEST"
         assert idp_config is not None
         assert idp_config["client_id"] == "95280cec-93ca-4a94-a852-c23aa10*****"
         assert idp_config["client_secret"] == "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
         assert idp_config["organization"] == "Test"
         assert idp_config["tenant"] == "fa1b21ce-4ca5-4009"
-
+        assert idp_config["idp_redirect_uri"] == f"http://localhost:8080/auth/realms/{realm_name}/broker/{realm_name}/endpoint"
     def test_get_idp_config_not_exists(self):
         account = "5"
         idp_config = IDPProcessor.get_idp_config(account=account)

@@ -3242,16 +3242,18 @@ class TestMongoProcessor:
         assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
                                                    {'epochs': 200, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.6},
                                                    {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'ResponseSelector', 'epochs': 300}],
+                                                   {'epochs': 300, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
@@ -3336,39 +3338,40 @@ class TestMongoProcessor:
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
         assert ted['epochs'] == 400
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
                                                    {'epochs': 200, 'name': 'DIETClassifier'},
                                                    {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.85},
-                                                   {'name': 'ResponseSelector', 'epochs': 300}],
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                                   {'epochs': 300, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
-                                  'core_fallback_threshold': 0.7, 'enable_fallback_prediction': True,
+                                  'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
                                   'name': 'RulePolicy'}]}
         assert config == expected
 
     def test_get_config_properties_epoch_only(self):
-        expected = {'nlu_confidence_threshold': 0.85,
-                    'action_fallback': 'action_default_fallback',
-                    'action_fallback_threshold': 0.7,
-                    'ted_epochs': 400,
-                    'nlu_epochs': 200,
-                    'response_epochs': 300}
+        expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
+                    'action_fallback_threshold': 0.5, 'ted_epochs': 400, 'nlu_epochs': 200, 'response_epochs': 300}
         processor = MongoProcessor()
         config = processor.list_epoch_and_fallback_config('test_epoch_only')
+        print(config)
         assert config == expected
 
-    def test_save_component_properties_empty(self):
+    def test_save_component_properties_empty(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["model"]["train"], "default_model_training_config_path", "./template/config/kairon-default.yml")
         processor = MongoProcessor()
         with pytest.raises(AppException) as e:
             processor.save_component_properties({}, 'test_properties_empty', 'test')
         assert str(e).__contains__('At least one field is required')
         config = processor.load_config('test_properties_empty')
+        print(config)
         assert config == Utility.read_yaml('./template/config/kairon-default.yml')
         nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
         assert nlu['name'] == 'DIETClassifier'
@@ -3381,12 +3384,8 @@ class TestMongoProcessor:
         assert ted['epochs'] == 100
 
     def test_get_config_properties_fallback_not_set(self):
-        expected = {'nlu_confidence_threshold': 0.85,
-                    'action_fallback_threshold': 0.7,
-                    'action_fallback': 'action_default_fallback',
-                    'ted_epochs': 100,
-                    'nlu_epochs': 50,
-                    'response_epochs': 100}
+        expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
+                    'action_fallback_threshold': 0.5, 'ted_epochs': 10, 'nlu_epochs': 5, 'response_epochs': 10}
         processor = MongoProcessor()
         config = processor.list_epoch_and_fallback_config('test_fallback_not_set')
         assert config == expected
@@ -3401,12 +3400,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
-        expected = {"nlu_confidence_threshold": 0.85,
-                    'action_fallback_threshold': 0.7,
-                    "action_fallback": 'action_default_fallback',
-                    "ted_epochs": None,
-                    "nlu_epochs": None,
-                    "response_epochs": None}
+        expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
+                     'action_fallback_threshold': 0.5, 'ted_epochs': None, 'nlu_epochs': 50, 'response_epochs': 100}
         processor = MongoProcessor()
         actual = processor.list_epoch_and_fallback_config('test_list_component_not_exists')
         assert actual == expected
@@ -3452,17 +3447,17 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
         config = processor.load_config('test_fallback_not_configured')
-        print(config)
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
                                                    {'epochs': 50, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.8},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'ResponseSelector', 'epochs': 100}],
+                                                   {'epochs': 100, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'name': 'RulePolicy', 'core_fallback_action_name': 'action_say_bye',
                                   'core_fallback_threshold': 0.3}]}
@@ -3478,20 +3473,21 @@ class TestMongoProcessor:
         assert nlu_fallback['threshold'] == 0.75
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         assert len(rule_policy) == 4
-        print(config)
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
-                                                   {'epochs': 50, 'name': 'DIETClassifier'},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
+                                                   {'epochs': 5, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.75},
                                                    {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'ResponseSelector', 'epochs': 100}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
+                                                   {'epochs': 10, 'name': 'ResponseSelector'}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
-                                  'core_fallback_threshold': 0.7, 'enable_fallback_prediction': True,
+                                  'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
                                   'name': 'RulePolicy'}]}
         assert config == expected
 
@@ -3517,17 +3513,19 @@ class TestMongoProcessor:
         assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
-                                                   {'epochs': 50, 'name': 'DIETClassifier'},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
+                                                   {'epochs': 5, 'name': 'DIETClassifier'},
                                                    {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.85},
-                                                   {'name': 'ResponseSelector', 'epochs': 100}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                                   {'epochs': 10, 'name': 'ResponseSelector'}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_say_bye', 'core_fallback_threshold': 0.3,
                                   'enable_fallback_prediction': True, 'name': 'RulePolicy'}]}
         assert config == expected

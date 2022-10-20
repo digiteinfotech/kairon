@@ -86,9 +86,9 @@ class IDPProcessor:
             result["client_id"] = Utility.decrypt_message(result["client_id"])[:-5] + "*****"
             result["client_secret"] = Utility.decrypt_message(result["client_secret"])[:-5] + "*****"
             result["organization"] = idp_config_data.organization
-            result["idp_redirect_uri"] = urljoin(Utility.environment["idp"]["server_url"],
-                                                 IDPURLConstants.BROAKER_REDIRECT_URI.value.format(
-                                                     realm_name=idp_config_data.realm_name))
+            result["idp_redirect_uri"] = Utility.environment["idp"][
+                                             "server_url"] + IDPURLConstants.BROAKER_REDIRECT_URI.value.format(
+                realm_name=idp_config_data.realm_name)
         except DoesNotExist:
             result = {}
         return result
