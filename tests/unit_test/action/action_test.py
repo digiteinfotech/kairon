@@ -2859,7 +2859,7 @@ class TestActions:
         bot = "test_bot"
         user = "test_user"
         KaironTwoStageFallbackAction(
-            num_text_recommendations=3, trigger_rules=[
+            text_recommendations={"count": 3}, trigger_rules=[
                 {"text": "Trigger", "payload": "set_context"}, {"text": "Mail me", "payload": "send_mail"}
             ], bot=bot, user=user
         ).save()
@@ -2869,9 +2869,9 @@ class TestActions:
         config.pop('user')
         config.pop('timestamp')
         config.pop('status')
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3,
-                          'trigger_rules': [{'text': 'Trigger', 'payload': 'set_context'},
-                                            {'text': 'Mail me', 'payload': 'send_mail'}]}
+        assert config == {'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, 'use_intent_ranking': False},
+                          'trigger_rules': [{'is_dynamic_msg': False, 'text': 'Trigger', 'payload': 'set_context'},
+                                            {'is_dynamic_msg': False, 'text': 'Mail me', 'payload': 'send_mail'}]}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

@@ -1505,19 +1505,20 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Invalid training example!")
 
-    def search_training_examples(self, search: Text, bot: Text):
+    def search_training_examples(self, search: Text, bot: Text, limit: int = 5):
         """
         search the training examples
 
         :param search: search text
         :param bot: bot id
+        :param limit: number of search results
         :return: yields tuple of intent name, training example
         """
         results = (
             TrainingExamples.objects(bot=bot, status=True)
                 .search_text(search)
-                .order_by("$text_score")
-                .limit(5)
+                .order_by("-$text_score")
+                .limit(limit)
         )
         for result in results:
             yield {"intent": result.intent, "text": result.text}
@@ -4305,7 +4306,7 @@ class MongoProcessor:
             raise AppException(f"Intent {set(trigger_rules).difference(set(intent_present))} do not exist in the bot")
         action = KaironTwoStageFallbackAction.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         action.trigger_rules = [QuickReplies(**rule) for rule in request_data.get('trigger_rules') or []]
-        action.num_text_recommendations = request_data['num_text_recommendations']
+        action.text_recommendations = request_data.get('text_recommendations')
         action.user = user
         action.save()
 

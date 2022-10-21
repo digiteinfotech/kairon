@@ -692,16 +692,21 @@ class QuickReplies(BaseModel):
     is_dynamic_msg: bool = False
 
 
+class TwoStageFallbackTextualRecommendations(BaseModel):
+    count: int = 0
+    use_intent_ranking: bool = False
+
+
 class TwoStageFallbackConfigRequest(BaseModel):
-    num_text_recommendations: int = 0
+    text_recommendations: TwoStageFallbackTextualRecommendations = None
     trigger_rules: List[QuickReplies] = None
 
     @root_validator
     def check(cls, values):
-        if values['num_text_recommendations'] < 0:
-            raise ValueError("num_text_recommendations cannot be negative")
-        if values['num_text_recommendations'] == 0 and not values['trigger_rules']:
-            raise ValueError("One of num_text_recommendations or trigger_rules should be defined")
+        if not values.get('text_recommendations') and not values['trigger_rules']:
+            raise ValueError("One of text_recommendations or trigger_rules should be defined")
+        if values.get('text_recommendations') and values['text_recommendations'].count < 0:
+            raise ValueError("count cannot be negative")
         return values
 
 

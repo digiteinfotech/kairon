@@ -8273,22 +8273,30 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f"{KAIRON_TWO_STAGE_FALLBACK} is a reserved keyword"):
             processor.add_hubspot_forms_action(action, bot, user)
 
+    def test_add_custom_2_stage_fallback_action_validation_error(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": None, "text_recommendations": None}
+        with pytest.raises(ValidationError):
+            processor.add_two_stage_fallback_action(request, bot, user)
+
     def test_add_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3, "use_intent_ranking": True}}
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
-        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}]
+        assert config == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': []}]
 
     def test_add_custom_2_stage_fallback_action_exists(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         with pytest.raises(AppException, match="Action exists!"):
             processor.add_two_stage_fallback_action(request, bot, user)
 
@@ -8297,7 +8305,7 @@ class TestMongoProcessor:
         bot = 'test_add_custom_2_stage_fallback_action_rules_not_found'
         user = 'test_user'
         request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+                                     {"text": "Contact me", "payload": "call"}]}
         with pytest.raises(AppException, match=r"Intent {.+} do not exist in the bot"):
             processor.add_two_stage_fallback_action(request, bot, user)
 
@@ -8306,14 +8314,14 @@ class TestMongoProcessor:
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
         request = {"trigger_rules": [{"text": "Mail me", "payload": "greet"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+                                     {"text": "Contact me", "payload": "call"}]}
         processor.add_intent("greet", bot, user, False)
         processor.add_intent("call", bot, user, False)
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
-        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
+        assert config == [{'name': 'kairon_two_stage_fallback',
                            'trigger_rules': [{'text': 'Mail me', 'payload': 'greet', 'is_dynamic_msg': False},
                                              {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
 
@@ -8322,15 +8330,14 @@ class TestMongoProcessor:
         bot = 'test_add_custom_2_stage_fallback_action_with_static_user_message'
         user = 'test_user'
         request = {"trigger_rules": [{"text": "Mail me", "payload": "greet", "message": "my payload", "is_dynamic_msg": True},
-                                     {"text": "Contact me", "payload": "call", "message": None, "is_dynamic_msg": False}],
-                   "num_text_recommendations": 0}
+                                     {"text": "Contact me", "payload": "call", "message": None, "is_dynamic_msg": False}]}
         processor.add_intent("greet", bot, user, False)
         processor.add_intent("call", bot, user, False)
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
-        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': [
+        assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'greet', 'message': 'my payload', 'is_dynamic_msg': True},
             {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
 
@@ -8338,7 +8345,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_edit_custom_2_stage_fallback_action_not_found'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         with pytest.raises(AppException, match=f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'):
             processor.edit_two_stage_fallback_action(request, bot, user)
 
@@ -8351,34 +8358,34 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
-        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}]
+        assert config == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, "use_intent_ranking": False}, 'trigger_rules': []}]
 
     def test_edit_custom_2_stage_fallback_action_rules_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
         request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail", 'message': 'my payload', 'is_dynamic_msg': False},
-                                     {"text": "Contact me", "payload": "call", "is_dynamic_msg": True}],
-                   "num_text_recommendations": 0}
+                                     {"text": "Contact me", "payload": "call", "is_dynamic_msg": True}]}
         processor.add_intent("send_mail", bot, user, False)
         processor.add_intent("call", bot, user, False)
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
-        assert config == [{'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
-                          'trigger_rules': request['trigger_rules']}]
+        assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
+            {'text': 'Mail me', 'payload': 'send_mail', 'message': 'my payload', 'is_dynamic_msg': False},
+            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': True}]}]
 
     def test_edit_custom_2_stage_fallback_action_rules_not_found(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}], "num_text_recommendations": 0}
+        request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}]}
 
         with pytest.raises(AppException, match=f"Intent {set(['send_dm'])} do not exist in the bot"):
             processor.edit_two_stage_fallback_action(request, bot, user)
