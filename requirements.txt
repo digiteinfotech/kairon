@@ -61,3 +61,4 @@ dramatiq-mongodb
 keybert
 bs4
 fastapi-keycloak
+joblib>=1.1.1 # not directly required, pinned by Snyk to avoid a vulnerability
