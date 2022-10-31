@@ -58,9 +58,9 @@ class ActionTwoStageFallback(ActionsBase):
         trigger_rules = action_config.get('trigger_rules')
         latest_user_msg = tracker.latest_message.get('text')
         recommendations = []
-        if text_recommendations:
-            mongo_processor = MongoProcessor()
-            if text_recommendations.get("count") and text_recommendations.get("use_intent_ranking"):
+        mongo_processor = MongoProcessor()
+        if text_recommendations and text_recommendations.get("count"):
+            if text_recommendations.get("use_intent_ranking"):
                 for intent in intent_ranking[1: 1 + text_recommendations["count"]]:
                     try:
                         example = next(mongo_processor.get_training_examples(intent["name"], self.bot))
@@ -69,16 +69,16 @@ class ActionTwoStageFallback(ActionsBase):
                     except Exception as e:
                         exception = str(e)
                         logger.exception(e)
-            elif text_recommendations.get("count"):
+            else:
                 for result in list(mongo_processor.search_training_examples(latest_user_msg, self.bot, text_recommendations["count"])):
                     recommendations.append({"text": result.get("text"), "payload": result.get("text")})
         if trigger_rules:
             for rule in trigger_rules:
                 btn = {}
                 if rule.get('is_dynamic_msg'):
-                    btn['payload'] = f"/{rule['payload']}{{'{KAIRON_USER_MSG_ENTITY}': '{latest_user_msg}'}}"
+                    btn['payload'] = f'/{rule["payload"]}{{"{KAIRON_USER_MSG_ENTITY}": "{latest_user_msg}"}}'
                 elif not ActionUtility.is_empty(rule.get('message')):
-                    btn['payload'] = f"/{rule['payload']}{{'{KAIRON_USER_MSG_ENTITY}': '{rule.get('message')}'}}"
+                    btn['payload'] = f'/{rule["payload"]}{{"{KAIRON_USER_MSG_ENTITY}": "{rule.get("message")}"}}'
                 else:
                     btn['payload'] = f"/{rule['payload']}"
                 btn['text'] = rule['text']

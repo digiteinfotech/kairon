@@ -1517,7 +1517,7 @@ class MongoProcessor:
         results = (
             TrainingExamples.objects(bot=bot, status=True)
                 .search_text(search)
-                .order_by("-$text_score")
+                .order_by("-text_score")
                 .limit(limit)
         )
         for result in results:
@@ -3893,6 +3893,8 @@ class MongoProcessor:
                 Utility.delete_document([PipedriveLeadsAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.hubspot_forms_action.value:
                 Utility.delete_document([HubspotFormsAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.two_stage_fallback.value:
+                Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()

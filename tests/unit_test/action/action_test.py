@@ -17,6 +17,7 @@ from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault
 
@@ -689,6 +690,30 @@ class TestActions:
         assert not request_params['msg']
         assert log['param1'] == "value1"
         assert not log['msg']
+
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
+                                     HttpActionRequestBody(key="msg", parameter_type="user_message")]
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "/google_search",
+                   KAIRON_USER_MSG_ENTITY: "using custom msg"}
+        request_params, log = ActionUtility.prepare_request(tracker,
+                                                            http_action_config_params=http_action_config_params,
+                                                            bot="test")
+        assert request_params['param1'] == "value1"
+        assert request_params['msg'] == "using custom msg"
+        assert log['param1'] == "value1"
+        assert log['msg'] == "using custom msg"
+
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
+                                     HttpActionRequestBody(key="msg", parameter_type="user_message")]
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "perform google search",
+                   KAIRON_USER_MSG_ENTITY: "using custom msg"}
+        request_params, log = ActionUtility.prepare_request(tracker,
+                                                            http_action_config_params=http_action_config_params,
+                                                            bot="test")
+        assert request_params['param1'] == "value1"
+        assert request_params['msg'] == "perform google search"
+        assert log['param1'] == "value1"
+        assert log['msg'] == "perform google search"
 
     def test_prepare_request_no_request_params(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}

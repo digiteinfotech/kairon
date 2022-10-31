@@ -9249,6 +9249,17 @@ def test_delete_kairon_two_stage_fallback_action():
     assert actual["message"] == 'Action deleted'
 
 
+def test_get_kairon_two_stage_fallback_action_2():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
 def test_disable_integration_token():
     response = client.put(
         f"/api/auth/{pytest.bot}/integration/token",

@@ -4021,8 +4021,8 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
         self.assertEquals(response_json['responses'][0]['buttons'], [
             {'payload': '/set_context', 'text': 'Trigger'},
-            {'payload': "/send_mail{'kairon_user_msg': 'welcome new user'}", 'text': 'Mail me'},
-            {'payload': "/send_mail{'kairon_user_msg': 'get intents'}", 'text': 'Mail me'}])
+            {'payload': '/send_mail{"kairon_user_msg": "welcome new user"}', 'text': 'Mail me'},
+            {'payload': '/send_mail{"kairon_user_msg": "get intents"}', 'text': 'Mail me'}])
 
     def test_two_stage_fallback_intent_deleted(self):
         action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
