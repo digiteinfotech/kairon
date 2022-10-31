@@ -53,6 +53,7 @@ model:
   retention: ${MODEL_RETENTION_COUNT:4}
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
+    default_model_training_config_path: ${DEFAULT_MODEL_TRAINING_CONFIG_PATH:"./template/config/kairon-default.yml"}
   test:
     limit_per_day: ${TESTING_LIMIT_PER_DAY:5}
     dataset_threshold: ${TEST_DATA_THRESHOLD:10}

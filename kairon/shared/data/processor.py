@@ -1231,7 +1231,7 @@ class MongoProcessor:
         except DoesNotExist as e:
             logging.info(e)
             configs = Configs._from_son(
-                read_config_file("./template/config/kairon-default.yml")
+                read_config_file(Utility.environment["model"]["train"]["default_model_training_config_path"])
             )
         return configs
 
@@ -1505,19 +1505,20 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Invalid training example!")
 
-    def search_training_examples(self, search: Text, bot: Text):
+    def search_training_examples(self, search: Text, bot: Text, limit: int = 5):
         """
         search the training examples
 
         :param search: search text
         :param bot: bot id
+        :param limit: number of search results
         :return: yields tuple of intent name, training example
         """
         results = (
             TrainingExamples.objects(bot=bot, status=True)
                 .search_text(search)
-                .order_by("$text_score")
-                .limit(5)
+                .order_by("-text_score")
+                .limit(limit)
         )
         for result in results:
             yield {"intent": result.intent, "text": result.text}
@@ -3463,12 +3464,12 @@ class MongoProcessor:
             client_config.config['headers'] = {}
         if not client_config.config['headers'].get('X-USER'):
             client_config.config['headers']['X-USER'] = user
-        client_config.config['host'] = Utility.environment['app']['server_url']
+        client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
         token = Authentication.generate_integration_token(
             bot, user, expiry=30,
             access_limit=[
                 '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
-                '/api/bot/.+/metric/user/logs/{log_type}'
+                '/api/bot/.+/metric/user/logs/user_metrics'
             ],
             token_type=TOKEN_TYPE.DYNAMIC.value
         )
@@ -3892,6 +3893,8 @@ class MongoProcessor:
                 Utility.delete_document([PipedriveLeadsAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.hubspot_forms_action.value:
                 Utility.delete_document([HubspotFormsAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.two_stage_fallback.value:
+                Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4300,12 +4303,12 @@ class MongoProcessor:
         ):
             raise AppException(f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found')
         trigger_rules = [rule['payload'] for rule in request_data.get('trigger_rules') or []]
-        intent_present = self.fetch_rule_block_names(bot)
+        intent_present = self.fetch_intents(bot)
         if trigger_rules and set(trigger_rules).difference(set(intent_present)):
             raise AppException(f"Intent {set(trigger_rules).difference(set(intent_present))} do not exist in the bot")
         action = KaironTwoStageFallbackAction.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         action.trigger_rules = [QuickReplies(**rule) for rule in request_data.get('trigger_rules') or []]
-        action.num_text_recommendations = request_data['num_text_recommendations']
+        action.text_recommendations = request_data.get('text_recommendations')
         action.user = user
         action.save()
 
@@ -4316,16 +4319,13 @@ class MongoProcessor:
         :param bot: bot id
         :param name: action name
         """
-        try:
-            action = KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True).get().to_mongo().to_dict()
+        for action in KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True):
+            action = action.to_mongo().to_dict()
             action.pop('_id')
             action.pop('status')
             action.pop('bot')
             action.pop('user')
-            return action
-        except DoesNotExist as e:
-            logging.exception(e)
-            raise AppException("Action not found")
+            yield action
 
     @staticmethod
     def save_auditlog_event_config(bot, user, data):

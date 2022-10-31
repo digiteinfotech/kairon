@@ -6,8 +6,9 @@ from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction
+    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations
 from kairon.shared.actions.models import ActionType
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault
 from kairon.shared.data.processor import MongoProcessor
@@ -2307,6 +2308,59 @@ class TestActionServer(AsyncHTTPTestCase):
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None
                 }]})
 
+        def _run_action(*args, **kwargs):
+            assert args == ('1234567890', 'asdfg::123456', 'my custom text')
+            assert kwargs == {'num': 1}
+            return [{
+                'title': 'Kanban',
+                'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
+                'link': "https://www.digite.com/kanban/what-is-kanban/"
+            }]
+
+        request_object["tracker"]["latest_message"] = {
+            'text': f'/action_google_search{{"{KAIRON_USER_MSG_ENTITY}": "my custom text"}}',
+            'intent_ranking': [{'name': 'test_run'}], "entities": [{"value": "my custom text", "entity": KAIRON_USER_MSG_ENTITY}]
+        }
+        with patch.object(ActionUtility, "perform_google_search") as mocked:
+            mocked.side_effect = _run_action
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            self.assertEqual(response_json, {'events': [{
+                'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                 'value': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
+                 }],
+                'responses': [{
+                    'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>',
+                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None
+                }]})
+
+        def _run_action(*args, **kwargs):
+            assert args == ('1234567890', 'asdfg::123456', '/action_google_search')
+            assert kwargs == {'num': 1}
+            return [{
+                'title': 'Kanban',
+                'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
+                'link': "https://www.digite.com/kanban/what-is-kanban/"
+            }]
+
+        request_object["tracker"]["latest_message"] = {
+            'text': '/action_google_search', 'intent_ranking': [{'name': 'test_run'}]
+        }
+        with patch.object(ActionUtility, "perform_google_search") as mocked:
+            mocked.side_effect = _run_action
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            self.assertEqual(response_json, {'events': [{
+                'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                 'value': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
+                 }],
+                'responses': [{
+                    'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>',
+                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None
+                }]})
+
     def test_process_google_search_action_failure(self):
         action_name = "custom_search_failure"
         bot = "5f50fd0a56b698ca10d35d2e"
@@ -3732,7 +3786,10 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = "5f50fd0a56b698ca10d35d2e"
         user = 'test_user'
         Actions(name=action_name, type=ActionType.two_stage_fallback.value, bot=bot, user=user).save()
-        KaironTwoStageFallbackAction(name=action_name, num_text_recommendations=3, bot=bot, user=user).save()
+        action = KaironTwoStageFallbackAction(
+            name=action_name, text_recommendations={"count": 3, "use_intent_ranking": True}, bot=bot, user=user
+        )
+        action.save()
         mongo_processor = MongoProcessor()
         list(mongo_processor.add_training_example(["hi", "hello"], "greet", bot, user, False))
         list(mongo_processor.add_training_example(["bye", "bye bye"], "goodbye", bot, user, False))
@@ -3833,6 +3890,34 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
         self.assertEquals(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
 
+        action.text_recommendations = TwoStageFallbackTextualRecommendations(**{"count": 3})
+        action.save()
+
+        def _mock_search(*args, **kwargs):
+            for result in [{"text": "hi", "payload": "hi"}, {"text": "bye", "payload": "bye"}, {"text": "yes", "payload": "yes"}]:
+                yield result
+
+        with patch.object(MongoProcessor, "search_training_examples") as mock_action:
+            mock_action.side_effect = _mock_search
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response_json['events'], [])
+            self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
+            self.assertEquals(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
+
+        def _mock_search(*args, **kwargs):
+            for _ in []:
+                yield
+
+        with patch.object(MongoProcessor, "search_training_examples") as mock_action:
+            mock_action.side_effect = _mock_search
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response_json['events'], [])
+            self.assertEquals(response_json['responses'], [
+                {"text": None, "buttons": [], "elements": [], "custom": {}, "template": "utter_default",
+                 "response": "utter_default", "image": None, "attachment": None}])
+
     def test_two_stage_fallback_action_no_intent_ranking(self):
         action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
         bot = "5f50fd0a56b698ca10d35d2f"
@@ -3840,8 +3925,10 @@ class TestActionServer(AsyncHTTPTestCase):
         mongo_processor = MongoProcessor()
         Actions(name=action_name, type=ActionType.two_stage_fallback.value, bot=bot, user=user).save()
         KaironTwoStageFallbackAction(
-            name=action_name, num_text_recommendations=3, trigger_rules=[
-                {"text": "Trigger", "payload": "set_context"}, {"text": "Mail me", "payload": "send_mail"}
+            name=action_name, text_recommendations={"count": 3, "use_intent_ranking": True}, trigger_rules=[
+                {"text": "Trigger", "payload": "set_context"},
+                {"text": "Mail me", "payload": "send_mail", 'message': "welcome new user"},
+                {"text": "Mail me", "payload": "send_mail", 'message': "welcome new user", "is_dynamic_msg": True},
             ], bot=bot, user=user
         ).save()
         list(mongo_processor.add_training_example(["hi", "hello"], "greet", bot, user, False))
@@ -3931,9 +4018,11 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
-        self.assertEquals(len(response_json['responses'][0]['buttons']), 2)
-        self.assertEquals(response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
-                                                                     {"text": "Mail me", "payload": "/send_mail"}])
+        self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
+        self.assertEquals(response_json['responses'][0]['buttons'], [
+            {'payload': '/set_context', 'text': 'Trigger'},
+            {'payload': '/send_mail{"kairon_user_msg": "welcome new user"}', 'text': 'Mail me'},
+            {'payload': '/send_mail{"kairon_user_msg": "get intents"}', 'text': 'Mail me'}])
 
     def test_two_stage_fallback_intent_deleted(self):
         action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
@@ -3941,7 +4030,7 @@ class TestActionServer(AsyncHTTPTestCase):
         user = 'test_user'
         Actions(name=action_name, type=ActionType.two_stage_fallback.value, bot=bot, user=user).save()
         KaironTwoStageFallbackAction(
-            name=action_name, num_text_recommendations=3, trigger_rules=[
+            name=action_name, text_recommendations={"count": 3, "use_intent_ranking": True}, trigger_rules=[
                 {"text": "Trigger", "payload": "set_context"}, {"text": "Mail me", "payload": "send_mail"}
             ], bot=bot, user=user
         ).save()
@@ -4049,5 +4138,5 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json, {'events': [], 'responses': [
-            {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
-             'image': None, 'attachment': None}]})
+            {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': "utter_default",
+             'response': "utter_default", 'image': None, 'attachment': None}]})

@@ -8,18 +8,23 @@ pipeline:
   name: "kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer"
 - name: LexicalSyntacticFeaturizer
 - name: CountVectorsFeaturizer
-- epochs: 50
+- analyzer: char_wb
+  max_ngram: 4
+  min_ngram: 1
+  name: CountVectorsFeaturizer
+- epochs: 5
   name: DIETClassifier
 - name: EntitySynonymMapper
 - name: FallbackClassifier
   threshold: 0.7
-- epochs: 100
+- epochs: 10
   name: ResponseSelector
 policies:
 - name: MemoizationPolicy
-- epochs: 100
+- epochs: 10
+  max_history: 5
   name: TEDPolicy
 - core_fallback_action_name: action_default_fallback
   core_fallback_threshold: 0.5
-  enable_fallback_prediction: false
+  enable_fallback_prediction: true
   name: RulePolicy

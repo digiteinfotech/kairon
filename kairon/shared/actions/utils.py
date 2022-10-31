@@ -13,6 +13,7 @@ from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
 from .models import SlotValidationOperators, LogicalOperators, ActionParameterType, HttpRequestContentType, \
     EvaluationType
+from ..constants import KAIRON_USER_MSG_ENTITY
 from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots, KeyVault
 from ..utils import Utility
@@ -91,6 +92,10 @@ class ActionUtility:
                 value = tracker_data.get(ActionParameterType.slot.value, {}).get(param['value'])
             elif param['parameter_type'] == ActionParameterType.user_message.value:
                 value = tracker_data.get(ActionParameterType.user_message.value)
+                if not ActionUtility.is_empty(value) and value.startswith("/"):
+                    user_msg = tracker_data.get(KAIRON_USER_MSG_ENTITY)
+                    if not ActionUtility.is_empty(user_msg):
+                        value = user_msg
             elif param['parameter_type'] == ActionParameterType.intent.value:
                 value = tracker_data.get(ActionParameterType.intent.value)
             elif param['parameter_type'] == ActionParameterType.chat_log.value:
@@ -141,6 +146,7 @@ class ActionUtility:
             ActionParameterType.slot.value: tracker.current_slot_values(),
             ActionParameterType.intent.value: tracker.get_intent_of_latest_message(),
             ActionParameterType.chat_log.value: msg_trail,
+            KAIRON_USER_MSG_ENTITY: next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None),
             "session_started": iat
         }
 

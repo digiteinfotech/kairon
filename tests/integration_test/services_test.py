@@ -9127,15 +9127,14 @@ def test_get_kairon_two_stage_fallback_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"] == "Action not found"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert not actual["message"]
 
 
 def test_add_kairon_two_stage_fallback_action_error():
     action = {
-        "num_text_recommendations": 0,
         "trigger_rules": []
     }
     response = client.post(
@@ -9146,10 +9145,10 @@ def test_add_kairon_two_stage_fallback_action_error():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'One of num_text_recommendations or trigger_rules should be defined', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'One of text_recommendations or trigger_rules should be defined', 'type': 'value_error'}]
 
     action = {
-        "num_text_recommendations": -1,
+        "text_recommendations": {"count": -1},
         "trigger_rules": [{"text": "hi", "payload": "greet"}]
     }
     response = client.post(
@@ -9161,12 +9160,11 @@ def test_add_kairon_two_stage_fallback_action_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', '__root__'], 'msg': 'num_text_recommendations cannot be negative', 'type': 'value_error'}]
+        {'loc': ['body', '__root__'], 'msg': 'count cannot be negative', 'type': 'value_error'}]
 
 
 def test_edit_kairon_two_stage_fallback_action_not_exists():
     action = {
-        "num_text_recommendations": 0,
         "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
     }
 
@@ -9183,7 +9181,7 @@ def test_edit_kairon_two_stage_fallback_action_not_exists():
 
 def test_add_kairon_two_stage_fallback_action():
     action = {
-        "num_text_recommendations": 0,
+        "text_recommendations": {"count": 0, "use_intent_ranking": True},
         "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
     response = client.post(
@@ -9200,7 +9198,6 @@ def test_add_kairon_two_stage_fallback_action():
 
 def test_add_kairon_two_stage_fallback_action_exists():
     action = {
-        "num_text_recommendations": 0,
         "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
     response = client.post(
@@ -9216,7 +9213,7 @@ def test_add_kairon_two_stage_fallback_action_exists():
 
 def test_edit_kairon_two_stage_fallback_action_action():
     action = {
-        "num_text_recommendations": 4
+        "text_recommendations": {"count": 4}
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/fallback/two_stage",
@@ -9237,8 +9234,8 @@ def test_get_kairon_two_stage_fallback_action_1():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    del actual['data']['timestamp']
-    assert actual["data"] == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 4, 'trigger_rules': []}
+    del actual['data'][0]['timestamp']
+    assert actual["data"] == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 4, "use_intent_ranking": False}, 'trigger_rules': []}]
 
 
 def test_delete_kairon_two_stage_fallback_action():
@@ -9250,6 +9247,17 @@ def test_delete_kairon_two_stage_fallback_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action deleted'
+
+
+def test_get_kairon_two_stage_fallback_action_2():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
 
 
 def test_disable_integration_token():
@@ -11311,7 +11319,7 @@ def test_multilingual_language_support(monkeypatch):
     monkeypatch.setattr(Translator, "get_supported_languages", _mock_supported_languages)
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/multilingual/languages",
+        f"/api/user/multilingual/languages",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     ).json()
 

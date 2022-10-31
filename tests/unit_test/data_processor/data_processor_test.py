@@ -3242,16 +3242,18 @@ class TestMongoProcessor:
         assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
                                                    {'epochs': 200, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.6},
                                                    {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'ResponseSelector', 'epochs': 300}],
+                                                   {'epochs': 300, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
@@ -3336,39 +3338,40 @@ class TestMongoProcessor:
         ted = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), None)
         assert ted['name'] == 'TEDPolicy'
         assert ted['epochs'] == 400
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
                                                    {'epochs': 200, 'name': 'DIETClassifier'},
                                                    {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.85},
-                                                   {'name': 'ResponseSelector', 'epochs': 300}],
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                                   {'epochs': 300, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
-                                  'core_fallback_threshold': 0.7, 'enable_fallback_prediction': True,
+                                  'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
                                   'name': 'RulePolicy'}]}
         assert config == expected
 
     def test_get_config_properties_epoch_only(self):
-        expected = {'nlu_confidence_threshold': 0.85,
-                    'action_fallback': 'action_default_fallback',
-                    'action_fallback_threshold': 0.7,
-                    'ted_epochs': 400,
-                    'nlu_epochs': 200,
-                    'response_epochs': 300}
+        expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
+                    'action_fallback_threshold': 0.5, 'ted_epochs': 400, 'nlu_epochs': 200, 'response_epochs': 300}
         processor = MongoProcessor()
         config = processor.list_epoch_and_fallback_config('test_epoch_only')
+        print(config)
         assert config == expected
 
-    def test_save_component_properties_empty(self):
+    def test_save_component_properties_empty(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["model"]["train"], "default_model_training_config_path", "./template/config/kairon-default.yml")
         processor = MongoProcessor()
         with pytest.raises(AppException) as e:
             processor.save_component_properties({}, 'test_properties_empty', 'test')
         assert str(e).__contains__('At least one field is required')
         config = processor.load_config('test_properties_empty')
+        print(config)
         assert config == Utility.read_yaml('./template/config/kairon-default.yml')
         nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
         assert nlu['name'] == 'DIETClassifier'
@@ -3381,12 +3384,8 @@ class TestMongoProcessor:
         assert ted['epochs'] == 100
 
     def test_get_config_properties_fallback_not_set(self):
-        expected = {'nlu_confidence_threshold': 0.85,
-                    'action_fallback_threshold': 0.7,
-                    'action_fallback': 'action_default_fallback',
-                    'ted_epochs': 100,
-                    'nlu_epochs': 50,
-                    'response_epochs': 100}
+        expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
+                    'action_fallback_threshold': 0.5, 'ted_epochs': 10, 'nlu_epochs': 5, 'response_epochs': 10}
         processor = MongoProcessor()
         config = processor.list_epoch_and_fallback_config('test_fallback_not_set')
         assert config == expected
@@ -3395,18 +3394,14 @@ class TestMongoProcessor:
         configs = Configs._from_son(
             read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][5]
-        del configs['pipeline'][7]
+        del configs['pipeline'][4]
+        del configs['pipeline'][6]
         del configs['policies'][1]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
-        expected = {"nlu_confidence_threshold": 0.85,
-                    'action_fallback_threshold': 0.7,
-                    "action_fallback": 'action_default_fallback',
-                    "ted_epochs": None,
-                    "nlu_epochs": None,
-                    "response_epochs": None}
+        expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
+                     'action_fallback_threshold': 0.5, 'ted_epochs': None, 'nlu_epochs': 50, 'response_epochs': 100}
         processor = MongoProcessor()
         actual = processor.list_epoch_and_fallback_config('test_list_component_not_exists')
         assert actual == expected
@@ -3442,7 +3437,7 @@ class TestMongoProcessor:
         configs = Configs._from_son(
             read_config_file("./template/config/kairon-default.yml")
         ).to_mongo().to_dict()
-        del configs['pipeline'][7]
+        del configs['pipeline'][6]
         del configs['policies'][2]
         processor = MongoProcessor()
         processor.save_config(configs, 'test_fallback_not_configured', 'test')
@@ -3452,18 +3447,16 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.save_component_properties(config, 'test_fallback_not_configured', 'test')
         config = processor.load_config('test_fallback_not_configured')
-        print(config)
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
                                                    {'epochs': 50, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.8},
-                                                   {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'ResponseSelector', 'epochs': 100}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
+                                                   {'epochs': 100, 'name': 'ResponseSelector'}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'name': 'TEDPolicy'},
                                  {'name': 'RulePolicy', 'core_fallback_action_name': 'action_say_bye',
                                   'core_fallback_threshold': 0.3}]}
         assert config == expected
@@ -3478,20 +3471,21 @@ class TestMongoProcessor:
         assert nlu_fallback['threshold'] == 0.75
         rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
         assert len(rule_policy) == 4
-        print(config)
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
-                                                   {'epochs': 50, 'name': 'DIETClassifier'},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
+                                                   {'epochs': 5, 'name': 'DIETClassifier'},
                                                    {'name': 'FallbackClassifier', 'threshold': 0.75},
                                                    {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'ResponseSelector', 'epochs': 100}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
+                                                   {'epochs': 10, 'name': 'ResponseSelector'}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
-                                  'core_fallback_threshold': 0.7, 'enable_fallback_prediction': True,
+                                  'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
                                   'name': 'RulePolicy'}]}
         assert config == expected
 
@@ -3517,17 +3511,19 @@ class TestMongoProcessor:
         assert len(rule_policy) == 4
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
-        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'},
-                                                   {'model_name': 'distilbert', 'name': 'LanguageModelFeaturizer'},
+        expected = {'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
+                                                   {'model_name': 'bert', 'from_pt': True,
+                                                    'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
+                                                    'name': 'kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer'},
                                                    {'name': 'LexicalSyntacticFeaturizer'},
                                                    {'name': 'CountVectorsFeaturizer'},
-                                                   {'name': 'CountVectorsFeaturizer', 'analyzer': 'char_wb',
-                                                    'min_ngram': 1, 'max_ngram': 4},
-                                                   {'epochs': 50, 'name': 'DIETClassifier'},
+                                                   {'analyzer': 'char_wb', 'max_ngram': 4, 'min_ngram': 1,
+                                                    'name': 'CountVectorsFeaturizer'},
+                                                   {'epochs': 5, 'name': 'DIETClassifier'},
                                                    {'name': 'EntitySynonymMapper'},
-                                                   {'name': 'FallbackClassifier', 'threshold': 0.85},
-                                                   {'name': 'ResponseSelector', 'epochs': 100}],
-                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 100, 'max_history': 5, 'name': 'TEDPolicy'},
+                                                   {'name': 'FallbackClassifier', 'threshold': 0.7},
+                                                   {'epochs': 10, 'name': 'ResponseSelector'}],
+                    'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_say_bye', 'core_fallback_threshold': 0.3,
                                   'enable_fallback_prediction': True, 'name': 'RulePolicy'}]}
         assert config == expected
@@ -3806,18 +3802,15 @@ class TestMongoProcessor:
                 "metadata": {"source_bot_id": None}
             }
 
-
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         expected_config = json.load(open(config_path))
-        expected_config['host'] = Utility.environment['app']['server_url']
         actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER']
-        assert actual_config.config['host']
-        del actual_config.config['host']
-        del expected_config['host']
+        assert actual_config.config['api_server_host_url']
+        del actual_config.config['api_server_host_url']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']
@@ -8280,22 +8273,30 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f"{KAIRON_TWO_STAGE_FALLBACK} is a reserved keyword"):
             processor.add_hubspot_forms_action(action, bot, user)
 
+    def test_add_custom_2_stage_fallback_action_validation_error(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": None, "text_recommendations": None}
+        with pytest.raises(ValidationError):
+            processor.add_two_stage_fallback_action(request, bot, user)
+
     def test_add_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3, "use_intent_ranking": True}}
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': []}]
 
     def test_add_custom_2_stage_fallback_action_exists(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         with pytest.raises(AppException, match="Action exists!"):
             processor.add_two_stage_fallback_action(request, bot, user)
 
@@ -8304,7 +8305,7 @@ class TestMongoProcessor:
         bot = 'test_add_custom_2_stage_fallback_action_rules_not_found'
         user = 'test_user'
         request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+                                     {"text": "Contact me", "payload": "call"}]}
         with pytest.raises(AppException, match=r"Intent {.+} do not exist in the bot"):
             processor.add_two_stage_fallback_action(request, bot, user)
 
@@ -8313,70 +8314,78 @@ class TestMongoProcessor:
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
         request = {"trigger_rules": [{"text": "Mail me", "payload": "greet"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
+                                     {"text": "Contact me", "payload": "call"}]}
         processor.add_intent("greet", bot, user, False)
         processor.add_intent("call", bot, user, False)
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': request['trigger_rules']}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback',
+                           'trigger_rules': [{'text': 'Mail me', 'payload': 'greet', 'is_dynamic_msg': False},
+                                             {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
+
+    def test_add_custom_2_stage_fallback_action_with_user_message(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_with_static_user_message'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "greet", "message": "my payload", "is_dynamic_msg": True},
+                                     {"text": "Contact me", "payload": "call", "message": None, "is_dynamic_msg": False}]}
+        processor.add_intent("greet", bot, user, False)
+        processor.add_intent("call", bot, user, False)
+        processor.add_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
+            {'text': 'Mail me', 'payload': 'greet', 'message': 'my payload', 'is_dynamic_msg': True},
+            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
 
     def test_edit_custom_2_stage_fallback_action_not_found(self):
         processor = MongoProcessor()
         bot = 'test_edit_custom_2_stage_fallback_action_not_found'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         with pytest.raises(AppException, match=f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'):
             processor.edit_two_stage_fallback_action(request, bot, user)
 
     def test_get_2_stage_fallback_action_not_found(self):
         processor = MongoProcessor()
         bot = 'test_edit_custom_2_stage_fallback_action_not_found'
-        with pytest.raises(AppException, match="Action not found"):
-            processor.get_two_stage_fallback_action_config(bot)
+        assert list(processor.get_two_stage_fallback_action_config(bot)) == []
 
     def test_edit_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, "use_intent_ranking": False}, 'trigger_rules': []}]
 
     def test_edit_custom_2_stage_fallback_action_rules_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
-        steps = [
-            {"name": "mail", "type": "INTENT"},
-            {"name": "action_send_mail", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
-        steps = [
-            {"name": "contact", "type": "INTENT"},
-            {"name": "action_call", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail", 'message': 'my payload', 'is_dynamic_msg': False},
+                                     {"text": "Contact me", "payload": "call", "is_dynamic_msg": True}]}
+        processor.add_intent("send_mail", bot, user, False)
+        processor.add_intent("call", bot, user, False)
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
-                          'trigger_rules': request['trigger_rules']}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
+            {'text': 'Mail me', 'payload': 'send_mail', 'message': 'my payload', 'is_dynamic_msg': False},
+            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': True}]}]
 
     def test_edit_custom_2_stage_fallback_action_rules_not_found(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}], "num_text_recommendations": 0}
+        request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}]}
 
         with pytest.raises(AppException, match=f"Intent {set(['send_dm'])} do not exist in the bot"):
             processor.edit_two_stage_fallback_action(request, bot, user)

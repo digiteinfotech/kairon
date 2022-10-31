@@ -345,7 +345,7 @@ async def get_two_stage_fallback_action(current_user: User = Security(Authentica
     """
     Returns configuration for two stage fallback action.
     """
-    config = mongo_processor.get_two_stage_fallback_action_config(bot=current_user.get_bot())
+    config = list(mongo_processor.get_two_stage_fallback_action_config(bot=current_user.get_bot()))
     return Response(data=config)
 
 
