@@ -8610,9 +8610,11 @@ class TestMongoProcessor:
         assert len(log_eight) == 2
 
     def test_delete_audit_logs(self):
+        processor = MongoProcessor()
+        start_time = datetime.utcnow()
+        init_time = start_time - timedelta(days=1000)
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
-        start_time = datetime.utcnow()
         AuditLogData(
             bot="test", user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
@@ -8626,8 +8628,6 @@ class TestMongoProcessor:
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
-        processor = MongoProcessor()
-        init_time = start_time - timedelta(days=1000)
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         assert len(logs) == num_logs + 3
         processor.delete_audit_logs()
