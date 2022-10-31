@@ -60,7 +60,8 @@ class LinkedinSSO(KaironSSO):
         }
 
     async def process_login(
-            self, code: str, request: Request, *, params: Optional[Dict[str, Any]] = None
+            self, code: str, request: Request, *, params: Optional[Dict[str, Any]] = None,
+            additional_headers: Optional[Dict[str, Any]] = None, redirect_uri: Optional[str] = None
     ) -> Optional[OpenID]:
         """
         This method should be called from callback endpoint to verify the user and request user info endpoint.
