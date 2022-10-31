@@ -37,7 +37,7 @@ from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
-    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK
+    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -8623,6 +8623,31 @@ class TestMongoProcessor:
         assert len(log_seven) == 2
         log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)
         assert len(log_eight) == 2
+
+    def test_delete_audit_logs(self):
+        logs = processor.get_logs("test", "audit_logs", init_time, start_time)
+        num_logs = len(logs)
+        start_time = datetime.utcnow()
+        AuditLogData(
+            bot="test", user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            entity="ModelTraining"
+        ).save()
+        AuditLogData(
+            bot="test", user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
+            entity="ModelTraining"
+        ).save()
+        AuditLogData(
+            bot="test", user="test", timestamp=start_time - timedelta(days=480),
+            action=AuditlogActions.SAVE.value,
+            entity="ModelTraining"
+        ).save()
+        processor = MongoProcessor()
+        init_time = start_time - timedelta(days=1000)
+        logs = processor.get_logs("test", "audit_logs", init_time, start_time)
+        assert len(logs) == num_logs + 3
+        processor.delete_audit_logs()
+        logs = processor.get_logs("test", "audit_logs", init_time, start_time)
+        assert len(logs) == num_logs + 1
 
 
 class TestTrainingDataProcessor:
