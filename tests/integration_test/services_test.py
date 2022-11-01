@@ -8269,7 +8269,7 @@ def test_sso_redirect_url_invalid_type():
 def test_list_sso_not_enabled(monkeypatch):
     monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
     response = client.get(
-        url=f"/api/auth/properties", allow_redirects=False
+        url=f"/api/system/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
@@ -8279,7 +8279,8 @@ def test_list_sso_not_enabled(monkeypatch):
                 'facebook': False,
                 'linkedin': False,
                 'google': False
-            }, 'enable_sso_only': True, 'validate_trusted_device': False
+            }, 'enable_sso_only': True, 'validate_trusted_device': False, 'enable_apm': False,
+            'enable_notifications': False, 'validate_recaptcha': False, 'enable_multilingual': False
         }
 
 
@@ -8346,7 +8347,7 @@ def test_list_sso_enabled():
     Utility.environment['sso']['google']['enable'] = True
 
     response = client.get(
-        url=f"/api/auth/properties", allow_redirects=False
+        url=f"/api/system/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
@@ -8356,8 +8357,8 @@ def test_list_sso_enabled():
                 'facebook': False,
                 'linkedin': True,
                 'google': True
-            },
-            'enable_sso_only': False, 'validate_trusted_device': False
+            }, 'enable_apm': False, 'enable_notifications': False, 'validate_recaptcha': False,
+            'enable_sso_only': False, 'validate_trusted_device': False, 'enable_multilingual': False
         }
 
 

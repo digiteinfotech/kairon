@@ -114,6 +114,7 @@ evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/evaluate"}
 
 multilingual:
+  enable: ${ENABLE_MULTILINGUAL_BOTS:false}
   project_id: ${MULTILINGUAL_TRANSLATOR_PROJECT_ID}
   limit_per_day: ${TRANSLATION_LIMIT:2}
   service_account_creds:

@@ -1281,7 +1281,11 @@ class Utility:
                 'google': Utility.check_is_enabled('google', False)
             },
             'enable_sso_only': Utility.environment["app"]["enable_sso_only"],
-            'validate_trusted_device': Utility.environment["user"]["validate_trusted_device"]
+            'enable_apm': Utility.environment["elasticsearch"]["enable"],
+            'enable_notifications': Utility.environment["notifications"]["enable"],
+            'enable_multilingual': Utility.environment["multilingual"]["enable"],
+            'validate_trusted_device': Utility.environment["user"]["validate_trusted_device"],
+            'validate_recaptcha': Utility.environment["security"]["validate_recaptcha"],
         }
         return properties
 

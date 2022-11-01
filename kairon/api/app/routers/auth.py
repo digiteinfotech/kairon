@@ -99,14 +99,6 @@ async def get_integrations(
     return Response(data=list(IntegrationProcessor.get_integrations(current_user.get_bot())))
 
 
-@router.get("/properties", response_model=Response)
-async def get_app_properties():
-    """
-    List social media logins enabled.
-    """
-    return Response(data=Utility.get_app_properties())
-
-
 @router.get('/login/sso/{sso_type}')
 async def sso_login(sso_type: str = Path(default=None, description="social media type", example="google")):
     """
