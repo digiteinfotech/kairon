@@ -3797,36 +3797,31 @@ class TestMongoProcessor:
 
     def test_get_chat_client_config_not_exists(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
-            return {'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True}
-
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
 
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         expected_config = json.load(open(config_path))
-        actual_config = processor.get_chat_client_config('test_bot')
+        actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER']
-        assert actual_config.config['host']
-        del actual_config.config['host']
-        del expected_config['host']
+        assert actual_config.config['api_server_host_url']
+        del actual_config.config['api_server_host_url']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
         del actual_config.config['headers']
+        expected_config['multilingual'] = {'enable': False, 'bots': []}
         assert expected_config == actual_config.config
 
     def test_save_chat_client_config_without_whitelisted_domain(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
-
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         config = json.load(open(config_path))
@@ -3866,9 +3861,6 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
-
         scope = {
             "type": "http",
             "http_version": "1.1",
@@ -3885,7 +3877,6 @@ class TestMongoProcessor:
 
         request = Request(scope=scope)
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         config = json.load(open(config_path))
@@ -3895,16 +3886,13 @@ class TestMongoProcessor:
         config['whitelist'] = ["kairon.digite.com", "kairon-api.digite.com"]
         processor.save_chat_client_config(config, 'test', 'testUser')
 
-        fetched_config = processor.get_chat_client_config('test')
+        fetched_config = processor.get_chat_client_config('test', 'user@integration.com')
+        fetched_config = fetched_config.to_mongo().to_dict()
         assert Utility.validate_request(request, fetched_config)
-
 
     def test_validate_white_listed_domain_attackers(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
-
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
 
         scope = {
             "type": "http",
@@ -3922,7 +3910,6 @@ class TestMongoProcessor:
 
         request = Request(scope=scope)
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
         config_path = "./template/chat-client/default-config.json"
         config = json.load(open(config_path))
@@ -3932,21 +3919,17 @@ class TestMongoProcessor:
         config['whitelist'] = ["kairon.digite.com", "kairon-api.digite.com"]
         processor.save_chat_client_config(config, 'test', 'testUser')
 
-        fetched_config = processor.get_chat_client_config('test')
+        fetched_config = processor.get_chat_client_config('test', 'user@integration.com')
+        fetched_config = fetched_config.to_mongo().to_dict()
         assert not Utility.validate_request(request, fetched_config)
-
 
     def test_get_chat_client_config(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
-
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         processor = MongoProcessor()
-        actual_config = processor.get_chat_client_config('test')
+        actual_config = processor.get_chat_client_config('test', 'user@integration.com')
         assert actual_config.config['headers']['authorization']
         assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
 
@@ -3957,15 +3940,11 @@ class TestMongoProcessor:
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
 
-        def _mock_list_bot_accessors(*args, **kwargs):
-            yield {'accessor_email': 'user@integration.com'}
-
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        monkeypatch.setattr(AccountProcessor, 'list_bot_accessors', _mock_list_bot_accessors)
         monkeypatch.setattr(os.path, 'exists', _mock_exception)
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Config not found'):
-            processor.get_chat_client_config('test_bot')
+            processor.get_chat_client_config('test_bot', 'user@integration.com')
 
     def test_add__and_get_regex(self):
         processor = MongoProcessor()
@@ -8294,22 +8273,30 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f"{KAIRON_TWO_STAGE_FALLBACK} is a reserved keyword"):
             processor.add_hubspot_forms_action(action, bot, user)
 
+    def test_add_custom_2_stage_fallback_action_validation_error(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"trigger_rules": None, "text_recommendations": None}
+        with pytest.raises(ValidationError):
+            processor.add_two_stage_fallback_action(request, bot, user)
+
     def test_add_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3, "use_intent_ranking": True}}
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': []}]
 
     def test_add_custom_2_stage_fallback_action_exists(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         with pytest.raises(AppException, match="Action exists!"):
             processor.add_two_stage_fallback_action(request, bot, user)
 
@@ -8318,91 +8305,89 @@ class TestMongoProcessor:
         bot = 'test_add_custom_2_stage_fallback_action_rules_not_found'
         user = 'test_user'
         request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
-        with pytest.raises(AppException, match=r"Rule {.+} do not exist in the bot"):
+                                     {"text": "Contact me", "payload": "call"}]}
+        with pytest.raises(AppException, match=r"Intent {.+} do not exist in the bot"):
             processor.add_two_stage_fallback_action(request, bot, user)
 
     def test_add_custom_2_stage_fallback_action_rules_only(self):
         processor = MongoProcessor()
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
-        steps = [
-            {"name": "mail", "type": "INTENT"},
-            {"name": "action_send_mail", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
-        steps = [
-            {"name": "contact", "type": "INTENT"},
-            {"name": "action_call", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "greet"},
+                                     {"text": "Contact me", "payload": "call"}]}
+        processor.add_intent("greet", bot, user, False)
+        processor.add_intent("call", bot, user, False)
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0, 'trigger_rules': request['trigger_rules']}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback',
+                           'trigger_rules': [{'text': 'Mail me', 'payload': 'greet', 'is_dynamic_msg': False},
+                                             {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
+
+    def test_add_custom_2_stage_fallback_action_with_user_message(self):
+        processor = MongoProcessor()
+        bot = 'test_add_custom_2_stage_fallback_action_with_static_user_message'
+        user = 'test_user'
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "greet", "message": "my payload", "is_dynamic_msg": True},
+                                     {"text": "Contact me", "payload": "call", "message": None, "is_dynamic_msg": False}]}
+        processor.add_intent("greet", bot, user, False)
+        processor.add_intent("call", bot, user, False)
+        processor.add_two_stage_fallback_action(request, bot, user)
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
+            {'text': 'Mail me', 'payload': 'greet', 'message': 'my payload', 'is_dynamic_msg': True},
+            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
 
     def test_edit_custom_2_stage_fallback_action_not_found(self):
         processor = MongoProcessor()
         bot = 'test_edit_custom_2_stage_fallback_action_not_found'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         with pytest.raises(AppException, match=f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found'):
             processor.edit_two_stage_fallback_action(request, bot, user)
 
     def test_get_2_stage_fallback_action_not_found(self):
         processor = MongoProcessor()
         bot = 'test_edit_custom_2_stage_fallback_action_not_found'
-        with pytest.raises(AppException, match="Action not found"):
-            processor.get_two_stage_fallback_action_config(bot)
+        assert list(processor.get_two_stage_fallback_action_config(bot)) == []
 
     def test_edit_custom_2_stage_fallback_action_recommendations_only(self):
         processor = MongoProcessor()
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
-        request = {"trigger_rules": None, "num_text_recommendations": 3}
+        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3, 'trigger_rules': []}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, "use_intent_ranking": False}, 'trigger_rules': []}]
 
     def test_edit_custom_2_stage_fallback_action_rules_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail"},
-                                     {"text": "Contact me", "payload": "call"}], "num_text_recommendations": 0}
-        steps = [
-            {"name": "mail", "type": "INTENT"},
-            {"name": "action_send_mail", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "send_mail", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
-        steps = [
-            {"name": "contact", "type": "INTENT"},
-            {"name": "action_call", "type": "HTTP_ACTION"},
-        ]
-        story_dict = {'name': "call", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
+        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail", 'message': 'my payload', 'is_dynamic_msg': False},
+                                     {"text": "Contact me", "payload": "call", "is_dynamic_msg": True}]}
+        processor.add_intent("send_mail", bot, user, False)
+        processor.add_intent("call", bot, user, False)
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
-        config = processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK)
-        config.pop("timestamp")
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 0,
-                          'trigger_rules': request['trigger_rules']}
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
+        config[0].pop("timestamp")
+        assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
+            {'text': 'Mail me', 'payload': 'send_mail', 'message': 'my payload', 'is_dynamic_msg': False},
+            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': True}]}]
 
     def test_edit_custom_2_stage_fallback_action_rules_not_found(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}], "num_text_recommendations": 0}
+        request = {"trigger_rules": [{"text": "DM me", "payload": "send_dm"}]}
 
-        with pytest.raises(AppException, match=f"Rule {set(['send_dm'])} do not exist in the bot"):
+        with pytest.raises(AppException, match=f"Intent {set(['send_dm'])} do not exist in the bot"):
             processor.edit_two_stage_fallback_action(request, bot, user)
 
     def test_delete_2_stage_fallback_action(self):

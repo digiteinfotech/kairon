@@ -5,7 +5,6 @@ from loguru import logger
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
 from kairon.exceptions import AppException
-from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import EVENT_STATUS
@@ -64,6 +63,8 @@ class MultilingualEvent(EventsBase):
         """
         Execute the event.
         """
+        from kairon.multilingual.processor import MultilingualTranslator
+
         translation_status = 'Failure'
         try:
             bot_info = AccountProcessor.get_bot(self.bot)

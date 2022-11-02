@@ -150,8 +150,8 @@ class MultilingualTranslator:
         """
         self.mp.delete_domain(bot=new_bot_id, user=self.user)
 
-        self.mp.save_domain(domain=domain, bot=new_bot_id, user=self.user)
         self.mp.save_integrated_actions(actions=actions, bot=new_bot_id, user=self.user)
+        self.mp.save_domain(domain=domain, bot=new_bot_id, user=self.user)
         self.mp.save_nlu(nlu=nlu, bot=new_bot_id, user=self.user)
         self.mp.save_config(configs=configs, bot=new_bot_id, user=self.user)
         self.mp.save_stories(story_steps=stories, bot=new_bot_id, user=self.user)

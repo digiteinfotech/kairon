@@ -22,7 +22,7 @@ from starlette.responses import RedirectResponse
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.actions.models import ActionType
 from kairon.shared.auth import Authentication, LoginSSOFactory
-from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization
+from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
@@ -1202,39 +1202,56 @@ class TestAccountProcessor:
         with pytest.raises(NotImplementedError):
             Authentication.generate_integration_token(bot, user, token_type=TOKEN_TYPE.LOGIN.value, role='chat')
 
-    def test_generate_integration_token(self):
+    def test_generate_integration_token(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
+        assert payload.get('account') == 1000
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
         assert payload.get('role') == 'chat'
         assert not payload.get('exp')
 
-    def test_generate_integration_token_different_bot(self):
+    def test_generate_integration_token_different_bot(self, monkeypatch):
         bot = 'test_1'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1001}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, name='integration_token', role='tester')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
+        assert payload.get('account') == 1001
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
         assert not payload.get('exp')
         assert payload.get('role') == 'tester'
 
-    def test_generate_integration_token_with_expiry(self):
+    def test_generate_integration_token_with_expiry(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, expiry=15, name='integration_token_with_expiry',
                                                           role='designer')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
@@ -1247,13 +1264,18 @@ class TestAccountProcessor:
         exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
         assert round((exp - iat).total_seconds() / 60) == 15
 
-    def test_generate_integration_token_with_access_limit(self):
+    def test_generate_integration_token_with_access_limit(self, monkeypatch):
         bot = 'test1'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         access_limit = ['/api/bot/endpoint']
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
                                                           name='integration_token_with_access_limit', role='admin')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
@@ -1272,22 +1294,37 @@ class TestAccountProcessor:
         bot = 'test'
         user = 'test_user'
         monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with pytest.raises(AppException, match='Integration token with this name has already been initiated'):
             Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
 
-    def test_generate_integration_token_limit_exceeded(self):
+    def test_generate_integration_token_limit_exceeded(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with pytest.raises(AppException, match='Integrations limit reached!'):
             Authentication.generate_integration_token(bot, user, name='integration_token1', role='chat')
 
-    def test_generate_integration_token_dynamic(self):
+    def test_generate_integration_token_dynamic(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
         secret_key = Utility.environment['security']["secret_key"]
         algorithm = Utility.environment['security']["algorithm"]
         start_date = datetime.datetime.now(tz=datetime.timezone.utc)
         access_limit = ['/api/bot/endpoint']
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
                                                           token_type=TOKEN_TYPE.DYNAMIC.value)
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
@@ -1304,6 +1341,11 @@ class TestAccountProcessor:
     def test_generate_integration_token_without_name(self, monkeypatch):
         bot = 'test'
         user = 'test_user'
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         monkeypatch.setitem(Utility.environment['security'], 'integrations_per_user', 3)
         with pytest.raises(ValidationError, match='name is required to add integration'):
             Authentication.generate_integration_token(bot, user, expiry=15)
@@ -1976,9 +2018,47 @@ class TestAccountProcessor:
     def test_remove_trusted_device(self):
         AccountProcessor.remove_trusted_device("udit.pandey@digite.com", "1234567890fghj")
 
-    def test_add_trusted_device(self):
-        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "1234567890fghj")
-        AccountProcessor.add_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879")
+    def test_add_trusted_device(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
+        request = Request({'type': 'http', 'headers': Headers({}).raw})
+        AccountProcessor.get_location_and_add_trusted_device("udit.pandey@digite.com", "1234567890fghj", request)
+        AccountProcessor.get_location_and_add_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", request)
+
+    def test_add_trusted_device_email_enabled(self, monkeypatch):
+        monkeypatch.setitem(Utility.email_conf["email"], 'enable', True)
+        monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
+        url, geo_location = AccountProcessor.get_location_and_add_trusted_device("trust@digite.com", "1234567890fghj", request)
+        assert not Utility.check_empty_string(url)
+
+    def test_list_all_trusted_device(self):
+        devices = list(AccountProcessor.list_trusted_devices("udit.pandey@digite.com"))
+        assert devices[0]['_id']
+        assert devices[0]['confirmation_timestamp']
+        assert devices[0]['timestamp']
+        assert devices[0]['status']
+        assert devices[0]['is_confirmed']
+        assert devices[0]['user']
+        assert len(devices) == 2
+        assert list(AccountProcessor.list_trusted_devices("trust@digite.com")) == []
+        device = TrustedDevice.objects(user="trust@digite.com").get()
+        assert device.fingerprint == "1234567890fghj"
+        assert not device.confirmation_timestamp
+        assert not device.is_confirmed
+
+    def test_confirm_add_trusted_device(self):
+        AccountProcessor.confirm_add_trusted_device("trust@digite.com", "1234567890fghj")
+        devices = list(AccountProcessor.list_trusted_devices("trust@digite.com"))
+        assert devices[0]['_id']
+        assert devices[0]['confirmation_timestamp']
+        assert devices[0]['timestamp']
+        assert devices[0]['status']
+        assert devices[0]['is_confirmed']
+        assert devices[0]['user']
+
+    def test_confirm_add_trusted_device_not_found(self):
+        with pytest.raises(AppException, match="Device not found!"):
+            AccountProcessor.confirm_add_trusted_device("trust@digite.com", "1234567890fghj")
 
     @pytest.mark.asyncio
     async def test_validate_trusted_device_add_device(self, monkeypatch):
@@ -2007,16 +2087,9 @@ class TestAccountProcessor:
         }
         responses.start()
         responses.add("GET", url, json=expected)
-        await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879",
-                                                             "10.11.12.13", True)
-        account_details = AccountProcessor.get_user_details("pandey.udit867@gmail.com")
-        log = MeteringProcessor.get_logs(account=account_details["account"], metric_type='user_login')
-        del log[0]['timestamp']
-        del log[0]['account']
-        assert log[0] == {'metric_type': 'user_login', 'user_id': 'pandey.udit867@gmail.com', 'ip': '10.11.12.13',
-                          'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
-                          'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-        assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == ["kjhdsaqewrrtyuio879"]
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            await Authentication.validate_trusted_device("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", request)
         responses.stop()
         responses.reset()
 
@@ -2027,8 +2100,8 @@ class TestAccountProcessor:
     @pytest.mark.asyncio
     async def test_validate_trusted_device(self, monkeypatch):
         monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
-        await Authentication.validate_trusted_device_and_log("udit.pandey@digite.com", "kjhdsaqewrrtyuio879",
-                                                             "10.11.12.13")
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
+        await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", request)
 
     @pytest.mark.asyncio
     async def test_validate_trusted_device_invalid(self, monkeypatch):
@@ -2051,16 +2124,16 @@ class TestAccountProcessor:
         }
         responses.start()
         responses.add("GET", url, json=expected)
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
         with patch("kairon.shared.utils.SMTP", autospec=True):
-            await Authentication.validate_trusted_device_and_log("udit.pandey@digite.com", "kjhdsaqewrrtyuio87",
-                                                                 "10.11.12.13")
+            await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio87", request)
         responses.stop()
         responses.reset()
 
     @pytest.mark.asyncio
     async def test_remove_trusted_device_not_exists_2(self):
-        await Authentication.validate_trusted_device_and_log("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879",
-                                                             "10.11.12.13", remove_trusted_device=True)
+        request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
+        await Authentication.validate_trusted_device("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", request)
 
     def test_list_fingerprint_not_exists(self):
         assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == []

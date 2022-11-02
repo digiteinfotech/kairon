@@ -9,6 +9,7 @@ from fastapi import UploadFile
 from mongoengine import connect
 from mongomock.mongo_client import MongoClient
 
+from augmentation.utils import WebsiteParser
 from kairon import Utility
 from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
@@ -210,7 +211,7 @@ class TestEventDefinitions:
         assert len(logs) == 0
 
     @responses.activate
-    def test_model_training_enqueue(self):
+    def test_model_training_enqueue(self, monkeypatch):
         bot = 'test_definitions'
         user = 'test_user'
         url = f"http://localhost:5001/api/events/execute/{EventClass.model_training}"
@@ -223,6 +224,11 @@ class TestEventDefinitions:
                 'ExecutedVersion': 'v1.0'
             }}
         )
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         ModelTrainingEvent(bot, user).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
@@ -255,9 +261,14 @@ class TestEventDefinitions:
             ModelTrainingEvent(bot, user).validate()
 
     @responses.activate
-    def test_model_training_enqueue_event_server_failure(self):
+    def test_model_training_enqueue_event_server_failure(self, monkeypatch):
         bot = 'test_definitions'
         user = 'test_user'
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         responses.add(
             "POST", f"http://localhost:5001/api/events/execute/{EventClass.model_training}",
             json={"message": "Failed", "success": False, "error_code": 400, "data": None}
@@ -274,6 +285,10 @@ class TestEventDefinitions:
         def _mock_validation(*args, **kwargs):
             return None
 
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         monkeypatch.setattr(DataUtility, "validate_existing_data_train", _mock_validation)
         with pytest.raises(AppException, match='Failed to execute the url:*'):
             ModelTrainingEvent(bot, user).enqueue()
@@ -659,6 +674,26 @@ class TestEventDefinitions:
         assert logs[0].get('source_type') == source_type
         assert logs[0].get('status') == EVENT_STATUS.COMPLETED.value
         assert list(logs[0].get('response')[0].keys()) == ['intent', 'training_examples', 'response']
+
+    def test_trigger_website_data_generation_no_data_found(self, monkeypatch):
+        bot = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TrainingDataSourceType.website
+
+        def _mock_get_qna(*args, **kwargs):
+            return {}, {}
+
+        monkeypatch.setattr(WebsiteParser, "get_qna", _mock_get_qna)
+        DataGenerationEvent(bot, user, website_url=website_url).execute()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 2
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('document_path') == website_url
+        assert logs[0].get('source_type') == source_type
+        assert logs[0].get('status') == EVENT_STATUS.FAIL.value
+        assert logs[0].get('exception') == "No data could be scraped!"
 
     @responses.activate
     def test_trigger_website_data_generation_event_connection_error(self):

@@ -9,7 +9,6 @@ RUN ln -s /usr/bin/python3.8 /usr/bin/python
 
 RUN python -m pip install --upgrade pip
 RUN python -m pip install pyyaml
-RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install rasa[full]==2.8.15
 RUN python -m pip install cython
 RUN python -m pip install pandas
@@ -34,6 +33,9 @@ RUN mkdir ssl
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
 RUN python -m pip install jira
+RUN python -m pip install protobuf==3.20.1
+RUN python -m pip install mongoengine==0.23.1
+RUN python -m pip install pymongo==3.12.0
 
 COPY kairon /app/kairon
 COPY metadata /app/metadata

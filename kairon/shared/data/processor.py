@@ -6,6 +6,8 @@ from collections import ChainMap
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Text, Dict, List
+from urllib.parse import urljoin
+
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
     DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
 import yaml
@@ -35,7 +37,6 @@ from rasa.shared.utils.io import read_config_file
 from kairon.api import models
 from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
-from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
@@ -57,7 +58,7 @@ from .constant import (
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
-    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, LogType
+    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType
 )
 from .data_objects import (
     Responses,
@@ -84,9 +85,6 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
-
-from ..actions.utils import ActionUtility
-
 
 class MongoProcessor:
     """
@@ -166,6 +164,8 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
+        from kairon.importer.validator.file_validator import TrainingDataValidator
+
         try:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
@@ -1094,6 +1094,8 @@ class MongoProcessor:
         :param user: user id
         :return: config unique id
         """
+        from kairon.importer.validator.file_validator import TrainingDataValidator
+
         try:
             config_errors = TrainingDataValidator.validate_rasa_config(configs)
             if config_errors:
@@ -1503,19 +1505,20 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Invalid training example!")
 
-    def search_training_examples(self, search: Text, bot: Text):
+    def search_training_examples(self, search: Text, bot: Text, limit: int = 5):
         """
         search the training examples
 
         :param search: search text
         :param bot: bot id
+        :param limit: number of search results
         :return: yields tuple of intent name, training example
         """
         results = (
             TrainingExamples.objects(bot=bot, status=True)
                 .search_text(search)
-                .order_by("$text_score")
-                .limit(5)
+                .order_by("-text_score")
+                .limit(limit)
         )
         for result in results:
             yield {"intent": result.intent, "text": result.text}
@@ -3130,6 +3133,8 @@ class MongoProcessor:
         """
         Saves http actions and config file.
         """
+        from kairon.importer.validator.file_validator import TrainingDataValidator
+
         actions = None
         config = None
         validation_failed = False
@@ -3407,43 +3412,94 @@ class MongoProcessor:
         return settings
 
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
-        client_config = self.get_chat_client_config(bot)
+        from kairon.shared.account.processor import AccountProcessor
+
+        client_config = self.get_chat_client_config(bot, user)
         white_listed_domain = ["*"] if not config.__contains__("whitelist") else config.pop("whitelist")
         if client_config.config.get('headers') and client_config.config['headers'].get('authorization'):
             client_config.config['headers'].pop('authorization')
+
+        if config.get('multilingual') and config['multilingual'].get('bots'):
+            accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
+            enabled_bots = list(filter(lambda bot_info: bot_info.get("is_enabled"), config['multilingual']['bots']))
+            enabled_bots = set(map(lambda bot_info: bot_info["id"], enabled_bots))
+            if not enabled_bots:
+                raise AppException("At least one bot should be enabled!")
+            for bot_info in accessible_bots:
+                bot_info["is_enabled"] = True if bot_info["id"] in enabled_bots else False
+            client_config.config['multilingual']['bots'] = accessible_bots
+
         client_config.config = config
         client_config.user = user
         client_config.white_listed_domain = white_listed_domain
         client_config.save()
 
-    def get_chat_client_config(self, bot: Text):
+    def get_chat_client_config_url(self, bot: Text, user: Text):
+        from kairon.shared.auth import Authentication
+
+        access_token = Authentication.generate_integration_token(
+            bot, user, ACCESS_ROLES.TESTER.value,
+            access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
+        )
+        url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{bot}/chat/client/config/')
+        url = urljoin(url, access_token)
+        return url
+
+    def get_client_config_using_uid(self, bot: str, uid: str):
+        decoded_uid = Utility.validate_bot_specific_token(bot, uid)
+        config = self.get_chat_client_config(bot, decoded_uid["sub"], is_client_live=True)
+        return config.to_mongo().to_dict()
+
+    def get_chat_client_config(self, bot: Text, user: Text, is_client_live: bool = False):
         from kairon.shared.auth import Authentication
         from kairon.shared.account.processor import AccountProcessor
 
         AccountProcessor.get_bot_and_validate_status(bot)
-        bot_accessor = next(AccountProcessor.list_bot_accessors(bot))['accessor_email']
         try:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()
             client_config.config['whitelist'] = client_config.white_listed_domain
         except DoesNotExist as e:
             logging.error(e)
             config = Utility.load_json_file("./template/chat-client/default-config.json")
-            client_config = ChatClientConfig(config=config, bot=bot, user=bot_accessor)
+            client_config = ChatClientConfig(config=config, bot=bot, user=user)
         if not client_config.config.get('headers'):
             client_config.config['headers'] = {}
         if not client_config.config['headers'].get('X-USER'):
-            client_config.config['headers']['X-USER'] = bot_accessor
-        client_config.config['host'] = Utility.environment['app']['server_url']
+            client_config.config['headers']['X-USER'] = user
+        client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
         token = Authentication.generate_integration_token(
-            bot, bot_accessor, expiry=30,
+            bot, user, expiry=30,
             access_limit=[
                 '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
-                '/api/bot/.+/metric/user/logs/{log_type}'
+                '/api/bot/.+/metric/user/logs/user_metrics'
             ],
             token_type=TOKEN_TYPE.DYNAMIC.value
         )
         client_config.config['headers']['authorization'] = f'Bearer {token}'
         client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
+        if client_config.config['multilingual'].get('enable'):
+            accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
+            enabled_bots = {}
+            if client_config.config['multilingual'].get('bots'):
+                enabled_bots = list(filter(lambda bot_info: bot_info.get("is_enabled"), client_config.config['multilingual']['bots']))
+                enabled_bots = set(map(lambda bot_info: bot_info["id"], enabled_bots))
+            if is_client_live and bot not in enabled_bots:
+                raise AppException("Bot is disabled. Please use a valid bot.")
+            client_config.config['multilingual']['bots'] = []
+            for bot_info in accessible_bots:
+                bot_info["is_enabled"] = True if bot_info["id"] in enabled_bots else False
+                if bot_info["is_enabled"] or not is_client_live:
+                    token = Authentication.generate_integration_token(
+                        bot_info["id"], user, expiry=30,
+                        access_limit=[
+                            '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
+                            '/api/bot/.+/metric/user/logs/{log_type}'
+                        ],
+                        token_type=TOKEN_TYPE.DYNAMIC.value
+                    )
+                    bot_info['authorization'] = f'Bearer {token}'
+                    client_config.config['multilingual']['bots'].append(bot_info)
+
         return client_config
 
     def add_regex(self, regex_dict: Dict, bot, user):
@@ -3839,6 +3895,8 @@ class MongoProcessor:
                 Utility.delete_document([PipedriveLeadsAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.hubspot_forms_action.value:
                 Utility.delete_document([HubspotFormsAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.two_stage_fallback.value:
+                Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4152,6 +4210,8 @@ class MongoProcessor:
         :param raise_err: raise error if key does not exists
         :param bot: bot id
         """
+        from ..actions.utils import ActionUtility
+
         return ActionUtility.get_secret_from_key_vault(key, bot, raise_err)
 
     @staticmethod
@@ -4220,9 +4280,9 @@ class MongoProcessor:
             bot=bot, status=True
         )
         trigger_rules = [rule['payload'] for rule in request_data.get('trigger_rules') or []]
-        rules_present = self.fetch_rule_block_names(bot)
-        if trigger_rules and set(trigger_rules).difference(set(rules_present)):
-            raise AppException(f"Rule {set(trigger_rules).difference(set(rules_present))} do not exist in the bot")
+        intent_present = self.fetch_intents(bot)
+        if trigger_rules and set(trigger_rules).difference(set(intent_present)):
+            raise AppException(f"Intent {set(trigger_rules).difference(set(intent_present))} do not exist in the bot")
         request_data['bot'] = bot
         request_data['user'] = user
         request_data['name'] = KAIRON_TWO_STAGE_FALLBACK
@@ -4247,12 +4307,12 @@ class MongoProcessor:
         ):
             raise AppException(f'Action with name "{KAIRON_TWO_STAGE_FALLBACK}" not found')
         trigger_rules = [rule['payload'] for rule in request_data.get('trigger_rules') or []]
-        rules_present = self.fetch_rule_block_names(bot)
-        if trigger_rules and set(trigger_rules).difference(set(rules_present)):
-            raise AppException(f"Rule {set(trigger_rules).difference(set(rules_present))} do not exist in the bot")
+        intent_present = self.fetch_intents(bot)
+        if trigger_rules and set(trigger_rules).difference(set(intent_present)):
+            raise AppException(f"Intent {set(trigger_rules).difference(set(intent_present))} do not exist in the bot")
         action = KaironTwoStageFallbackAction.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         action.trigger_rules = [QuickReplies(**rule) for rule in request_data.get('trigger_rules') or []]
-        action.num_text_recommendations = request_data['num_text_recommendations']
+        action.text_recommendations = request_data.get('text_recommendations')
         action.user = user
         action.save()
 
@@ -4263,16 +4323,13 @@ class MongoProcessor:
         :param bot: bot id
         :param name: action name
         """
-        try:
-            action = KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True).get().to_mongo().to_dict()
+        for action in KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True):
+            action = action.to_mongo().to_dict()
             action.pop('_id')
             action.pop('status')
             action.pop('bot')
             action.pop('user')
-            return action
-        except DoesNotExist as e:
-            logging.exception(e)
-            raise AppException("Action not found")
+            yield action
 
     @staticmethod
     def save_auditlog_event_config(bot, user, data):

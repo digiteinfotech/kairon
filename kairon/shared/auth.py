@@ -220,7 +220,8 @@ class Authentication:
             raise NotImplementedError
         iat: datetime = datetime.now(tz=timezone.utc)
         iat = iat.replace(microsecond=0)
-        data = {'bot': bot, "sub": user, 'iat': iat, 'type': token_type, 'role': role}
+        account = AccountProcessor.get_bot(bot)['account']
+        data = {'bot': bot, "sub": user, 'iat': iat, 'type': token_type, 'role': role, 'account': account}
         if not Utility.check_empty_string(name):
             data.update({"name": name})
         if expiry > 0:
@@ -313,31 +314,20 @@ class Authentication:
             )
 
     @staticmethod
-    async def validate_trusted_device_and_log(
-            user: Text, fingerprint: Text, ip: Text, add_trusted_device: bool = False,
-            remove_trusted_device: bool = False,
-    ):
+    async def validate_trusted_device(user: Text, fingerprint: Text, request: Request):
+        ip = request.headers.get('X-Forwarded-For')
         geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip)
         geo_location = geo_location or {}
-        user_details = AccountProcessor.get_user(user)
-        MeteringProcessor.add_metrics(None, user_details["account"], MetricType.user_login.value, user_id=user, **geo_location)
-        await Authentication.validate_trusted_device(
-            user, fingerprint, add_trusted_device, remove_trusted_device, **geo_location
-        )
+        await Authentication.__validate_trusted_device(user, fingerprint, **geo_location)
 
     @staticmethod
-    async def validate_trusted_device(
-            user: Text, fingerprint: Text, add_trusted_device: bool = False,
-            remove_trusted_device: bool = False, **geo_location
+    async def __validate_trusted_device(
+            user: Text, fingerprint: Text, **geo_location
     ):
-        if add_trusted_device:
-            AccountProcessor.add_trusted_device(user, fingerprint)
-        elif remove_trusted_device:
-            AccountProcessor.remove_trusted_device(user, fingerprint)
-        else:
-            if Utility.environment['user']['validate_trusted_device']:
-                trusted_fingerprints = AccountProcessor.list_trusted_device_fingerprints(user)
-                if fingerprint not in trusted_fingerprints and Utility.email_conf["email"]["enable"]:
-                    await Utility.format_and_send_mail(
-                        mail_type='untrusted_login', email=user, first_name=user, **geo_location
-                    )
+        if Utility.environment['user']['validate_trusted_device']:
+            trusted_fingerprints = AccountProcessor.list_trusted_device_fingerprints(user)
+            if fingerprint not in trusted_fingerprints and Utility.email_conf["email"]["enable"]:
+                trust_device_url = AccountProcessor.add_trusted_device(user, fingerprint, True, **geo_location)
+                await Utility.format_and_send_mail(
+                    mail_type='untrusted_login', email=user, first_name=user, url=trust_device_url, **geo_location
+                )

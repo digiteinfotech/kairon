@@ -120,6 +120,7 @@ def test_api_wrong_login():
     assert value[0]["timestamp"]
     assert len(value) == 1
 
+
 def test_account_registration_error():
     response = client.post(
         "/api/account/registration",
@@ -429,12 +430,168 @@ def test_api_login():
     )
     assert actual["success"]
     assert actual["error_code"] == 0
-    response = client.get(
-        "/api/user/details",
+
+
+def test_api_login_enabled_with_fingerprint(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert actual["message"] == "fingerprint is required"
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_trusted_device_on_signup_error(monkeypatch):
+    monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "recaptcha_response": "1234567890",
+            "remote_ip": "58.0.127.89",
+            "email": "integration1234567@demo.ai",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integration1234567",
+            "bot": "integration",
+            "fingerprint": None
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'fingerprint'], 'msg': 'fingerprint is required', 'type': 'value_error'}]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+
+
+def test_add_trusted_device_disabled(monkeypatch):
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    response = client.post(
+        "/api/account/device/trusted",
+        json={"data": "0987654321234567890"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    account = response["data"]["user"]["account"]
-    assert MeteringProcessor.get_metric_count(account, metric_type=MetricType.user_login.value) == 2
+    assert response['message'] == 'Trusted devices are disabled!'
+    assert not response['data']
+    assert response['error_code'] == 422
+    assert not response['success']
+
+
+def test_add_trusted_device(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
+    monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/account/device/trusted",
+            json={"data": "0987654321234567890"},
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        ).json()
+    assert response['message'] == 'A confirmation link has been sent to your registered mail address'
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_add_trusted_device_email_disabled(monkeypatch):
+    monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/account/device/trusted",
+            json={"data": "098765432123456456734567"},
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        ).json()
+    assert response['message'] == 'Trusted device added!'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_list_trusted_device():
+    response = client.get(
+        "/api/account/device/trusted",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['trusted_devices']) == 1
+    assert not response['data']['trusted_devices'][0].get('fingerprint')
+    assert response['data']['trusted_devices'][0]['is_confirmed']
+    assert response['data']['trusted_devices'][0]['geo_location'] == {'City': 'Mumbai', 'Network': 'CATO'}
+    assert response['data']['trusted_devices'][0]['geo_location']
+    assert response['data']['trusted_devices'][0]['confirmation_timestamp']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_confirm_trusted_device():
+    payload = {"mail_id": "integration@demo.ai", "fingerprint": "0987654321234567890"}
+    token = Utility.generate_token_payload(payload, minutes_to_expire=120)
+    response = client.post(
+        "/api/account/device/trusted/confirm",
+        json={"data": token}
+    ).json()
+    assert response['message'] == 'Trusted device added!'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_list_trusted_device_2():
+    response = client.get(
+        "/api/account/device/trusted",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['trusted_devices']) == 2
+    assert not response['data']['trusted_devices'][0].get('fingerprint')
+    assert response['data']['trusted_devices'][0]['is_confirmed']
+    assert response['data']['trusted_devices'][0]['geo_location'] == {'City': 'Mumbai', 'Network': 'CATO'}
+    assert response['data']['trusted_devices'][0]['geo_location']
+    assert response['data']['trusted_devices'][0]['confirmation_timestamp']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_verify_is_trusted():
+    response = client.post(
+        "/api/account/device/trusted/verify",
+        json={"data": "098765432123456456734567"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['data'] == {"is_trusted_device": True}
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.post(
+        "/api/account/device/trusted/verify",
+        json={"data": "76645657"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert response['data'] == {"is_trusted_device": False}
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_remove_trusted_device():
+    response = client.delete(
+        "/api/account/device/trusted/098765432123456456734567",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+
+    response = client.get(
+        "/api/account/device/trusted",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    assert len(response['data']['trusted_devices']) == 1
 
 
 def test_api_login_enabled_sso_only(monkeypatch):
@@ -3578,6 +3735,7 @@ def test_list_bots_for_different_user_2():
     print(response)
     assert len(response['data']['shared']) == 1
     pytest.bot = response['data']['shared'][0]['_id']
+    pytest.account = response['data']['shared'][0]['account']
 
 
 def test_send_link_for_valid_id(monkeypatch):
@@ -6157,6 +6315,109 @@ def test_get_client_config_refresh(monkeypatch):
     assert actual["message"] == 'Access denied for this endpoint'
 
 
+def test_get_chat_client_config_multilingual_enabled_no_bots_enabled():
+    from bson import ObjectId
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]['multilingual']['enable'] = True
+    actual["data"]['multilingual']['bots'] = [{"id": ObjectId().__str__(), "is_enabled": True}]
+
+    response = client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': actual["data"]},
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config saved'
+
+    response = client.get(pytest.url)
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Bot is disabled. Please use a valid bot."
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_save_chat_client_config_enable_multilingual_bots():
+    AccountProcessor.add_bot(
+        name="demo-hi", account=pytest.account, user='integ1@gmail.com',
+        metadata={"language": "hi", "source_bot_id": pytest.bot, "source_language": "en"}
+    )
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['multilingual']['enable']
+    actual["data"]['multilingual']['bots'][0]['is_enabled'] = True
+
+    response = client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': actual["data"]},
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Config saved'
+
+
+def test_save_chat_client_config_enable_multilingual_bots_no_bot_enabled():
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]['multilingual']['enable']
+    actual["data"]['multilingual']['bots'][0]['is_enabled'] = False
+
+    response = client.post(f"/api/bot/{pytest.bot}/chat/client/config",
+                           json={'data': actual["data"]},
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "At least one bot should be enabled!"
+
+
+def test_get_chat_client_config_multilingual_enabled():
+    response = client.get(pytest.url)
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]['multilingual']['bots']) == 1
+    assert actual["data"]['multilingual']['bots'][0]['is_enabled']
+
+    AccountProcessor.add_bot(
+        name="demo-mr", account=pytest.account, user='integ1@gmail.com',
+        metadata={"language": "hi", "source_bot_id": pytest.bot, "source_language": "en"}
+    )
+
+    response = client.get(pytest.url)
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]['multilingual']['bots']) == 1
+    assert actual["data"]['multilingual']['bots'][0]['is_enabled']
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]['multilingual']['bots']) == 3
+    assert actual["data"]['multilingual']['bots'][0]['is_enabled']
+    assert not actual["data"]['multilingual']['bots'][1]['is_enabled']
+
+
 def test_get_metering():
     response = client.get(
         f"/api/bot/{pytest.bot}/metric/test_chat",
@@ -8008,7 +8269,7 @@ def test_sso_redirect_url_invalid_type():
 def test_list_sso_not_enabled(monkeypatch):
     monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
     response = client.get(
-        url=f"/api/auth/properties", allow_redirects=False
+        url=f"/api/system/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
@@ -8018,8 +8279,8 @@ def test_list_sso_not_enabled(monkeypatch):
                 'facebook': False,
                 'linkedin': False,
                 'google': False
-            },
-            'enable_sso_only': True
+            }, 'enable_sso_only': True, 'validate_trusted_device': False, 'enable_apm': False,
+            'enable_notifications': False, 'validate_recaptcha': False, 'enable_multilingual': False
         }
 
 
@@ -8086,7 +8347,7 @@ def test_list_sso_enabled():
     Utility.environment['sso']['google']['enable'] = True
 
     response = client.get(
-        url=f"/api/auth/properties", allow_redirects=False
+        url=f"/api/system/properties", allow_redirects=False
     )
     actual = response.json()
     assert actual["error_code"] == 0
@@ -8096,8 +8357,8 @@ def test_list_sso_enabled():
                 'facebook': False,
                 'linkedin': True,
                 'google': True
-            },
-            'enable_sso_only': False
+            }, 'enable_apm': False, 'enable_notifications': False, 'validate_recaptcha': False,
+            'enable_sso_only': False, 'validate_trusted_device': False, 'enable_multilingual': False
         }
 
 
@@ -8867,15 +9128,14 @@ def test_get_kairon_two_stage_fallback_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"] == "Action not found"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+    assert not actual["message"]
 
 
 def test_add_kairon_two_stage_fallback_action_error():
     action = {
-        "num_text_recommendations": 0,
         "trigger_rules": []
     }
     response = client.post(
@@ -8886,10 +9146,10 @@ def test_add_kairon_two_stage_fallback_action_error():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'One of num_text_recommendations or trigger_rules should be defined', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'One of text_recommendations or trigger_rules should be defined', 'type': 'value_error'}]
 
     action = {
-        "num_text_recommendations": -1,
+        "text_recommendations": {"count": -1},
         "trigger_rules": [{"text": "hi", "payload": "greet"}]
     }
     response = client.post(
@@ -8901,12 +9161,11 @@ def test_add_kairon_two_stage_fallback_action_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', '__root__'], 'msg': 'num_text_recommendations cannot be negative', 'type': 'value_error'}]
+        {'loc': ['body', '__root__'], 'msg': 'count cannot be negative', 'type': 'value_error'}]
 
 
 def test_edit_kairon_two_stage_fallback_action_not_exists():
     action = {
-        "num_text_recommendations": 0,
         "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
     }
 
@@ -8922,27 +9181,9 @@ def test_edit_kairon_two_stage_fallback_action_not_exists():
 
 
 def test_add_kairon_two_stage_fallback_action():
-    response = client.post(
-        f"/api/bot/{pytest.bot}/stories",
-        json={
-            "name": "kairon_two_stage_fallback_action",
-            "type": "RULE",
-            "template_type": "Q&A",
-            "steps": [
-                {"name": "greet", "type": "INTENT"},
-                {"name": "utter_greet_delete", "type": "BOT"},
-            ],
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["message"] == "Flow added successfully"
-    assert actual["success"]
-    assert actual["error_code"] == 0
-
     action = {
-        "num_text_recommendations": 0,
-        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+        "text_recommendations": {"count": 0, "use_intent_ranking": True},
+        "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/fallback/two_stage",
@@ -8958,8 +9199,7 @@ def test_add_kairon_two_stage_fallback_action():
 
 def test_add_kairon_two_stage_fallback_action_exists():
     action = {
-        "num_text_recommendations": 0,
-        "trigger_rules": [{"text": "Hi", "payload": "kairon_two_stage_fallback_action"}]
+        "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/fallback/two_stage",
@@ -8974,7 +9214,7 @@ def test_add_kairon_two_stage_fallback_action_exists():
 
 def test_edit_kairon_two_stage_fallback_action_action():
     action = {
-        "num_text_recommendations": 4
+        "text_recommendations": {"count": 4}
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/fallback/two_stage",
@@ -8995,8 +9235,8 @@ def test_get_kairon_two_stage_fallback_action_1():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    del actual['data']['timestamp']
-    assert actual["data"] == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 4, 'trigger_rules': []}
+    del actual['data'][0]['timestamp']
+    assert actual["data"] == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 4, "use_intent_ranking": False}, 'trigger_rules': []}]
 
 
 def test_delete_kairon_two_stage_fallback_action():
@@ -9008,6 +9248,17 @@ def test_delete_kairon_two_stage_fallback_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action deleted'
+
+
+def test_get_kairon_two_stage_fallback_action_2():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/fallback/two_stage",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
 
 
 def test_disable_integration_token():
@@ -9113,7 +9364,7 @@ def test_integration_token_from_one_bot_on_another_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
     assert len(response['data']['account_owned']) == 1
-    assert len(response['data']['shared']) == 1
+    assert len(response['data']['shared']) == 3
     bot1 = response['data']['account_owned'][0]['_id']
     bot2 = response['data']['shared'][0]['_id']
 
@@ -10214,7 +10465,8 @@ def test_channels_params():
     assert actual["error_code"] == 0
     assert "slack" in list(actual['data'].keys())
     assert ["bot_user_oAuth_token", "slack_signing_secret", "client_id", "client_secret"] == actual['data']['slack']['required_fields']
-    assert ["slack_channel", "is_primary", "team"] == actual['data']['slack']['optional_fields']
+    assert ["slack_channel", "team", "is_primary"] == actual['data']['slack']['optional_fields']
+    assert ["team", "is_primary"] == actual['data']['slack']['disabled_fields']
 
 
 def test_get_channel_endpoint_not_configured():
@@ -10654,7 +10906,7 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
     responses.add("GET", url, json=expected)
     response = client.post(
         f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token, 'X-Forwarded-For': "192.222.100.106"},
         json = {"data": {"source": "Digite.com", "language": "English", "ip": ip}}
     )
     actual = response.json()
@@ -10724,10 +10976,12 @@ def test_get_end_user_metrics():
     actual["data"]["logs"][1].pop('account')
     actual["data"]["logs"][2].pop('timestamp')
     actual["data"]["logs"][2].pop('account')
+    assert actual["data"]["logs"][1]['ip']
+    del actual["data"]["logs"][1]['ip']
     assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
-                                 'ip': '140.82.201.129','city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
+                                 'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
     assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
@@ -10864,7 +11118,6 @@ def test_get_client_config_using_uid_invalid_domains_referer(monkeypatch):
 
 def test_get_client_config_using_uid_valid_domains_referer(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
-    chat_json = {"data": "Hi"}
     response = client.get(pytest.url, headers={"referer": "https://kairon-api.digite.com"})
     actual = response.json()
     assert actual["success"]
@@ -11067,7 +11320,7 @@ def test_multilingual_language_support(monkeypatch):
     monkeypatch.setattr(Translator, "get_supported_languages", _mock_supported_languages)
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/multilingual/languages",
+        f"/api/user/multilingual/languages",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     ).json()
 

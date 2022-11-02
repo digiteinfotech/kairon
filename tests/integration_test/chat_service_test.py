@@ -50,7 +50,7 @@ token = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
 bot = user['bots']['account_owned'][0]['_id']
-chat_client_config = MongoProcessor().get_chat_client_config(bot).to_mongo().to_dict()
+chat_client_config = MongoProcessor().get_chat_client_config(bot, "test@chat.com").to_mongo().to_dict()
 start_training(bot, "test@chat.com")
 bot2 = AccountProcessor.add_bot("testChat2", user['account'], "test@chat.com")['_id'].__str__()
 loop.run_until_complete(MongoProcessor().save_from_path(
@@ -180,7 +180,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert actual["message"]
+            assert Utility.check_empty_string(actual["message"])
             headers = list(response.headers.get_all())
             assert headers[0] == ('Server', 'Secure')
             assert headers[1] == ('Content-Type', 'application/json')
@@ -213,7 +213,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert actual["message"]
+            assert Utility.check_empty_string(actual["message"])
 
             response = self.fetch(
                 f"/api/bot/{bot}/chat",
@@ -226,7 +226,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert actual["message"]
+            assert Utility.check_empty_string(actual["message"])
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat,
                                                       channel_type="chat_client") >= 2
 
@@ -246,7 +246,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert actual["message"]
+            assert Utility.check_empty_string(actual["message"])
 
     def test_chat_model_not_trained(self):
         response = self.fetch(
@@ -334,7 +334,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["success"]
             assert actual["error_code"] == 0
             assert actual["data"]
-            assert actual["message"]
+            assert Utility.check_empty_string(actual["message"])
 
     def test_chat_with_limited_access(self):
         access_token = Authentication.generate_integration_token(

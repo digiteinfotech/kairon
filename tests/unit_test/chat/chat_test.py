@@ -8,6 +8,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 from slack.web.slack_response import SlackResponse
 
 from kairon.chat.utils import ChatUtils
+from kairon.shared.account.processor import AccountProcessor
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 import pytest
@@ -117,7 +118,11 @@ class TestChat:
                     "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}, "test", "test"
             )
 
-    def test_save_channel_config_slack(self):
+    def test_save_channel_config_slack(self, monkeypatch):
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
@@ -153,7 +158,11 @@ class TestChat:
                     "client_secret": "a23456789sfdghhtyutryuivcbn", "is_primary": False}}, "test", "test"
             )
 
-    def test_save_channel_config_slack_secondary_app(self):
+    def test_save_channel_config_slack_secondary_app(self, monkeypatch):
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
@@ -254,7 +263,11 @@ class TestChat:
             'client_secret': 'a23456789sfdghhtyutryuivcbn', 'is_primary': False,
             'team': {'id': 'T03BNQE7HLZ', 'name': 'airbus'}}
 
-    def test_update_channel_config(self):
+    def test_update_channel_config(self, monkeypatch):
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,
@@ -316,7 +329,11 @@ class TestChat:
         assert not str(slack["config"].get("bot_user_oAuth_token")).__contains__("***")
         assert not str(slack["config"].get("slack_signing_secret")).__contains__("***")
 
-    def test_delete_channel_config_slack_secondary(self):
+    def test_delete_channel_config_slack_secondary(self, monkeypatch):
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         with patch("slack.web.client.WebClient.team_info") as mock_slack_resp:
             mock_slack_resp.return_value = SlackResponse(
                 client=self,

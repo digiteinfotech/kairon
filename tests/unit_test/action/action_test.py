@@ -17,6 +17,7 @@ from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault
 
@@ -648,18 +649,30 @@ class TestActions:
         request_params, log = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert request_params == {'intent': 'restart', 'user_msg': {'sender_id': 'kairon_user@digite.com',
                                                                     'session_started': '2021-12-31 16:59:38',
-                                                                    'conversation': [{'user': 'hi'},
-                                                                                     {'bot': 'are you ok?'},
-                                                                                     {'user': 'yes'},
-                                                                                     {'bot': 'Great, carry on!'},
+                                                                    'conversation': [{'user': 'hi'}, {
+                                                                        'bot': {'text': 'are you ok?', 'elements': None,
+                                                                                'quick_replies': None, 'buttons': None,
+                                                                                'attachment': None, 'image': None,
+                                                                                'custom': None}}, {'user': 'yes'}, {
+                                                                                         'bot': {
+                                                                                             'text': 'Great, carry on!',
+                                                                                             'elements': None,
+                                                                                             'quick_replies': None,
+                                                                                             'buttons': None,
+                                                                                             'attachment': None,
+                                                                                             'image': None,
+                                                                                             'custom': None}},
                                                                                      {'user': '/restart'}]}}
-        assert log == {'intent': 'restart', 'user_msg': {'sender_id': 'kairon_user@digite.com',
-                                                                    'session_started': '2021-12-31 16:59:38',
-                                                                    'conversation': [{'user': 'hi'},
-                                                                                     {'bot': 'are you ok?'},
-                                                                                     {'user': 'yes'},
-                                                                                     {'bot': 'Great, carry on!'},
-                                                                                     {'user': '/restart'}]}}
+        assert log == {'intent': 'restart',
+                       'user_msg': {'sender_id': 'kairon_user@digite.com', 'session_started': '2021-12-31 16:59:38',
+                                    'conversation': [{'user': 'hi'}, {
+                                        'bot': {'text': 'are you ok?', 'elements': None, 'quick_replies': None,
+                                                'buttons': None, 'attachment': None, 'image': None, 'custom': None}},
+                                                     {'user': 'yes'}, {
+                                                         'bot': {'text': 'Great, carry on!', 'elements': None,
+                                                                 'quick_replies': None, 'buttons': None,
+                                                                 'attachment': None, 'image': None, 'custom': None}},
+                                                     {'user': '/restart'}]}}
 
     def test_prepare_request_user_message(self):
         http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
@@ -677,6 +690,30 @@ class TestActions:
         assert not request_params['msg']
         assert log['param1'] == "value1"
         assert not log['msg']
+
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
+                                     HttpActionRequestBody(key="msg", parameter_type="user_message")]
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "/google_search",
+                   KAIRON_USER_MSG_ENTITY: "using custom msg"}
+        request_params, log = ActionUtility.prepare_request(tracker,
+                                                            http_action_config_params=http_action_config_params,
+                                                            bot="test")
+        assert request_params['param1'] == "value1"
+        assert request_params['msg'] == "using custom msg"
+        assert log['param1'] == "value1"
+        assert log['msg'] == "using custom msg"
+
+        http_action_config_params = [HttpActionRequestBody(key="param1", value="value1"),
+                                     HttpActionRequestBody(key="msg", parameter_type="user_message")]
+        tracker = {"sender_id": "kairon_user@digite.com", "slot": None, "user_message": "perform google search",
+                   KAIRON_USER_MSG_ENTITY: "using custom msg"}
+        request_params, log = ActionUtility.prepare_request(tracker,
+                                                            http_action_config_params=http_action_config_params,
+                                                            bot="test")
+        assert request_params['param1'] == "value1"
+        assert request_params['msg'] == "perform google search"
+        assert log['param1'] == "value1"
+        assert log['msg'] == "perform google search"
 
     def test_prepare_request_no_request_params(self):
         slots = {"bot": "demo_bot", "http_action_config": "http_action_name", "param2": "param2value"}
@@ -2847,7 +2884,7 @@ class TestActions:
         bot = "test_bot"
         user = "test_user"
         KaironTwoStageFallbackAction(
-            num_text_recommendations=3, trigger_rules=[
+            text_recommendations={"count": 3}, trigger_rules=[
                 {"text": "Trigger", "payload": "set_context"}, {"text": "Mail me", "payload": "send_mail"}
             ], bot=bot, user=user
         ).save()
@@ -2857,9 +2894,9 @@ class TestActions:
         config.pop('user')
         config.pop('timestamp')
         config.pop('status')
-        assert config == {'name': 'kairon_two_stage_fallback', 'num_text_recommendations': 3,
-                          'trigger_rules': [{'text': 'Trigger', 'payload': 'set_context'},
-                                            {'text': 'Mail me', 'payload': 'send_mail'}]}
+        assert config == {'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, 'use_intent_ranking': False},
+                          'trigger_rules': [{'is_dynamic_msg': False, 'text': 'Trigger', 'payload': 'set_context'},
+                                            {'is_dynamic_msg': False, 'text': 'Mail me', 'payload': 'send_mail'}]}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

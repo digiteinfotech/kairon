@@ -13,6 +13,7 @@ from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
 from .models import SlotValidationOperators, LogicalOperators, ActionParameterType, HttpRequestContentType, \
     EvaluationType
+from ..constants import KAIRON_USER_MSG_ENTITY
 from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots, KeyVault
 from ..utils import Utility
@@ -91,6 +92,10 @@ class ActionUtility:
                 value = tracker_data.get(ActionParameterType.slot.value, {}).get(param['value'])
             elif param['parameter_type'] == ActionParameterType.user_message.value:
                 value = tracker_data.get(ActionParameterType.user_message.value)
+                if not ActionUtility.is_empty(value) and value.startswith("/"):
+                    user_msg = tracker_data.get(KAIRON_USER_MSG_ENTITY)
+                    if not ActionUtility.is_empty(user_msg):
+                        value = user_msg
             elif param['parameter_type'] == ActionParameterType.intent.value:
                 value = tracker_data.get(ActionParameterType.intent.value)
             elif param['parameter_type'] == ActionParameterType.chat_log.value:
@@ -141,6 +146,7 @@ class ActionUtility:
             ActionParameterType.slot.value: tracker.current_slot_values(),
             ActionParameterType.intent.value: tracker.get_intent_of_latest_message(),
             ActionParameterType.chat_log.value: msg_trail,
+            KAIRON_USER_MSG_ENTITY: next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None),
             "session_started": iat
         }
 
@@ -174,7 +180,11 @@ class ActionUtility:
         for event in tracker_events:
             if event.get('event') == 'session_started' and event.get('timestamp'):
                 initiated_at = datetime.utcfromtimestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
-            elif event.get('event') == 'user' or event.get('event') == 'bot':
+            elif event.get('event') == 'bot':
+                data = {"text": event.get('text')}
+                data.update(event.get('data'))
+                message_trail.append({event['event']: data})
+            elif event.get('event') == 'user':
                 message_trail.append({event['event']: event.get('text')})
 
         return initiated_at, message_trail
@@ -369,11 +379,11 @@ class ActionUtility:
         conversation_mail_template = Utility.email_conf['email']['templates']['conversation']
         bot_msg_template = Utility.email_conf['email']['templates']['bot_msg_conversation']
         user_msg_template = Utility.email_conf['email']['templates']['user_msg_conversation']
-        iat, msgtrail = ActionUtility.prepare_message_trail(tracker_events)
-        for event in msgtrail:
+        for event in tracker_events:
             msg = ""
             if list(event.keys())[0] == 'bot':
-                msg = bot_msg_template.replace('BOT_MESSAGE', event.get('bot', ""))
+                bot_reply = ActionUtility.__format_bot_reply(event.get('bot'))
+                msg = bot_msg_template.replace('BOT_MESSAGE', bot_reply)
             elif list(event.keys())[0] == 'user':
                 msg = user_msg_template.replace('USER_MESSAGE', event.get('user', ""))
             html_output = f"{html_output}{msg}"
@@ -383,6 +393,52 @@ class ActionUtility:
         conversation_mail_template.replace('This email was sent to USER_EMAIL', '')
         conversation_mail_template = conversation_mail_template.replace('CONVERSATION_REPLACE', html_output)
         return conversation_mail_template
+
+    @staticmethod
+    def __format_bot_reply(reply: dict):
+        bot_reply = ""
+        button_template = Utility.email_conf['email']['templates']['button_template']
+
+        if reply.get('text'):
+            bot_reply = reply['text']
+        elif reply.get('buttons'):
+            for btn in reply['buttons']:
+                btn_reply = """
+                <div style="font-size: 14px; color: #000000; font-weight: 400; padding: 12px; overflow: hidden; word-wrap: break-word;
+                            border: 2px solid #ffffff; margin: 8px 0px 0px 0px; text-align: center; border-radius: 20px; background: transparent;
+                            background-color: inherit; color: #000; max-width: 250px; box-sizing: border-box;">
+                    BUTTON_TEXT
+                </div>
+                """.replace('BUTTON_TEXT', btn.get('text', ''))
+                bot_reply = f"{bot_reply}\n{btn_reply}"
+            bot_reply = button_template.replace('ALL_BUTTONS', bot_reply)
+        elif reply.get("custom"):
+            if reply["custom"].get('data'):
+                custom_data = reply["custom"]['data']
+                bot_reply = list(map(lambda x: ActionUtility.__format_custom_bot_reply(x), custom_data))
+                bot_reply = "".join(bot_reply)
+            else:
+                bot_reply = str(reply["custom"])
+        return bot_reply
+
+    @staticmethod
+    def __format_custom_bot_reply(data):
+        if data.get('text') is not None:
+            return data['text']
+
+        reply = list(map(lambda x: ActionUtility.__format_custom_bot_reply(x), data['children']))
+        reply = "".join(reply)
+
+        if data.get('type') == "image":
+            reply = f'<span><img src="{data.get("src")}" alt="{data.get("alt")}" width="150" height="150"/><br/><p>{data.get("alt")}</p></span>'
+        elif data.get('type') == "paragraph":
+            reply = f'<p>{reply}</p>'
+        elif data.get('type') == "link":
+            reply = f'<a target="_blank" href="{data.get("href")}">{reply}</a>'
+        elif data.get('type') == "video":
+            reply = f'<a target="_blank" href="{data.get("url")}">{data.get("url")}</a>'
+
+        return reply
 
     @staticmethod
     def get_jira_client(url: str, username: str, api_token: str):

@@ -13,22 +13,18 @@ from ..shared.actions.utils import ActionUtility
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
-from ..shared.utils import LogStreamReader
 
 
 class ChatUtils:
 
     @staticmethod
     async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False):
-        log_stream_reader = LogStreamReader()
-        log_stream_reader.start()
         model = AgentProcessor.get_agent(bot)
         msg = UserMessage(data, sender_id=user, metadata={"is_integration_user": is_integration_user, "bot": bot,
                                                           "account": account, "channel_type": "chat_client"})
         chat_response = await model.handle_message(msg)
-        logs = log_stream_reader.stop_stream_and_get_logs()
         ChatUtils.__attach_agent_handoff_metadata(account, bot, user, chat_response, model.tracker_store)
-        return chat_response, logs
+        return chat_response
 
     @staticmethod
     def reload(bot: Text):

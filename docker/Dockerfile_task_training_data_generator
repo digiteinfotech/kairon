@@ -21,15 +21,18 @@ RUN python -m pip install nltk==3.6.6
 RUN python -m pip install torch==1.6.0
 RUN python -m pip install nlp
 RUN python -m pip install transformers==4.5.0
-RUN python -m pip install protobuf
 RUN python -m pip install git+https://github.com/sfahad1414/question_generation.git
 RUN python -m pip install elastic-apm
-RUN python -m pip install pymongo==3.12.0
 RUN mkdir ssl
 RUN mkdir data_generator
 RUN chmod 777 -R /tmp
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
+RUN python -m pip install keybert
+RUN python -m pip install bs4
+RUN python -m pip install protobuf==3.20.1
+RUN python -m pip install mongoengine==0.23.1
+RUN python -m pip install pymongo==3.12.0
 
 COPY augmentation ${KG_HOME}/augmentation
 COPY system.yaml ${KG_HOME}/
@@ -43,13 +46,4 @@ ENV TYPE default
 ENV WEBSITE_URL default
 ENV DEPTH default
 
-if [ $TYPE == "--from-website" ]
-then
-    CMD ["sh","-c","python -m kairon generate-data ${BOT} ${USER} ${TYPE} ${WEBSITE_URL} ${DEPTH}"]
-elif [ $TYPE == "--from-document" ]
-then
-    CMD ["sh","-c","python -m kairon generate-data ${BOT} ${USER} ${TYPE}"]
-else
-    echo "Invalid option supplied"
-    exit 1
-fi
+CMD ["sh","-c","python -m kairon generate-data ${BOT} ${USER} ${TYPE} ${WEBSITE_URL} ${DEPTH}"]

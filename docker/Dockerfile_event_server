@@ -33,8 +33,13 @@ RUN python -m pip install blinker
 RUN python -m pip install google-api-python-client
 RUN python -m pip install cryptography
 RUN python -m pip install dramatiq
-RUN python -m pip install dramatiq-mongodb
+RUN python -m pip install dramatiq-mongodb==0.6.1
 RUN python -m pip install google-cloud-translate
+RUN python -m pip install keybert
+RUN python -m pip install  bs4
+RUN python -m pip install mongoengine==0.23.1
+RUN python -m pip install pymongo==3.12.0
+RUN python -m pip install protobuf==3.20.1
 
 RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache
@@ -45,6 +50,7 @@ COPY kairon/ /app/kairon
 COPY metadata /app/metadata
 COPY system.yaml /app/
 COPY email.yaml /app/
+COPY augmentation /app/augmentation
 
 USER 1001
 EXPOSE 5056

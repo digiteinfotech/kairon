@@ -5,6 +5,9 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.shared.actions.exception import ActionFailure
+from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
+from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_UTTERANCE_NAME
 from kairon.shared.data.processor import MongoProcessor
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, KaironTwoStageFallbackAction
@@ -51,24 +54,39 @@ class ActionTwoStageFallback(ActionsBase):
         exception = None
         action_config = self.retrieve_config()
         intent_ranking = tracker.latest_message.get("intent_ranking")
-        num_text_recommendations = action_config['num_text_recommendations']
+        text_recommendations = action_config['text_recommendations']
         trigger_rules = action_config.get('trigger_rules')
-        suggested_intents = []
-        if num_text_recommendations and intent_ranking:
-            mongo_processor = MongoProcessor()
-            for intent in intent_ranking[1: 1+num_text_recommendations]:
-                try:
-                    example = next(mongo_processor.get_training_examples(intent["name"], self.bot))
-                    text = DataUtility.extract_text_and_entities(example['text'])[0]
-                    suggested_intents.append({"text": text, "payload": text})
-                except Exception as e:
-                    exception = str(e)
-                    logger.exception(e)
+        latest_user_msg = tracker.latest_message.get('text')
+        recommendations = []
+        mongo_processor = MongoProcessor()
+        if text_recommendations and text_recommendations.get("count"):
+            if text_recommendations.get("use_intent_ranking"):
+                for intent in intent_ranking[1: 1 + text_recommendations["count"]]:
+                    try:
+                        example = next(mongo_processor.get_training_examples(intent["name"], self.bot))
+                        text = DataUtility.extract_text_and_entities(example['text'])[0]
+                        recommendations.append({"text": text, "payload": text})
+                    except Exception as e:
+                        exception = str(e)
+                        logger.exception(e)
+            else:
+                for result in list(mongo_processor.search_training_examples(latest_user_msg, self.bot, text_recommendations["count"])):
+                    recommendations.append({"text": result.get("text"), "payload": result.get("text")})
         if trigger_rules:
             for rule in trigger_rules:
-                rule['payload'] = f"/{rule['payload']}"
-                suggested_intents.append(rule)
-        dispatcher.utter_message(buttons=suggested_intents)
+                btn = {}
+                if rule.get('is_dynamic_msg'):
+                    btn['payload'] = f'/{rule["payload"]}{{"{KAIRON_USER_MSG_ENTITY}": "{latest_user_msg}"}}'
+                elif not ActionUtility.is_empty(rule.get('message')):
+                    btn['payload'] = f'/{rule["payload"]}{{"{KAIRON_USER_MSG_ENTITY}": "{rule.get("message")}"}}'
+                else:
+                    btn['payload'] = f"/{rule['payload']}"
+                btn['text'] = rule['text']
+                recommendations.append(btn)
+        if recommendations:
+            dispatcher.utter_message(buttons=recommendations)
+        else:
+            dispatcher.utter_message(response=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME)
         ActionServerLogs(
             type=ActionType.two_stage_fallback.value,
             intent=tracker.get_intent_of_latest_message(),
@@ -76,7 +94,7 @@ class ActionTwoStageFallback(ActionsBase):
             sender=tracker.sender_id,
             bot=tracker.get_slot("bot"),
             exception=exception,
-            bot_response=str(suggested_intents),
+            bot_response=str(recommendations),
             status=status
         ).save()
         return {}

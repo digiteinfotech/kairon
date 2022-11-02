@@ -113,8 +113,10 @@ evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}
 
 multilingual:
+  enable: ${ENABLE_MULTILINGUAL_BOTS:false}
   project_id: ${MULTILINGUAL_TRANSLATOR_PROJECT_ID}
   limit_per_day: ${TRANSLATION_LIMIT:10}
+  enable_chat_client: ${ENABLE_MULTILINGUAL_CHAT_CLIENT:false}
   service_account_creds:
     type: ${SERVICE_ACCOUNT_TYPE}
     private_key_id: ${SERVICE_ACCOUNT_PRIVATE_KEY_ID}

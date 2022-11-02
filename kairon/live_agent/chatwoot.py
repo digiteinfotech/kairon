@@ -130,7 +130,7 @@ class ChatwootLiveAgent(LiveAgent):
             msg_type = None
             if msg.get('bot'):
                 msg_type = "outgoing"
-                msg = msg['bot']
+                msg = str(msg['bot'])
             elif msg.get('user'):
                 msg_type = "incoming"
                 msg = msg['user']

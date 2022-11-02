@@ -3,7 +3,6 @@
   "buttonType": "button",
   "welcomeMessage": "Hello! How are you?",
   "container": "#root",
-  "host": "https://localhost:8000/api/bot/chat",
   "userType": "custom",
   "userStorage": "ls",
   "whitelist": ["*"],
@@ -45,5 +44,9 @@
   "userClassName": "",
   "botClassName": "",
   "formClassName": "",
-  "openButtonClassName": ""
+  "openButtonClassName": "",
+  "multilingual": {
+    "enable": false,
+    "bots": []
+  }
 }

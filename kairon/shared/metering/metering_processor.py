@@ -3,7 +3,9 @@ import json
 from datetime import datetime, date
 from typing import Text
 
+from starlette.requests import Request
 
+from kairon import Utility
 from kairon.shared.constants import PluginTypes
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
@@ -64,8 +66,9 @@ class MeteringProcessor:
         return metric_count
 
     @staticmethod
-    def add_log_with_geo_location(metric_type: MetricType, account_id: int, bot: Text = None, **kwargs):
-        if kwargs.get("ip"):
+    def add_log_with_geo_location(metric_type: MetricType, account_id: int, request: Request, bot: Text = None, **kwargs):
+        ip = request.headers.get('X-Forwarded-For')
+        if not Utility.check_empty_string(ip):
             location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(**kwargs)
             if location_info:
                 kwargs.update(location_info)

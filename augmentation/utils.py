@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup
 import requests
 from loguru import logger as logging
 
+from kairon.exceptions import AppException
+
 
 class WebsiteParser:
 
@@ -98,6 +100,7 @@ class WebsiteParser:
             heading_tags = ["h1", "h2", "h3", "h4", "h5"]
             questions = []
             answers = []
+            answer_citation = {}
 
             links = WebsiteParser.get_all_links(initial_url, depth)
             for link in links:
@@ -140,9 +143,10 @@ class WebsiteParser:
                         if len(ans):
                             questions.append(qn)
                             answers.append(ans)
+                            answer_citation[ans] = url
 
-            return WebsiteParser.get_qna_dict(questions, answers)
+            return WebsiteParser.get_qna_dict(questions, answers), answer_citation
         except Exception as e:
             logging.info(e)
-            raise Exception(
+            raise AppException(
                 f"Story suggestions isn't fully supported on this website yet. Failed with exception: {str(e)}")

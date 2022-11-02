@@ -17,7 +17,8 @@ router = APIRouter()
 
 @router.post("/login", response_model=Response)
 async def login_for_access_token(
-        background_tasks: BackgroundTasks, form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()
+        background_tasks: BackgroundTasks, request: Request,
+        form_data: RecaptchaVerifiedOAuth2PasswordRequestForm = Depends()
 ):
     """
     Authenticates the user and generates jwt token
@@ -25,8 +26,7 @@ async def login_for_access_token(
     Utility.validate_enable_sso_only()
     access_token = Authentication.authenticate(form_data.username, form_data.password)
     background_tasks.add_task(
-        Authentication.validate_trusted_device_and_log, form_data.username,
-        form_data.fingerprint, form_data.remote_ip, form_data.add_trusted_device, form_data.remove_trusted_device
+        Authentication.validate_trusted_device, form_data.username, form_data.fingerprint, request
     )
     return {
         "data": {"access_token": access_token, "token_type": "bearer"},
@@ -44,7 +44,7 @@ async def generate_limited_access_temporary_token(
     """
     access_list = access_list or ['/api/bot/.+/chat/client/config$']
     access_token = Authentication.generate_integration_token(
-        current_user.get_bot(), current_user.get_bot(), ACCESS_ROLES.TESTER.value, expiry=expiry_minutes,
+        current_user.get_bot(), current_user.email, ACCESS_ROLES.TESTER.value, expiry=expiry_minutes,
         access_limit=access_list, token_type=TOKEN_TYPE.DYNAMIC.value
     )
     return {
@@ -97,14 +97,6 @@ async def get_integrations(
     List available integrations.
     """
     return Response(data=list(IntegrationProcessor.get_integrations(current_user.get_bot())))
-
-
-@router.get("/properties", response_model=Response)
-async def get_app_properties():
-    """
-    List social media logins enabled.
-    """
-    return Response(data=Utility.get_app_properties())
 
 
 @router.get('/login/sso/{sso_type}')

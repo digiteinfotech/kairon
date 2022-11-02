@@ -13,14 +13,12 @@ RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
 RUN python -m pip install pyyaml
 RUN python -m pip install rasa[full]==2.8.15
-RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install validators
 RUN python -m pip install loguru
 RUN python -m pip install smart-config==0.1.3
 RUN python -m pip install passlib[bcrypt]
 RUN python -m pip install password-strength
 RUN python -m pip install elastic-apm
-RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install fastapi_sso
 RUN python -m pip install uvicorn>=0.12.3
@@ -30,6 +28,11 @@ RUN python -m pip install transformers==4.5.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install blinker
 RUN python -m pip install google-cloud-translate
+RUN python -m pip install keybert
+RUN python -m pip install bs4
+RUN python -m pip install protobuf==3.20.1
+RUN python -m pip install mongoengine==0.23.1
+RUN python -m pip install pymongo==3.12.0
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
@@ -39,6 +42,7 @@ COPY system.yaml ${TRANSLATOR_HOME}/
 COPY email.yaml ${TRANSLATOR_HOME}/
 COPY metadata ${TRANSLATOR_HOME}/metadata
 COPY template ${TRANSLATOR_HOME}/template
+COPY augmentation ${TRANSLATOR_HOME}/augmentation
 
 ENV BOT default
 ENV USER default

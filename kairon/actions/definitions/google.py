@@ -10,6 +10,7 @@ from kairon.shared.actions.data_objects import GoogleSearchAction, ActionServerL
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 
 
 class ActionGoogleSearch(ActionsBase):
@@ -54,6 +55,10 @@ class ActionGoogleSearch(ActionsBase):
         bot_response = action_config.get("failure_response")
         api_key = action_config.get('api_key')
         try:
+            if not ActionUtility.is_empty(latest_msg) and latest_msg.startswith("/"):
+                user_msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
+                if not ActionUtility.is_empty(user_msg):
+                    latest_msg = user_msg
             tracker_data = ActionUtility.build_context(tracker)
             api_key = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_key, self.bot)
             if not ActionUtility.is_empty(latest_msg):

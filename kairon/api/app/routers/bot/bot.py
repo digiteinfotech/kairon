@@ -1056,30 +1056,23 @@ async def get_training_data_count(
 @router.get("/chat/client/config/url", response_model=Response)
 async def get_chat_client_config_url(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    access_token = Authentication.generate_integration_token(
-        current_user.get_bot(), current_user.get_bot(), ACCESS_ROLES.TESTER.value,
-        access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
-    )
-    url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{current_user.get_bot()}/chat/client/config/')
-    url = urljoin(url, access_token)
+    url = mongo_processor.get_chat_client_config_url(current_user.get_bot(), current_user.email)
     return Response(data=url)
 
 
 @router.get("/chat/client/config/{uid}", response_model=Response)
 async def get_client_config_using_uid(request: Request, bot: str, uid: str):
-    decoded_uid = Utility.validate_bot_specific_token(bot, uid)
-    config = mongo_processor.get_chat_client_config(decoded_uid['sub'])
+    config = mongo_processor.get_client_config_using_uid(bot, uid)
     if not Utility.validate_request(request, config):
         return Response(message="Domain not registered for kAIron client", error_code=403, success=False)
-    config.config.pop("whitelist")
-    config = config.to_mongo().to_dict()
+    config['config'].pop("whitelist")
     return Response(data=config['config'])
 
 
 @router.get("/chat/client/config", response_model=Response)
 async def get_client_config(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    config = mongo_processor.get_chat_client_config(current_user.get_bot())
+    config = mongo_processor.get_chat_client_config(current_user.get_bot(), current_user.email)
     config = config.to_mongo().to_dict()
     return Response(data=config['config'])
 
@@ -1486,7 +1479,7 @@ async def download_logs(
         log_type: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     logs = mongo_processor.get_logs(current_user.get_bot(), log_type, start_date, end_date)
-    file, temp_path = Utility.download_csv(logs, message=f"{log_type} logs not found!")
+    file, temp_path = Utility.download_csv(logs, message=f"{log_type} logs not found!", filename=f"{log_type}.csv")
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
     )

@@ -672,11 +672,21 @@ class Utility:
             subject = Utility.email_conf['email']['templates']['password_generated_subject']
         elif mail_type == 'untrusted_login':
             geo_location = ""
+            reset_password_url = Utility.email_conf["app"]["url"] + "/reset_password"
             body = Utility.email_conf['email']['templates']['untrusted_login']
             for key, value in kwargs.items():
                 geo_location = f"{geo_location}<li>{key}: {value}</li>"
             body = body.replace('GEO_LOCATION', geo_location)
+            body = body.replace('TRUST_DEVICE_URL', url)
+            body = body.replace('RESET_PASSWORD_URL', reset_password_url)
             subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
+        elif mail_type == 'add_trusted_device':
+            geo_location = ""
+            body = Utility.email_conf['email']['templates']['add_trusted_device']
+            for key, value in kwargs.items():
+                geo_location = f"{geo_location}<li>{key}: {value}</li>"
+            body = body.replace('GEO_LOCATION', geo_location)
+            subject = Utility.email_conf['email']['templates']['add_trusted_device']
         else:
             logger.debug('Skipping sending mail as no template found for the mail type')
             return
@@ -852,7 +862,7 @@ class Utility:
         return encoded_jwt
 
     @staticmethod
-    def generate_token_payload(payload:dict, minutes_to_expire=1440):
+    def generate_token_payload(payload: dict, minutes_to_expire=1440):
         """
         Used to encode the payload of type dict into a token.
 
@@ -899,8 +909,14 @@ class Utility:
 
     @staticmethod
     def validate_bot_specific_token(bot: Text, token: Text):
+        from kairon.shared.account.processor import AccountProcessor
+
         claims = Utility.decode_limited_access_token(token)
-        if bot != claims.get('sub'):
+        bot_config = AccountProcessor.get_bot(bot)
+        multilingual_bots = list(AccountProcessor.get_multilingual_bots(bot))
+        multilingual_bots = set(map(lambda bot_info: bot_info["id"], multilingual_bots))
+
+        if bot_config['account'] != claims['account'] or bot not in multilingual_bots:
             raise AppException("Invalid token")
         return claims
 
@@ -1264,7 +1280,12 @@ class Utility:
                 'linkedin': Utility.check_is_enabled('linkedin', False),
                 'google': Utility.check_is_enabled('google', False)
             },
-            'enable_sso_only': Utility.environment["app"]["enable_sso_only"]
+            'enable_sso_only': Utility.environment["app"]["enable_sso_only"],
+            'enable_apm': Utility.environment["elasticsearch"]["enable"],
+            'enable_notifications': Utility.environment["notifications"]["enable"],
+            'enable_multilingual': Utility.environment["multilingual"]["enable"],
+            'validate_trusted_device': Utility.environment["user"]["validate_trusted_device"],
+            'validate_recaptcha': Utility.environment["security"]["validate_recaptcha"],
         }
         return properties
 
@@ -1490,7 +1511,7 @@ class Utility:
         from urllib.parse import urlparse
         http_referer = request.headers.get('HTTP_REFERER') if request.headers.get(
             'HTTP_REFERER') is not None else request.headers.get('referer')
-        white_listed_domain = config.white_listed_domain if config.white_listed_domain is not None else ["*"]
+        white_listed_domain = config['white_listed_domain'] if config.get('white_listed_domain') is not None else ["*"]
 
         if "*" in white_listed_domain:
             return True
@@ -1606,24 +1627,3 @@ class Utility:
     def validate_enable_sso_only():
         if Utility.environment["app"]["enable_sso_only"]:
             raise AppException("This feature is disabled")
-
-
-class LogStreamReader:
-
-    def __init__(self):
-        self.log_capture_string = None
-
-    def start(self):
-        model_logger = logging.getLogger()
-        model_logger.setLevel(logging.DEBUG)
-        self.log_capture_string = StringIO()
-        ch = logging.StreamHandler(self.log_capture_string)
-        ch.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        model_logger.addHandler(ch)
-
-    def stop_stream_and_get_logs(self):
-        model_logs = self.log_capture_string.getvalue()
-        self.log_capture_string.close()
-        return model_logs
