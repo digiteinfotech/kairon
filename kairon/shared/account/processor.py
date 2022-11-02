@@ -885,6 +885,7 @@ class AccountProcessor:
                 raise AppException("Trusted devices are disabled!")
             return None, None
 
+    @staticmethod
     def add_trusted_device(user: Text, fingerprint: Text, send_confirmation: bool = True, **geo_location):
         link = None
         if not Utility.is_exist(TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint, status=True):
