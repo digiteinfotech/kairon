@@ -49,7 +49,7 @@ json2html
 numpy==1.22.0
 protobuf==3.20.2
 google-api-python-client
-nltk==3.6.6
+nltk==3.7
 blinker
 jira
 zenpy
