@@ -20,7 +20,7 @@ services:
     ports:
       - 8001:8000
     volumes:
-      - ./paraphrase_tmp:/root/.cache/
+      - ./transformer_cache:/root/.cache/
 
   kairon-question-generation:
     image: digite/kairon-qg:latest
@@ -31,7 +31,7 @@ services:
     ports:
       - 8002:8000
     volumes:
-      - ./question_generation_tmp:/root/.cache/
+      - ./transformer_cache:/root/.cache/
 
   kairon-api:
     image: digite/kairon-api:latest
@@ -47,7 +47,7 @@ services:
       - 81:80
     volumes:
       - ./models:/app/models
-      - ./api_tmp:/root/.cache/
+      - ./transformer_cache:/root/.cache/
     environment:
       DATABASE_URL: "mongodb://mongo:27017/kairon"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
@@ -55,7 +55,7 @@ services:
       QUESTION_GENERATION_URL: "http://kairon-question-generation:8002/questions"
       TEST_DB: "kairon_conversations"
       ACTION_SERVER_URL: "http://kairon-action-server:5055/webhook"
-      AGENT_URL: "http://localhost:5000/"
+      AGENT_URL: "http://kairon-chat:5000/"
       KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:8083/"
       KAIRON_HISTORY_SERVER_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"
       EVENT_SERVER_ENDPOINT: "http://kairon-event-server:5056"
@@ -72,13 +72,13 @@ services:
     ports:
       - 80:8080
     environment:
-      server: "http://localhost:81"
+      server: "http://0.0.0.0:81" #replace with the public ip of api server
       isAPMEnabled: "false"
       isGAEnabled: "false"
       isRecaptchaEnabled: "false"
       isMultilingualEnabled: "false"
-      chatServer: "http://localhost:5000/"
-      ui: "http://localhost"
+      chatServer: "http://0.0.0.0:5000/" #replace with the public ip of chat server
+      ui: "http://0.0.0.0" #replace with the public ip of UI server
   ## if you want to use google analytics then uncomment trackingid
   ## and set you google analytics code
   #      trackingid: ""
@@ -125,8 +125,11 @@ services:
       - 5000:5000
     networks:
       - chatbotnetwork
+    volumes:
+      - ./models:/app/models
+      - ./transformer_cache:/root/.cache/
     environment:
-      DATABASE_URL: "mongodb://mongo:27017/conversations"
+      DATABASE_URL: "mongodb://mongo:27017/kairon"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
       TEST_DB: "test_conversations"
       KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:5000/"
@@ -161,7 +164,7 @@ services:
       - ./data_generator:/app/data_generator
       - ./training_data:/app/training_data
       - ./testing_data:/app/testing_data
-      - ./api_tmp:/root/.cache/
+      - ./transformer_cache:/root/.cache/
 
 networks:
   chatbotnetwork:
