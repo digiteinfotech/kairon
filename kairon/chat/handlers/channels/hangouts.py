@@ -7,8 +7,6 @@ import google.auth.transport.requests
 import requests
 from google.oauth2 import id_token
 from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
-from sanic import response
-from sanic.exceptions import abort
 from tornado.escape import json_encode, json_decode
 
 from kairon.chat.agent_processor import AgentProcessor
@@ -267,9 +265,9 @@ class HangoutHandler(InputChannel, BaseHandler):
                 certs_url=CERTS_URL,
             )
         except ValueError:
-            abort(401)
+            raise Exception(401)
         if decoded_token["iss"] != "chat@system.gserviceaccount.com":
-            abort(401)
+            raise Exception(401)
 
     async def get(self, bot: str, token: str):
         self.write(json_encode({"status": "ok"}))
@@ -287,7 +285,8 @@ class HangoutHandler(InputChannel, BaseHandler):
         room_name = self._extract_room(request_data)
         text = self._extract_message(request_data)
         if text is None:
-            return response.text("OK")
+            self.write("OK")
+            return
         input_channel = self._extract_input_channel()
 
         collector = HangoutsOutput()

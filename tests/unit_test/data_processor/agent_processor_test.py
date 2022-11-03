@@ -21,7 +21,8 @@ class TestAgentProcessor:
         bot = 'agent_testing_user'
         pytest.bot = bot
         model_path = os.path.join('models', bot)
-        os.mkdir(model_path)
+        if not os.path.exists(model_path):
+            os.mkdir(model_path)
         train(
             domain='tests/testing_data/model_tester/domain.yml',
             config='tests/testing_data/model_tester/config.yml',
