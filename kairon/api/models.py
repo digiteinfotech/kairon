@@ -139,13 +139,13 @@ class RegisterAccount(RecaptchaVerifiedRequest):
             raise ValueError("Password and Confirm Password does not match")
         return v
 
-    @validator("fingerprint")
-    def validate_fingerprint(cls, v, values, **kwargs):
+    @root_validator
+    def validate_fingerprint(cls, values):
         from kairon.shared.utils import Utility
 
-        if Utility.environment['user']['validate_trusted_device'] and not v:
+        if Utility.environment['user']['validate_trusted_device'] and Utility.check_empty_string(values.get('fingerprint')):
             raise ValueError("fingerprint is required")
-        return v
+        return values
 
 
 class BotAccessRequest(RecaptchaVerifiedRequest):
