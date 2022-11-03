@@ -52,6 +52,7 @@ RUN chmod 777 -R /tmp
 COPY kairon/api ${RASA_NLU_HOME}/kairon/api
 COPY kairon/idp ${RASA_NLU_HOME}/kairon/idp
 COPY kairon/shared ${RASA_NLU_HOME}/kairon/shared
+COPY kairon/importer ${RASA_NLU_HOME}/kairon/importer
 COPY kairon/events ${RASA_NLU_HOME}/kairon/events
 COPY kairon/live_agent ${RASA_NLU_HOME}/kairon/live_agent
 COPY kairon/__init__.py ${RASA_NLU_HOME}/kairon/
