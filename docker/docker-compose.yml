@@ -47,7 +47,7 @@ services:
       - 81:80
     volumes:
       - ./models:/app/models
-      - ./api_tmp:/root/.cache/
+      - ./transformer_cache:/root/.cache/
     environment:
       DATABASE_URL: "mongodb://mongo:27017/kairon"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
@@ -72,7 +72,7 @@ services:
     ports:
       - 80:8080
     environment:
-      server: "http://0.0.0.0:81" #replace with the public ip of api server
+      server: "http://localhost:81"
       isAPMEnabled: "false"
       isGAEnabled: "false"
       isRecaptchaEnabled: "false"
@@ -122,7 +122,7 @@ services:
     container_name: kairon-chat
     hostname: kairon-chat
     ports:
-      - 5001:5000
+      - 5000:5000
     networks:
       - chatbotnetwork
     volumes:
