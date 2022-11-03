@@ -1479,7 +1479,7 @@ async def download_logs(
         log_type: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     logs = mongo_processor.get_logs(current_user.get_bot(), log_type, start_date, end_date)
-    file, temp_path = Utility.download_csv(logs, message=f"{log_type} logs not found!", filename=f"{log_type}.csv")
+    file, temp_path = Utility.download_csv(logs, message=f"Logs not found!", filename=f"{log_type}.csv")
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
     )
