@@ -55,7 +55,7 @@ services:
       QUESTION_GENERATION_URL: "http://kairon-question-generation:8002/questions"
       TEST_DB: "kairon_conversations"
       ACTION_SERVER_URL: "http://kairon-action-server:5055/webhook"
-      AGENT_URL: "http://kairon-chat:5000/"
+      AGENT_URL: "http://localhost:5000/"
       KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:8083/"
       KAIRON_HISTORY_SERVER_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"
       EVENT_SERVER_ENDPOINT: "http://kairon-event-server:5056"
@@ -73,6 +73,12 @@ services:
       - 80:8080
     environment:
       server: "http://localhost:81"
+      isAPMEnabled: "false"
+      isGAEnabled: "false"
+      isRecaptchaEnabled: "false"
+      isMultilingualEnabled: "false"
+      chatServer: "http://localhost:5000/"
+      ui: "http://localhost"
   ## if you want to use google analytics then uncomment trackingid
   ## and set you google analytics code
   #      trackingid: ""
