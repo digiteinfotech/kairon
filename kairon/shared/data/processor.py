@@ -37,7 +37,6 @@ from rasa.shared.utils.io import read_config_file
 from kairon.api import models
 from kairon.exceptions import AppException
 from kairon.shared.importer.processor import DataImporterLogProcessor
-from kairon.importer.validator.file_validator import TrainingDataValidator
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
@@ -86,9 +85,6 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
-
-from ..actions.utils import ActionUtility
-
 
 class MongoProcessor:
     """
@@ -168,6 +164,8 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
+        from kairon.importer.validator.file_validator import TrainingDataValidator
+
         try:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
@@ -1096,6 +1094,8 @@ class MongoProcessor:
         :param user: user id
         :return: config unique id
         """
+        from kairon.importer.validator.file_validator import TrainingDataValidator
+
         try:
             config_errors = TrainingDataValidator.validate_rasa_config(configs)
             if config_errors:
@@ -3133,6 +3133,8 @@ class MongoProcessor:
         """
         Saves http actions and config file.
         """
+        from kairon.importer.validator.file_validator import TrainingDataValidator
+
         actions = None
         config = None
         validation_failed = False
@@ -4208,6 +4210,8 @@ class MongoProcessor:
         :param raise_err: raise error if key does not exists
         :param bot: bot id
         """
+        from ..actions.utils import ActionUtility
+
         return ActionUtility.get_secret_from_key_vault(key, bot, raise_err)
 
     @staticmethod

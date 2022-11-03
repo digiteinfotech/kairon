@@ -7,7 +7,6 @@ from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE, EVENT_STATUS
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.utils import DataUtility
-from kairon.train import start_training
 
 
 class ModelTrainingEvent(EventsBase):
@@ -51,4 +50,6 @@ class ModelTrainingEvent(EventsBase):
         """
         Execute the event.
         """
+        from kairon.train import start_training
+
         return start_training(self.bot, self.user, kwargs.get('token'))

@@ -5,7 +5,6 @@ from typing import Text
 from loguru import logger
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
-from kairon.importer.data_importer import DataImporter
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor
@@ -64,6 +63,8 @@ class TrainingDataImporterEvent(EventsBase):
         """
         Execute the event.
         """
+        from kairon.importer.data_importer import DataImporter
+
         path = None
         validation_status = 'Failure'
         try:

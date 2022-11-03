@@ -6,7 +6,6 @@ from kairon.events.definitions.base import EventsBase
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.test.processor import ModelTestingLogProcessor
-from kairon.test.test_models import ModelTester
 
 
 class ModelTestingEvent(EventsBase):
@@ -48,6 +47,7 @@ class ModelTestingEvent(EventsBase):
         """
         Execute the event.
         """
+        from kairon.test.test_models import ModelTester
         try:
             ModelTestingLogProcessor.log_test_result(self.bot, self.user, event_status=EVENT_STATUS.INPROGRESS.value)
             nlu_results, stories_results = ModelTester.run_tests_on_model(self.bot, self.run_e2e)

@@ -1,7 +1,7 @@
 from typing import Text
 from loguru import logger
 
-from augmentation.story_generator.factory import TrainingDataGeneratorFactory
+
 from kairon.events.definitions.base import EventsBase
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -61,6 +61,8 @@ class DataGenerationEvent(EventsBase):
         """
         Execute the event.
         """
+        from augmentation.story_generator.factory import TrainingDataGeneratorFactory
+
         try:
             TrainingDataGenerationProcessor.set_status(
                 bot=self.bot, user=self.user, status=EVENT_STATUS.INPROGRESS.value,

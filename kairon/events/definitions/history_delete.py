@@ -2,7 +2,6 @@ from typing import Text
 from loguru import logger
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
-from kairon.history.processor import HistoryProcessor
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
@@ -50,6 +49,7 @@ class DeleteHistoryEvent(EventsBase):
         """
         Execute the event.
         """
+        from kairon.history.processor import HistoryProcessor
         try:
             HistoryDeletionLogProcessor.add_log(
                 self.bot, self.user, self.month, status=EVENT_STATUS.INPROGRESS.value, sender_id=self.sender_id
