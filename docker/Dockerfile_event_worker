@@ -53,7 +53,8 @@ RUN python -m pip install keybert
 RUN python -m pip install bs4
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
-RUN python -m pip install protobuf==3.20.1
+RUN python -m pip install protobuf==3.20.2
+RUN python -m pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
 
 RUN mkdir data_generator
 RUN mkdir training_data
