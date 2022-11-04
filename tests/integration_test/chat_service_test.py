@@ -154,8 +154,9 @@ class TestChatServer(AsyncHTTPTestCase):
                                          'template_name': 'utter_None'}, 'ranking': []}},
                         'slots': ['kairon_action_response: None', 'bot: 6275ebcba06e09a1b818c70a',
                                   'session_started_metadata: None']},
-                'action': ['utter_please_rephrase', 'action_listen'], 'response': [{'recipient_id': 'test@chat.com',
-                                                                                    'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
+                'action': [{"action_name": 'utter_please_rephrase'}, {"action_name": 'action_listen'}],
+                'response': [{'recipient_id': 'test@chat.com',
+                              'text': "I'm sorry, I didn't quite understand that. Could you rephrase?"}],
                 'events': None}
 
     def test_index(self):

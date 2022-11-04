@@ -239,10 +239,9 @@ async def download_conversations(
         {'month': month}, return_json=False
     )
 
-    bot_name = [bot['name'] for bot in AccountProcessor.list_bots(current_user.account) if bot['_id'] == current_user.get_bot()][0]
     response.headers[
         "Content-Disposition"
-    ] = f"attachment; filename=conversation_history_{bot_name}{datetime.date.today().strftime('_%d_%m_%y.csv')}"
+    ] = f"attachment; filename=conversation_history_{current_user.get_bot()}{datetime.date.today().strftime('_%d_%m_%y.csv')}"
     return StreamingResponse(BytesIO(response.content), headers=response.headers)
 
 

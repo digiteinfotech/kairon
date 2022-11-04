@@ -70,6 +70,7 @@ class ChatUtils:
     @staticmethod
     def __should_initiate_handoff(bot_predictions, agent_handoff_config):
         predicted_intent = bot_predictions["nlu"]["intent"]["name"]
+        print(bot_predictions["action"])
         predicted_action = [action.get("action_name") for action in bot_predictions["action"]]
         trigger_on_intent = predicted_intent in set(agent_handoff_config.get("trigger_on_intents", []))
         trigger_on_action = len(set(predicted_action).intersection(set(agent_handoff_config.get("trigger_on_actions", [])))) > 0

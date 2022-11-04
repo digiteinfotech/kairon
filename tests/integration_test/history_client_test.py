@@ -652,7 +652,7 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, moc
     )
     assert response.status_code == 200
     assert response.content.decode('utf-8')
-    assert f"conversation_history_test{datetime.date.today().strftime('_%d_%m_%y.csv')}" in str(response.headers)
+    assert f"conversation_history_{pytest.bot}{datetime.date.today().strftime('_%d_%m_%y.csv')}" in str(response.headers)
 
 
 @responses.activate
