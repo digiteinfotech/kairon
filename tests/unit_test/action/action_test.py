@@ -151,6 +151,11 @@ class TestActions:
         updated_url = ActionUtility.prepare_url(http_url, tracker_data)
         assert updated_url == 'http://localhost:8080/mock/987654321/greet/hello/udit.pandey@digite.com?sender_id=987654321&userid=1011&intent=greet&msg=hello&email=udit.pandey@digite.com'
 
+        tracker_data['user_message'] = '/custom_action{"kairon_user_msg": "what is digite?"}'
+        tracker_data[KAIRON_USER_MSG_ENTITY] = "what is digite?"
+        updated_url = ActionUtility.prepare_url(http_url, tracker_data)
+        assert updated_url == 'http://localhost:8080/mock/987654321/greet/what is digite?/udit.pandey@digite.com?sender_id=987654321&userid=1011&intent=greet&msg=what is digite?&email=udit.pandey@digite.com'
+
     def test_prepare_url_without_params(self):
         http_url = 'http://localhost:8080/mock'
         tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
