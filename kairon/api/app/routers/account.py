@@ -20,7 +20,7 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
     """
     Utility.validate_enable_sso_only()
     user, mail, url = await AccountProcessor.account_setup(register_account.dict())
-    AccountProcessor.get_location_and_add_trusted_device(user, register_account.fingerprint, request, False)
+    AccountProcessor.get_location_and_add_trusted_device(user['email'], register_account.fingerprint, request, False)
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=user['first_name'], url=url)
         return {"message": "Account Registered! A confirmation link has been sent to your mail"}

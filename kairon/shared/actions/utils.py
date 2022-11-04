@@ -214,9 +214,14 @@ class ActionUtility:
         @param tracker_data: tracker containing contextual info.
         :return: Prepared URL.
         """
+        user_msg = tracker_data.get(ActionParameterType.user_message.value, "")
+        if not ActionUtility.is_empty(user_msg) and user_msg.startswith("/"):
+            previous_user_msg = tracker_data.get(KAIRON_USER_MSG_ENTITY)
+            if not ActionUtility.is_empty(previous_user_msg):
+                user_msg = previous_user_msg
         http_url = http_url.replace("$SENDER_ID", tracker_data.get(ActionParameterType.sender_id.value, ""))
         http_url = http_url.replace("$INTENT", tracker_data.get(ActionParameterType.intent.value, ""))
-        http_url = http_url.replace("$USER_MESSAGE", tracker_data.get(ActionParameterType.user_message.value, ""))
+        http_url = http_url.replace("$USER_MESSAGE", user_msg)
         for slot, value in tracker_data.get(ActionParameterType.slot.value, {}).items():
             value = str(value) if value else ""
             http_url = http_url.replace(f"${slot}", value)

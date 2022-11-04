@@ -255,7 +255,7 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
         assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
 
 
-def test_account_registration():
+def test_account_registration(monkeypatch):
     response = client.post(
         "/api/account/registration",
         json={
@@ -270,6 +270,8 @@ def test_account_registration():
     )
     actual = response.json()
     assert actual["message"] == "Account Registered!"
+
+    monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
     response = client.post(
         "/api/account/registration",
         json={
@@ -280,6 +282,7 @@ def test_account_registration():
             "confirm_password": "Welcome@1",
             "account": "integration2",
             "bot": "integration2",
+            "fingerprint": "asdfghj4567890"
         },
     )
     actual = response.json()
@@ -463,7 +466,7 @@ def test_add_trusted_device_on_signup_error(monkeypatch):
         },
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', 'fingerprint'], 'msg': 'fingerprint is required', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'fingerprint is required', 'type': 'value_error'}]
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
