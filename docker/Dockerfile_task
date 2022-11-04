@@ -41,7 +41,7 @@ RUN python -m pip install bs4
 RUN python -m pip install protobuf==3.20.1
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
-RUN python -m pip install torch
+RUN python -m install torch --extra-index-url https://download.pytorch.org/whl/cpu
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
