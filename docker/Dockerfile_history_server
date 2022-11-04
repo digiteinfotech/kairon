@@ -33,7 +33,7 @@ RUN mkdir ssl
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
 RUN python -m pip install jira
-RUN python -m pip install protobuf==3.20.1
+RUN python -m pip install protobuf==3.20.2
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
 
