@@ -11449,7 +11449,7 @@ def test_download_logs(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = response.json()
-    assert response == {'success': False, 'message': 'model_training logs not found!', 'data': None, 'error_code': 422}
+    assert response == {'success': False, 'message': 'Logs not found!', 'data': None, 'error_code': 422}
 
 
 def test_get_auditlog_for_user_1():
