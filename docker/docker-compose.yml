@@ -51,14 +51,15 @@ services:
     environment:
       DATABASE_URL: "mongodb://mongo:27017/kairon"
       SECRET_KEY: "b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"
-      PARAPHRASE_URL: "http://kairon-paraphrase:8001/paraphrases"
-      QUESTION_GENERATION_URL: "http://kairon-question-generation:8002/questions"
+      PARAPHRASE_URL: "http://kairon-paraphrase:8000/paraphrases"
+      QUESTION_GENERATION_URL: "http://kairon-question-generation:8000/questions"
       TEST_DB: "kairon_conversations"
       ACTION_SERVER_URL: "http://kairon-action-server:5055/webhook"
       AGENT_URL: "http://kairon-chat:5000/"
       KAIRON_HISTORY_SERVER_URL: "http://kairon-history-server:8083/"
       KAIRON_HISTORY_SERVER_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"
       EVENT_SERVER_ENDPOINT: "http://kairon-event-server:5056"
+      PARAPHRASE_GPT_URL: "http://kairon-paraphrase:8000/paraphrases/gpt"
 
 
   kairon-ui:
