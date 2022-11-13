@@ -61,3 +61,5 @@ dramatiq-mongodb==0.6.1
 keybert
 bs4
 fastapi-keycloak
+sanic>=20.12.6 # not directly required, pinned by Snyk to avoid a vulnerability
+ujson>=5.4.0 # not directly required, pinned by Snyk to avoid a vulnerability
