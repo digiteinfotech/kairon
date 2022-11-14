@@ -958,7 +958,7 @@ class HistoryProcessor:
                          {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
                          {"$match": {"$or": [{"events.event": {"$in": ['bot', 'user']}},
                          {"$and": [{"events.event": "action"},
-                         {"events.name": {"$nin": ['action_listen', 'action_session_start']}}]}]}},
+                         {"events.name": {"$nin": ['action_session_start']}}]}]}},
                          {"$match": {"events.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
                          {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
                             "allevents": {"$push": "$events"}}},

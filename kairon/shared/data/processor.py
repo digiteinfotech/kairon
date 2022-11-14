@@ -1517,7 +1517,7 @@ class MongoProcessor:
         results = (
             TrainingExamples.objects(bot=bot, status=True)
                 .search_text(search)
-                .order_by("-text_score")
+                .order_by("$text_score")
                 .limit(limit)
         )
         for result in results:
