@@ -1357,3 +1357,30 @@ class TestUtility:
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(bot=bot, user=user).count()
         assert count >= 3
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_whatsapp_button_two(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_two")
+        whatsapp = ConverterFactory.getConcreteInstance("button", "whatsapp")
+        response = await whatsapp.messageConverter(input_json)
+        expected_output = json_data.get("whatsapp_button_op_two")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_whatsapp_button_three(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_three")
+        whatsapp = ConverterFactory.getConcreteInstance("button", "whatsapp")
+        response = await whatsapp.messageConverter(input_json)
+        expected_output = json_data.get("whatsapp_button_op_three")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_whatsapp_button_one(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one")
+        whatsapp = ConverterFactory.getConcreteInstance("button", "whatsapp")
+        response = await whatsapp.messageConverter(input_json)
+        expected_output = json_data.get("whatsapp_button_op_one")
+        assert expected_output == response

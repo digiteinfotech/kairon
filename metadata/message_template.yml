@@ -1,4 +1,4 @@
-type_list: ["image","link","video"]
+type_list: ["image","link","video","button"]
 slack:
   image: '{
 	"blocks": [
@@ -101,6 +101,12 @@ whatsapp:
       "preview_url": true,
       "body":"<data>"
    }'
+  button: '{
+  "type": "button",
+  "body": "<body>",
+  "action":"<action>"
+  }'
+  body_message: "Please select from quick buttons:"
 
 telegram:
   image: '{"photo":"<imageurl>","caption":"<alttext>"}'
