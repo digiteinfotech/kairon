@@ -396,6 +396,14 @@ class MongoProcessor:
             if new_examples:
                 TrainingExamples.objects.insert(new_examples)
 
+    def check_training_example_exists(self, text: Text, bot: Text):
+        try:
+            training_example = TrainingExamples.objects(bot=bot, text=text, status=True).get().to_mongo().to_dict()
+            return training_example["intent"]
+        except DoesNotExist as e:
+            logging.info(e)
+        raise AppException("Training example does not exist!")
+
     def __extract_entities(self, entities):
         for entity in entities:
             entity_data = Entity(
