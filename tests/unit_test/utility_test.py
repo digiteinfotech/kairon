@@ -1384,3 +1384,12 @@ class TestUtility:
         response = await whatsapp.messageConverter(input_json)
         expected_output = json_data.get("whatsapp_button_op_one")
         assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_whatsapp_button_one_failure(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("button", "whatsapp_failed")
+        with pytest.raises(Exception):
+            await whatsapp.messageConverter(input_json)
