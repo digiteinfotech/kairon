@@ -1198,7 +1198,7 @@ def test_training_example_exists():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["data"] == "greet"
+    assert actual["data"] == {"is_exists": True, "intent": "greet"}
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -1210,10 +1210,10 @@ def test_training_example_does_not_exist():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["data"] is None
+    assert actual["data"] == {"is_exists": False, "intent": None}
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Training example does not exist!"
+    assert Utility.check_empty_string(actual["message"])
 
 
 def test_get_training_examples_empty_intent():

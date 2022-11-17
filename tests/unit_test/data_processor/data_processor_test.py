@@ -707,12 +707,12 @@ class TestMongoProcessor:
     def test_training_example_exists(self):
         processor = MongoProcessor()
         intent = processor.check_training_example_exists("hey", "tests")
-        assert intent == "greet"
+        assert intent == {"is_exists": True, "intent": "greet"}
 
     def test_training_example_does_not_exists(self):
         processor = MongoProcessor()
-        with pytest.raises(AppException, match="Training example does not exist!"):
-            processor.check_training_example_exists("hgbsncj", "tests")
+        intent = processor.check_training_example_exists("hgbsncj", "tests")
+        assert intent == {"is_exists": False, "intent": None}
 
     def test_get_training_examples_as_dict(self, monkeypatch):
         processor = MongoProcessor()
