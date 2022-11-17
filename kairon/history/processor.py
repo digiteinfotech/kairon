@@ -116,8 +116,8 @@ class HistoryProcessor:
         :param sender_id: user id
         :return: list of conversation events
         """
-        client, message = HistoryProcessor.get_mongo_connection()
-        message = ' '.join([message, f', collection: {collection}'])
+        client, _ = HistoryProcessor.get_mongo_connection()
+        message = None
         with client as client:
             try:
                 db = client.get_database()

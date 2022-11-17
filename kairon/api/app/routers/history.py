@@ -34,7 +34,7 @@ async def chat_history_users(month: int = Query(default=1, ge=1, le=6), current_
     )
 
 
-@router.get("/users/{sender}", response_model=Response)
+@router.get("/users/{sender:path}", response_model=Response)
 async def chat_history(
     sender: Text, month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):

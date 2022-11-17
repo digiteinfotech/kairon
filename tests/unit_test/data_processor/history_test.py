@@ -132,7 +132,7 @@ class TestHistory:
     def test_fetch_chat_history_empty(self, mock_mongo_client):
         history, message = HistoryProcessor.fetch_chat_history(sender="123", collection="tests")
         assert len(history) == 0
-        assert message
+        assert message is None
 
     def test_fetch_chat_history(self, monkeypatch):
         def events(*args, **kwargs):
