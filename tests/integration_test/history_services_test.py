@@ -119,6 +119,21 @@ def test_chat_history(mock_chat_history):
     assert actual["success"]
 
 
+def test_chat_history_with_user_id_contains_special_character(mock_chat_history):
+    from urllib.parse import quote_plus
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users/{quote_plus('LNLMC1/daIk=')}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["history"]) == 12
+    assert actual["message"]
+    assert actual["success"]
+
+
 def test_visitor_hit_fallback(mock_db_client):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/fallback",
