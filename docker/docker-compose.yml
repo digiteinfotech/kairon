@@ -78,7 +78,7 @@ services:
       isGAEnabled: "false"
       isRecaptchaEnabled: "false"
       isMultilingualEnabled: "false"
-      chatServer: "http://0.0.0.0:5000/" #replace with the public ip of chat server
+      chatServer: "http://0.0.0.0:5001/" #replace with the public ip of chat server
       ui: "http://0.0.0.0" #replace with the public ip of UI server
   ## if you want to use google analytics then uncomment trackingid
   ## and set you google analytics code
