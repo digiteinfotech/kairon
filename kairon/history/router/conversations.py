@@ -50,7 +50,7 @@ async def chat_history_users(request: HistoryQuery = HistoryQuery(),
     return {"data": {"users": users}, "message": message}
 
 
-@router.get("/users/{sender}", response_model=Response)
+@router.get("/users/{sender:path}", response_model=Response)
 async def chat_history(sender: Text,
                        request: HistoryQuery = HistoryQuery(),
                        collection: str = Depends(Authentication.authenticate_and_get_collection)):
