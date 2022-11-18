@@ -33,6 +33,7 @@ RUN python -m pip install protobuf==3.20.2
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+RUN python -m pip install tensorflow-cpu==2.6.5
 
 RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache
