@@ -30,7 +30,7 @@ def setup():
 @pytest.fixture
 def mock_db_client(monkeypatch):
     def db_client(*args, **kwargs):
-        return MongoClient(Utility.environment['tracker']['url']), 'connecting to db, '
+        return MongoClient(Utility.environment['tracker']['url'])
 
     monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
 
@@ -51,14 +51,14 @@ def history_users(*args, **kwargs):
                "49931985-2b51-4db3-89d5-a50767e6d98e",
                "2e409e7c-06f8-4de8-8c88-93b4cf0b7211",
                "2fed7769-b647-4088-8ed9-a4f4f3653f25",
-           ], 'connecting to db, '
+           ], None
 
 
 def user_history(*args, **kwargs):
     json_data = json.load(open("tests/testing_data/history/conversation.json"))
     return (
         json_data['events'],
-        'connecting to db, '
+        None
     )
 
 
@@ -95,9 +95,9 @@ def test_chat_history_users(mock_chat_history):
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]["users"]) == 7
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
-    assert response.headers == {'content-length': '355', 'content-type': 'application/json', 'server': 'Secure',
+    assert response.headers == {'content-length': '339', 'content-type': 'application/json', 'server': 'Secure',
                                 'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
                                 'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
                                 'x-content-type-options': 'nosniff',
@@ -115,7 +115,7 @@ def test_chat_history(mock_chat_history):
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]["history"]) == 12
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -130,7 +130,7 @@ def test_chat_history_with_user_id_contains_special_character(mock_chat_history)
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]["history"]) == 12
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -144,7 +144,7 @@ def test_visitor_hit_fallback(mock_db_client):
     assert actual["error_code"] == 0
     assert actual["data"]["fallback_count"] == 0
     assert actual["data"]["total_count"] == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -157,7 +157,7 @@ def test_conversation_steps(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -170,7 +170,7 @@ def test_conversation_time(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -183,7 +183,7 @@ def test_user_with_metrics(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["users"] == []
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -196,7 +196,7 @@ def test_engaged_users(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["engaged_users"] == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -209,7 +209,7 @@ def test_new_users(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["new_users"] == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -222,7 +222,7 @@ def test_successful_conversation(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["successful_conversations"] == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -236,7 +236,7 @@ def test_successful_conversation_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["successful_conversations"] == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -251,7 +251,7 @@ def test_successful_conversation_with_request_and_static_collection(mock_db_clie
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["successful_conversations"] == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -264,7 +264,7 @@ def test_user_retention(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["user_retention"] == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -277,7 +277,7 @@ def test_engaged_user_range(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]['engaged_user_range'] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -290,7 +290,7 @@ def test_new_user_range(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]['new_user_range'] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -303,7 +303,7 @@ def test_successful_conversation_range(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]['successful_sessions'] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -317,7 +317,7 @@ def test_successful_conversation_range_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]['successful_sessions'] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -330,7 +330,7 @@ def test_user_retention_range(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["retention_range"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -344,7 +344,7 @@ def test_engaged_users_with_value(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["engaged_users"] == 0
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -358,7 +358,7 @@ def test_engaged_user_range_with_value(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]['engaged_user_range'] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -371,7 +371,7 @@ def test_fallback_count_range(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["fallback_count_rate"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -385,7 +385,7 @@ def test_fallback_count_range_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["fallback_count_rate"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -398,7 +398,7 @@ def test_flat_conversations(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["conversation_data"] == []
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -481,7 +481,7 @@ def test_no_auth_configured(mock_chat_history):
     actual = response.json()
     assert actual["error_code"] == 0
     assert len(actual["data"]["history"]) == 12
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -547,7 +547,7 @@ def test_total_conversation_range(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["total_conversation_range"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -561,7 +561,7 @@ def test_total_conversation_range_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["total_conversation_range"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -574,7 +574,7 @@ def test_conversation__step_range(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["average_conversation_steps"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -588,7 +588,7 @@ def test_conversation__step_range_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["average_conversation_steps"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -601,7 +601,7 @@ def test_wordcloud(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == ""
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -615,7 +615,7 @@ def test_wordcloud_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == ""
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -628,7 +628,7 @@ def test_unique_user_inputs(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == []
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -642,7 +642,7 @@ def test_unique_user_inputs_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == []
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -655,7 +655,7 @@ def test_conversation__time_range(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["Conversation_time_range"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -669,7 +669,7 @@ def test_conversation__time_range_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["Conversation_time_range"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -682,7 +682,7 @@ def test_user_dropoff(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["Dropoff_list"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -696,7 +696,7 @@ def test_user_dropoff_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["Dropoff_list"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -709,7 +709,7 @@ def test_user_intent_dropoff(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -723,7 +723,7 @@ def test_user_intent_dropoff_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -736,7 +736,7 @@ def test_unsuccessful_sessions(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -750,7 +750,7 @@ def test_unsuccessful_sessions_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -763,7 +763,7 @@ def test_total_session(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -777,6 +777,6 @@ def test_total_sessions_with_request(mock_db_client):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == {}
-    assert actual["message"]
+    assert actual["message"] is None
     assert actual["success"]
 
