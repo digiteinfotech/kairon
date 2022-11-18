@@ -1211,7 +1211,7 @@ def test_training_example_does_not_exist():
     )
     actual = response.json()
     assert actual["data"] == {"is_exists": False, "intent": None}
-    assert not actual["success"]
+    assert actual["success"] == True
     assert actual["error_code"] == 422
     assert Utility.check_empty_string(actual["message"])
 
