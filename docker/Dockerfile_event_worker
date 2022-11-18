@@ -46,7 +46,7 @@ RUN python -m pip install cryptography
 RUN python -m pip install dramatiq
 RUN python -m pip install dramatiq-mongodb==0.6.1
 RUN python -m pip install google-cloud-translate
-RUN python -m pip install transformers==4.5.0
+RUN python -m pip install transformers==4.23.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install sentence-transformers
 RUN python -m pip install keybert
