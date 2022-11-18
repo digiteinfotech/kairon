@@ -24,7 +24,7 @@ RUN python -m pip install fastapi_sso
 RUN python -m pip install uvicorn>=0.12.3
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
-RUN python -m pip install transformers==4.5.0
+RUN python -m pip install transformers==4.23.0
 RUN python -m pip install blinker
 RUN python -m pip install jira
 RUN python -m pip install zenpy
