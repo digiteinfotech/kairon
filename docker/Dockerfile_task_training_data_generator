@@ -20,7 +20,7 @@ RUN python -m pip install sentencepiece
 RUN python -m pip install nltk==3.6.6
 RUN python -m pip install torch==1.6.0
 RUN python -m pip install nlp
-RUN python -m pip install transformers==4.5.0
+RUN python -m pip install transformers==4.23.0
 RUN python -m pip install elastic-apm
 RUN mkdir ssl
 RUN mkdir data_generator

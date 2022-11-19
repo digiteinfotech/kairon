@@ -1,5 +1,6 @@
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.chat.converters.channels.constants import ELEMENT_TYPE
+import json
 
 class WhatsappResponseConverter(ElementTransformerOps):
 
@@ -32,6 +33,29 @@ class WhatsappResponseConverter(ElementTransformerOps):
         except Exception as ex:
             raise Exception(f"Error in WhatsappResponseConverter::link_transformer {str(ex)}")
 
+    def button_transformer(self, message):
+        try:
+            message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
+            button_json_temp = json.loads(message_template)
+            jsoniterator = ElementTransformerOps.json_generator(message)
+            buttons = {"buttons":[]}
+            body_default = ElementTransformerOps.getChannelConfig(self.channel, "body_message")
+            body_msg = {"text":body_default}
+            for item in jsoniterator:
+                if item.get("type") == ELEMENT_TYPE.BUTTON.value:
+                    title = ElementTransformerOps.json_generator(item.get("children"))
+                    for titletext in title:
+                        button_text = titletext.get("text")
+                    btn_body = {}
+                    btn_body.update({"type": "reply"})
+                    btn_body.update({"reply":{"id":item.get("value"),"title":button_text}})
+                    buttons["buttons"].append(btn_body)
+            button_json_temp.update({"body":body_msg})
+            button_json_temp.update({"action":buttons})
+            return button_json_temp
+        except Exception as ex:
+            raise Exception(f"Exception in WhatsappResponseConverter::button_transfomer: {str(ex)}")
+
     async def messageConverter(self, message):
         try:
             if self.message_type == ELEMENT_TYPE.IMAGE.value:
@@ -40,5 +64,7 @@ class WhatsappResponseConverter(ElementTransformerOps):
                 return self.link_transformer(message)
             elif self.message_type == ELEMENT_TYPE.VIDEO.value:
                 return super().video_transformer(message)
+            elif self.message_type == ELEMENT_TYPE.BUTTON.value:
+                return self.button_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in WhatsappResponseConverter::messageConverter {str(ex)}")

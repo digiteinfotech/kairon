@@ -11,3 +11,4 @@ class ELEMENT_TYPE(str, Enum):
     LINK = "link"
     IMAGE = "image"
     VIDEO = "video"
+    BUTTON = "button"

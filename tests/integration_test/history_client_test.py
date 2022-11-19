@@ -235,6 +235,29 @@ def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
+def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_mongo_processor):
+    from urllib.parse import quote_plus
+    responses.add(
+        responses.GET,
+        f'https://localhost:8083/api/history/{pytest.bot}/conversations/users/LNLMC1/daIk=',
+        status=200,
+        json={"data": {"history": history_conversations()[0]}},
+        match=[responses.json_params_matcher({'month': 1})],
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/users/{quote_plus('LNLMC1/daIk=')}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["history"]) == 7
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
 def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,

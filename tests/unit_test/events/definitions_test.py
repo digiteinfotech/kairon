@@ -460,7 +460,7 @@ class TestEventDefinitions:
             )
             history = json_data[0]['events']
             conversations.insert_many(history)
-            return client, 'Loading host:mongodb://test_kairon:27016, db:conversation, collection:conversations'
+            return client
 
         monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
 

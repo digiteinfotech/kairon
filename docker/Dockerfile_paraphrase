@@ -11,7 +11,7 @@ RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install nltk==3.6.6
-RUN python -m pip install transformers==4.5.0
+RUN python -m pip install transformers==4.23.0
 RUN python -m pip install sentencepiece
 RUN python -m pip install loguru
 RUN python -m pip install numpy
