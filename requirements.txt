@@ -1,6 +1,6 @@
 sentence-transformers
 pyyaml
-torch
+torch==1.11.0
 rasa[full]==2.8.15
 fastapi~=0.78.0
 mongomock~=3.23.0
