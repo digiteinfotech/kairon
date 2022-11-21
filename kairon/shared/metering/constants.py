@@ -9,3 +9,4 @@ class MetricType(str, Enum):
     user_login = "user_login"
     invalid_login = "invalid_login"
     login = "login"
+    conversation_feedback = "conversation_feedback"
