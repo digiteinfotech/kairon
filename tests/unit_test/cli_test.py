@@ -4,6 +4,7 @@ import os
 from kairon import cli
 from kairon.cli.conversations_deletion import initiate_history_deletion_archival
 from kairon.cli.data_generator import generate_training_data
+from kairon.cli.delete_logs import delete_logs
 from kairon.cli.importer import validate_and_import
 from kairon.cli.training import train
 from kairon.cli.testing import run_tests_on_model
@@ -13,6 +14,7 @@ from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from mongoengine import connect
 import mock
@@ -326,4 +328,17 @@ class TestDataGeneratorCli:
             return None
 
         monkeypatch.setattr(DataGenerationEvent, "execute", mock_generator)
+        cli()
+
+
+class TestDeleteLogsCli:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @mock.patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(func=delete_logs))
+    def test_delete_logs(self, mock_args):
         cli()

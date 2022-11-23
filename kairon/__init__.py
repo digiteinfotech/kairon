@@ -31,12 +31,15 @@ Usage:
     Training Data generation:
         kairon generate-data <botid> <userid> --from-website
         kairon generate-data <botid> <userid> --from-document
+    
+    Delete audit logs:
+        kairon delete-logs
 
 """
 
 
 def create_argument_parser():
-    from kairon.cli import importer, training, testing, conversations_deletion, translator, data_generator
+    from kairon.cli import importer, training, testing, conversations_deletion, translator, data_generator, delete_logs
 
     parser = ArgumentParser(
         prog="kairon",
@@ -52,6 +55,7 @@ def create_argument_parser():
     conversations_deletion.add_subparser(subparsers, parents=parent_parsers)
     translator.add_subparser(subparsers, parents=parent_parsers)
     data_generator.add_subparser(subparsers, parents=parent_parsers)
+    delete_logs.add_subparser(subparsers, parents=parent_parsers)
     return parser
 
 

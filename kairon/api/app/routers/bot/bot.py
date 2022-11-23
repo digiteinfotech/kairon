@@ -143,6 +143,19 @@ async def get_all_training_examples_for_bot(
     }
 
 
+@router.get("/training_examples/exists/{text}", response_model=Response)
+async def training_example_exists(
+        text: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Checks if training example exists
+    """
+    return {
+        "data": mongo_processor.check_training_example_exists(text, current_user.get_bot())
+    }
+
+
 @router.post("/training_examples/{intent}", response_model=Response)
 async def add_training_examples(
         intent: constr(to_lower=True, strip_whitespace=True),
