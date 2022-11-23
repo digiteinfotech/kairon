@@ -1194,6 +1194,31 @@ def test_get_training_examples():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_training_example_exists():
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples/exists/hey",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"] == {"is_exists": True, "intent": "greet"}
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
+def test_training_example_does_not_exist():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/training_examples/exists/xyz",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["data"] == {"is_exists": False, "intent": None}
+    assert actual["success"] == True
+    assert actual["error_code"] == 0
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_get_training_examples_empty_intent():
     response = client.get(
         f"/api/bot/{pytest.bot}/training_examples/ ",

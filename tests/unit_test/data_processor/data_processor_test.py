@@ -704,6 +704,16 @@ class TestMongoProcessor:
         assert training_examples
         assert ids
 
+    def test_training_example_exists(self):
+        processor = MongoProcessor()
+        intent = processor.check_training_example_exists("hey", "tests")
+        assert intent == {"is_exists": True, "intent": "greet"}
+
+    def test_training_example_does_not_exists(self):
+        processor = MongoProcessor()
+        intent = processor.check_training_example_exists("hgbsncj", "tests")
+        assert intent == {"is_exists": False, "intent": None}
+
     def test_get_training_examples_as_dict(self, monkeypatch):
         processor = MongoProcessor()
         training_examples_expected = {'hi': 'greet', 'hello': 'greet', 'ok': 'affirm', 'no': 'deny'}
