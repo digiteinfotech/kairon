@@ -1,3 +1,4 @@
+import asyncio
 import os
 import random
 from typing import Dict, Text, Optional, Set
@@ -28,14 +29,13 @@ class ModelTester:
         Returns: dictionary with evaluation results
         """
         from kairon.shared.utils import Utility
-        from rasa.utils.common import run_in_loop
 
         bot_home = os.path.join('testing_data', bot)
         logger.info(f"model test data path: {bot_home}")
         try:
             model_path = Utility.get_latest_model(bot)
             nlu_path, stories_path = TestDataGenerator.create(bot, run_e2e)
-            stories_results = run_in_loop(ModelTester.run_test_on_stories(stories_path, model_path, run_e2e))
+            stories_results = asyncio.run(ModelTester.run_test_on_stories(stories_path, model_path, run_e2e))
             nlu_results = ModelTester.run_test_on_nlu(nlu_path, model_path)
             return nlu_results, stories_results
         except Exception as e:
