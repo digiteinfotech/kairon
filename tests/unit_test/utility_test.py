@@ -14,6 +14,7 @@ from websockets import InvalidStatusCode
 from websockets.datastructures import Headers
 
 from kairon.exceptions import AppException
+from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.data_objects import EventConfig
 from kairon.shared.data.utils import DataUtility
@@ -24,6 +25,7 @@ from email.mime.text import MIMEText
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 import json
+
 
 class TestUtility:
 
@@ -1357,3 +1359,19 @@ class TestUtility:
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(bot=bot, user=user).count()
         assert count >= 3
+
+    def test_positive_case(self):
+        result = AugmentationUtils.generate_synonym("good")
+        assert len(result) == 3 and "good" not in result
+
+    def test_positive_case_with_6_synonyms(self):
+        result = AugmentationUtils.generate_synonym("good", 6)
+        assert len(result) == 6 and "good" not in result
+
+    def test_empty_case(self):
+        result = AugmentationUtils.generate_synonym("")
+        assert result == []
+
+    def test_more_synonyms(self):
+        result = AugmentationUtils.generate_synonym("good", 100)
+        assert len(result) >= 1 and "good" not in result
