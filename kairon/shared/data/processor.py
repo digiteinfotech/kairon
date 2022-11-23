@@ -4419,3 +4419,8 @@ class MongoProcessor:
             }
         value = json.loads(logs[logtype].objects(**filter_query).to_json())
         return value
+    
+    def delete_audit_logs(self):
+        retention_period = Utility.environment['events']['audit_logs']['retention']
+        overdue_time = datetime.utcnow() - timedelta(days=retention_period)
+        AuditLogData.objects(timestamp__lte=overdue_time).delete()
