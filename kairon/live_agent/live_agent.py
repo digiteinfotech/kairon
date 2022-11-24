@@ -15,18 +15,14 @@ class LiveAgent(LiveAgentBase, ABC):
     """
 
     @classmethod
-    def from_bot(cls, bot: Text, raise_error: bool = False):
+    def from_bot(cls, bot: Text):
         """
         Fetches live agent implementation from bot id.
 
         :param bot: bot id
-        :param raise_error: raise error if not agent configuration found. False, by default.
+
         """
         from kairon.live_agent.factory import LiveAgentFactory
 
-        try:
-            config = LiveAgentsProcessor.get_config(bot, mask_characters=False)
-            return LiveAgentFactory.get_agent(config["agent_type"], config["config"])
-        except DoesNotExist:
-            if raise_error:
-                raise AppException("Live agent system not configured")
+        config = LiveAgentsProcessor.get_config(bot, mask_characters=False)
+        return LiveAgentFactory.get_agent(config["agent_type"], config["config"])
