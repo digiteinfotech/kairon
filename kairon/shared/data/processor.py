@@ -396,6 +396,15 @@ class MongoProcessor:
             if new_examples:
                 TrainingExamples.objects.insert(new_examples)
 
+    def check_training_example_exists(self, text: Text, bot: Text):
+        try:
+            training_example = TrainingExamples.objects(bot=bot, text=text, status=True).get().to_mongo().to_dict()
+            data = {"is_exists": True, "intent": training_example["intent"]}
+        except DoesNotExist as e:
+            logging.info(e)
+            data = {"is_exists": False, "intent": None}
+        return data
+
     def __extract_entities(self, entities):
         for entity in entities:
             entity_data = Entity(
@@ -4410,3 +4419,8 @@ class MongoProcessor:
             }
         value = json.loads(logs[logtype].objects(**filter_query).to_json())
         return value
+    
+    def delete_audit_logs(self):
+        retention_period = Utility.environment['events']['audit_logs']['retention']
+        overdue_time = datetime.utcnow() - timedelta(days=retention_period)
+        AuditLogData.objects(timestamp__lte=overdue_time).delete()
