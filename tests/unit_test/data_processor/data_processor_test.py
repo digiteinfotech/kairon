@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
 from starlette.datastructures import Headers, URL
@@ -37,7 +37,7 @@ from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
-    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions
+    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -3765,6 +3765,10 @@ class TestMongoProcessor:
         assert fresh_settings.user
         assert fresh_settings.bot
 
+    def test_save_bot_settings_error(self):
+        with pytest.raises(ValidationError, match="refresh_token_expiry must be greater than chat_token_expiry!"):
+            BotSettings(chat_token_expiry=60, refresh_token_expiry=60, bot="test", user="test").save()
+
     def test_save_chat_client_config_not_exists(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
             return {'name': 'test', 'account': 1, 'user': 'user@integration.com', 'status': True}
@@ -3817,15 +3821,35 @@ class TestMongoProcessor:
         config_path = "./template/chat-client/default-config.json"
         expected_config = json.load(open(config_path))
         actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
-        assert actual_config.config['headers']['authorization']
-        assert actual_config.config['headers']['X-USER']
+        assert actual_config.config['headers']['authorization']['access_token']
+        assert actual_config.config['headers']['authorization']['token_type'] == 'Bearer'
+        assert actual_config.config['headers']['authorization']['refresh_token']
+        assert actual_config.config['headers']['authorization']['access_token_expiry'] == 30
+        assert actual_config.config['headers']['authorization']['refresh_token_expiry'] == 60
+        assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
         assert actual_config.config['api_server_host_url']
         del actual_config.config['api_server_host_url']
         assert 'chat_server_base_url' in actual_config.config
         actual_config.config.pop('chat_server_base_url')
-        del actual_config.config['headers']
+        headers = actual_config.config.pop('headers')
         expected_config['multilingual'] = {'enable': False, 'bots': []}
         assert expected_config == actual_config.config
+
+        primary_token_claims = Utility.decode_limited_access_token(headers['authorization']['access_token'])
+        iat = datetime.fromtimestamp(primary_token_claims.get('iat'), tz=timezone.utc)
+        claims = Utility.decode_limited_access_token(headers['authorization']['refresh_token'])
+        assert claims['iat'] == primary_token_claims.get('iat')
+        refresh_token_expiry = datetime.fromtimestamp(claims['exp'], tz=timezone.utc)
+        assert round((refresh_token_expiry - iat).total_seconds() / 60) == 60
+        del claims['iat']
+        del claims['exp']
+        assert claims == {'ttl': 30, 'bot': 'test_bot', 'sub': 'user@integration.com', 'type': 'refresh',
+                          'role': 'tester', 'account': 2,
+                          'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
+                          'primary-token-role': 'chat', 'primary-token-access-limit': [
+                '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
+                '/api/bot/.+/metric/user/logs/user_metrics'
+            ], 'access-limit': ['/api/auth/.+/token/refresh']}
 
     def test_save_chat_client_config_without_whitelisted_domain(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):

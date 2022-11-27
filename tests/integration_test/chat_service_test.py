@@ -199,6 +199,8 @@ class TestChatServer(AsyncHTTPTestCase):
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat, channel_type="chat_client") > 0
 
     def test_chat_with_user(self):
+        access_token = chat_client_config['config']['headers']['authorization']['access_token']
+        token_type = chat_client_config['config']['headers']['authorization']['token_type']
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
             patch.dict(Utility.environment['action'], {"url": None})
@@ -220,7 +222,7 @@ class TestChatServer(AsyncHTTPTestCase):
                 f"/api/bot/{bot}/chat",
                 method="POST",
                 body=json.dumps({"data": "Hi"}).encode("utf8"),
-                headers={"Authorization": chat_client_config['config']['headers']['authorization']},
+                headers={"Authorization":  f"{token_type} {access_token}"},
             )
             actual = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
@@ -282,7 +284,7 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual["message"] == "Access to bot is denied"
 
     def test_chat_with_different_bot_using_token_for_different_bot(self):
-        access_token = Authentication.generate_integration_token(
+        access_token, _ = Authentication.generate_integration_token(
             bot, "test@chat.com", name='integration_token_for_chat_service')
         response = self.fetch(
             f"/api/bot/{bot2}/chat",
@@ -300,7 +302,7 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual["message"] == 'Access to bot is denied'
 
     def test_chat_with_bot_using_deleted_token(self):
-        access_token = Authentication.generate_integration_token(bot, "test@chat.com", name='integration_token_1')
+        access_token, _ = Authentication.generate_integration_token(bot, "test@chat.com", name='integration_token_1')
         Authentication.update_integration_token('integration_token_1', bot,
                                                 "test@chat.com", INTEGRATION_STATUS.DELETED.value)
         response = self.fetch(
@@ -338,7 +340,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert Utility.check_empty_string(actual["message"])
 
     def test_chat_with_limited_access(self):
-        access_token = Authentication.generate_integration_token(
+        access_token, _ = Authentication.generate_integration_token(
             bot2, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/chat'], name="integration token"
         )
         response = self.fetch(
@@ -758,7 +760,7 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
 
     def test_whatsapp_channel_not_configured(self):
-        access_token = Authentication.generate_integration_token(
+        access_token, _ = Authentication.generate_integration_token(
             bot2, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/chat'], name="whatsapp integration"
         )
 
@@ -1349,7 +1351,8 @@ class TestChatServer(AsyncHTTPTestCase):
         responses.stop()
 
     def test_chat_with_live_agent_with_integration_token(self):
-        access_token = chat_client_config['config']['headers']['authorization']
+        access_token = chat_client_config['config']['headers']['authorization']['access_token']
+        token_type = chat_client_config['config']['headers']['authorization']['token_type']
         responses.reset()
         responses.start()
         responses.add(
@@ -1383,7 +1386,7 @@ class TestChatServer(AsyncHTTPTestCase):
             f"/api/bot/{bot}/agent/live/2",
             method="POST",
             body=json.dumps({"data": "need help"}).encode('utf-8'),
-            headers={"Authorization": access_token, "X-USER": "test@chat.com"},
+            headers={"Authorization": f"{token_type} {access_token}", "X-USER": "test@chat.com"},
             connect_timeout=0,
             request_timeout=0
         )
@@ -1509,6 +1512,8 @@ class TestChatServer(AsyncHTTPTestCase):
         assert message == 'Session expired. Please login again.'
 
     def test_get_chat_history(self):
+        access_token = chat_client_config['config']['headers']['authorization']['access_token']
+        token_type = chat_client_config['config']['headers']['authorization']['token_type']
         events = [
                 {
                     "event": "session_started",
@@ -1556,7 +1561,7 @@ class TestChatServer(AsyncHTTPTestCase):
             response = self.fetch(
                 f"/api/bot/{bot}/conversation",
                 method="GET",
-                headers={"Authorization": chat_client_config['config']['headers']['authorization']},
+                headers={"Authorization":  f"{token_type} {access_token}"},
                 connect_timeout=0,
                 request_timeout=0
             )
