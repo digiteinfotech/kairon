@@ -36,7 +36,7 @@ class ModelTrainingEvent(EventsBase):
         Send event to event server.
         """
         try:
-            token = Authentication.generate_integration_token(
+            token, _ = Authentication.generate_integration_token(
                 self.bot, self.user, ACCESS_ROLES.TESTER.value, expiry=180, token_type=TOKEN_TYPE.DYNAMIC.value
             )
             payload = {'bot': self.bot, 'user': self.user, 'token': token}

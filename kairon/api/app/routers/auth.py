@@ -4,11 +4,12 @@ from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
 from kairon.idp.processor import IDPProcessor
+from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.constants import ADMIN_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
 from kairon.shared.models import User
 
@@ -34,6 +35,23 @@ async def login_for_access_token(
     }
 
 
+@router.get("/{bot}/token/refresh", response_model=Response)
+async def refresh_token(
+        token: str = Depends(DataUtility.oauth2_scheme),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Generates an access token from refresh token supplied.
+    """
+    access_token = Authentication.generate_token_from_refresh_token(token)
+    return {
+        "data": {"access_token": access_token, "token_type": "bearer"},
+        "message":
+            "This token will be shown only once. Please copy this somewhere safe."
+            "It is your responsibility to keep the token secret. If leaked, others may have access to your system."
+    }
+
+
 @router.get("/{bot}/integration/token/temp", response_model=Response)
 async def generate_limited_access_temporary_token(
         expiry_minutes: int = 5, access_list: list = None,
@@ -43,7 +61,7 @@ async def generate_limited_access_temporary_token(
     Generates a limited access temporary token with Tester role.
     """
     access_list = access_list or ['/api/bot/.+/chat/client/config$']
-    access_token = Authentication.generate_integration_token(
+    access_token, _ = Authentication.generate_integration_token(
         current_user.get_bot(), current_user.email, ACCESS_ROLES.TESTER.value, expiry=expiry_minutes,
         access_limit=access_list, token_type=TOKEN_TYPE.DYNAMIC.value
     )
@@ -63,7 +81,7 @@ async def generate_integration_token(
     """
     Generates an access token for api integration.
     """
-    access_token = Authentication.generate_integration_token(
+    access_token, _ = Authentication.generate_integration_token(
         current_user.get_bot(), current_user.get_user(), expiry=request.expiry_minutes, name=request.name,
         access_limit=request.access_list, role=request.role
     )

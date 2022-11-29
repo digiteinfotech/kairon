@@ -9,6 +9,7 @@ from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
 from kairon.shared.live_agent.data_objects import LiveAgents
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
+from kairon.live_agent.live_agent import LiveAgent
 
 
 class TestLiveAgentProcessor:
@@ -569,3 +570,7 @@ class TestLiveAgentProcessor:
         assert metadata["metadata"] == {"source_id": 'fdfghjkl56987', "inbox_identifier": "dsfghjk567089"}
         assert metadata["agent_type"] == "chatwoot"
         assert metadata["sender_id"] == "udit"
+
+    def test_get_live_agent_exception(self):
+        with pytest.raises(AppException, match="Live agent config not found!"):
+            LiveAgent.from_bot("Chatbot")
