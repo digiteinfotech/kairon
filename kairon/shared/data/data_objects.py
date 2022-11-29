@@ -654,10 +654,16 @@ class BotSettings(Auditlog):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
     website_data_generator_depth_search_limit = IntField(default=2)
+    chat_token_expiry = IntField(default=30)
+    refresh_token_expiry = IntField(default=60)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if self.refresh_token_expiry <= self.chat_token_expiry:
+            raise ValidationError("refresh_token_expiry must be greater than chat_token_expiry!")
 
 
 @auditlogger.log

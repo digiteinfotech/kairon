@@ -29,7 +29,7 @@ from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.models import User
-from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ACCESS_ROLES, ModelTestType, \
+from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
     TrainingDataSourceType
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining
 from kairon.shared.data.model_processor import ModelProcessor
@@ -559,7 +559,7 @@ async def upload_data_generation_file(
     TrainingDataGenerationProcessor.set_status(bot=current_user.get_bot(),
                                                user=current_user.get_user(), status=EVENT_STATUS.INITIATED.value,
                                                document_path=file_path)
-    token = Authentication.generate_integration_token(
+    token, _ = Authentication.generate_integration_token(
         current_user.get_bot(), current_user.email, token_type=TOKEN_TYPE.DYNAMIC.value
     )
     background_tasks.add_task(
