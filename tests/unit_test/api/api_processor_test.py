@@ -2249,3 +2249,43 @@ class TestAccountProcessor:
         result = AccountProcessor.get_organization(account=account)
         assert result.get("name") is None
         assert result == {}
+
+    def test_invalid_account_number(self):
+        with pytest.raises(DoesNotExist, match="Account does not exists"):
+            AccountProcessor.get_account(0)
+
+    @pytest.mark.asyncio
+    def test_reset_link_with_unconfirmed_mail(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = False
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        loop = asyncio.new_event_loop()
+        with pytest.raises(AppException, match="Error! Email verification is not enabled"):
+            loop.run_until_complete(AccountProcessor.send_reset_link('vdivya4690@gamil.com'))
+        Utility.email_conf["email"]["enable"] = True
+
+    def test_upsert_organization(self):
+        org_name = {"name": "Unit"}
+        mail = "vdivya4690@gmail.com"
+        account = "2347"
+        user = User(account=account, email=mail)
+        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+
+        result = Organization.objects().get(account=account)
+        assert result.name == org_name.get("name")
+
+    def test_delete_bot_except_case(self):
+        account = {
+            "account": "Test_Delete_bot",
+            "email": "vdivya4690@gmail.com",
+            "first_name": "delete_First",
+            "last_name": "delete_Last",
+            "password": SecretStr("Qwerty@4"),
+        }
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
+        pytest.del_account = user_detail['account'].__str__()
+        bots_before_delete = list(AccountProcessor.list_bots(pytest.del_account))
+        for bot in bots_before_delete:
+            assert Bot.objects(id=bot['_id'], account=pytest.del_account, status=True) is not None
+            Bot.objects(id=bot['_id']).get().delete()
+        assert list(AccountProcessor.list_bots(pytest.del_account)) == []
