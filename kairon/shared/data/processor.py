@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from collections import ChainMap
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
@@ -3486,12 +3486,19 @@ class MongoProcessor:
             ],
             token_type=TOKEN_TYPE.DYNAMIC.value
         )
+        iat = datetime.now(tz=timezone.utc).replace(microsecond=0).replace(second=0)
+        access_token_expiry = iat + timedelta(minutes=bot_settings.chat_token_expiry)
+        access_token_expiry = access_token_expiry.timestamp()
+        refresh_token_expiry = iat + timedelta(minutes=bot_settings.refresh_token_expiry)
+        refresh_token_expiry = refresh_token_expiry.timestamp()
         client_config.config['headers']['authorization'] = {}
         client_config.config['headers']['authorization']['access_token'] = token
         client_config.config['headers']['authorization']['token_type'] = 'Bearer'
         client_config.config['headers']['authorization']['refresh_token'] = f'{refresh_token}'
-        client_config.config['headers']['authorization']['access_token_expiry'] = bot_settings.chat_token_expiry
-        client_config.config['headers']['authorization']['refresh_token_expiry'] = bot_settings.refresh_token_expiry
+        client_config.config['headers']['authorization']['access_token_ttl'] = bot_settings.chat_token_expiry
+        client_config.config['headers']['authorization']['refresh_token_ttl'] = bot_settings.refresh_token_expiry
+        client_config.config['headers']['authorization']['access_token_expiry'] = access_token_expiry
+        client_config.config['headers']['authorization']['refresh_token_expiry'] = refresh_token_expiry
         client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
         if client_config.config['multilingual'].get('enable'):
             accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
