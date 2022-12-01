@@ -3828,8 +3828,10 @@ class TestMongoProcessor:
         assert actual_config.config['headers']['authorization']['refresh_token_ttl'] == 60
         ate = actual_config.config['headers']['authorization']['access_token_expiry']
         rte = actual_config.config['headers']['authorization']['refresh_token_expiry']
-        assert round((datetime.utcfromtimestamp(ate) - datetime.utcnow()).total_seconds() / 60) == 30
-        assert round((datetime.utcfromtimestamp(rte) - datetime.utcnow()).total_seconds() / 60) == 60
+        ate_minutes = round((datetime.utcfromtimestamp(ate) - datetime.utcnow()).total_seconds() / 60)
+        rte_minutes = round((datetime.utcfromtimestamp(rte) - datetime.utcnow()).total_seconds() / 60)
+        assert 31 >= ate_minutes >= 29
+        assert 61 >= rte_minutes >= 59
         assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
         assert actual_config.config['api_server_host_url']
         del actual_config.config['api_server_host_url']

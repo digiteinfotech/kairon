@@ -6236,8 +6236,10 @@ def test_refresh_token(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]
     assert actual['data']['headers']['authorization']['token_type'] == "Bearer"
-    assert actual['data']['headers']['authorization']['refresh_token_expiry'] == 60
-    assert actual['data']['headers']['authorization']['access_token_expiry'] == 30
+    ate = actual['data']['headers']['authorization']['access_token_expiry']
+    rte = actual['data']['headers']['authorization']['refresh_token_expiry']
+    assert 31 >= round((datetime.utcfromtimestamp(ate) - datetime.utcnow()).total_seconds() / 60) >= 29
+    assert 61 >= round((datetime.utcfromtimestamp(rte) - datetime.utcnow()).total_seconds() / 60) >= 59
     refresh_token = actual['data']['headers']['authorization']['refresh_token']
     
     response = client.get(
