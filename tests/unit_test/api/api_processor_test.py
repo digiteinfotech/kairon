@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 import os
 import uuid
 from unittest.mock import patch
@@ -19,6 +20,7 @@ from starlette.datastructures import Headers, URL
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
+from kairon.api.app.routers.idp import get_idp_config
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.actions.models import ActionType
 from kairon.shared.auth import Authentication, LoginSSOFactory
@@ -35,6 +37,7 @@ from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 import time
+from kairon.idp.data_objects import IdpConfig
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -2255,37 +2258,55 @@ class TestAccountProcessor:
             AccountProcessor.get_account(0)
 
     @pytest.mark.asyncio
-    def test_reset_link_with_unconfirmed_mail(self, monkeypatch):
-        Utility.email_conf["email"]["enable"] = False
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
-        loop = asyncio.new_event_loop()
-        with pytest.raises(AppException, match="Error! Email verification is not enabled"):
-            loop.run_until_complete(AccountProcessor.send_reset_link('vdivya4690@gamil.com'))
+    async def test_reset_link_with_unverified_mail(self, monkeypatch):
+        AccountProcessor.add_user(
+            email="integration@2.com",
+            first_name="user1",
+            last_name="passwrd",
+            password='Welcome@1',
+            account=1,
+            user="reuse-link_acc",
+        )
         Utility.email_conf["email"]["enable"] = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        with pytest.raises(AppException, match="Error! The following user's mail is not verified"):
+            await(AccountProcessor.send_reset_link('integration@2.com'))
+        Utility.email_conf["email"]["enable"] = False
 
     def test_upsert_organization(self):
-        org_name = {"name": "Unit"}
-        mail = "vdivya4690@gmail.com"
-        account = "2347"
+        org_name = {"name": "DEL"}
+        mail = "testing@demo.in"
+        account = "123456"
         user = User(account=account, email=mail)
+        config = {
+            "client_id": "90",
+            "client_secret": "9099",
+        }
+        idp_config = IdpConfig(user="${user}", account="123456", organization="DEL", config=config).save()
         AccountProcessor.upsert_organization(user=user, org_name=org_name)
+        result = get_idp_config("123456")
+        assert result is not None
 
-        result = Organization.objects().get(account=account)
-        assert result.name == org_name.get("name")
+    @pytest.mark.asyncio
+    async def test_account_setup_delete_bot_except_block(self, monkeypatch):
+        def add_user_mock(*args, **kwargs):
+            return None
 
-    def test_delete_bot_except_case(self):
         account = {
-            "account": "Test_Delete_bot",
+            "account": "1234",
             "email": "vdivya4690@gmail.com",
             "first_name": "delete_First",
             "last_name": "delete_Last",
             "password": SecretStr("Qwerty@4"),
         }
-        loop = asyncio.new_event_loop()
-        user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
-        pytest.del_account = user_detail['account'].__str__()
-        bots_before_delete = list(AccountProcessor.list_bots(pytest.del_account))
-        for bot in bots_before_delete:
-            assert Bot.objects(id=bot['_id'], account=pytest.del_account, status=True) is not None
-            Bot.objects(id=bot['_id']).get().delete()
-        assert list(AccountProcessor.list_bots(pytest.del_account)) == []
+        monkeypatch.setattr(AccountProcessor, "add_user", add_user_mock)
+        bots_before_delete = list(AccountProcessor.list_bots(account["account"]))
+        result = await(AccountProcessor.account_setup(account))
+        bots_after_delete = list(AccountProcessor.list_bots(account["account"]))
+        assert bots_after_delete == bots_before_delete
+        assert result == (None, None, None)
+
+    def test_default_account_setup_error_msg(self):
+        result = AccountProcessor.default_account_setup()
+        assert result is not None
+
