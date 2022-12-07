@@ -1212,7 +1212,7 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
+        token, refresh_token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
@@ -1221,6 +1221,7 @@ class TestAccountProcessor:
         assert payload.get('type') == TOKEN_TYPE.INTEGRATION.value
         assert payload.get('role') == 'chat'
         assert not payload.get('exp')
+        assert not refresh_token
 
     def test_generate_integration_token_different_bot(self, monkeypatch):
         bot = 'test_1'
@@ -1232,7 +1233,7 @@ class TestAccountProcessor:
             return {"account": 1001}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token = Authentication.generate_integration_token(bot, user, name='integration_token', role='tester')
+        token, _ = Authentication.generate_integration_token(bot, user, name='integration_token', role='tester')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
@@ -1252,8 +1253,9 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token = Authentication.generate_integration_token(bot, user, expiry=15, name='integration_token_with_expiry',
-                                                          role='designer')
+        token, refresh_token = Authentication.generate_integration_token(
+            bot, user, expiry=15, name='integration_token_with_expiry', role='designer'
+        )
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
@@ -1263,6 +1265,18 @@ class TestAccountProcessor:
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
         exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
         assert round((exp - iat).total_seconds() / 60) == 15
+
+        assert refresh_token
+        claims = Utility.decode_limited_access_token(refresh_token)
+        assert claims['iat'] == payload.get('iat')
+        refresh_token_expiry = datetime.datetime.fromtimestamp(claims['exp'], tz=datetime.timezone.utc)
+        assert round((refresh_token_expiry - iat).total_seconds() / 60) == 60
+        del claims['iat']
+        del claims['exp']
+        assert claims == {'ttl': 15, 'bot': 'test', 'sub': 'test_user', 'type': 'refresh', 'role': 'tester',
+                          'account': 1000, 'name': 'integration_token_with_expiry', 'primary-token-type': 'integration',
+                          'primary-token-role': 'designer', 'primary-token-access-limit': None,
+                          'access-limit': ['/api/auth/.+/token/refresh']}
 
     def test_generate_integration_token_with_access_limit(self, monkeypatch):
         bot = 'test1'
@@ -1276,8 +1290,10 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
+        token, refresh_token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
                                                           name='integration_token_with_access_limit', role='admin')
+        pytest.refresh_token = refresh_token
+        pytest.dynamic_token = token
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
@@ -1289,6 +1305,68 @@ class TestAccountProcessor:
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
         exp = datetime.datetime.fromtimestamp(payload.get('exp'), tz=datetime.timezone.utc)
         assert round((exp - iat).total_seconds() / 60) == 15
+
+        assert refresh_token
+        claims = Utility.decode_limited_access_token(refresh_token)
+        assert claims['iat'] == payload.get('iat')
+        refresh_token_expiry = datetime.datetime.fromtimestamp(claims['exp'], tz=datetime.timezone.utc)
+        assert round((refresh_token_expiry - iat).total_seconds() / 60) == 60
+        del claims['iat']
+        del claims['exp']
+        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': 'refresh', 'role': 'tester', 'account': 1000,
+                          'name': 'integration_token_with_access_limit', 'primary-token-type': TOKEN_TYPE.INTEGRATION.value,
+                          'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
+                          'access-limit': ['/api/auth/.+/token/refresh']}
+
+    def test_generate_non_dynamic_token_from_refresh_token(self):
+        assert pytest.refresh_token
+        with pytest.raises(HTTPException):
+            Authentication.generate_token_from_refresh_token(pytest.refresh_token)
+
+    def test_use_dynamic_token_to_refresh_token(self):
+        assert pytest.dynamic_token
+        with pytest.raises(HTTPException):
+            Authentication.generate_token_from_refresh_token(pytest.dynamic_token)
+
+    def test_generate_token_from_refresh_token(self, monkeypatch):
+        bot = 'test1'
+        user = 'test_user'
+        access_limit = ['/api/bot/endpoint']
+
+        def __mock_get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
+        token, refresh_token = Authentication.generate_integration_token(
+            bot, user, expiry=15, access_limit=access_limit, token_type=TOKEN_TYPE.DYNAMIC.value,
+            name='integration_token_with_access_limit', role='admin'
+        )
+
+        primary_token_claims = Utility.decode_limited_access_token(refresh_token)
+        iat = datetime.datetime.fromtimestamp(primary_token_claims.get('iat'), tz=datetime.timezone.utc)
+        assert refresh_token
+        claims = Utility.decode_limited_access_token(refresh_token)
+        assert claims['iat'] == primary_token_claims.get('iat')
+        refresh_token_expiry = datetime.datetime.fromtimestamp(claims['exp'], tz=datetime.timezone.utc)
+        assert round((refresh_token_expiry - iat).total_seconds() / 60) == 60
+        del claims['iat']
+        del claims['exp']
+        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': 'refresh', 'role': 'tester', 'account': 1000,
+                          'name': 'integration_token_with_access_limit',
+                          'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
+                          'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
+                          'access-limit': ['/api/auth/.+/token/refresh']}
+
+        new_token = Authentication.generate_token_from_refresh_token(refresh_token)
+        new_token_claims = Utility.decode_limited_access_token(new_token)
+        assert new_token_claims['iat']
+        new_token_iat = datetime.datetime.fromtimestamp(new_token_claims['iat'], tz=datetime.timezone.utc)
+        new_token_expiry = datetime.datetime.fromtimestamp(new_token_claims['exp'], tz=datetime.timezone.utc)
+        assert round((new_token_expiry - new_token_iat).total_seconds() / 60) == 15
+        del new_token_claims['iat']
+        del new_token_claims['exp']
+        assert new_token_claims == {'bot': bot, 'sub': user, 'type': 'dynamic', 'role': 'admin', 'account': 1000,
+                                    'name': 'from refresh token', 'access-limit': access_limit}
 
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'
@@ -1325,7 +1403,7 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
+        token, _ = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
                                                           token_type=TOKEN_TYPE.DYNAMIC.value)
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert payload.get('bot') == bot

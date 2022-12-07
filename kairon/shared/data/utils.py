@@ -348,7 +348,7 @@ class DataUtility:
     @staticmethod
     def get_channel_endpoint(channel_config: dict):
         from kairon.shared.auth import Authentication
-        token = Authentication.generate_integration_token(
+        token, _ = Authentication.generate_integration_token(
             channel_config['bot'], channel_config['user'], role=ACCESS_ROLES.CHAT.value,
             access_limit=[f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/.+"],
             token_type=TOKEN_TYPE.CHANNEL.value

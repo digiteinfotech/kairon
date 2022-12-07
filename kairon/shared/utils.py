@@ -1080,7 +1080,7 @@ class Utility:
         if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
             from kairon.shared.auth import Authentication
             agent_url = Utility.environment['model']['agent'].get('url')
-            token = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
+            token, _ = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
             response = Utility.http_request('post', urljoin(agent_url, f"/api/bot/{bot}/chat"), token,
                                             user, json_dict={'data': data})
             return json.loads(response)
@@ -1092,7 +1092,7 @@ class Utility:
         if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
             from kairon.shared.auth import Authentication
             agent_url = Utility.environment['model']['agent'].get('url')
-            token = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
+            token, _ = Authentication.generate_integration_token(bot, email, expiry=5, token_type=TOKEN_TYPE.CHANNEL.value)
             response = Utility.http_request('get', urljoin(agent_url, f"/api/bot/{bot}/reload"), token, email)
             return json.loads(response)
         else:

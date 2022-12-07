@@ -147,6 +147,7 @@ class TOKEN_TYPE(str, Enum):
     LOGIN = "login"
     DYNAMIC = "dynamic"
     CHANNEL = "channel"
+    REFRESH = "refresh"
 
 
 class ModelTestType(str, Enum):

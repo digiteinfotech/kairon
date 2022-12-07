@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from collections import ChainMap
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
@@ -85,6 +85,7 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
+
 
 class MongoProcessor:
     """
@@ -3425,8 +3426,8 @@ class MongoProcessor:
 
         client_config = self.get_chat_client_config(bot, user)
         white_listed_domain = ["*"] if not config.__contains__("whitelist") else config.pop("whitelist")
-        if client_config.config.get('headers') and client_config.config['headers'].get('authorization'):
-            client_config.config['headers'].pop('authorization')
+        if client_config.config.get('headers'):
+            client_config.config['headers'].pop('authorization', None)
 
         if config.get('multilingual') and config['multilingual'].get('bots'):
             accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
@@ -3446,7 +3447,7 @@ class MongoProcessor:
     def get_chat_client_config_url(self, bot: Text, user: Text):
         from kairon.shared.auth import Authentication
 
-        access_token = Authentication.generate_integration_token(
+        access_token, _ = Authentication.generate_integration_token(
             bot, user, ACCESS_ROLES.TESTER.value,
             access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
         )
@@ -3464,6 +3465,7 @@ class MongoProcessor:
         from kairon.shared.account.processor import AccountProcessor
 
         AccountProcessor.get_bot_and_validate_status(bot)
+        bot_settings = self.get_bot_settings(bot, user)
         try:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()
             client_config.config['whitelist'] = client_config.white_listed_domain
@@ -3476,15 +3478,27 @@ class MongoProcessor:
         if not client_config.config['headers'].get('X-USER'):
             client_config.config['headers']['X-USER'] = user
         client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
-        token = Authentication.generate_integration_token(
-            bot, user, expiry=30,
+        token, refresh_token = Authentication.generate_integration_token(
+            bot, user, expiry=bot_settings.chat_token_expiry,
             access_limit=[
                 '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
                 '/api/bot/.+/metric/user/logs/user_metrics'
             ],
             token_type=TOKEN_TYPE.DYNAMIC.value
         )
-        client_config.config['headers']['authorization'] = f'Bearer {token}'
+        iat = datetime.now(tz=timezone.utc).replace(microsecond=0).replace(second=0)
+        access_token_expiry = iat + timedelta(minutes=bot_settings.chat_token_expiry)
+        access_token_expiry = access_token_expiry.timestamp()
+        refresh_token_expiry = iat + timedelta(minutes=bot_settings.refresh_token_expiry)
+        refresh_token_expiry = refresh_token_expiry.timestamp()
+        client_config.config['headers']['authorization'] = {}
+        client_config.config['headers']['authorization']['access_token'] = token
+        client_config.config['headers']['authorization']['token_type'] = 'Bearer'
+        client_config.config['headers']['authorization']['refresh_token'] = f'{refresh_token}'
+        client_config.config['headers']['authorization']['access_token_ttl'] = bot_settings.chat_token_expiry
+        client_config.config['headers']['authorization']['refresh_token_ttl'] = bot_settings.refresh_token_expiry
+        client_config.config['headers']['authorization']['access_token_expiry'] = access_token_expiry
+        client_config.config['headers']['authorization']['refresh_token_expiry'] = refresh_token_expiry
         client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
         if client_config.config['multilingual'].get('enable'):
             accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
@@ -3498,8 +3512,8 @@ class MongoProcessor:
             for bot_info in accessible_bots:
                 bot_info["is_enabled"] = True if bot_info["id"] in enabled_bots else False
                 if bot_info["is_enabled"] or not is_client_live:
-                    token = Authentication.generate_integration_token(
-                        bot_info["id"], user, expiry=30,
+                    token, _ = Authentication.generate_integration_token(
+                        bot_info["id"], user, expiry=bot_settings.chat_token_expiry,
                         access_limit=[
                             '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
                             '/api/bot/.+/metric/user/logs/{log_type}'

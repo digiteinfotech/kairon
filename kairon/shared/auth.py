@@ -224,17 +224,60 @@ class Authentication:
         data = {'bot': bot, "sub": user, 'iat': iat, 'type': token_type, 'role': role, 'account': account}
         if not Utility.check_empty_string(name):
             data.update({"name": name})
+        if access_limit:
+            data['access-limit'] = access_limit
         if expiry > 0:
+            ttl = expiry
             expiry = iat + timedelta(minutes=expiry)
             expiry = expiry.replace(microsecond=0)
             data.update({"exp": expiry})
+            refresh_token = Authentication.__create_refresh_token(data, bot, user, iat, ttl)
         else:
             expiry = None
-        if access_limit:
-            data['access-limit'] = access_limit
+            refresh_token = None
+
         access_token = Authentication.create_access_token(data=data, token_type=token_type)
         if token_type == TOKEN_TYPE.INTEGRATION.value:
             IntegrationProcessor.add_integration(name, bot, user, role, iat, expiry, access_limit)
+        return access_token, refresh_token
+
+    @staticmethod
+    def __create_refresh_token(claims: dict, bot: Text, user: Text, parent_token_iat: datetime, ttl: int):
+        from kairon.shared.data.processor import MongoProcessor
+
+        token_claims = claims.copy()
+        bot_settings = MongoProcessor().get_bot_settings(bot, user)
+        token_claims["primary-token-type"] = claims['type']
+        token_claims["primary-token-role"] = claims['role']
+        token_claims["primary-token-access-limit"] = claims.get('access-limit')
+        token_claims["role"] = ACCESS_ROLES.TESTER.value
+        token_claims["type"] = TOKEN_TYPE.REFRESH.value
+        token_claims["access-limit"] = ['/api/auth/.+/token/refresh']
+        token_claims["ttl"] = ttl
+        token_claims["exp"] = parent_token_iat + timedelta(minutes=bot_settings.refresh_token_expiry)
+        refresh_token = Authentication.create_access_token(data=token_claims, token_type=TOKEN_TYPE.REFRESH.value)
+        return refresh_token
+
+    @staticmethod
+    def generate_token_from_refresh_token(refresh_token: Text):
+        claims = Utility.decode_limited_access_token(refresh_token)
+        if claims["type"] != TOKEN_TYPE.REFRESH.value:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Only refresh tokens can be used to generate new token!",
+            )
+        if claims["primary-token-type"] in {TOKEN_TYPE.LOGIN.value, TOKEN_TYPE.INTEGRATION.value, TOKEN_TYPE.CHANNEL.value, TOKEN_TYPE.REFRESH.value}:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Refresh only allowed for {TOKEN_TYPE.DYNAMIC.value} tokens!",
+            )
+
+        access_token, _ = Authentication.generate_integration_token(
+            claims["bot"], claims["sub"], role=claims["primary-token-role"], expiry=claims["ttl"],
+            access_limit=claims["primary-token-access-limit"],
+            token_type=claims["primary-token-type"],
+            name='from refresh token'
+        )
         return access_token
 
     @staticmethod
