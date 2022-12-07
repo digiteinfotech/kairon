@@ -28,10 +28,10 @@ from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS,
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.importer.data_objects import ValidationLogs
-from kairon.shared.models import User
+from kairon.shared.models import User, TemplateType
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
     TrainingDataSourceType
-from kairon.shared.data.data_objects import TrainingExamples, ModelTraining
+from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
@@ -1501,3 +1501,17 @@ async def download_logs(
     ] = "attachment; filename=" + os.path.basename(file)
     background_tasks.add_task(Utility.delete_directory, temp_path)
     return response
+
+
+@router.get("/qna/flatten", response_model=Response)
+async def get_qna_flattened(
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+):
+    qna = list(mongo_processor.flatten_qna(current_user.get_bot(), start_idx, page_size))
+    page_cnt = mongo_processor.get_row_count(Rules, current_user.get_bot(), status=True, template_type=TemplateType.QNA.value)
+    data = {
+        "qna": qna,
+        "total": page_cnt
+    }
+    return Response(data=data)

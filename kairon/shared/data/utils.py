@@ -337,12 +337,34 @@ class DataUtility:
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
 
     @staticmethod
-    def get_template_type(story: Dict):
-        steps = story['steps']
-        if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
-            template_type = 'Q&A'
+    def get_template_type(story):
+        """
+        Retrieve template type(either QnA or Custom) from events in the flow.
+        Receives a dict or list and returns its type.
+        """
+        from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
+        from rasa.shared.core.events import UserUttered, ActionExecuted
+
+        template_type = 'CUSTOM'
+        if isinstance(story, Dict):
+            steps = story['steps']
+            if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
+                template_type = 'Q&A'
         else:
-            template_type = 'CUSTOM'
+            if (
+                    len(story) == 2 and
+                    story[0].type == UserUttered.type_name and
+                    story[1].type == ActionExecuted.type_name and
+                    story[1].name.startswith("utter_")
+            ) or (
+                    len(story) == 3 and
+                    story[0].name == RULE_SNIPPET_ACTION_NAME and
+                    story[0].type == ActionExecuted.type_name and
+                    story[1].type == UserUttered.type_name and
+                    story[2].type == ActionExecuted.type_name and
+                    story[2].name.startswith("utter_")
+            ):
+                template_type = 'Q&A'
         return template_type
 
     @staticmethod

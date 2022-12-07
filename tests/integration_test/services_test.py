@@ -899,6 +899,52 @@ def test_upload_using_event_append(monkeypatch):
     complete_end_to_end_event_execution(pytest.bot, "test_user", EventClass.data_importer)
 
 
+def test_get_qna(monkeypatch):
+    data = [{'_id': '638dde37cfe8a7de324067fa', 'story': 'accelerator_28', 'intent': 'accelerator_28',
+             'utterance': 'utter_accelerator_28', 'training_examples': [
+            {'text': 'What is the purpose of an acceleration?', '_id': '638dde36cfe8a7de32405eaa'},
+            {'text': 'What is the purpose of an accelerators?', '_id': '638dde36cfe8a7de32405eab'}],
+             'responses': [{'_id': '638dde35cfe8a7de32405ada', 'text': {
+                 'text': '•\tAnything that helps project teams reduce effort, save cost'}}]},
+            {'_id': '638dde37cfe8a7de324067fd', 'story': 'accelerator_subscription_mainspring_31',
+             'intent': 'accelerator_subscription_mainspring_31',
+             'utterance': 'utter_accelerator_subscription_mainspring_31', 'training_examples': [
+                {'text': '•\tHow do I subscribe to accelerators for my project?',
+                 '_id': '638dde36cfe8a7de32405ec0'},
+                {'text': '•\tHow to do accelerator subscription in mainspring',
+                 '_id': '638dde36cfe8a7de32405ec1'}], 'responses': [
+                {'_id': '638dde35cfe8a7de32405b64',
+                 'custom': {'custom': {'data': [{'type': 'paragraph',
+                                                 'children': [{
+                                                     'text': 'Step 1 : Navigate to PM Plan >> Delivery Assets'}]},
+                                                {'type': 'paragraph',
+                                                 'children': [{
+                                                     'text': 'Step 2 : Subscribe the accelerators which are applicable'}]}]}}}]},
+            {'_id': '638dde37cfe8a7de324067fe', 'story': 'accelerators_auto_recommended_32',
+             'intent': 'accelerators_auto_recommended_32', 'utterance': 'utter_accelerators_auto_recommended_32',
+             'training_examples': [{'text': '•\tOn what basis are accelerators recommended for a project?',
+                                    '_id': '638dde36cfe8a7de32405ec3'}, {
+                                       'text': '•\tWhat is the criteria based on which accelerators are auto recommended ?',
+                                       '_id': '638dde36cfe8a7de32405ec4'}], 'responses': [
+                {'_id': '638dde35cfe8a7de32405b2d', 'text': {
+                    'text': '•\tAccelerators are auto-recommended from Knowhub based on these project attributes'}}]}]
+
+    def __mock_qna(*args, **kwargs):
+        for item in data:
+            yield item
+
+    monkeypatch.setattr(BaseQuerySet, "aggregate", __mock_qna)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/qna/flatten",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual["data"] == {'qna': data, 'total': 0}
+
+
 def test_model_testing_not_trained(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
     response = client.post(
