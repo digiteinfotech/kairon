@@ -61,3 +61,4 @@ dramatiq-mongodb==0.6.1
 keybert
 bs4
 fastapi-keycloak
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
