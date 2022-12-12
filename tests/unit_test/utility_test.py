@@ -10,14 +10,17 @@ import requests
 import responses
 from fastapi import UploadFile
 from mongoengine import connect
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
+from rasa.shared.core.events import UserUttered, ActionExecuted
 from websockets import InvalidStatusCode
 from websockets.datastructures import Headers
 
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.data.base_data import AuditLogData
-from kairon.shared.data.data_objects import EventConfig
+from kairon.shared.data.data_objects import EventConfig, StoryEvents
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility
 from unittest.mock import patch
 from email.mime.multipart import MIMEMultipart
@@ -1411,3 +1414,96 @@ class TestUtility:
     def test_more_synonyms(self):
         result = AugmentationUtils.generate_synonym("good", 100)
         assert len(result) >= 1 and "good" not in result
+
+    def test_get_templates_type_story_dict(self):
+        story = {
+          "name": "share_ticket_count_323",
+          "steps": [
+            {
+              "name": "share_ticket_count_323",
+              "type": "INTENT"
+            },
+            {
+              "name": "utter_share_ticket_count_323",
+              "type": "BOT"
+            }
+          ],
+          "type": "RULE"
+        }
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+        story["type"] = "STORY"
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+    def test_get_templates_type_story_step(self):
+        story = [
+            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
+        ]
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+    def test_get_templates_type_rule_step_without_rule_snippet_action(self):
+        story = [
+            StoryEvents(type=ActionExecuted.type_name, name=RULE_SNIPPET_ACTION_NAME),
+            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
+        ]
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+        story = [
+            StoryEvents(type=ActionExecuted.type_name, name="action_share_ticket_count_323"),
+            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
+        ]
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+        story = [
+            StoryEvents(type=ActionExecuted.type_name, name=RULE_SNIPPET_ACTION_NAME),
+            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_324"),
+        ]
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+    def test_get_templates_type_custom(self):
+        story = {
+            "name": "share_ticket_count_323",
+            "steps": [
+                {
+                    "name": "share_ticket_count_323",
+                    "type": "INTENT"
+                },
+                {
+                    "name": "action_share_ticket_count_323",
+                    "type": "ACTION"
+                }
+            ],
+            "type": "RULE"
+        }
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+        story["type"] = "STORY"
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+        story = {
+            "name": "share_ticket_count_323",
+            "steps": [
+                {
+                    "name": "share_ticket_count_323",
+                    "type": "INTENT"
+                },
+                {
+                    "name": "utter_share_ticket_count_323",
+                    "type": "BOT"
+                },
+                {
+                    "name": "utter_share_ticket_count_324",
+                    "type": "BOT"
+                }
+            ],
+            "type": "RULE"
+        }
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+        story["type"] = "STORY"
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
