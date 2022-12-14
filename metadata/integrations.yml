@@ -1,4 +1,8 @@
 channels:
+  msteams:
+    required_fields:
+      - app_id
+      - app_secret
   slack:
     required_fields:
       - bot_user_oAuth_token

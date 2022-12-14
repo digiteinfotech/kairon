@@ -26,6 +26,11 @@ from kairon.shared.utils import Utility
 from kairon.train import start_training
 import responses
 from kairon.shared.account.data_objects import UserActivityLog
+from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.auth import Authentication
+from kairon.shared.data.utils import DataUtility
+from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
+from kairon.shared.chat.data_objects import Channels
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
@@ -1627,3 +1632,58 @@ class TestChatServer(AsyncHTTPTestCase):
         error_code = reload_actual.get("error_code")
         assert error_code == 401
         assert message == "Session expired. Please login again."
+
+    def test_save_channel_config_msteams(self):
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "msteams", "config": {
+                "app_id": "app123",
+                "app_secret": "appsecret123"
+            }}, bot, "test@chat.com")
+        msteams = ChatDataProcessor.get_channel_endpoint("msteams", bot)
+        hashcode = channel_url.split("/", -1)[-1]
+        dbhashcode = msteams.split("/", -1)[-1]
+        assert hashcode == dbhashcode
+
+    def test_get_channel_end_point_msteams(self):
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "msteams", "config": {
+                "app_id": "app123",
+                "app_secret": "appsecret123"
+            }}, bot, "test@chat.com")
+        channel = Channels.objects(bot=bot, connector_type="msteams").get()
+        response = DataUtility.get_channel_endpoint(channel)
+        second_hashcode = response.split("/", -1)[-1]
+        scnd_msteams = ChatDataProcessor.get_channel_config("msteams", bot, mask_characters=False)
+        dbcode = scnd_msteams["meta_config"]["secrethash"]
+        assert second_hashcode == dbcode
+
+    def test_save_channel_meta_msteams(self):
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "msteams", "config": {
+                "app_id": "app123",
+                "app_secret": "appsecret123"
+            }}, bot, "test@chat.com")
+        token, _ = Authentication.generate_integration_token(
+            bot, "test@chat.com", role=ACCESS_ROLES.CHAT.value,
+            access_limit=[f"/api/bot/msteams/{bot}/.+"],
+            token_type=TOKEN_TYPE.CHANNEL.value)
+        channel = Channels.objects(bot=bot, connector_type="msteams").get()
+        hashcode = DataUtility.save_channel_metadata(config=channel, token=token)
+        channel_config = ChatDataProcessor.get_channel_config("msteams", bot, mask_characters=False)
+        dbhashcode = channel_config["meta_config"]["secrethash"]
+        assert hashcode == dbhashcode
+
+    def test_get_channel_end_point_whatsapp(self):
+        def _mock_generate_integration_token(*arge, **kwargs):
+            return "testtoken", "ignore"
+
+        with patch.object(Authentication, "generate_integration_token", _mock_generate_integration_token):
+            channel_url = ChatDataProcessor.save_channel_config({
+                "connector_type": "whatsapp", "config": {
+                    "app_secret": "app123",
+                    "access_token": "appsecret123", "verify_token": "integrate_1"
+                }}, bot, "test@chat.com")
+            channel = Channels.objects(bot=bot, connector_type="whatsapp").get()
+            response = DataUtility.get_channel_endpoint(channel)
+            last_urlpart = response.split("/", -1)[-1]
+            assert last_urlpart == "testtoken"
