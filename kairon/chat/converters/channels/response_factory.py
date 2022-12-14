@@ -3,6 +3,7 @@ from kairon.chat.converters.channels.hangout import HangoutResponseConverter
 from kairon.chat.converters.channels.messenger import MessengerResponseConverter
 from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
 from kairon.chat.converters.channels.telegram import TelegramResponseConverter
+from kairon.chat.converters.channels.msteams import MSTeamsResponseConverter
 
 class ConverterFactory():
 
@@ -12,5 +13,6 @@ class ConverterFactory():
                       "hangout": HangoutResponseConverter(message_type, channel_type),
                       "messenger": MessengerResponseConverter(message_type, channel_type),
                       "telegram": TelegramResponseConverter(message_type, channel_type),
-                      "whatsapp": WhatsappResponseConverter(message_type, channel_type)}
+                      "whatsapp": WhatsappResponseConverter(message_type, channel_type),
+                      "msteams":MSTeamsResponseConverter(message_type, channel_type) }
         return class_instance_mapping.get(channel_type)

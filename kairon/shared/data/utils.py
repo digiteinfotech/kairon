@@ -19,6 +19,8 @@ from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
 from ...shared.utils import Utility
+from kairon.chat.converters.channels.constants import CHANNEL_TYPES
+from urllib.parse import urljoin
 
 
 class DataUtility:
@@ -375,11 +377,24 @@ class DataUtility:
             access_limit=[f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/.+"],
             token_type=TOKEN_TYPE.CHANNEL.value
         )
+        if channel_config['connector_type'] == CHANNEL_TYPES.MSTEAMS.value:
+            token = DataUtility.save_channel_metadata(config=channel_config, token=token)
+
         channel_endpoint = urljoin(
             Utility.environment['model']['agent']['url'],
             f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/{token}"
         )
         return channel_endpoint
+
+    @staticmethod
+    def save_channel_metadata(**kwargs):
+        token = kwargs["token"]
+        channel_config = kwargs.get("config")
+        hashedtoken = hash(token).__str__()
+        encrypted_token = Utility.encrypt_message(token)
+        channel_config.meta_config = {"secrethash": hashedtoken, "secrettoken": encrypted_token}
+        channel_config.save(validate=False)
+        return hashedtoken
 
     @staticmethod
     def validate_existing_data_train(bot: Text):
