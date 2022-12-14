@@ -6,6 +6,7 @@ class CHANNEL_TYPES(str, Enum):
     SLACK = "slack"
     TELEGRAM = "telegram"
     WHATSAPP = "whatsapp"
+    MSTEAMS = "msteams"
 
 class ELEMENT_TYPE(str, Enum):
     LINK = "link"

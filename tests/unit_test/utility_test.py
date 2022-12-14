@@ -1507,3 +1507,89 @@ class TestUtility:
 
         story["type"] = "STORY"
         assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+    def test_getConcreteInstance_msteams(self):
+        from kairon.chat.converters.channels.msteams import MSTeamsResponseConverter
+        msteams = ConverterFactory.getConcreteInstance("link", "msteams")
+        assert isinstance(msteams, MSTeamsResponseConverter)
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_link(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("link")
+        msteams = ConverterFactory.getConcreteInstance("link", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_link_op")
+        assert expected_output == response.get("text")
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_image(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("image")
+        msteams = ConverterFactory.getConcreteInstance("image", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_image_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_button(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one")
+        msteams = ConverterFactory.getConcreteInstance("button", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_button_one_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_three_button(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_three")
+        msteams = ConverterFactory.getConcreteInstance("button", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_button_three_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_two_button(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_two")
+        msteams = ConverterFactory.getConcreteInstance("button", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_button_two_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_multilinks(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("multi_link")
+        msteams = ConverterFactory.getConcreteInstance("link", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_multilink_op")
+        assert expected_output == response.get("text")
+
+    @pytest.mark.asyncio
+    async def test_message_extractor_msteams_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("link_wrong_json")
+        from kairon.chat.converters.channels.msteams import MSTeamsResponseConverter
+        msteams = MSTeamsResponseConverter("link", "msteams")
+        with pytest.raises(Exception):
+            print(f"{msteams.message_type} {msteams.channel_type}")
+            await msteams.messageConverter(input_json)
+
+    def test_link_transformer_msteams_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("link_wrong_json")
+        from kairon.chat.converters.channels.msteams import MSTeamsResponseConverter
+        msteams = MSTeamsResponseConverter("link", "msteams")
+        with pytest.raises(Exception):
+            msteams.link_transformer(input_json)
+
+    @pytest.mark.asyncio
+    async def test_video_transformer_msteams_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        msteams = ConverterFactory.getConcreteInstance("video", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_video_op")
+        assert expected_output == response.get("text")

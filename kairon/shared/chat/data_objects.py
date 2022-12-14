@@ -11,6 +11,7 @@ class Channels(Document):
     config = DictField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+    meta_config = DictField()
 
     def validate(self, clean=True):
         from kairon.shared.data.utils import DataUtility
