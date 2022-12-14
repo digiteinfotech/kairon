@@ -3,7 +3,6 @@ import shutil
 import tempfile
 from typing import Text, List, Dict
 import uuid
-from urllib.parse import urljoin
 
 import requests
 from fastapi import File

@@ -239,6 +239,7 @@
               }
                 }
           ]},
-  "msteams_multilink_op": "This is http://www.google.com use for search and you can also see news on https://www.indiatoday.in/ and slatejs details on https://www.slatejs.org/examples/richtext"
+  "msteams_multilink_op": "This is http://www.google.com use for search and you can also see news on https://www.indiatoday.in/ and slatejs details on https://www.slatejs.org/examples/richtext",
+  "msteams_video_op": "https://www.youtube.com/watch?v=YFbCaahCWQ0"
 
 }

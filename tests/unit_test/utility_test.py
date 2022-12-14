@@ -1584,3 +1584,12 @@ class TestUtility:
         msteams = MSTeamsResponseConverter("link", "msteams")
         with pytest.raises(Exception):
             msteams.link_transformer(input_json)
+
+    @pytest.mark.asyncio
+    async def test_video_transformer_msteams_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        msteams = ConverterFactory.getConcreteInstance("video", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_video_op")
+        assert expected_output == response.get("text")
