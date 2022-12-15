@@ -57,11 +57,14 @@ class FaqDataImporterEvent(EventsBase):
         Execute the event.
         """
 
-        path = os.path.join('training_data', self.bot)
+        bot_data_home_dir = os.path.join('training_data', self.bot)
         validation_status = 'Failure'
         processor = MongoProcessor()
         try:
             DataImporterLogProcessor.add_log(self.bot, self.user, event_status=EVENT_STATUS.INPROGRESS.value)
+            faq_file = Utility.get_latest_file(bot_data_home_dir)
+            if not faq_file.endswith('.csv') and not faq_file.endswith('.xlsx'):
+                raise AppException("Invalid file format!")
             processor.delete_all_faq(self.bot)
             component_count, summary = processor.save_faq(self.bot, self.user)
             DataImporterLogProcessor.update_summary(self.bot, self.user, component_count, summary,
@@ -74,5 +77,5 @@ class FaqDataImporterEvent(EventsBase):
                                              status=validation_status,
                                              event_status=EVENT_STATUS.FAIL.value)
         finally:
-            if os.path.exists(path):
-                Utility.delete_directory(path)
+            if os.path.exists(bot_data_home_dir):
+                Utility.delete_directory(bot_data_home_dir)

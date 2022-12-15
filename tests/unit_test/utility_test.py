@@ -193,7 +193,7 @@ class TestUtility:
     def test_get_keywords(self):
         paragraph = "What is Digite?"
         raise_err = False
-        token = AugmentationUtils.get_keywords(paragraph, raise_err)
+        token = AugmentationUtils.get_keywords(paragraph)
         assert Utility.check_empty_string(token[0][0]) == False
 
     @pytest.mark.asyncio
@@ -471,11 +471,6 @@ class TestUtility:
         file_path, temp_path = Utility.download_csv([{"test": "test_val"}], None)
         assert file_path.endswith(".csv")
         assert "tmp" in str(temp_path).lower()
-
-    def test_download_csv_no_data(self):
-        with pytest.raises(AppException) as e:
-            Utility.download_csv([], None)
-        assert str(e).__contains__("No data available")
 
     def test_download_csv_error_message(self):
         with pytest.raises(AppException) as e:
