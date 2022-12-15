@@ -53,6 +53,7 @@ class EventClass(str, Enum):
     delete_history = "delete_history"
     multilingual = "multilingual"
     data_generator = "data_generator"
+    faq_importer = "faq_importer"
 
 
 class DataGeneratorCliTypes(str, Enum):

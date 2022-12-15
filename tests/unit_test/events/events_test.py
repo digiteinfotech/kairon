@@ -3,10 +3,12 @@ import os
 import shutil
 import tempfile
 import uuid
+from io import BytesIO
 from urllib.parse import urljoin
 
 import pytest
 import responses
+from fastapi import UploadFile
 from mongoengine import connect
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
 from rasa.shared.importers.rasa import RasaFileImporter
@@ -25,6 +27,8 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.test.test_models import ModelTester
+
+from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 
 
 class TestEventExecution:
@@ -747,6 +751,47 @@ class TestEventExecution:
         assert len(list(mongo_processor.fetch_responses(bot))) == 8
         assert len(mongo_processor.fetch_actions(bot)) == 0
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
+
+    def test_trigger_faq_importer_validate_only(self, monkeypatch):
+        def _mock_execution(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(MongoProcessor, "delete_all_faq", _mock_execution)
+        bot = 'test_faqs'
+        user = 'test'
+        faq = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+        file = UploadFile(filename="faq.csv", file=BytesIO(faq))
+        FaqDataImporterEvent(bot, user).validate(training_data_file=file)
+        FaqDataImporterEvent(bot, user).execute()
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert not logs[0].get('training_examples').get('data')
+        print(logs[0].get('exception'))
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+    def test_trigger_faq_importer_validate_exception(self, monkeypatch):
+        bot = 'test_faqs'
+        user = 'test'
+        
+        FaqDataImporterEvent(bot, user).execute()
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 2
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert logs[0].get('exception') == 'Some training files are absent!'
+        assert not logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_trigger_model_testing_event_run_tests_on_model_no_model_found_1(self):
         bot = 'test_events_bot'

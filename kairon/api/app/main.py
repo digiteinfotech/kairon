@@ -26,7 +26,7 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.app.routers import auth, augment, history, user, account, idp, system
-from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual, metric, data_generator
+from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual, metric, data_generator, data
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -287,3 +287,4 @@ app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
 app.include_router(history.router, prefix="/api/history/{bot}", tags=["History"])
 app.include_router(idp.router, prefix="/api/idp", tags=["SSO", "IDP"])
 app.include_router(system.router, prefix="/api/system", tags=["Application"])
+app.include_router(data.router, prefix="/api/bot/{bot}/data", tags=["File Upload/Download"])
