@@ -8688,23 +8688,20 @@ class TestMongoProcessor:
         bot_data_home_dir = data.save_faq_training_files(bot, file)
         assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
         component_count, error_summary = processor.save_faq('tests', 'tester')
-        assert component_count == {'intents': 5, 'utterances': 5}
-        assert error_summary == {'intents': [[{'_id': None, 'message': 'Training Example cannot be empty or blank spaces', 'text': '   '}]], 'utterances': ['Utterance text cannot be empty or blank spaces']}
-        
+        assert component_count == {'intents': 5, 'utterances': 5, 'stories': 0, 'rules': 5, 'training_examples': 5, 'domain': {'intents': 5, 'utterances': 5}}
+        assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces'], 'training_examples': [[{'text': '   ', '_id': None, 'message': 'Training Example cannot be empty or blank spaces'}]]}
+
     def test_save_faq_xlsx(self):
         processor = MongoProcessor()
         data = DataUtility()
         bot = 'tests'
         user = 'tester'
-        xlsx_content = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
-        file = UploadFile(filename="abc.xlsx", file=BytesIO(xlsx_content))
+        file = UploadFile(filename="upload.xlsx", file=open("./tests/testing_data/upload_faq/upload.xlsx", "rb"))
         bot_data_home_dir = data.save_faq_training_files(bot, file)
         assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
         component_count, error_summary = processor.save_faq('tests', 'tester')
-        assert component_count == {'intents': 5, 'utterances': 5}
-        assert error_summary == {
-            'intents': [[{'_id': None, 'message': 'Training Example cannot be empty or blank spaces', 'text': '   '}]],
-            'utterances': ['Utterance text cannot be empty or blank spaces']}
+        assert component_count == {'intents': 5, 'utterances': 5, 'stories': 0, 'rules': 5, 'training_examples': 5, 'domain': {'intents': 5, 'utterances': 5}}
+        assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces', 'Utterance already exists!'], 'training_examples': [[{'text': '', '_id': None, 'message': 'Training Example cannot be empty or blank spaces'}], []]}
 
     @pytest.mark.asyncio
     async def test_save_faq_invalid_file(self):
@@ -8715,6 +8712,7 @@ class TestMongoProcessor:
         invalid_content = "Today is a good day".encode()
         file = UploadFile(filename="abc.arff", file=BytesIO(invalid_content))
         bot_data_home_dir = os.path.join('training_data', bot)
+        Utility.make_dirs(bot_data_home_dir)
         Utility.write_to_file(os.path.join(bot_data_home_dir, file.filename), await file.read())
         with pytest.raises(AppException, match="Invalid file type!"):
             processor.save_faq('test', 'tester_one')

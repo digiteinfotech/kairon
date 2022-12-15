@@ -1,13 +1,13 @@
 from datetime import datetime
 
 from mongoengine import Document, StringField, ListField, BooleanField, DateTimeField, IntField, EmbeddedDocument, \
-    EmbeddedDocumentField
+    EmbeddedDocumentField, DynamicField
 from kairon.shared.data.signals import push_notification
 
 
 class TrainingComponentLog(EmbeddedDocument):
     count = IntField(default=0)
-    data = ListField(StringField(), default=[])
+    data = ListField(DynamicField(), default=[])
 
 
 class DomainLog(EmbeddedDocument):
