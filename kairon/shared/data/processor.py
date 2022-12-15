@@ -4515,13 +4515,13 @@ class MongoProcessor:
                 training_example_errors = [a for a in training_example_errors if a["_id"] is None]
 
                 error_summary['training_examples'].append(training_example_errors)
+                if is_story_added:
+                    self.delete_complex_story(intent, "RULE", bot, user)
                 if is_intent_added:
                     error_summary['utterances'].append(str(e))
                     self.delete_intent(intent, bot, user, False)
                 if is_response_added:
                     self.delete_utterance(action, bot)
-                if is_story_added:
-                    self.delete_complex_story(intent, "RULE", bot, user)
         component_count['domain']['intents'] = component_count['intents']
         component_count['domain']['utterances'] = component_count['utterances']
         return component_count, error_summary

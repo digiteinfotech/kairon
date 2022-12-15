@@ -8694,12 +8694,12 @@ class TestMongoProcessor:
     def test_save_faq_xlsx(self):
         processor = MongoProcessor()
         data = DataUtility()
-        bot = 'tests'
+        bot = 'test_faq'
         user = 'tester'
         file = UploadFile(filename="upload.xlsx", file=open("./tests/testing_data/upload_faq/upload.xlsx", "rb"))
         bot_data_home_dir = data.save_faq_training_files(bot, file)
         assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
-        component_count, error_summary = processor.save_faq('tests', 'tester')
+        component_count, error_summary = processor.save_faq(bot, user)
         assert component_count == {'intents': 5, 'utterances': 5, 'stories': 0, 'rules': 5, 'training_examples': 5, 'domain': {'intents': 5, 'utterances': 5}}
         assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces', 'Utterance already exists!'], 'training_examples': [[{'text': '', '_id': None, 'message': 'Training Example cannot be empty or blank spaces'}], []]}
 
