@@ -40,7 +40,7 @@ async def download_faq_files(
     Downloads faq into csv file
     """
     qna = list(processor.flatten_qna(bot=current_user.get_bot()))
-    file = Utility.download_csv(qna, filename="faq.csv")
+    file, _ = Utility.download_csv(qna, filename="faq.csv")
     response = FileResponse(
         file, filename=os.path.basename(file)
     )

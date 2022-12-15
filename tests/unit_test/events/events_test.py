@@ -763,11 +763,14 @@ class TestEventExecution:
         file = UploadFile(filename="faq.csv", file=BytesIO(faq))
         FaqDataImporterEvent(bot, user).validate(training_data_file=file)
         FaqDataImporterEvent(bot, user).execute()
+        bot_data_home_dir = os.path.join('training_data', bot)
+        assert not os.path.exists(bot_data_home_dir)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
-        assert not logs[0].get('utterances').get('data')
-        assert not logs[0].get('training_examples').get('data')
+        print(logs[0].get('utterances').get('data'))
+        assert len(logs[0].get('utterances').get('data')) == 1
+        assert len(logs[0].get('training_examples').get('data')) == 1
         print(logs[0].get('exception'))
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
@@ -779,14 +782,14 @@ class TestEventExecution:
     def test_trigger_faq_importer_validate_exception(self, monkeypatch):
         bot = 'test_faqs'
         user = 'test'
-        
+
         FaqDataImporterEvent(bot, user).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
-        assert logs[0].get('exception') == 'Some training files are absent!'
+        assert logs[0].get('exception') == 'Folder does not exists!'
         assert not logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']

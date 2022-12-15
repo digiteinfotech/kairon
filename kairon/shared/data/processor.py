@@ -4472,24 +4472,25 @@ class MongoProcessor:
     def save_faq(self, bot: Text, user: Text):
         from kairon.shared.augmentation.utils import AugmentationUtils
 
-        error_summary = {'intents': [], 'utterances': []}
-        component_count = {'intents': 0, 'utterances': 0}
+        error_summary = {'intents': [], 'utterances': [], 'training_examples': []}
+        component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 'domain': {'intents': 0, 'utterances': 0}}
         bot_data_home_dir = os.path.join('training_data', bot)
         faq_file = Utility.get_latest_file(bot_data_home_dir)
         if faq_file.endswith('.csv'):
             df = pd.read_csv(faq_file, encoding='utf8', sep=",")
         elif faq_file.endswith('.xlsx'):
-            xl_file = pd.ExcelFile(faq_file)
-            df = xl_file.parse(xl_file.sheet_names[0])
+            df = pd.read_excel(faq_file, engine="openpyxl", sheet_name=0)
         else:
             raise AppException("Invalid file type!")
+        df = df.fillna('')
         for index, row in df.iterrows():
             is_intent_added = False
             is_response_added = False
             is_story_added = False
-            intent_errors = None
+            training_example_errors = None
             component_count['intents'] = component_count['intents'] + 1
             component_count['utterances'] = component_count['utterances'] + 1
+            component_count['rules'] = component_count['rules'] + 1
             key_tokens = AugmentationUtils.get_keywords(row['Questions'])
             if key_tokens:
                 key_tokens = key_tokens[0][0]
@@ -4497,6 +4498,7 @@ class MongoProcessor:
                 key_tokens = row['Questions'].split('\n')[0]
             intent = key_tokens.replace(' ', '_') + "_" + str(index)
             examples = row['Questions'].split("\n")
+            component_count['training_examples'] = component_count['training_examples'] + len(examples)
             action = f"utter_{intent}"
             steps = [
                 {"name": "...", "type": "BOT"},
@@ -4505,7 +4507,7 @@ class MongoProcessor:
             ]
             rule = {'name': intent, 'steps': steps, 'type': 'RULE'}
             try:
-                intent_errors = list(self.add_training_example(examples, intent, bot, user, False))
+                training_example_errors = list(self.add_training_example(examples, intent, bot, user, False))
                 is_intent_added = True
 
                 self.add_text_response(row['Answer'], action, bot, user)
@@ -4516,9 +4518,9 @@ class MongoProcessor:
 
             except Exception as e:
                 logging.exception(e)
-                intent_errors = [a for a in intent_errors if a["_id"] is None]
+                training_example_errors = [a for a in training_example_errors if a["_id"] is None]
 
-                error_summary['intents'].append(intent_errors)
+                error_summary['training_examples'].append(training_example_errors)
                 if is_intent_added:
                     error_summary['utterances'].append(str(e))
                     self.delete_intent(intent, bot, user, False)
@@ -4526,6 +4528,8 @@ class MongoProcessor:
                     self.delete_utterance(action, bot)
                 if is_story_added:
                     self.delete_complex_story(intent, "RULE", bot, user)
+        component_count['domain']['intents'] = component_count['intents']
+        component_count['domain']['utterances'] = component_count['utterances']
         return component_count, error_summary
 
     def delete_all_faq(self, bot: Text):
