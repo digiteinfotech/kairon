@@ -928,14 +928,11 @@ class Utility:
         return config
 
     @staticmethod
-    def download_csv(data, message, filename="conversation_history.csv"):
+    def download_csv(data, message="No data available!", filename="conversation_history.csv"):
         import pandas as pd
 
         if not data:
-            if not message:
-                raise AppException("No data available!")
-            else:
-                raise AppException(message)
+            raise AppException(message)
         else:
             df = pd.json_normalize(data)
             for col in df.columns:

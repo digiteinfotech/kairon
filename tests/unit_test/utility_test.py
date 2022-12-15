@@ -165,6 +165,37 @@ class TestUtility:
         assert os.path.exists(training_file_loc['http_action'])
         assert os.path.exists(training_file_loc['root'])
 
+    def test_save_faq_training_files_none(self):
+        with pytest.raises(AppException, match="No files received!"):
+            DataUtility.save_faq_training_files(pytest.bot, [])
+
+        with pytest.raises(AppException, match="No files received!"):
+            DataUtility.save_faq_training_files(pytest.bot, None)
+
+    def test_save_faq_training_files_csv(self):
+        csv_content = "Question, Answer,\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="abc.csv", file=BytesIO(csv_content))
+        bot_data_home_dir = DataUtility.save_faq_training_files(pytest.bot, file)
+        assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
+
+    def test_save_faq_training_files_xlsx(self):
+        xlsx_content = "Question, Answer,\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="abc.xlsx", file=BytesIO(xlsx_content))
+        bot_data_home_dir = DataUtility.save_faq_training_files(pytest.bot, file)
+        assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
+
+    def test_save_faq_training_files_invalid_format(self):
+        invalid_content = "Hello, how are you!".encode()
+        file = UploadFile(filename="abc.arff", file=BytesIO(invalid_content))
+        with pytest.raises(AppException, match="Invalid file type!"):
+            DataUtility.save_faq_training_files(pytest.bot, file)
+
+    def test_get_keywords(self):
+        paragraph = "What is Digite?"
+        raise_err = False
+        token = AugmentationUtils.get_keywords(paragraph, raise_err)
+        assert Utility.check_empty_string(token[0][0]) == False
+
     @pytest.mark.asyncio
     async def test_upload_and_save(self):
         nlu_content = "## intent:greet\n- hey\n- hello".encode()

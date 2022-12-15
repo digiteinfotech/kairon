@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
+import pandas as pd
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
     DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
 import yaml
@@ -4467,3 +4468,110 @@ class MongoProcessor:
                 training_examples.append({"text": text, "_id": t_example['_id']})
             qna['training_examples'] = training_examples
             yield qna
+
+    def save_faq(self, bot: Text, user: Text):
+        from kairon.shared.augmentation.utils import AugmentationUtils
+
+        error_summary = {'intents': [], 'utterances': []}
+        component_count = {'intents': 0, 'utterances': 0}
+        bot_data_home_dir = os.path.join('training_data', bot)
+        faq_file = Utility.get_latest_file(bot_data_home_dir)
+        if faq_file.endswith('.csv'):
+            df = pd.read_csv(faq_file, encoding='utf8', sep=",")
+        elif faq_file.endswith('.xlsx'):
+            xl_file = pd.ExcelFile(faq_file)
+            df = xl_file.parse(xl_file.sheet_names[0])
+        else:
+            raise AppException("Invalid file type!")
+        for index, row in df.iterrows():
+            is_intent_added = False
+            is_response_added = False
+            is_story_added = False
+            intent_errors = None
+            component_count['intents'] = component_count['intents'] + 1
+            component_count['utterances'] = component_count['utterances'] + 1
+            key_tokens = AugmentationUtils.get_keywords(row['Questions'])
+            if key_tokens:
+                key_tokens = key_tokens[0][0]
+            else:
+                key_tokens = row['Questions'].split('\n')[0]
+            intent = key_tokens.replace(' ', '_') + "_" + str(index)
+            examples = row['Questions'].split("\n")
+            action = f"utter_{intent}"
+            steps = [
+                {"name": "...", "type": "BOT"},
+                {"name": intent, "type": "INTENT"},
+                {"name": action, "type": "BOT"}
+            ]
+            rule = {'name': intent, 'steps': steps, 'type': 'RULE'}
+            try:
+                intent_errors = list(self.add_training_example(examples, intent, bot, user, False))
+                is_intent_added = True
+
+                self.add_text_response(row['Answer'], action, bot, user)
+                is_response_added = True
+
+                self.add_complex_story(rule, bot, user)
+                is_story_added = True
+
+            except Exception as e:
+                logging.exception(e)
+                intent_errors = [a for a in intent_errors if a["_id"] is None]
+
+                error_summary['intents'].append(intent_errors)
+                if is_intent_added:
+                    error_summary['utterances'].append(str(e))
+                    self.delete_intent(intent, bot, user, False)
+                if is_response_added:
+                    self.delete_utterance(action, bot)
+                if is_story_added:
+                    self.delete_complex_story(intent, "RULE", bot, user)
+        return component_count, error_summary
+
+    def delete_all_faq(self, bot: Text):
+        get_intents_pipelines = [
+                {'$unwind': {'path': '$events'}},
+                {'$match': {'events.type': 'user'}},
+                {'_id': None, 'intents': {'$push': '$events.name'}},
+                {"project": {'_id': 0, 'intents': 1}}
+            ]
+        get_utterances_pipelines = [
+                {'$unwind': {'path': '$events'}},
+                {'$match': {'events.type': 'action', 'events.name': {'$regex': '^utter_'}}},
+                {'_id': None, 'utterances': {'$push': '$events.name'}},
+                {"project": {'_id': 0, 'utterances': 1}}
+            ]
+        qna_intents = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
+            get_intents_pipelines
+        ))[0].get('intents')
+        qna_intents = set(qna_intents)
+        story_intents = list(Stories.objects(bot=bot, status=True).aggregate(
+            get_intents_pipelines
+        ))[0].get('intents')
+        story_intents = set(story_intents)
+        custom_rule_intents = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.CUSTOM.value).aggregate(
+            get_intents_pipelines
+        ))[0].get('intents')
+        custom_rule_intents = set(custom_rule_intents)
+        delete_intents = qna_intents - story_intents - custom_rule_intents
+        print(delete_intents)
+
+        qna_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
+            get_utterances_pipelines
+        ))[0].get('utterances')
+        qna_utterances = set(qna_utterances)
+        custom_rule_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.CUSTOM.value).aggregate(
+            get_utterances_pipelines
+        ))[0].get('utterances')
+        custom_rule_utterances = set(custom_rule_utterances)
+        story_utterances = list(Stories.objects(bot=bot, status=True).aggregate(
+            get_utterances_pipelines
+        ))[0].get('utterances')
+        story_utterances = set(story_utterances)
+        delete_utterances = qna_utterances - story_utterances - custom_rule_utterances
+        print(delete_utterances)
+
+        Utility.hard_delete_document([TrainingExamples], bot, intent__in=delete_intents)
+        Utility.hard_delete_document([Intents], bot, name__in=delete_intents)
+        Utility.hard_delete_document([Utterances, Responses], bot, name__in=delete_utterances)
+        Utility.hard_delete_document([Rules], bot, template_type=TemplateType.QNA.value)
