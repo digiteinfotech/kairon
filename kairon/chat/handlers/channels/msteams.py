@@ -51,11 +51,11 @@ class MSTeamBot(OutputChannel):
         self.global_uri = f"{service_url}v3/"
         self.bot = bot
 
-    async def _get_headers(self) -> Optional[Dict[Text, Any]]:
+    async def _get_headers(self, refetch=False) -> Optional[Dict[Text, Any]]:
         ms_oauthurl = ElementTransformerOps.getChannelConfig("msteams", "MICROSOFT_OAUTH2_URL")
         ms_oauthpath = ElementTransformerOps.getChannelConfig("msteams", "MICROSOFT_OAUTH2_PATH")
         scope = ElementTransformerOps.getChannelConfig("msteams", "scope")
-        if MSTeamBot.token_expiration_date < datetime.datetime.now():
+        if MSTeamBot.token_expiration_date < datetime.datetime.now() or refetch:
             uri = f"{ms_oauthurl}/{ms_oauthpath}"
             grant_type = "client_credentials"
             payload = {
@@ -108,11 +108,19 @@ class MSTeamBot(OutputChannel):
             post_message_uri,headers=headers, data=json.dumps(message_data)
         )
 
+        if send_response.status_code == 403:
+            headers = await self._get_headers(True)
+            send_response = requests.post(
+                post_message_uri, headers=headers, data=json.dumps(message_data)
+            )
+
         if not send_response.ok:
             logger.error(
                 "Error trying to send botframework messge. Response: %s",
                 send_response.text,
             )
+            raise Exception(f"Exception while responding to MSTeams:: {send_response.text} and status::{send_response.status_code}")
+
 
     async def send_text_message(
         self, recipient_id: Text, text: Text, **kwargs: Any
