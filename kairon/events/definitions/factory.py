@@ -6,6 +6,7 @@ from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
+from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 
 
 class EventFactory:
@@ -16,7 +17,8 @@ class EventFactory:
         EventClass.delete_history: DeleteHistoryEvent,
         EventClass.data_importer: TrainingDataImporterEvent,
         EventClass.multilingual: MultilingualEvent,
-        EventClass.data_generator: DataGenerationEvent
+        EventClass.data_generator: DataGenerationEvent,
+        EventClass.faq_importer: FaqDataImporterEvent
     }
 
     @staticmethod

@@ -68,6 +68,8 @@ from kairon.shared.utils import Utility
 from kairon.shared.data.constant import ENDPOINT_TYPE
 from unittest.mock import patch
 
+from kairon.shared.data.utils import DataUtility
+
 
 class TestMongoProcessor:
 
@@ -8675,6 +8677,123 @@ class TestMongoProcessor:
         processor.delete_audit_logs()
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         assert len(logs) == num_logs + 1
+
+    def test_save_faq_csv(self):
+        processor = MongoProcessor()
+        data = DataUtility()
+        bot = 'tests'
+        user = 'tester'
+        csv_content = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+        file = UploadFile(filename="abc.csv", file=BytesIO(csv_content))
+        bot_data_home_dir = data.save_faq_training_files(bot, file)
+        assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
+        component_count, error_summary = processor.save_faq('tests', 'tester')
+        assert component_count == {'intents': 5, 'utterances': 5}
+        assert error_summary == {'intents': [[{'_id': None, 'message': 'Training Example cannot be empty or blank spaces', 'text': '   '}]], 'utterances': ['Utterance text cannot be empty or blank spaces']}
+        
+    def test_save_faq_xlsx(self):
+        processor = MongoProcessor()
+        data = DataUtility()
+        bot = 'tests'
+        user = 'tester'
+        xlsx_content = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+        file = UploadFile(filename="abc.xlsx", file=BytesIO(xlsx_content))
+        bot_data_home_dir = data.save_faq_training_files(bot, file)
+        assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
+        component_count, error_summary = processor.save_faq('tests', 'tester')
+        assert component_count == {'intents': 5, 'utterances': 5}
+        assert error_summary == {
+            'intents': [[{'_id': None, 'message': 'Training Example cannot be empty or blank spaces', 'text': '   '}]],
+            'utterances': ['Utterance text cannot be empty or blank spaces']}
+
+    @pytest.mark.asyncio
+    async def test_save_faq_invalid_file(self):
+        processor = MongoProcessor()
+        data = DataUtility()
+        bot = 'test'
+        user = 'tester_one'
+        invalid_content = "Today is a good day".encode()
+        file = UploadFile(filename="abc.arff", file=BytesIO(invalid_content))
+        bot_data_home_dir = os.path.join('training_data', bot)
+        Utility.write_to_file(os.path.join(bot_data_home_dir, file.filename), await file.read())
+        with pytest.raises(AppException, match="Invalid file type!"):
+            processor.save_faq('test', 'tester_one')
+
+    def test_delete_all_faq(self, monkeypatch):
+        processor = MongoProcessor()
+        utterances_query_counter = 0
+        intents_query_counter = 0
+        first_list = ['Hi', 'Hey', 'hello']
+        second_list = ['unhappy', 'sad']
+        var = ['good morning', 'morning']
+        first_steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+        ]
+        first_rule_dict = {'name': "first rule", 'steps': first_steps, 'type': 'RULE', 'template_type': 'Q&A'}
+        second_steps = [
+            {"name": "sad", "type": "INTENT"},
+            {"name": "utter_sad", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+        ]
+        second_rule_dict = {'name': "second rule", 'steps': second_steps, 'type': 'RULE', 'template_type': 'Q&A'}
+
+        list(processor.add_training_example(first_list, 'greet', 'test', 'test_user', False))
+        list(processor.add_training_example(second_list, 'sad', 'test', 'test_user', False))
+        list(processor.add_training_example(var, 'message', 'test', 'test_user', False))
+        processor.add_text_response('I am good', 'utter_greet', 'test', 'test_user')
+        processor.add_text_response('I am sad', 'utter_sad', 'test', 'test_user')
+        processor.add_text_response('What are your questions?', 'utter_ask', 'test', 'test_user')
+        processor.add_complex_story(first_rule_dict, 'test', 'test_user')
+        processor.add_complex_story(second_rule_dict, 'test', 'test_user')
+        def _mock_aggregation(*args, **kwargs):
+            nonlocal utterances_query_counter, intents_query_counter
+            get_intents_pipelines = [
+                {'$unwind': {'path': '$events'}},
+                {'$match': {'events.type': 'user'}},
+                {'_id': None, 'intents': {'$push': '$events.name'}},
+                {"project": {'_id': 0, 'intents': 1}}
+            ]
+            get_utterances_pipelines = [
+                {'$unwind': {'path': '$events'}},
+                {'$match': {'events.type': 'action', 'events.name': {'$regex': '^utter_'}}},
+                {'_id': None, 'utterances': {'$push': '$events.name'}},
+                {"project": {'_id': 0, 'utterances': 1}}
+            ]
+            print(args[1])
+            print(args[0]._mongo_query)
+            if args[0]._collection_obj.name == 'stories':
+                print("stories")
+                yield {'intents': [], 'utterances': []}
+            elif args[1] == get_intents_pipelines and intents_query_counter == 0:
+                intents_query_counter += 1
+                print("intents")
+                yield {'intents': ['greet', 'sad']}
+            elif args[1] == get_utterances_pipelines and utterances_query_counter == 0:
+                utterances_query_counter += 1
+                print("utterances")
+                yield {'utterances': ['utter_greet', 'utter_sad']}
+            else:
+                print("else")
+                yield {'intents': [], 'utterances': []}
+
+        monkeypatch.setattr(BaseQuerySet, 'aggregate', _mock_aggregation)
+        processor.delete_all_faq('test')
+        assert not Utility.is_exist(TrainingExamples, raise_error=False, intent='greet', bot='test')
+        assert not Utility.is_exist(TrainingExamples, raise_error=False, intent='sad', bot='test')
+        assert not Utility.is_exist(Intents, raise_error=False, name='greet', bot='test')
+        assert not Utility.is_exist(Intents, raise_error=False, name='sad', bot='test')
+        assert not Utility.is_exist(Utterances, raise_error=False, name='utter_greet', bot='test')
+        assert not Utility.is_exist(Utterances, raise_error=False, name='utter_sad', bot='test')
+        assert not Utility.is_exist(Responses, raise_error=False, name='utter_greet', bot='test')
+        assert not Utility.is_exist(Responses, raise_error=False, name='utter_sad', bot='test')
+        assert not Utility.is_exist(Rules, raise_error=False, block_name='first rule', bot='test')
+        assert not Utility.is_exist(Rules, raise_error=False, block_name='second rule', bot='test')
+        assert Utility.is_exist(TrainingExamples, raise_error=False, intent='message', bot='test')
+        assert Utility.is_exist(Intents, raise_error=False, name='message', bot='test')
+        assert Utility.is_exist(Utterances, raise_error=False, name='utter_ask', bot='test')
+        assert Utility.is_exist(Responses, raise_error=False, name='utter_ask', bot='test')
 
 
 class TestTrainingDataProcessor:

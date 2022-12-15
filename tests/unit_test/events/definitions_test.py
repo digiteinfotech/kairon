@@ -35,6 +35,8 @@ from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.data.data_objects import StoryEvents, Rules
 from kairon.shared.data.processor import MongoProcessor
 
+from kairon.events.definitions.faq_importer import FaqDataImporterEvent
+
 
 class TestEventDefinitions:
 
@@ -156,6 +158,104 @@ class TestEventDefinitions:
         assert not os.path.isdir('training_data/test_definitions')
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
+
+    def test_faq_importer_presteps_no_training_files(self):
+        bot = 'test_faq'
+        user = 'test_user'
+
+        with pytest.raises(AppException, match="No files received!"):
+            FaqDataImporterEvent(bot, user).validate()
+
+    def test_faq_importer_presteps_limit_exceeded(self, monkeypatch):
+        bot = 'test_faq'
+        user = 'test_user'
+        file_path = 'tests/testing_data/all/config.yml'
+        file = UploadFile(filename="file.yml", file=BytesIO(open(file_path, 'rb').read()))
+        monkeypatch.setitem(Utility.environment['model']['data_importer'], 'limit_per_day', 0)
+
+        with pytest.raises(AppException, match="Daily limit exceeded."):
+            FaqDataImporterEvent(bot, user).validate(training_data_file=file)
+
+    def test_faq_importer_presteps_event(self):
+        bot = 'test_faq'
+        user = 'test_user'
+        config = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+        file = UploadFile(filename="config.csv", file=BytesIO(config))
+        FaqDataImporterEvent(bot, user).validate(training_data_file=file)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['files_received'] == ['config.csv']
+        assert logs[0]['event_status'] == EVENT_STATUS.INITIATED.value
+
+    def test_faq_importer_presteps_already_in_progress(self):
+        bot = 'test_faq'
+        user = 'test_user'
+
+        with pytest.raises(AppException, match="Event already in progress! Check logs."):
+            FaqDataImporterEvent(bot, user).validate()
+
+    @responses.activate
+    def test_faq_importer_enqueue(self):
+        bot = 'test_faq'
+        user = 'test_user'
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.faq_importer}"
+        responses.add(
+            "POST", url,
+            json={"message": "Success", "success": True, "error_code": 0, "data": {
+                'StatusCode': 200,
+                'FunctionError': None,
+                'LogResult': 'Success',
+                'ExecutedVersion': 'v1.0'
+            }}
+        )
+        FaqDataImporterEvent(bot, user).enqueue()
+        body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
+        body = json.loads(body.decode())
+        assert body['bot'] == bot
+        assert body['user'] == user
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['files_received'] == ['config.csv']
+        assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
+
+    @responses.activate
+    def test_faq_importer_enqueue_event_server_failure(self):
+        bot = 'test_faq'
+        user = 'test_user'
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.faq_importer}"
+        responses.add(
+            "POST", url,
+            json={"message": "Failed", "success": False, "error_code": 400, "data": None}
+        )
+        with pytest.raises(AppException, match='Failed to trigger faq_importer event: Failed'):
+            FaqDataImporterEvent(bot, user).enqueue()
+        body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
+        body = json.loads(body.decode())
+        assert body['bot'] == bot
+        assert body['user'] == user
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 0
+        assert not os.path.isdir('training_data/test_faq')
+
+    def test_faq_importer_enqueue_connection_failure(self):
+        bot = 'test_faq'
+        user = 'test_user'
+        config = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+        file = UploadFile(filename="cfile.csv", file=BytesIO(config))
+
+        FaqDataImporterEvent(bot, user).validate(training_data_file=file)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['files_received'] == ['cfile.csv']
+        assert logs[0]['event_status'] == EVENT_STATUS.INITIATED.value
+
+        with pytest.raises(AppException, match='Failed to execute the url:*'):
+            FaqDataImporterEvent(bot, user).enqueue()
+        assert not os.path.isdir('training_data/test_faq')
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 0
 
     def test_model_training_presteps_no_training_data(self):
         bot = 'test_definitions'

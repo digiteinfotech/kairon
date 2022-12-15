@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import tempfile
@@ -408,6 +409,20 @@ class DataUtility:
 
         if intent_count < 2 or (stories_count < 2 and rule_count < 2):
             raise AppException('Please add at least 2 flows and 2 intents before training the bot!')
+
+    @staticmethod
+    def save_faq_training_files(bot: Text, faq_file: File):
+        if not faq_file:
+            raise AppException("No files received!")
+        bot_data_home_dir = os.path.join('training_data', bot)
+        Utility.make_dirs(bot_data_home_dir)
+        file_name = os.path.join(bot_data_home_dir, faq_file.filename)
+        faq_file_bytes = asyncio.run(faq_file.read())
+        if faq_file.filename.endswith('.csv') or faq_file.filename.endswith('.xlsx'):
+            Utility.write_to_file(file_name, faq_file_bytes)
+        else:
+            raise AppException("Invalid file type!")
+        return bot_data_home_dir
 
 
 class ChatHistoryUtils:
