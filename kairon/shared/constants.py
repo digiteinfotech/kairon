@@ -73,3 +73,8 @@ class MaskingStrategy(str, Enum):
 
 class PluginTypes(str, Enum):
     ip_info = "ip_info"
+
+
+class ChannelTypes(str, Enum):
+    MSTEAMS = "msteams"
+    WHATSAPP = "whatsapp"

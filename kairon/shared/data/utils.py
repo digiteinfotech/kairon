@@ -18,7 +18,6 @@ from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
 from ...shared.utils import Utility
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 from urllib.parse import urljoin
 
 
@@ -371,12 +370,13 @@ class DataUtility:
     @staticmethod
     def get_channel_endpoint(channel_config: dict):
         from kairon.shared.auth import Authentication
+        from kairon.shared.constants import ChannelTypes
         token, _ = Authentication.generate_integration_token(
             channel_config['bot'], channel_config['user'], role=ACCESS_ROLES.CHAT.value,
             access_limit=[f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/.+"],
             token_type=TOKEN_TYPE.CHANNEL.value
         )
-        if channel_config['connector_type'] == CHANNEL_TYPES.MSTEAMS.value:
+        if channel_config['connector_type'] == ChannelTypes.MSTEAMS.value:
             token = DataUtility.save_channel_metadata(config=channel_config, token=token)
 
         channel_endpoint = urljoin(
