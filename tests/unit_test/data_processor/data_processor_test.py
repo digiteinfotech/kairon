@@ -8699,7 +8699,7 @@ class TestMongoProcessor:
         user = 'testUser'
         file = UploadFile(filename="validate.csv", file=open("./tests/testing_data/upload_faq/validate.csv", "rb"))
         df = Utility.read_faq(file)
-        processor.add_response({"text": "I am good"}, utterance, bot, user)
+        processor.add_response({"text": "I am good here!!"}, utterance, bot, user)
         training_examples_expected = {'hi': 'greet', 'hello': 'greet', 'ok': 'affirm', 'no': 'deny'}
         def _mongo_aggregation(*args, **kwargs):
             return training_examples_expected
