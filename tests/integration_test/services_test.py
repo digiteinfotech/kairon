@@ -874,7 +874,7 @@ def test_upload_using_event_append(monkeypatch):
         status=200,
         match=[
             responses.json_params_matcher(
-                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': ''})],
+                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '', 'event_type': EventClass.data_importer})],
     )
 
     response = client.post(

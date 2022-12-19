@@ -326,7 +326,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'import_data': '--import-data', 'overwrite': ''})],
+                              {'bot': bot, 'user': user, 'import_data': '--import-data', 'event_type': EventClass.data_importer, 'overwrite': ''})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=True)
         event.validate()
@@ -359,7 +359,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'import_data': '--import-data', 'overwrite': '--overwrite'})],
+                              {'bot': bot, 'user': user, 'import_data': '--import-data', 'event_type': EventClass.data_importer, 'overwrite': '--overwrite'})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True)
         event.validate()
@@ -392,7 +392,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'import_data': '', 'overwrite': ''})],
+                              {'bot': bot, 'user': user, 'import_data': '', 'event_type': EventClass.data_importer, 'overwrite': ''})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=False, overwrite=False)
         event.validate()
