@@ -755,11 +755,15 @@ class TestEventExecution:
     def test_trigger_faq_importer_validate_only(self, monkeypatch):
         def _mock_execution(*args, **kwargs):
             return None
+        def _mock_aggregation(*args, **kwargs):
+            return {}
 
         monkeypatch.setattr(MongoProcessor, "delete_all_faq", _mock_execution)
+        monkeypatch.setattr(MongoProcessor, 'get_training_examples_as_dict', _mock_aggregation)
+
         bot = 'test_faqs'
         user = 'test'
-        faq = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+        faq = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\nWhat day is it?, It is Thursday,\n".encode()
         file = UploadFile(filename="faq.csv", file=BytesIO(faq))
         FaqDataImporterEvent(bot, user).validate(training_data_file=file)
         FaqDataImporterEvent(bot, user).execute()
@@ -776,6 +780,37 @@ class TestEventExecution:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+    def test_trigger_faq_importer_overwrite(self, monkeypatch):
+        def _mock_execution(*args, **kwargs):
+            return None
+        def _mock_aggregation(*args, **kwargs):
+            return {}
+
+        monkeypatch.setattr(MongoProcessor, "delete_all_faq", _mock_execution)
+        monkeypatch.setattr(MongoProcessor, 'get_training_examples_as_dict', _mock_aggregation)
+
+        bot = 'test_faqs'
+        user = 'test'
+        faq = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n".encode()
+        file = UploadFile(filename="faq.csv", file=BytesIO(faq))
+        FaqDataImporterEvent(bot, user).validate(training_data_file=file)
+        FaqDataImporterEvent(bot, user, overwrite=True).execute()
+        bot_data_home_dir = os.path.join('training_data', bot)
+        assert not os.path.exists(bot_data_home_dir)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 2
+        assert not logs[0].get('intents').get('data')
+        print(logs[0].get('utterances').get('data'))
+        assert len(logs[0].get('utterances').get('data')) == 0
+        assert len(logs[0].get('training_examples').get('data')) == 0
+        print(logs[0].get('exception'))
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
         assert logs[0]['status'] == 'Success'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
@@ -785,7 +820,7 @@ class TestEventExecution:
 
         FaqDataImporterEvent(bot, user).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
-        assert len(logs) == 2
+        assert len(logs) == 3
         assert not logs[0].get('intents').get('data')
         assert not logs[0].get('stories').get('data')
         assert not logs[0].get('utterances').get('data')
@@ -795,6 +830,36 @@ class TestEventExecution:
         assert logs[0]['end_timestamp']
         assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
+
+    def test_trigger_faq_importer_validate_only_append_mode(self, monkeypatch):
+        def _mock_execution(*args, **kwargs):
+            return None
+        def _mock_aggregation(*args, **kwargs):
+            return {}
+
+        monkeypatch.setattr(MongoProcessor, "delete_all_faq", _mock_execution)
+        monkeypatch.setattr(MongoProcessor, 'get_training_examples_as_dict', _mock_aggregation)
+        bot = 'test_faqs'
+        user = 'test'
+        faq = "Questions,Answer,\nWhat is your name?, Nupur Khare,\nWhen is your birthday?, 15 June 2000,\nHow are you feeling today?, Not good,\n".encode()
+        file = UploadFile(filename="faq.csv", file=BytesIO(faq))
+        FaqDataImporterEvent(bot, user, overwrite=False).validate(training_data_file=file)
+        FaqDataImporterEvent(bot, user, overwrite=False).execute()
+        bot_data_home_dir = os.path.join('training_data', bot)
+        assert not os.path.exists(bot_data_home_dir)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 4
+        assert not logs[0].get('intents').get('data')
+        print(logs[0].get('utterances').get('data'))
+        assert len(logs[0].get('utterances').get('data')) == 0
+        assert len(logs[0].get('training_examples').get('data')) == 0
+        print(logs[0].get('exception'))
+        assert not logs[0].get('exception')
+        assert logs[0]['is_data_uploaded']
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_trigger_model_testing_event_run_tests_on_model_no_model_found_1(self):
         bot = 'test_events_bot'
