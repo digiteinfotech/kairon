@@ -19,13 +19,14 @@ processor = MongoProcessor()
 @router.post("/faq/upload", response_model=Response)
 def upload_faq_files(
         csv_file: UploadFile = File(...),
+        overwrite: bool = True,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Uploads faq csv/excel file
     """
     event = FaqDataImporterEvent(
-        current_user.get_bot(), current_user.get_user()
+        current_user.get_bot(), current_user.get_user(), overwrite=overwrite
     )
     event.validate(training_data_file=csv_file)
     event.enqueue()

@@ -15,12 +15,15 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict
+from typing import Text, List, Dict, Union
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
+
+import pandas as pd
 import requests
 import yaml
 from botocore.exceptions import ClientError
+from fastapi import File, UploadFile
 from jwt import encode, decode, PyJWTError
 from loguru import logger
 from mongoengine.document import BaseDocument, Document
@@ -1628,3 +1631,64 @@ class Utility:
     def retrieve_gpt_response(resp):
         if resp and resp.get('choices') and resp['choices'][0].get("text"):
             return resp['choices'][0]["text"]
+
+    @staticmethod
+    def read_faq(faq_file: Union[Text, UploadFile]):
+        '''
+        Reads the file from a path or Uploaded file.
+        :param faq_file: Text Path/File
+        :return: Dataframe of the file.
+        '''
+        filename = faq_file
+        data = faq_file
+        if isinstance(faq_file, UploadFile):
+            filename = faq_file.filename
+            data = faq_file.file
+        if Path(filename).suffix == '.csv':
+            df = pd.read_csv(data, encoding='utf8', sep=",")
+        elif Path(filename).suffix == '.xlsx':
+            df = pd.read_excel(data, engine="openpyxl", sheet_name=0)
+        else:
+            raise AppException("Invalid file type!")
+        df = df.fillna('')
+        return df
+
+    @staticmethod
+    def save_faq_training_files(bot: Text, faq_file: File):
+        '''
+        Saves uploaded faq file in bot data home directory.
+        :param bot: bot id
+        :param faq_file: Uploaded faq file.
+        :return: Path of uploaded faq file.
+        '''
+        bot_data_home_dir = os.path.join('training_data', bot)
+        Utility.make_dirs(bot_data_home_dir)
+        file_name = os.path.join(bot_data_home_dir, faq_file.filename)
+        faq_file.file.seek(0)
+        faq_file_bytes = faq_file.file.read()
+        Utility.write_to_file(file_name, faq_file_bytes)
+        return bot_data_home_dir
+
+    @staticmethod
+    def validate_faq_training_file(faq_file: File):
+        '''
+        Validates whether faq file is in supported format.
+        Also it should not be empty and must contain required column names.
+
+        :param faq_file: Uploaded faq file.
+        :return:
+        '''
+        if not faq_file or Path(faq_file.filename).suffix not in {'.csv', '.xlsx'}:
+            raise AppException("Invalid file type! Only csv and xlsx files are supported.")
+
+        if Path(faq_file.filename).suffix == '.csv':
+            df = pd.read_csv(faq_file.file, encoding='utf8', sep=",")
+        else:
+            df = pd.read_excel(faq_file.file, engine="openpyxl", sheet_name=0)
+
+        if df.empty:
+            raise AppException("No data found in the file!")
+        columns = set(df.columns)
+        required_headers = {'Questions', 'Answer'}
+        if not required_headers.issubset(columns):
+            raise AppException(f"Required columns {required_headers} not present in file.")

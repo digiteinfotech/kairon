@@ -54,6 +54,6 @@ ENV BOT default
 ENV USER default
 ENV IMPORT_DATA default
 ENV OVERWRITE default
+ENV EVENT_TYPE default
 
-
-CMD ["sh","-c","python -m kairon data-importer ${BOT} ${USER} ${IMPORT_DATA} ${OVERWRITE}"]
+CMD ["sh","-c","python -m kairon data-importer ${BOT} ${USER} ${EVENT_TYPE} ${IMPORT_DATA} ${OVERWRITE}"]

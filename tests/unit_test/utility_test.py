@@ -5,6 +5,7 @@ import uuid
 from io import BytesIO
 from unittest import mock
 
+import pandas as pd
 import pytest
 import requests
 import responses
@@ -165,30 +166,64 @@ class TestUtility:
         assert os.path.exists(training_file_loc['http_action'])
         assert os.path.exists(training_file_loc['root'])
 
-    def test_save_faq_training_files_none(self):
-        with pytest.raises(AppException, match="No files received!"):
-            DataUtility.save_faq_training_files(pytest.bot, [])
+    def test_read_faq_csv(self):
+        content = "Question, Response\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="file.csv", file=BytesIO(content))
+        df = Utility.read_faq(file)
+        assert not df.empty
 
-        with pytest.raises(AppException, match="No files received!"):
-            DataUtility.save_faq_training_files(pytest.bot, None)
+    def test_read_faq_xlsx(self):
+        content = "Question, Response\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="upload.xlsx", file=(open("tests/testing_data/upload_faq/upload.xlsx", "rb")))
+        df = Utility.read_faq(file)
+        assert not df.empty
+
+    def test_read_faq_invalid(self):
+        content = "How are you?".encode()
+        file = UploadFile(filename="file.arff", file=BytesIO(content))
+        with pytest.raises(AppException, match="Invalid file type!"):
+            Utility.read_faq(file)
+
+    def test_save_faq_training_files_none(self):
+        with pytest.raises(AppException, match="Invalid file type! Only csv and xlsx files are supported."):
+            Utility.validate_faq_training_file([])
+
+        with pytest.raises(AppException, match="Invalid file type! Only csv and xlsx files are supported."):
+            Utility.validate_faq_training_file(None)
+
+    def test_validate_faq_training_file(self):
+        content = "Question, Response\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="file.csv", file=BytesIO(content))
+        required_headers = {'Questions', 'Answer'}
+        with pytest.raises(AppException, match=f"Required columns {required_headers} not present in file."):
+            Utility.validate_faq_training_file(file)
 
     def test_save_faq_training_files_csv(self):
         csv_content = "Question, Answer,\nWhat is Digite?, IT Company\n".encode()
         file = UploadFile(filename="abc.csv", file=BytesIO(csv_content))
-        bot_data_home_dir = DataUtility.save_faq_training_files(pytest.bot, file)
+        bot_data_home_dir = Utility.save_faq_training_files(pytest.bot, file)
         assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
 
     def test_save_faq_training_files_xlsx(self):
         xlsx_content = "Question, Answer,\nWhat is Digite?, IT Company\n".encode()
         file = UploadFile(filename="abc.xlsx", file=BytesIO(xlsx_content))
-        bot_data_home_dir = DataUtility.save_faq_training_files(pytest.bot, file)
+        bot_data_home_dir = Utility.save_faq_training_files(pytest.bot, file)
         assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
 
-    def test_save_faq_training_files_invalid_format(self):
-        invalid_content = "Hello, how are you!".encode()
-        file = UploadFile(filename="abc.arff", file=BytesIO(invalid_content))
-        with pytest.raises(AppException, match="Invalid file type!"):
-            DataUtility.save_faq_training_files(pytest.bot, file)
+    def test_get_duplicate_values(self):
+        df = pd.read_csv("tests/testing_data/upload_faq/validate.csv")
+        column_name = 'Questions'
+        duplicates = DataUtility.get_duplicate_values(df, column_name)
+        assert duplicates == {'What day is it?'}
+        column_name = 'Answer'
+        duplicates = DataUtility.get_duplicate_values(df, column_name)
+        assert duplicates == {' Indeed it is!', ' It is Thursday'}
+
+    def test_get_duplicate_values_empty(self):
+        content = "Questions, Answer\n ".encode()
+        file = UploadFile(filename="filename.csv", file=BytesIO(content))
+        with pytest.raises(AppException, match="No data found in the file!"):
+            Utility.validate_faq_training_file(file)
 
     def test_get_keywords(self):
         paragraph = "What is Digite?"
