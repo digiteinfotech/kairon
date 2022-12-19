@@ -112,6 +112,7 @@ class TestEventDefinitions:
         assert body['user'] == user
         assert body['import_data'] == '--import-data'
         assert body['overwrite'] == '--overwrite'
+        assert body['event_type'] == 'data_importer'
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
         assert logs[0]['files_received'] == ['domain']
@@ -135,6 +136,7 @@ class TestEventDefinitions:
         assert body['user'] == user
         assert body['import_data'] == '--import-data'
         assert body['overwrite'] == ''
+        assert body['event_type'] == 'data_importer'
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0]['files_received'] == ['config']
@@ -163,7 +165,7 @@ class TestEventDefinitions:
         bot = 'test_faq'
         user = 'test_user'
 
-        with pytest.raises(AppException, match="No files received!"):
+        with pytest.raises(AppException, match="Invalid file type! Only csv and xlsx files are supported."):
             FaqDataImporterEvent(bot, user).validate()
 
     def test_faq_importer_presteps_limit_exceeded(self, monkeypatch):
@@ -214,6 +216,8 @@ class TestEventDefinitions:
         body = json.loads(body.decode())
         assert body['bot'] == bot
         assert body['user'] == user
+        assert body['event_type'] == EventClass.faq_importer
+        assert body['import_data'] == "--import-data"
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0]['files_received'] == ['config.csv']
@@ -235,6 +239,8 @@ class TestEventDefinitions:
         body = json.loads(body.decode())
         assert body['bot'] == bot
         assert body['user'] == user
+        assert body['event_type'] == EventClass.faq_importer
+        assert body['import_data'] == "--import-data"
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 0
         assert not os.path.isdir('training_data/test_faq')

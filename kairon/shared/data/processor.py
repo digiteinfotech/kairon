@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
-import pandas as pd
+from pandas import DataFrame
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
     DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
 import yaml
@@ -805,7 +805,7 @@ class MongoProcessor:
             }
 
     def __extract_response_value(self, values: List[Dict], key, bot: Text, user: Text):
-        saved_responses = self.__fetch_list_of_response(bot)
+        saved_responses = self.fetch_list_of_response(bot)
         for value in values:
             if value not in saved_responses:
                 response = Responses()
@@ -1925,7 +1925,7 @@ class MongoProcessor:
                 resp_type = "json"
             yield {"_id": value.id.__str__(), "value": val, "type": resp_type}
 
-    def __fetch_list_of_response(self, bot: Text):
+    def fetch_list_of_response(self, bot: Text):
         saved_responses = list(
             Responses.objects(bot=bot, status=True).aggregate(
                 [
@@ -1975,7 +1975,7 @@ class MongoProcessor:
     def __check_response_existence(
             self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
-        saved_items = self.__fetch_list_of_response(bot)
+        saved_items = self.fetch_list_of_response(bot)
 
         if response in saved_items:
             if raise_error:
@@ -4469,24 +4469,14 @@ class MongoProcessor:
             qna['training_examples'] = training_examples
             yield qna
 
-    def save_faq(self, bot: Text, user: Text):
+    def save_faq(self, bot: Text, user: Text, df: DataFrame):
         from kairon.shared.augmentation.utils import AugmentationUtils
 
         error_summary = {'intents': [], 'utterances': [], 'training_examples': []}
         component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 'domain': {'intents': 0, 'utterances': 0}}
-        bot_data_home_dir = os.path.join('training_data', bot)
-        faq_file = Utility.get_latest_file(bot_data_home_dir)
-        if faq_file.endswith('.csv'):
-            df = pd.read_csv(faq_file, encoding='utf8', sep=",")
-        elif faq_file.endswith('.xlsx'):
-            df = pd.read_excel(faq_file, engine="openpyxl", sheet_name=0)
-        else:
-            raise AppException("Invalid file type!")
-        df = df.fillna('')
         for index, row in df.iterrows():
             is_intent_added = False
             is_response_added = False
-            is_story_added = False
             training_example_errors = None
             component_count['intents'] = component_count['intents'] + 1
             component_count['utterances'] = component_count['utterances'] + 1
@@ -4509,20 +4499,13 @@ class MongoProcessor:
             try:
                 training_example_errors = list(self.add_training_example(examples, intent, bot, user, False))
                 is_intent_added = True
-
                 self.add_text_response(row['Answer'], action, bot, user)
                 is_response_added = True
-
                 self.add_complex_story(rule, bot, user)
-                is_story_added = True
-
             except Exception as e:
                 logging.exception(e)
                 training_example_errors = [a for a in training_example_errors if a["_id"] is None]
-
                 error_summary['training_examples'].append(training_example_errors)
-                if is_story_added:
-                    self.delete_complex_story(intent, "RULE", bot, user)
                 if is_intent_added:
                     error_summary['utterances'].append(str(e))
                     self.delete_intent(intent, bot, user, False)

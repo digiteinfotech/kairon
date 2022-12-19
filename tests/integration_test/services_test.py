@@ -11699,11 +11699,11 @@ def test_upload_invalid_csv():
     assert actual['data'] is None
     assert not actual['success']
     assert actual['error_code'] == 422
-    assert actual['message'] == "Invalid file type!"
+    assert actual['message'] == "Invalid file type! Only csv and xlsx files are supported."
 
 
 @responses.activate
-def test_upload_csv():
+def test_upload_faq():
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
@@ -11712,7 +11712,7 @@ def test_upload_csv():
     csv_file = BytesIO(csv_file).read()
     files = {'csv_file': ("config.csv", csv_file)}
     response = client.post(
-        f"/api/bot/{pytest.bot}/data/faq/upload",
+        f"/api/bot/{pytest.bot}/data/faq/upload?overwrite=false",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files)
     actual = response.json()

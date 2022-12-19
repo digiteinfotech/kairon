@@ -8,6 +8,8 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
+
+import pandas as pd
 from starlette.datastructures import Headers, URL
 from starlette.requests import Request
 
@@ -8672,42 +8674,51 @@ class TestMongoProcessor:
 
     def test_save_faq_csv(self):
         processor = MongoProcessor()
-        data = DataUtility()
         bot = 'tests'
         user = 'tester'
-        csv_content = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
-        file = UploadFile(filename="abc.csv", file=BytesIO(csv_content))
-        bot_data_home_dir = data.save_faq_training_files(bot, file)
-        assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
-        component_count, error_summary = processor.save_faq('tests', 'tester')
+        file = UploadFile(filename="upload.csv", file=open("./tests/testing_data/upload_faq/upload.csv", "rb"))
+        df = Utility.read_faq(file)
+        component_count, error_summary = processor.save_faq(bot, user, df)
         assert component_count == {'intents': 5, 'utterances': 5, 'stories': 0, 'rules': 5, 'training_examples': 5, 'domain': {'intents': 5, 'utterances': 5}}
         assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces'], 'training_examples': [[{'text': '   ', '_id': None, 'message': 'Training Example cannot be empty or blank spaces'}]]}
 
     def test_save_faq_xlsx(self):
         processor = MongoProcessor()
-        data = DataUtility()
         bot = 'test_faq'
         user = 'tester'
         file = UploadFile(filename="upload.xlsx", file=open("./tests/testing_data/upload_faq/upload.xlsx", "rb"))
-        bot_data_home_dir = data.save_faq_training_files(bot, file)
-        assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
-        component_count, error_summary = processor.save_faq(bot, user)
+        df = Utility.read_faq(file)
+        component_count, error_summary = processor.save_faq(bot, user, df)
         assert component_count == {'intents': 5, 'utterances': 5, 'stories': 0, 'rules': 5, 'training_examples': 5, 'domain': {'intents': 5, 'utterances': 5}}
         assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces', 'Utterance already exists!'], 'training_examples': [[{'text': '', '_id': None, 'message': 'Training Example cannot be empty or blank spaces'}], []]}
 
-    @pytest.mark.asyncio
-    async def test_save_faq_invalid_file(self):
+    def test_validate_faq_training_file(self, monkeypatch):
         processor = MongoProcessor()
-        data = DataUtility()
-        bot = 'test'
-        user = 'tester_one'
-        invalid_content = "Today is a good day".encode()
-        file = UploadFile(filename="abc.arff", file=BytesIO(invalid_content))
-        bot_data_home_dir = os.path.join('training_data', bot)
-        Utility.make_dirs(bot_data_home_dir)
-        Utility.write_to_file(os.path.join(bot_data_home_dir, file.filename), await file.read())
-        with pytest.raises(AppException, match="Invalid file type!"):
-            processor.save_faq('test', 'tester_one')
+        bot = 'tests'
+        utterance = "test_delete_utterance"
+        user = 'testUser'
+        file = UploadFile(filename="validate.csv", file=open("./tests/testing_data/upload_faq/validate.csv", "rb"))
+        df = Utility.read_faq(file)
+        processor.add_response({"text": "I am good"}, utterance, bot, user)
+        training_examples_expected = {'hi': 'greet', 'hello': 'greet', 'ok': 'affirm', 'no': 'deny'}
+        def _mongo_aggregation(*args, **kwargs):
+            return training_examples_expected
+
+        monkeypatch.setattr(MongoProcessor, 'get_training_examples_as_dict', _mongo_aggregation)
+        error_summary, component_count = DataUtility.validate_faq_training_data(bot, df)
+        assert len(error_summary['utterances']) == 2
+        assert len(error_summary['training_examples']) == 4
+        assert component_count == {'intents': 8, 'utterances': 8, 'stories': 0, 'rules': 0, 'training_examples': 10, 'domain': {'intents': 8, 'utterances': 8}}
+
+    def test_validate_faq_training_file_empty(self):
+        processor = MongoProcessor()
+        bot = 'tests'
+        utterance = "test_delete_utterance"
+        user = 'testUser'
+        file = UploadFile(filename="validate.csv", file=open("./tests/testing_data/upload_faq/validate.csv", "rb"))
+        df = pd.DataFrame()
+        with pytest.raises(AppException, match="No data found!"):
+            DataUtility.validate_faq_training_data(bot, df)
 
     def test_delete_all_faq(self, monkeypatch):
         processor = MongoProcessor()
