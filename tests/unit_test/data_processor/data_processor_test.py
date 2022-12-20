@@ -7101,7 +7101,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
             'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
-            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': []
+            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -7120,7 +7120,7 @@ class TestMongoProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("test_with_action")
         assert actions == {
-            'actions': ['action_check'], 'two_stage_fallback': [],
+            'actions': ['action_check'], 'two_stage_fallback': [], 'kairon_bot_response': [],
             'http_action': [], 'jira_action': [], 'hubspot_forms_action': [],
             'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
@@ -7142,7 +7142,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("tests")
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
-                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
+                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'kairon_bot_response': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -7420,7 +7420,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
-            'hubspot_forms_action': [], 'two_stage_fallback': [],
+            'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -7526,7 +7526,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("tests")
         assert actions == {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [],
+            'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',

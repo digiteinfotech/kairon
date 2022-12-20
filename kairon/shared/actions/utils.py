@@ -7,12 +7,13 @@ from typing import Any, List, Text
 import requests
 from loguru import logger
 from mongoengine import DoesNotExist
+from rasa.shared.constants import UTTER_PREFIX
 from rasa_sdk import Tracker
 
 from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
 from .models import SlotValidationOperators, LogicalOperators, ActionParameterType, HttpRequestContentType, \
-    EvaluationType
+    EvaluationType, ActionType
 from ..constants import KAIRON_USER_MSG_ENTITY
 from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots, KeyVault
@@ -238,6 +239,20 @@ class ActionUtility:
         if not value:
             return True
         return bool(not value.strip())
+
+    @staticmethod
+    def get_action_type(bot: str, name: str):
+        """
+        Retrieves action type.
+        @param bot: bot id
+        @param name: action name
+        """
+        if name.startswith(UTTER_PREFIX):
+            action_type = ActionType.kairon_bot_response
+        else:
+            action = ActionUtility.get_action(bot=bot, name=name)
+            action_type = action.get('type')
+        return action_type
 
     @staticmethod
     def get_action(bot: str, name: str):

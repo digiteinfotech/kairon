@@ -69,7 +69,7 @@ class MeteringProcessor:
     def add_log_with_geo_location(metric_type: MetricType, account_id: int, request: Request, bot: Text = None, **kwargs):
         ip = request.headers.get('X-Forwarded-For')
         if not Utility.check_empty_string(ip):
-            location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(**kwargs)
+            location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip=ip)
             if location_info:
                 kwargs.update(location_info)
         MeteringProcessor.add_metrics(bot, account_id, metric_type, **kwargs)

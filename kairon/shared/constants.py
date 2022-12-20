@@ -73,6 +73,7 @@ class MaskingStrategy(str, Enum):
 
 class PluginTypes(str, Enum):
     ip_info = "ip_info"
+    gpt = "gpt"
 
 
 class ChannelTypes(str, Enum):

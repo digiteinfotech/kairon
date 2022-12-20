@@ -6,7 +6,7 @@ from mongoengine import (
     DateTimeField,
     BooleanField,
     IntField,
-    ListField, DictField, DynamicField
+    ListField, DictField, DynamicField, DynamicDocument
 )
 from mongoengine.errors import ValidationError
 from datetime import datetime
@@ -133,7 +133,7 @@ class HttpActionConfig(Auditlog):
                     param.value = Utility.encrypt_message(param.value)
 
 
-class ActionServerLogs(Document):
+class ActionServerLogs(DynamicDocument):
     type = StringField()
     intent = StringField()
     action = StringField()
