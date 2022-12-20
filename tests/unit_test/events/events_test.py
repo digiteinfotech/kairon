@@ -772,9 +772,8 @@ class TestEventExecution:
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
-        print(logs[0].get('utterances').get('data'))
-        assert len(logs[0].get('utterances').get('data')) == 1
-        assert len(logs[0].get('training_examples').get('data')) == 1
+        assert len(logs[0].get('answer').get('data')) == 1
+        assert len(logs[0].get('questions').get('data')) == 1
         print(logs[0].get('exception'))
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
@@ -803,10 +802,8 @@ class TestEventExecution:
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
         assert not logs[0].get('intents').get('data')
-        print(logs[0].get('utterances').get('data'))
-        assert len(logs[0].get('utterances').get('data')) == 0
-        assert len(logs[0].get('training_examples').get('data')) == 0
-        print(logs[0].get('exception'))
+        assert len(logs[0].get('answer').get('data')) == 0
+        assert len(logs[0].get('questions').get('data')) == 0
         assert not logs[0].get('exception')
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
