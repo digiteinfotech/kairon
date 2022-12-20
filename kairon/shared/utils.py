@@ -1647,6 +1647,7 @@ class Utility:
         else:
             raise AppException("Invalid file type!")
         df = df.fillna('')
+        df.columns = map(str.lower, df.columns)
         return df
 
     @staticmethod
@@ -1684,7 +1685,8 @@ class Utility:
 
         if df.empty:
             raise AppException("No data found in the file!")
+        df.columns = map(str.lower, df.columns)
         columns = set(df.columns)
-        required_headers = {'Questions', 'Answer'}
+        required_headers = {'questions', 'answer'}
         if not required_headers.issubset(columns):
             raise AppException(f"Required columns {required_headers} not present in file.")
