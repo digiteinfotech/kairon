@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any, Text, Dict
 
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
@@ -14,6 +15,6 @@ class ActionsBase(ABC):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker):
+    def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         """Execute the action."""
         raise NotImplementedError("Provider not implemented")

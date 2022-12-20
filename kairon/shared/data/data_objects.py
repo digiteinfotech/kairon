@@ -33,6 +33,8 @@ from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType
 from validators import domain
 
+from ..actions.data_objects import CustomActionRequestParameters
+
 
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
@@ -658,6 +660,8 @@ class TrainingDataGenerator(Document):
 class BotSettings(Auditlog):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
+    rephrase_response = BooleanField(default=False)
+    gpt_key = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
     website_data_generator_depth_search_limit = IntField(default=2)
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
@@ -667,8 +671,15 @@ class BotSettings(Auditlog):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if self.refresh_token_expiry <= self.chat_token_expiry:
             raise ValidationError("refresh_token_expiry must be greater than chat_token_expiry!")
+
+    def clean(self):
+        if self.gpt_key:
+            self.gpt_key.key = "gpt_key"
 
 
 @auditlogger.log
