@@ -38,14 +38,6 @@ async def conversation_steps(request: HistoryQuery = HistoryQuery(),
     return {"data": conversation_steps, "message": message}
 
 
-@router.get("/conversation/time", response_model=Response)
-async def conversation_time(request: HistoryQuery = HistoryQuery(),
-                            collection: str = Depends(Authentication.authenticate_and_get_collection)):
-    """Fetches the duration of the chat that took place between the users and the agent."""
-    conversation_time, message = HistoryProcessor.conversation_time(collection, request.month)
-    return {"data": conversation_time, "message": message}
-
-
 @router.get("/users/engaged", response_model=Response)
 async def count_engaged_users(request: HistoryQuery = HistoryQuery(),
                               collection: str = Depends(Authentication.authenticate_and_get_collection)):
