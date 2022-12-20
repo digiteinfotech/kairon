@@ -492,9 +492,9 @@ class Utility:
         :param domain: domain data
         :return: mongo tracker
         """
-        from rasa.core.tracker_store import MongoTrackerStore
+        from kairon.shared.trackers import KMongoTrackerStore
         config = Utility.get_local_db()
-        return MongoTrackerStore(
+        return KMongoTrackerStore(
             domain=domain,
             host=config['host'],
             db=config['db'],

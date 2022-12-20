@@ -34,6 +34,8 @@ from kairon.shared.test.processor import ModelTestingLogProcessor
 
 from kairon.shared.data.data_objects import StoryEvents, Rules
 from kairon.shared.data.processor import MongoProcessor
+import mock
+import mongomock
 
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 
@@ -571,22 +573,20 @@ class TestEventDefinitions:
         assert len(logs) == 1
         assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
 
-    def test_delete_history_execute(self, monkeypatch):
+    @mock.patch('kairon.history.processor.MongoClient', autospec=True)
+    def test_delete_history_execute(self, mock_mongo):
+        import time
+
         bot = 'test_definitions'
         user = 'test_user'
-
-        def db_client(*args, **kwargs):
-            client = MongoClient("mongodb://localhost/conversation")
-            db = client.get_database("conversation")
-            conversations = db.get_collection(bot)
-            json_data = json.load(
-                open("tests/testing_data/history/conversations_history.json")
-            )
-            history = json_data[0]['events']
-            conversations.insert_many(history)
-            return client
-
-        monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
+        mongo_client = mongomock.MongoClient("mongodb://test/conversations")
+        db = mongo_client.get_database("conversation")
+        collection = db.get_collection(bot)
+        items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
+        for item in items:
+            item['event']['timestamp'] = time.time()
+        collection.insert_many(items)
+        mock_mongo.return_value = mongo_client
 
         DeleteHistoryEvent(bot, user).execute()
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
