@@ -244,7 +244,7 @@ class TestUtility:
 
     def test_get_action_url(self, monkeypatch):
         actual = Utility.get_action_url({})
-        assert actual.url == "http://localhost:5055/webhook"
+        assert actual.url == "http://kairon.localhost:5055/webhook"
         actual = Utility.get_action_url({"action_endpoint": {"url": "http://action-server:5055/webhook"}})
         assert actual.url == "http://action-server:5055/webhook"
         monkeypatch.setitem(Utility.environment['action'], "url", None)
