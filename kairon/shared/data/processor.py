@@ -4466,23 +4466,22 @@ class MongoProcessor:
     def save_faq(self, bot: Text, user: Text, df: DataFrame):
         from kairon.shared.augmentation.utils import AugmentationUtils
 
-        error_summary = {'intents': [], 'utterances': [], 'training_examples': []}
-        component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 'domain': {'intents': 0, 'utterances': 0}}
+        error_summary = {'intents': [], 'utterances': [], 'training_examples': [], 'questions': [], 'answer': []}
+        component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 
+                           'questions': 0, 'answer': 0, 'domain': {'intents': 0, 'utterances': 0}}
         for index, row in df.iterrows():
             is_intent_added = False
             is_response_added = False
             training_example_errors = None
-            component_count['intents'] = component_count['intents'] + 1
-            component_count['utterances'] = component_count['utterances'] + 1
-            component_count['rules'] = component_count['rules'] + 1
-            key_tokens = AugmentationUtils.get_keywords(row['Questions'])
+            component_count['answer'] = component_count['answer'] + 1
+            key_tokens = AugmentationUtils.get_keywords(row['questions'])
             if key_tokens:
                 key_tokens = key_tokens[0][0]
             else:
-                key_tokens = row['Questions'].split('\n')[0]
+                key_tokens = row['questions'].split('\n')[0]
             intent = key_tokens.replace(' ', '_') + "_" + str(index)
-            examples = row['Questions'].split("\n")
-            component_count['training_examples'] = component_count['training_examples'] + len(examples)
+            examples = row['questions'].split("\n")
+            component_count['questions'] = component_count['questions'] + len(examples)
             action = f"utter_{intent}"
             steps = [
                 {"name": "...", "type": "BOT"},
@@ -4493,20 +4492,18 @@ class MongoProcessor:
             try:
                 training_example_errors = list(self.add_training_example(examples, intent, bot, user, False))
                 is_intent_added = True
-                self.add_text_response(row['Answer'], action, bot, user)
+                self.add_text_response(row['answer'], action, bot, user)
                 is_response_added = True
                 self.add_complex_story(rule, bot, user)
             except Exception as e:
                 logging.exception(e)
                 training_example_errors = [a for a in training_example_errors if a["_id"] is None]
-                error_summary['training_examples'].append(training_example_errors)
+                error_summary['questions'].append(training_example_errors)
                 if is_intent_added:
-                    error_summary['utterances'].append(str(e))
+                    error_summary['answer'].append(str(e))
                     self.delete_intent(intent, bot, user, False)
                 if is_response_added:
                     self.delete_utterance(action, bot)
-        component_count['domain']['intents'] = component_count['intents']
-        component_count['domain']['utterances'] = component_count['utterances']
         return component_count, error_summary
 
     def delete_all_faq(self, bot: Text):
