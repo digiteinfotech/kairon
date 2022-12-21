@@ -5,11 +5,8 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon.shared.constants import PluginTypes
 from kairon.shared.data.constant import DOMAIN
 from kairon.shared.data.data_objects import BotSettings
-from kairon.shared.plugins.factory import PluginFactory
-from kairon.shared.utils import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
@@ -59,22 +56,15 @@ class ActionKaironBotResponse(ActionsBase):
         status = "SUCCESS"
         exception = None
         is_rephrased = False
-        text_response = None
         prompt = None
         raw_resp = None
         bot_settings = self.retrieve_config()
-        gpt_key_config = bot_settings.get('gpt_key')
         static_response = domain[DOMAIN.RESPONSES.value].get(self.name, [])
         bot_response = {"response": self.name}
         try:
-            tracker_data = ActionUtility.build_context(tracker)
             if static_response:
                 text_response = static_response[0].get('text')
-            if bot_settings['rephrase_response'] and not Utility.check_empty_string(text_response):
-                gpt_key = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, gpt_key_config, self.bot)
-                prompt = f"Rephrase and expand: {text_response}"
-                raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
-                rephrased_message = Utility.retrieve_gpt_response(raw_resp)
+                raw_resp, rephrased_message = ActionUtility.trigger_rephrase(self.bot, text_response)
                 if rephrased_message:
                     is_rephrased = True
                     bot_response = {"text": rephrased_message}

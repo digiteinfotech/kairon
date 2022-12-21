@@ -8,6 +8,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations
 from kairon.shared.actions.models import ActionType
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
@@ -4378,8 +4380,8 @@ class TestActionServer(AsyncHTTPTestCase):
         action_name = 'utter_greet'
         bot = "5f50fd0a56b698ca10d35d2h"
         user = "test_user"
-        BotSettings(rephrase_response=True, gpt_key={"value": "GPT_KEY", "parameter_type": "key_vault"}, bot=bot, user=user).save()
-        KeyVault(key="GPT_KEY", value="uditpandey", bot=bot, user=user).save()
+        BotSettings(rephrase_response=True, bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
         gpt_response = {'id': 'cmpl-6Hh86Qkqq0PJih2YSl9JaNkPEuy4Y', 'object': 'text_completion', 'created': 1669675386,
                   'model': 'text-davinci-002', 'choices': [{
                                                                'text': "Greetings and welcome to kairon!!",
@@ -4514,8 +4516,8 @@ class TestActionServer(AsyncHTTPTestCase):
         action_name = 'utter_greet'
         bot = "5f50fd0a56b698ca10d35d2i"
         user = "test_user"
-        settings = BotSettings(rephrase_response=True, gpt_key={"value": "GPT_KEY", "parameter_type": "key_vault"}, bot=bot, user=user).save()
-        KeyVault(key="GPT_KEY", value="uditpandey", bot=bot, user=user).save()
+        BotSettings(rephrase_response=True, bot=bot, user=user).save()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
         gpt_response = {"error": {"message": "'100' is not of type 'integer' - 'max_tokens'", "type": "invalid_request_error", "param": None, "code": None} }
         responses.add(
             "POST",
@@ -4640,9 +4642,10 @@ class TestActionServer(AsyncHTTPTestCase):
                           [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
                             'response': 'utter_greet', 'image': None, 'attachment': None}
                            ])
+        assert len(responses.calls._calls) == 1
 
-        settings.gpt_key = CustomActionRequestParameters(**{"value": "email_slot", "parameter_type": "slot"})
-        settings.save()
+        secret.value = ""
+        secret.save()
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [
@@ -4652,7 +4655,7 @@ class TestActionServer(AsyncHTTPTestCase):
                           [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
                             'response': 'utter_greet', 'image': None, 'attachment': None}
                            ])
-        assert len(responses.calls._calls) == 2
+        assert len(responses.calls._calls) == 1
         responses.stop()
         responses.reset()
     

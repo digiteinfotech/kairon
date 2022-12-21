@@ -14,9 +14,12 @@ from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
 from .models import SlotValidationOperators, LogicalOperators, ActionParameterType, HttpRequestContentType, \
     EvaluationType, ActionType
-from ..constants import KAIRON_USER_MSG_ENTITY
+from ..admin.constants import BotSecretType
+from ..admin.processor import Sysadmin
+from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes
 from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER
 from ..data.data_objects import Slots, KeyVault
+from ..plugins.factory import PluginFactory
 from ..utils import Utility
 from ...exceptions import AppException
 
@@ -638,6 +641,17 @@ class ActionUtility:
             raise ActionFailure(f'Expression evaluation failed: {log}')
         result = resp.get('data')
         return result, log
+
+    @staticmethod
+    def trigger_rephrase(bot: Text, text_response: Text):
+        rephrased_message = None
+        raw_resp = None
+        gpt_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=False)
+        if not Utility.check_empty_string(gpt_key):
+            prompt = f"Rephrase and expand: {text_response}"
+            raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
+            rephrased_message = Utility.retrieve_gpt_response(raw_resp)
+        return raw_resp, rephrased_message
 
 
 class ExpressionEvaluator:
