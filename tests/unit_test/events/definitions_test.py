@@ -263,6 +263,24 @@ class TestEventDefinitions:
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 0
 
+    def test_faq_importer_xlsx(self):
+        bot = 'test_faq'
+        user = 'test_user'
+        file = "tests/testing_data/upload_faq/upload.xlsx"
+        file = UploadFile(filename="cfile.xlsx", file=open(file, "rb"))
+
+        FaqDataImporterEvent(bot, user).validate(training_data_file=file)
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['files_received'] == ['cfile.xlsx']
+        assert logs[0]['event_status'] == EVENT_STATUS.INITIATED.value
+
+        with pytest.raises(AppException, match='Failed to execute the url:*'):
+            FaqDataImporterEvent(bot, user).enqueue()
+        assert not os.path.isdir('training_data/test_faq')
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 0
+
     def test_model_training_presteps_no_training_data(self):
         bot = 'test_definitions'
         user = 'test_user'

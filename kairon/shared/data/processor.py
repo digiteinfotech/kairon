@@ -4472,14 +4472,14 @@ class MongoProcessor:
     def save_faq(self, bot: Text, user: Text, df: DataFrame):
         from kairon.shared.augmentation.utils import AugmentationUtils
 
-        error_summary = {'intents': [], 'utterances': [], 'training_examples': [], 'questions': [], 'answer': []}
+        error_summary = {'intents': [], 'utterances': [], 'training_examples': []}
         component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 
-                           'questions': 0, 'answer': 0, 'domain': {'intents': 0, 'utterances': 0}}
+                           'domain': {'intents': 0, 'utterances': 0}}
         for index, row in df.iterrows():
             is_intent_added = False
             is_response_added = False
             training_example_errors = None
-            component_count['answer'] = component_count['answer'] + 1
+            component_count['utterances'] = component_count['utterances'] + 1
             key_tokens = AugmentationUtils.get_keywords(row['questions'])
             if key_tokens:
                 key_tokens = key_tokens[0][0]
@@ -4487,7 +4487,7 @@ class MongoProcessor:
                 key_tokens = row['questions'].split('\n')[0]
             intent = key_tokens.replace(' ', '_') + "_" + str(index)
             examples = row['questions'].split("\n")
-            component_count['questions'] = component_count['questions'] + len(examples)
+            component_count['training_examples'] = component_count['training_examples'] + len(examples)
             action = f"utter_{intent}"
             steps = [
                 {"name": "...", "type": "BOT"},
@@ -4503,10 +4503,10 @@ class MongoProcessor:
                 self.add_complex_story(rule, bot, user)
             except Exception as e:
                 logging.exception(e)
-                training_example_errors = [a for a in training_example_errors if a["_id"] is None]
-                error_summary['questions'].append(training_example_errors)
+                training_example_errors = [f"{a['message']}: {a['text']}" for a in training_example_errors if a["_id"] is None]
+                error_summary['training_examples'].extend(training_example_errors)
                 if is_intent_added:
-                    error_summary['answer'].append(str(e))
+                    error_summary['utterances'].append(str(e))
                     self.delete_intent(intent, bot, user, False)
                 if is_response_added:
                     self.delete_utterance(action, bot)

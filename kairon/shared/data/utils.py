@@ -425,9 +425,9 @@ class DataUtility:
         from kairon.shared.data.processor import MongoProcessor
 
         processor = MongoProcessor()
-        error_summary = {'intents': [], 'utterances': [], 'training_examples': [], 'questions': [], 'answer': []}
+        error_summary = {'intents': [], 'utterances': [], 'training_examples': []}
         component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 
-                           'questions': 0, 'answer': 0, 'domain': {'intents': 0, 'utterances': 0}}
+                           'domain': {'intents': 0, 'utterances': 0}}
         if df.empty:
             raise AppException("No data found!")
         existing_responses = processor.fetch_list_of_response(bot=bot)
@@ -440,25 +440,25 @@ class DataUtility:
             # Validate Training examples and keep count
             for question in row['questions'].split('\n'):
                 if Utility.check_empty_string(question):
-                    error_summary['questions'].append(f"Empty questions found at index {index + 1} for response '{row['answer']}'")
+                    error_summary['training_examples'].append(f"Empty questions found at index {index + 1} for response '{row['answer']}'")
                 if question.lower() in existing_training_examples:
-                    error_summary['questions'].append(f"Phrase '{question}' already exists in the bot!")
-                component_count['questions'] = component_count['questions'] + 1
+                    error_summary['training_examples'].append(f"Phrase '{question}' already exists in the bot!")
+                component_count['training_examples'] = component_count['training_examples'] + 1
 
             # Validate response and keep count
             if Utility.check_empty_string(row['answer']):
-                error_summary['answer'].append(f"Empty answer found at index {index + 1}")
+                error_summary['utterances'].append(f"Empty answer found at index {index + 1}")
             if {'text': row['answer']} in existing_responses:
-                error_summary['answer'].append(f"Answer '{row['answer']}' already exists in the bot!")
-            component_count['answer'] = component_count['answer'] + 1
+                error_summary['utterances'].append(f"Answer '{row['answer']}' already exists in the bot!")
+            component_count['utterances'] = component_count['utterances'] + 1
 
         # Duplicates within the given data
         duplicate_question = DataUtility.get_duplicate_values(df, 'questions')
         duplicate_utterance = DataUtility.get_duplicate_values(df, 'answer')
         if duplicate_question:
-            error_summary['questions'].append(f"Found duplicate phrases within the given data - {duplicate_question}")
+            error_summary['training_examples'].append(f"Found duplicate phrases within the given data - {duplicate_question}")
         if duplicate_utterance:
-            error_summary['answer'].append(f"Found duplicate answers within the given data - {duplicate_utterance}")
+            error_summary['utterances'].append(f"Found duplicate answers within the given data - {duplicate_utterance}")
         return error_summary, component_count
 
     @staticmethod
