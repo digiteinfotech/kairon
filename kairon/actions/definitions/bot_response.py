@@ -82,7 +82,6 @@ class ActionKaironBotResponse(ActionsBase):
             logger.exception(e)
             logger.debug(e)
             exception = str(e)
-            bot_response = {"text": "I have failed to process your request"}
             status = "FAILURE"
         finally:
             ActionServerLogs(
