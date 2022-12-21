@@ -4771,7 +4771,7 @@ class TestActionServer(AsyncHTTPTestCase):
                        "e2e_actions": []}, "version": "2.8.15"
         }
 
-        with patch.object(ActionUtility, "retrieve_value_for_custom_action_parameter") as mock_utils:
+        with patch.object(ActionUtility, "trigger_rephrase") as mock_utils:
             mock_utils.side_effect = __mock_error
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         
