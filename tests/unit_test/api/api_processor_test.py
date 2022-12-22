@@ -38,6 +38,7 @@ from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 import time
 from kairon.idp.data_objects import IdpConfig
+from kairon.api.models import RegisterAccount, HttpActionParameters, StoryRequest, IDPConfig, EventConfig
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -2309,4 +2310,72 @@ class TestAccountProcessor:
     def test_default_account_setup_error_msg(self):
         result = AccountProcessor.default_account_setup()
         assert result is not None
+
+    def test_validate_confirm_password(cls):
+        with pytest.raises(ValueError, match="Password and Confirm Password does not match"):
+            RegisterAccount.validate_confirm_password(SecretStr("Owners@4"), {"password": SecretStr("Winte@20")})
+
+    def test_validate_password(cls):
+        with pytest.raises(ValueError, match="Password length must be 8\n"
+                                             "Missing 1 uppercase letter\nMissing 1 special letter"):
+            RegisterAccount.validate_password(SecretStr("Owners"), {})
+
+    def test_check(cls):
+        with pytest.raises(ValueError, match="Provide key from key vault as value"):
+            HttpActionParameters.check({"parameter_type": "key_vault", "key": "key"})
+
+    def test_validate_organization_empty(self):
+        with pytest.raises(ValueError, match="Organization can not be empty"):
+            IDPConfig.validate_organization("", {})
+
+    def test_validate_organization(self):
+        result = IDPConfig.validate_organization("NXT", {})
+        assert result is "NXT"
+
+    def test_validate_ws_url_empty(cls):
+        with pytest.raises(ValueError, match="url can not be empty"):
+            EventConfig.validate_ws_url("", {})
+
+    def test_validate_ws_url_none_value(cls):
+        config = EventConfig(ws_url="ws_url", headers={"headers": "Headers"}, method="method")
+        with pytest.raises(ValueError, match="url can not be empty"):
+            result = config.validate_ws_url(None, {})
+            assert result is None
+
+    def test_validate_ws_url(cls):
+        config = EventConfig(ws_url="ws_url", headers={"headers": "Headers"}, method="method")
+        result = config.validate_ws_url("https://www.google.com", {})
+        assert result is "https://www.google.com"
+
+    def test_validate_headers_empty(cls):
+        result = EventConfig.validate_headers("", {})
+        assert result == {}
+
+    def test_validate_headers(cls):
+        result = EventConfig.validate_headers({"headers": "Headers"}, {})
+        assert result == {"headers": "Headers"}
+
+    def test_validate_config_empty(cls):
+        result = IDPConfig.validate_config("", {})
+        assert result == {}
+
+    def test_validate_config(cls):
+        result = IDPConfig.validate_config({}, {})
+        assert result == {}
+
+    def test_get_steps(cls):
+        temp = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "FORM_ACTION"},
+            {"name": "know_user", "type": "FORM_START"},
+            {"type": "FORM_END"},
+            {"name": "utter_submit", "type": "BOT"},
+        ]
+
+        request = StoryRequest(name="registration", type="STORY", steps=temp)
+        result = request.get_steps()
+        temp[3] = {'name': None, 'type': 'FORM_END'}
+        assert result == temp
+        assert all([i for i in temp if type(i) is dict])
+
 
