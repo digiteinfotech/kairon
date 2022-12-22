@@ -100,6 +100,14 @@ class TestMongoProcessor:
 
         return _read_and_get_data
 
+    def test_auditlog_event_config_does_not_exist(self):
+        result = MongoProcessor.get_auditlog_event_config("nobot")
+        assert result == {}
+
+    def test_auditlog_event_config_does_not_exist_none(self):
+        result = MongoProcessor.get_auditlog_event_config(None)
+        assert result == {}
+
     @pytest.mark.asyncio
     async def test_load_from_path(self):
         processor = MongoProcessor()
@@ -9043,3 +9051,23 @@ class TestModelProcessor:
         page_size = 50
         auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
         assert len(auditlog_data) == 50
+
+    def test_edit_training_example_empty_or_blank(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        with pytest.raises(AppException, match="Training Example cannot be empty or blank spaces"):
+            processor.edit_training_example(examples[0]["_id"], example="", intent="greet", bot="tests",
+                                            user="testUser")
+
+    def test_add_custom_form_attached_does_not_exist(self):
+        processor = MongoProcessor()
+        jsondata = {"type": "section",
+                    "text": {
+                        "text": "Make a bet on when the world will end:",
+                        "type": "mrkdwn",
+                        "accessory": {"type": "datepicker",
+                                      "initial_date": "2019-05-21",
+                                      "placeholder": {"type": "plain_text",
+                                                      "text": "Select a date"}}}}
+        with pytest.raises(AppException, match="Form 'unknown' does not exists"):
+            assert processor.add_custom_response(jsondata, "utter_custom", "tests", "testUser", "unknown")

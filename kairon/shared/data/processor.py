@@ -184,12 +184,6 @@ class MongoProcessor:
 
             self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite,
                                     REQUIREMENTS.copy())
-        except InvalidDomain as e:
-            logging.exception(e)
-            raise AppException(
-                """Failed to validate yaml file.
-                            Please make sure the file is initial and all mandatory parameters are specified"""
-            )
         except Exception as e:
             logging.exception(e)
             raise AppException(e)
