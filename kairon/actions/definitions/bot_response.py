@@ -1,3 +1,4 @@
+import random
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -62,8 +63,9 @@ class ActionKaironBotResponse(ActionsBase):
         static_response = domain[DOMAIN.RESPONSES.value].get(self.name, [])
         bot_response = {"response": self.name}
         try:
-            if static_response:
-                text_response = static_response[0].get('text')
+            if static_response and bot_settings['rephrase_response']:
+                text_response = random.choice(static_response)
+                text_response = text_response.get('text')
                 raw_resp, rephrased_message = ActionUtility.trigger_rephrase(self.bot, text_response)
                 if rephrased_message:
                     is_rephrased = True
