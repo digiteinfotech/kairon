@@ -194,7 +194,7 @@ class TestUtility:
     def test_validate_faq_training_file(self):
         content = "Question, Response\nWhat is Digite?, IT Company\n".encode()
         file = UploadFile(filename="file.csv", file=BytesIO(content))
-        required_headers = {'Questions', 'Answer'}
+        required_headers = {'questions', 'answer'}
         with pytest.raises(AppException, match=f"Required columns {required_headers} not present in file."):
             Utility.validate_faq_training_file(file)
 
