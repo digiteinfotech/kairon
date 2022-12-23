@@ -931,8 +931,6 @@ class Utility:
 
     @staticmethod
     def download_csv(data, message="No data available!", filename="conversation_history.csv"):
-        import pandas as pd
-
         if not data:
             raise AppException(message)
         else:

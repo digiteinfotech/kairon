@@ -30,7 +30,7 @@ async def download_conversations(
         collection: str = Depends(Authentication.authenticate_and_get_collection),
 ):
     """Downloads conversation history of the bot, for the specified months."""
-    conversation_data, message = HistoryProcessor.flatten_conversations(collection, request.month, request.sort_by_date)
+    conversation_data, _ = HistoryProcessor.flatten_conversations(collection, request.month, request.sort_by_date)
     file, temp_path = Utility.download_csv(conversation_data.get("conversation_data"))
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
