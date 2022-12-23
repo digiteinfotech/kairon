@@ -1,5 +1,4 @@
 from mongoengine import (
-    Document,
     EmbeddedDocument,
     EmbeddedDocumentField,
     StringField,

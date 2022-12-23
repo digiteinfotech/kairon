@@ -4661,11 +4661,13 @@ class TestActionServer(AsyncHTTPTestCase):
     
     def test_bot_response_action_failure(self):
         action_name = 'utter_greet'
-        bot = "5f50fd0a56b698ca10d35d2i"
-        
+        bot = "5f50fd0a56b698ca10d35d2j"
+        user = "test_user"
+
         def __mock_error(*args, **kwargs):
             raise Exception("Failed to retrieve value")
-        
+
+        BotSettings(rephrase_response=True, bot=bot, user=user).save()
         request_object = {
             "next_action": action_name,
             "tracker": {
