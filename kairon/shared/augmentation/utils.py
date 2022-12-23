@@ -1,4 +1,7 @@
+from typing import Text
+
 import numpy as np
+from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer, util
 from itertools import chain
 from nlpaug.augmenter.char import KeyboardAug
@@ -11,6 +14,7 @@ from nlpaug.augmenter.word import AntonymAug
 class AugmentationUtils:
 
     similarity_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    kw_model = KeyBERT()
 
     @staticmethod
     def augment_sentences_with_errors(sentences: list, stopwords: list = None, num_variations: int = 5):
@@ -72,3 +76,10 @@ class AugmentationUtils:
         cosine_scores = np.asarray(cosine_scores[0], dtype=np.float)
         sentences = np.asarray(sentences, dtype=np.str)
         return sentences[cosine_scores > threshold].tolist()
+
+    @staticmethod
+    def get_keywords(paragraph: Text):
+        key_tokens = AugmentationUtils.kw_model.extract_keywords(
+            paragraph, keyphrase_ngram_range=(1, 3), stop_words='english', top_n=1
+        )
+        return key_tokens

@@ -1,9 +1,9 @@
+import shutil
+import tempfile
 from datetime import datetime, timedelta
 import os
 import re
-import shutil
 import tarfile
-import tempfile
 from io import BytesIO
 from urllib.parse import urljoin
 from zipfile import ZipFile
@@ -874,7 +874,7 @@ def test_upload_using_event_append(monkeypatch):
         status=200,
         match=[
             responses.json_params_matcher(
-                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': ''})],
+                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '', 'event_type': EventClass.data_importer})],
     )
 
     response = client.post(
@@ -6271,7 +6271,7 @@ def test_get_client_config_url():
     assert actual["error_code"] == 0
     assert actual["data"]
     pytest.url = actual["data"]
-    
+
 
 @responses.activate
 def test_refresh_token(monkeypatch):
@@ -6284,7 +6284,7 @@ def test_refresh_token(monkeypatch):
     assert actual['data']['headers']['authorization']['refresh_token_expiry'] == 60
     assert actual['data']['headers']['authorization']['access_token_expiry'] == 30
     refresh_token = actual['data']['headers']['authorization']['refresh_token']
-    
+
     response = client.get(
         f"/api/auth/{pytest.bot}/token/refresh", headers={"Authorization": pytest.token_type + " " + refresh_token}
     )
@@ -11678,6 +11678,90 @@ def test_get_auditlog_for_user_2():
     assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
     assert audit_log_data[0]["entity"] == "Slots"
     assert audit_log_data[0]["user"] == email
+
+
+@responses.activate
+def test_upload_invalid_csv():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+    csv_file = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+    csv_file = BytesIO(csv_file).read()
+    files = {'csv_file': ("config.arff", csv_file)}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/faq/upload",
+        headers = {"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files)
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Invalid file type! Only csv and xlsx files are supported."
+
+
+@responses.activate
+def test_upload_faq():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+    csv_file = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+    csv_file = BytesIO(csv_file).read()
+    files = {'csv_file': ("config.csv", csv_file)}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/faq/upload?overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files)
+    actual = response.json()
+    print(actual)
+    assert actual['message'] == "Upload in progress! Check logs."
+    assert actual['data'] is None
+    assert actual['success']
+    assert actual['error_code'] == 0
+
+
+def test_download_faq(monkeypatch):
+    data = [{'_id': '638dde37cfe8a7de324067fa', 'story': 'accelerator_28', 'intent': 'accelerator_28',
+             'utterance': 'utter_accelerator_28', 'training_examples': [
+            {'text': 'What is the purpose of an acceleration?', '_id': '638dde36cfe8a7de32405eaa'},
+            {'text': 'What is the purpose of an accelerators?', '_id': '638dde36cfe8a7de32405eab'}],
+             'responses': [{'_id': '638dde35cfe8a7de32405ada', 'text': {
+                 'text': '•\tAnything that helps project teams reduce effort, save cost'}}]},
+            {'_id': '638dde37cfe8a7de324067fd', 'story': 'accelerator_subscription_mainspring_31',
+             'intent': 'accelerator_subscription_mainspring_31',
+             'utterance': 'utter_accelerator_subscription_mainspring_31', 'training_examples': [
+                {'text': '•\tHow do I subscribe to accelerators for my project?',
+                 '_id': '638dde36cfe8a7de32405ec0'},
+                {'text': '•\tHow to do accelerator subscription in mainspring',
+                 '_id': '638dde36cfe8a7de32405ec1'}], 'responses': [
+                {'_id': '638dde35cfe8a7de32405b64',
+                 'custom': {'custom': {'data': [{'type': 'paragraph',
+                                                 'children': [{
+                                                     'text': 'Step 1 : Navigate to PM Plan >> Delivery Assets'}]},
+                                                {'type': 'paragraph',
+                                                 'children': [{
+                                                     'text': 'Step 2 : Subscribe the accelerators which are applicable'}]}]}}}]},
+            {'_id': '638dde37cfe8a7de324067fe', 'story': 'accelerators_auto_recommended_32',
+             'intent': 'accelerators_auto_recommended_32', 'utterance': 'utter_accelerators_auto_recommended_32',
+             'training_examples': [{'text': '•\tOn what basis are accelerators recommended for a project?',
+                                    '_id': '638dde36cfe8a7de32405ec3'}, {
+                                       'text': '•\tWhat is the criteria based on which accelerators are auto recommended ?',
+                                       '_id': '638dde36cfe8a7de32405ec4'}], 'responses': [
+                {'_id': '638dde35cfe8a7de32405b2d', 'text': {
+                    'text': '•\tAccelerators are auto-recommended from Knowhub based on these project attributes'}}]}]
+
+    def __mock_qna(*args, **kwargs):
+        for item in data:
+            yield item
+
+    monkeypatch.setattr(BaseQuerySet, "aggregate", __mock_qna)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/faq/download",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
 
 
 @responses.activate
