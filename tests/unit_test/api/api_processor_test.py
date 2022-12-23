@@ -2341,7 +2341,7 @@ class TestAccountProcessor:
 
     def test_validate_organization(self):
         result = IDPConfig.validate_organization("NXT", {})
-        assert result is "NXT"
+        assert result == "NXT"
 
     def test_validate_organization_None(self):
         with pytest.raises(ValueError, match="Organization can not be empty"):
@@ -2360,7 +2360,7 @@ class TestAccountProcessor:
     def test_validate_ws_url(cls):
         config = EventConfig(ws_url="ws_url", headers={"headers": "Headers"}, method="method")
         result = config.validate_ws_url("https://www.google.com", {})
-        assert result is "https://www.google.com"
+        assert result == "https://www.google.com"
 
     def test_validate_headers_empty(cls):
         result = EventConfig.validate_headers("", {})
