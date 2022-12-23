@@ -1,12 +1,14 @@
 from kairon.exceptions import AppException
 from kairon.shared.constants import PluginTypes
+from kairon.shared.plugins.gpt import Gpt
 from kairon.shared.plugins.ipinfo import IpInfoTracker
 
 
 class PluginFactory:
 
     __plugins = {
-        PluginTypes.ip_info: IpInfoTracker
+        PluginTypes.ip_info: IpInfoTracker,
+        PluginTypes.gpt: Gpt
     }
 
     @staticmethod

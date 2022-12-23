@@ -1,4 +1,4 @@
-from typing import Text
+from typing import Text, Dict, Any
 
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
@@ -41,13 +41,14 @@ class ActionTwoStageFallback(ActionsBase):
             raise ActionFailure("Two stage fallback action config not found")
         return action
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         """
         Retrieves top intents that were predicted apart
         from nlu fallback and fetches one training example for that intent.
 
         @param dispatcher: Client to send messages back to the user.
         @param tracker: Tracker object to retrieve slots, events, messages and other contextual information.
+        @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
         status = "SUCCESS"

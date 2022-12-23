@@ -32,6 +32,7 @@ from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType
 from validators import domain
+from mongoengine import signals
 
 
 class Entity(EmbeddedDocument):
@@ -658,6 +659,7 @@ class TrainingDataGenerator(Document):
 class BotSettings(Auditlog):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
+    rephrase_response = BooleanField(default=False)
     website_data_generator_depth_search_limit = IntField(default=2)
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
@@ -667,6 +669,9 @@ class BotSettings(Auditlog):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if self.refresh_token_expiry <= self.chat_token_expiry:
             raise ValidationError("refresh_token_expiry must be greater than chat_token_expiry!")
 
@@ -726,11 +731,6 @@ class KeyVault(Document):
             document.value = Utility.encrypt_message(document.value)
 
 
-from mongoengine import signals
-
-signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
-
-
 @auditlogger.log
 @push_notification.apply
 class EventConfig(Auditlog):
@@ -751,3 +751,4 @@ class EventConfig(Auditlog):
 
 
 signals.pre_save_post_validation.connect(EventConfig.pre_save_post_validation, sender=EventConfig)
+signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)

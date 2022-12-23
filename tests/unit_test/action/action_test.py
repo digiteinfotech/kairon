@@ -1456,6 +1456,18 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is None
 
+    def test_get_action_type(self):
+        bot = 'test_actions'
+        user = 'test'
+        Actions(name='test_get_action_type', type=ActionType.slot_set_action.value, bot=bot, user=user).save()
+        SlotSetAction(name='test_get_action_type', set_slots=[SetSlots(name='user', type='from_value', value='name')],
+                      bot=bot, user=user).save()
+        action_type = ActionUtility.get_action_type(bot, 'test_get_action_type')
+        assert action_type == "slot_set_action"
+
+        action_type = ActionUtility.get_action_type(bot, 'utter_greet')
+        assert action_type == "kairon_bot_response"
+
     def test_get_action_config_slot_set_action(self):
         bot = 'test_actions'
         user = 'test'

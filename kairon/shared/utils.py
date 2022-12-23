@@ -1,7 +1,6 @@
 import ast
 import asyncio
 import json
-import logging
 import os
 import re
 import shutil
@@ -12,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
 from html import escape
-from io import BytesIO, StringIO
+from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
@@ -1627,3 +1626,8 @@ class Utility:
     def validate_enable_sso_only():
         if Utility.environment["app"]["enable_sso_only"]:
             raise AppException("This feature is disabled")
+
+    @staticmethod
+    def retrieve_gpt_response(resp):
+        if resp and resp.get('choices') and resp['choices'][0].get("text"):
+            return resp['choices'][0]["text"]
