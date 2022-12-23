@@ -33,7 +33,7 @@ class ActionProcessor:
             if ActionUtility.is_empty(bot_id) or ActionUtility.is_empty(action):
                 raise ActionFailure("Bot id and action name not found in slot")
 
-            slots = await ActionFactory.get_instance(bot_id, action).execute(dispatcher, tracker)
+            slots = await ActionFactory.get_instance(bot_id, action).execute(dispatcher, tracker, domain)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)

@@ -1456,6 +1456,18 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is None
 
+    def test_get_action_type(self):
+        bot = 'test_actions'
+        user = 'test'
+        Actions(name='test_get_action_type', type=ActionType.slot_set_action.value, bot=bot, user=user).save()
+        SlotSetAction(name='test_get_action_type', set_slots=[SetSlots(name='user', type='from_value', value='name')],
+                      bot=bot, user=user).save()
+        action_type = ActionUtility.get_action_type(bot, 'test_get_action_type')
+        assert action_type == "slot_set_action"
+
+        action_type = ActionUtility.get_action_type(bot, 'utter_greet')
+        assert action_type == "kairon_bot_response"
+
     def test_get_action_config_slot_set_action(self):
         bot = 'test_actions'
         user = 'test'
@@ -2906,3 +2918,12 @@ class TestActions:
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
             ActionTwoStageFallback(bot="test", name=KAIRON_TWO_STAGE_FALLBACK).retrieve_config()
+
+    def test_failure_response_empty(self):
+        action_name = "custom_search_action_no_results"
+        bot = "5f50fd0a56b698ca10d35d2e"
+        user = 'test_user'
+        action = GoogleSearchAction(name=action_name, api_key=CustomActionRequestParameters(value='1234567890'),
+                           search_engine_id='asdfg::123456', failure_response="", bot=bot, user=user)
+        action.save()
+        assert getattr(action, "failure_response") == 'I have failed to process your request.'

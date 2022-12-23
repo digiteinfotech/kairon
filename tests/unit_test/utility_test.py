@@ -5,6 +5,7 @@ import uuid
 from io import BytesIO
 from unittest import mock
 
+import pandas as pd
 import pytest
 import requests
 import responses
@@ -165,6 +166,71 @@ class TestUtility:
         assert os.path.exists(training_file_loc['http_action'])
         assert os.path.exists(training_file_loc['root'])
 
+    def test_read_faq_csv(self):
+        content = "Question, Response\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="file.csv", file=BytesIO(content))
+        df = Utility.read_faq(file)
+        assert not df.empty
+
+    def test_read_faq_xlsx(self):
+        content = "Question, Response\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="upload.xlsx", file=(open("tests/testing_data/upload_faq/upload.xlsx", "rb")))
+        df = Utility.read_faq(file)
+        assert not df.empty
+
+    def test_read_faq_invalid(self):
+        content = "How are you?".encode()
+        file = UploadFile(filename="file.arff", file=BytesIO(content))
+        with pytest.raises(AppException, match="Invalid file type!"):
+            Utility.read_faq(file)
+
+    def test_save_faq_training_files_none(self):
+        with pytest.raises(AppException, match="Invalid file type! Only csv and xlsx files are supported."):
+            Utility.validate_faq_training_file([])
+
+        with pytest.raises(AppException, match="Invalid file type! Only csv and xlsx files are supported."):
+            Utility.validate_faq_training_file(None)
+
+    def test_validate_faq_training_file(self):
+        content = "Question, Response\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="file.csv", file=BytesIO(content))
+        required_headers = {'questions', 'answer'}
+        with pytest.raises(AppException, match=f"Required columns {required_headers} not present in file."):
+            Utility.validate_faq_training_file(file)
+
+    def test_save_faq_training_files_csv(self):
+        csv_content = "Question, Answer,\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="abc.csv", file=BytesIO(csv_content))
+        bot_data_home_dir = Utility.save_faq_training_files(pytest.bot, file)
+        assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
+
+    def test_save_faq_training_files_xlsx(self):
+        xlsx_content = "Question, Answer,\nWhat is Digite?, IT Company\n".encode()
+        file = UploadFile(filename="abc.xlsx", file=BytesIO(xlsx_content))
+        bot_data_home_dir = Utility.save_faq_training_files(pytest.bot, file)
+        assert os.path.exists(os.path.join(bot_data_home_dir, file.filename))
+
+    def test_get_duplicate_values(self):
+        df = pd.read_csv("tests/testing_data/upload_faq/validate.csv")
+        column_name = 'Questions'
+        duplicates = DataUtility.get_duplicate_values(df, column_name)
+        assert duplicates == {'What day is it?'}
+        column_name = 'Answer'
+        duplicates = DataUtility.get_duplicate_values(df, column_name)
+        assert duplicates == {' Indeed it is!', ' It is Thursday'}
+
+    def test_get_duplicate_values_empty(self):
+        content = "Questions, Answer\n ".encode()
+        file = UploadFile(filename="filename.csv", file=BytesIO(content))
+        with pytest.raises(AppException, match="No data found in the file!"):
+            Utility.validate_faq_training_file(file)
+
+    def test_get_keywords(self):
+        paragraph = "What is Digite?"
+        raise_err = False
+        token = AugmentationUtils.get_keywords(paragraph)
+        assert Utility.check_empty_string(token[0][0]) == False
+
     @pytest.mark.asyncio
     async def test_upload_and_save(self):
         nlu_content = "## intent:greet\n- hey\n- hello".encode()
@@ -244,7 +310,7 @@ class TestUtility:
 
     def test_get_action_url(self, monkeypatch):
         actual = Utility.get_action_url({})
-        assert actual.url == "http://localhost:5055/webhook"
+        assert actual.url == "http://kairon.localhost:5055/webhook"
         actual = Utility.get_action_url({"action_endpoint": {"url": "http://action-server:5055/webhook"}})
         assert actual.url == "http://action-server:5055/webhook"
         monkeypatch.setitem(Utility.environment['action'], "url", None)
@@ -440,11 +506,6 @@ class TestUtility:
         file_path, temp_path = Utility.download_csv([{"test": "test_val"}], None)
         assert file_path.endswith(".csv")
         assert "tmp" in str(temp_path).lower()
-
-    def test_download_csv_no_data(self):
-        with pytest.raises(AppException) as e:
-            Utility.download_csv([], None)
-        assert str(e).__contains__("No data available")
 
     def test_download_csv_error_message(self):
         with pytest.raises(AppException) as e:

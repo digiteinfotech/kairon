@@ -14,11 +14,12 @@ from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
-from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from mongoengine import connect
 import mock
 import argparse
+
+from kairon.shared.constants import EventClass
 
 
 class TestTrainingCli:
@@ -94,7 +95,7 @@ class TestDataImporterCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=validate_and_import, bot="test_cli", user="testUser",
-                                                import_data=False, overwrite=False))
+                                                import_data=False, overwrite=False, event_type=EventClass.data_importer))
     def test_data_importer_with_defaults(self, monkeypatch):
         def mock_data_importer(*args, **kwargs):
             return None
@@ -104,7 +105,7 @@ class TestDataImporterCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=validate_and_import, bot="test_cli", user="testUser",
-                                                import_data=True, overwrite=True))
+                                                import_data=True, overwrite=True, event_type=EventClass.data_importer))
     def test_data_importer_all_arguments(self, monkeypatch):
         def mock_data_importer(*args, **kwargs):
             return None
@@ -114,7 +115,7 @@ class TestDataImporterCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=validate_and_import, bot="test_cli", user="testUser",
-                                                import_data=True, overwrite=False))
+                                                import_data=True, overwrite=False, event_type=EventClass.data_importer))
     def test_data_importer_with_all_args_overwrite_false(self, monkeypatch):
         def mock_data_importer(*args, **kwargs):
             return None
@@ -124,7 +125,7 @@ class TestDataImporterCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=validate_and_import, bot="test_cli", user="testUser",
-                                                import_data="yes", overwrite=False))
+                                                import_data="yes", overwrite=False, event_type=EventClass.data_importer))
     def test_data_importer_import_as_string_argument(self, monkeypatch):
         def mock_data_importer(*args, **kwargs):
             return None

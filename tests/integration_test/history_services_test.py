@@ -443,7 +443,7 @@ def test_download_conversation_with_error(monkeypatch):
     )
     actual = response.json()
     assert actual["error_code"] == 422
-    assert actual["message"] == "error_message"
+    assert actual["message"] == "No data available!"
     assert not actual["success"]
 
 

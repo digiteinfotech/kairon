@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from mongoengine import Document, StringField, ListField, BooleanField, DateTimeField, IntField, EmbeddedDocument, \
-    EmbeddedDocumentField
+from mongoengine import StringField, ListField, BooleanField, DateTimeField, IntField, EmbeddedDocument, \
+    EmbeddedDocumentField, DynamicField, DynamicDocument
 from kairon.shared.data.signals import push_notification
 
 
 class TrainingComponentLog(EmbeddedDocument):
     count = IntField(default=0)
-    data = ListField(StringField(), default=[])
+    data = ListField(DynamicField(), default=[])
 
 
 class DomainLog(EmbeddedDocument):
@@ -21,7 +21,7 @@ class DomainLog(EmbeddedDocument):
 
 
 @push_notification.apply
-class ValidationLogs(Document):
+class ValidationLogs(DynamicDocument):
     intents = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     utterances = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     stories = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)

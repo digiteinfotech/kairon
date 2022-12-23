@@ -1,4 +1,4 @@
-from typing import Text
+from typing import Text, Dict, Any
 
 from loguru import logger
 from mongoengine import DoesNotExist
@@ -39,13 +39,14 @@ class ActionHTTP(ActionsBase):
             logger.exception(e)
             raise ActionFailure("No HTTP action found for given action and bot")
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
 
         @param dispatcher: Client to send messages back to the user.
         @param tracker: Tracker object to retrieve slots, events, messages and other contextual information.
+        @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
         bot_response = None
