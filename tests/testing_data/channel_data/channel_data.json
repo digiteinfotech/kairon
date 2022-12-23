@@ -178,9 +178,68 @@
                          "type": "reply"},
                         {"reply": {"id": "Only Desert food", "title": "Desert"},
                          "type": "reply"}]}},
-    "whatsapp_button_op_one": {"type": "button", "body": {"text": "Please select from quick buttons:"},
+  "whatsapp_button_op_one": {"type": "button", "body": {"text": "Please select from quick buttons:"},
                         "action": {"buttons": [{"reply": {"id": "single button is clicked", "title": "One"},
-                         "type": "reply"}]}}
+                         "type": "reply"}]}},
+  "msteams_link_op": "This is http://www.google.com use for search",
+  "msteams_image_op": { "text": "Dog Image",
+    "attachments":[{
+            "contentType": "image/png",
+            "contentUrl": "https://i.imgur.com/nFL91Pc.jpeg"
+        }]},
+  "msteams_button_one_op": {"attachments":[
+            {
+            "contentType": "application/vnd.microsoft.card.hero",
+            "content": {
+                "text": "Please select from quick buttons:",
+                "buttons": [
+                    {
+                        "type": "imBack",
+                        "title": "One",
+                        "value": "single button is clicked"
+                    }
+                ]}
+                }]},
+    "msteams_button_three_op": {"attachments":[
+            {
+            "contentType": "application/vnd.microsoft.card.hero",
+            "content": {
+                "text": "Please select from quick buttons:",
+                "buttons": [
+                    {
+                        "type": "imBack",
+                        "title": "Veg",
+                        "value": "Vegetables only"},
+                  { "type": "imBack",
+                        "title": "Non-veg",
+                        "value": "fish food served"},
+                  { "type": "imBack",
+                        "title": "Desert",
+                        "value": "Only Desert food"
+                    }
+                ]
+              }
+                }
+          ]},
+  "msteams_button_two_op":  {"attachments":[
+            {
+            "contentType": "application/vnd.microsoft.card.hero",
+            "content": {
+                "text": "Please select from quick buttons:",
+                "buttons": [
+                    {
+                        "type": "imBack",
+                        "title": "Yes",
+                        "value": "seeds are treated with Bavistin"},
+                  { "type": "imBack",
+                        "title": "No",
+                        "value": "Bavistin is not sprayed on seeds"}
 
+                ]
+              }
+                }
+          ]},
+  "msteams_multilink_op": "This is http://www.google.com use for search and you can also see news on https://www.indiatoday.in/ and slatejs details on https://www.slatejs.org/examples/richtext",
+  "msteams_video_op": "https://www.youtube.com/watch?v=YFbCaahCWQ0"
 
 }

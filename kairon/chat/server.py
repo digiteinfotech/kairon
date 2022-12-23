@@ -3,6 +3,7 @@ from tornado.web import Application
 from tornado.options import parse_command_line
 
 from kairon.chat.handlers.channels.whatsapp import WhatsappHandler
+from kairon.chat.handlers.channels.msteams import MSTeamsHandler
 from kairon.shared.tornado.handlers.index import IndexHandler
 from .handlers.action import ChatHandler, ReloadHandler, LiveAgentHandler, SessionConversationHandler
 from .handlers.channels.slack import SlackHandler
@@ -28,6 +29,7 @@ def make_app():
         (r"/api/bot/([^/]+)/reload", ReloadHandler),
         (r"/api/bot/instagram/([^/]+)/([^/]+)", InstagramHandler),
         (r"/api/bot/whatsapp/([^/]+)/([^/]+)", WhatsappHandler),
+        (r"/api/bot/msteams/([^/]+)/([^/]+)", MSTeamsHandler),
     ], compress_response=True, debug=False)
 
 

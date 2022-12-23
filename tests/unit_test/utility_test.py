@@ -10,14 +10,17 @@ import requests
 import responses
 from fastapi import UploadFile
 from mongoengine import connect
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
+from rasa.shared.core.events import UserUttered, ActionExecuted
 from websockets import InvalidStatusCode
 from websockets.datastructures import Headers
 
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.data.base_data import AuditLogData
-from kairon.shared.data.data_objects import EventConfig
+from kairon.shared.data.data_objects import EventConfig, StoryEvents
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility
 from unittest.mock import patch
 from email.mime.multipart import MIMEMultipart
@@ -1411,3 +1414,182 @@ class TestUtility:
     def test_more_synonyms(self):
         result = AugmentationUtils.generate_synonym("good", 100)
         assert len(result) >= 1 and "good" not in result
+
+    def test_get_templates_type_story_dict(self):
+        story = {
+          "name": "share_ticket_count_323",
+          "steps": [
+            {
+              "name": "share_ticket_count_323",
+              "type": "INTENT"
+            },
+            {
+              "name": "utter_share_ticket_count_323",
+              "type": "BOT"
+            }
+          ],
+          "type": "RULE"
+        }
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+        story["type"] = "STORY"
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+    def test_get_templates_type_story_step(self):
+        story = [
+            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
+        ]
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+    def test_get_templates_type_rule_step_without_rule_snippet_action(self):
+        story = [
+            StoryEvents(type=ActionExecuted.type_name, name=RULE_SNIPPET_ACTION_NAME),
+            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
+        ]
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+        story = [
+            StoryEvents(type=ActionExecuted.type_name, name="action_share_ticket_count_323"),
+            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
+        ]
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+        story = [
+            StoryEvents(type=ActionExecuted.type_name, name=RULE_SNIPPET_ACTION_NAME),
+            StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_323"),
+            StoryEvents(type=ActionExecuted.type_name, name="utter_share_ticket_count_324"),
+        ]
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+    def test_get_templates_type_custom(self):
+        story = {
+            "name": "share_ticket_count_323",
+            "steps": [
+                {
+                    "name": "share_ticket_count_323",
+                    "type": "INTENT"
+                },
+                {
+                    "name": "action_share_ticket_count_323",
+                    "type": "ACTION"
+                }
+            ],
+            "type": "RULE"
+        }
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+        story["type"] = "STORY"
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+        story = {
+            "name": "share_ticket_count_323",
+            "steps": [
+                {
+                    "name": "share_ticket_count_323",
+                    "type": "INTENT"
+                },
+                {
+                    "name": "utter_share_ticket_count_323",
+                    "type": "BOT"
+                },
+                {
+                    "name": "utter_share_ticket_count_324",
+                    "type": "BOT"
+                }
+            ],
+            "type": "RULE"
+        }
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+        story["type"] = "STORY"
+        assert DataUtility.get_template_type(story) == TemplateType.CUSTOM.value
+
+    def test_getConcreteInstance_msteams(self):
+        from kairon.chat.converters.channels.msteams import MSTeamsResponseConverter
+        msteams = ConverterFactory.getConcreteInstance("link", "msteams")
+        assert isinstance(msteams, MSTeamsResponseConverter)
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_link(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("link")
+        msteams = ConverterFactory.getConcreteInstance("link", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_link_op")
+        assert expected_output == response.get("text")
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_image(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("image")
+        msteams = ConverterFactory.getConcreteInstance("image", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_image_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_button(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one")
+        msteams = ConverterFactory.getConcreteInstance("button", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_button_one_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_three_button(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_three")
+        msteams = ConverterFactory.getConcreteInstance("button", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_button_three_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_two_button(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_two")
+        msteams = ConverterFactory.getConcreteInstance("button", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_button_two_op")
+        assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_msteams_multilinks(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("multi_link")
+        msteams = ConverterFactory.getConcreteInstance("link", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_multilink_op")
+        assert expected_output == response.get("text")
+
+    @pytest.mark.asyncio
+    async def test_message_extractor_msteams_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("link_wrong_json")
+        from kairon.chat.converters.channels.msteams import MSTeamsResponseConverter
+        msteams = MSTeamsResponseConverter("link", "msteams")
+        with pytest.raises(Exception):
+            print(f"{msteams.message_type} {msteams.channel_type}")
+            await msteams.messageConverter(input_json)
+
+    def test_link_transformer_msteams_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("link_wrong_json")
+        from kairon.chat.converters.channels.msteams import MSTeamsResponseConverter
+        msteams = MSTeamsResponseConverter("link", "msteams")
+        with pytest.raises(Exception):
+            msteams.link_transformer(input_json)
+
+    @pytest.mark.asyncio
+    async def test_video_transformer_msteams_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("video")
+        msteams = ConverterFactory.getConcreteInstance("video", "msteams")
+        response = await msteams.messageConverter(input_json)
+        expected_output = json_data.get("msteams_video_op")
+        assert expected_output == response.get("text")

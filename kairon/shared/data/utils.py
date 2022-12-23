@@ -3,7 +3,6 @@ import shutil
 import tempfile
 from typing import Text, List, Dict
 import uuid
-from urllib.parse import urljoin
 
 import requests
 from fastapi import File
@@ -19,6 +18,7 @@ from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
 from ...shared.utils import Utility
+from urllib.parse import urljoin
 
 
 class DataUtility:
@@ -337,27 +337,63 @@ class DataUtility:
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
 
     @staticmethod
-    def get_template_type(story: Dict):
-        steps = story['steps']
-        if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
-            template_type = 'Q&A'
+    def get_template_type(story):
+        """
+        Retrieve template type(either QnA or Custom) from events in the flow.
+        Receives a dict or list and returns its type.
+        """
+        from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
+        from rasa.shared.core.events import UserUttered, ActionExecuted
+
+        template_type = 'CUSTOM'
+        if isinstance(story, Dict):
+            steps = story['steps']
+            if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
+                template_type = 'Q&A'
         else:
-            template_type = 'CUSTOM'
+            if (
+                    len(story) == 2 and
+                    story[0].type == UserUttered.type_name and
+                    story[1].type == ActionExecuted.type_name and
+                    story[1].name.startswith("utter_")
+            ) or (
+                    len(story) == 3 and
+                    story[0].name == RULE_SNIPPET_ACTION_NAME and
+                    story[0].type == ActionExecuted.type_name and
+                    story[1].type == UserUttered.type_name and
+                    story[2].type == ActionExecuted.type_name and
+                    story[2].name.startswith("utter_")
+            ):
+                template_type = 'Q&A'
         return template_type
 
     @staticmethod
     def get_channel_endpoint(channel_config: dict):
         from kairon.shared.auth import Authentication
+        from kairon.shared.constants import ChannelTypes
         token, _ = Authentication.generate_integration_token(
             channel_config['bot'], channel_config['user'], role=ACCESS_ROLES.CHAT.value,
             access_limit=[f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/.+"],
             token_type=TOKEN_TYPE.CHANNEL.value
         )
+        if channel_config['connector_type'] == ChannelTypes.MSTEAMS.value:
+            token = DataUtility.save_channel_metadata(config=channel_config, token=token)
+
         channel_endpoint = urljoin(
             Utility.environment['model']['agent']['url'],
             f"/api/bot/{channel_config['connector_type']}/{channel_config['bot']}/{token}"
         )
         return channel_endpoint
+
+    @staticmethod
+    def save_channel_metadata(**kwargs):
+        token = kwargs["token"]
+        channel_config = kwargs.get("config")
+        hashedtoken = hash(token).__str__()
+        encrypted_token = Utility.encrypt_message(token)
+        channel_config.meta_config = {"secrethash": hashedtoken, "secrettoken": encrypted_token}
+        channel_config.save(validate=False)
+        return hashedtoken
 
     @staticmethod
     def validate_existing_data_train(bot: Text):

@@ -1004,6 +1004,7 @@ class MongoProcessor:
         for story_step in story_steps:
             if not isinstance(story_step, RuleStep) and story_step.block_name.strip().lower() not in saved_stories:
                 story_events = list(self.__extract_story_events(story_step.events))
+                template_type = DataUtility.get_template_type(story_events)
                 story = Stories(
                     block_name=story_step.block_name,
                     start_checkpoints=[
@@ -1015,7 +1016,7 @@ class MongoProcessor:
                         for end_checkpoint in story_step.end_checkpoints
                     ],
                     events=story_events,
-                    template_type=TemplateType.CUSTOM.value
+                    template_type=template_type
                 )
                 story.bot = bot
                 story.user = user
@@ -2048,20 +2049,20 @@ class MongoProcessor:
         if not steps:
             raise AppException("steps are required")
 
-        events = self.__complex_story_prepare_steps(steps, flowtype, bot, user)
+        template_type = story.get('template_type')
+        if not template_type:
+            template_type = DataUtility.get_template_type(story)
 
         if flowtype == "STORY":
             data_class = Stories
-            template_type = story.get('template_type')
-            if not template_type:
-                template_type = DataUtility.get_template_type(story)
-            data_object = Stories(template_type=template_type)
+            data_object = Stories()
         elif flowtype == 'RULE':
             data_class = Rules
             data_object = Rules()
         else:
             raise AppException("Invalid type")
 
+        events = self.__complex_story_prepare_steps(steps, flowtype, bot, user)
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
                                exp_message="Flow already exists!")
@@ -2071,6 +2072,7 @@ class MongoProcessor:
         data_object.bot = bot
         data_object.user = user
         data_object.start_checkpoints = [STORY_START]
+        data_object.template_type = template_type
 
         id = (
             data_object.save().to_mongo().to_dict()["_id"].__str__()
@@ -2869,6 +2871,7 @@ class MongoProcessor:
 
     def __extract_rule_events(self, rule_step, bot: Text, user: Text):
         rule_events = list(self.__extract_story_events(rule_step.events))
+        template_type = DataUtility.get_template_type(rule_events)
         rule = Rules(
             block_name=rule_step.block_name,
             condition_events_indices=list(rule_step.condition_events_indices),
@@ -2881,6 +2884,7 @@ class MongoProcessor:
                 for end_checkpoint in rule_step.end_checkpoints
             ],
             events=rule_events,
+            template_type=template_type,
             bot=bot,
             user=user
         )
@@ -4438,3 +4442,35 @@ class MongoProcessor:
         retention_period = Utility.environment['events']['audit_logs']['retention']
         overdue_time = datetime.utcnow() - timedelta(days=retention_period)
         AuditLogData.objects(timestamp__lte=overdue_time).delete()
+
+    def flatten_qna(self, bot: Text, start_idx=0, page_size=10):
+        """
+        Returns Q&As having intent name, utterance name, training examples,
+        responses in flattened form.
+        :param bot: bot id
+        :param start_idx: start index of the page
+        :param page_size: size of the page
+        """
+        for qna in Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).skip(start_idx).limit(page_size).aggregate(
+            {'$addFields': {'story': '$block_name', 'intent': {'$arrayElemAt': ['$events', 1]}, 'action': {'$arrayElemAt': ['$events', 2]}}},
+            {'$project': {'_id': { "$toString": "$_id" }, 'story': 1, 'intent': '$intent.name', 'utterance': '$action.name'}},
+            {'$lookup': {'from': 'training_examples', 'as': 'training_examples',
+                         'let': {'intent_name': '$intent'},
+                         'pipeline': [
+                             {'$match': {'$expr': {'$and': [{'$eq': ['$intent', '$$intent_name']}, {'$eq': ['$status', True]}, {'$eq': ['$bot', bot]}]}}},
+                             {'$project': {'_id': { "$toString": "$_id" }, 'text': 1, 'entities': 1}}
+                         ]}},
+            {'$lookup': {'from': 'responses', 'as': 'responses',
+                         'let': {'utterance_name': '$utterance'},
+                         'pipeline': [
+                             {'$match': {'$expr': {'$and': [{'$eq': ['$name', '$$utterance_name']}, {'$eq': ['$status', True]}, {'$eq': ['$bot', bot]}]}}},
+                             {"$project": {'_id': { "$toString": "$_id" }, "text": 1, "custom": 1}}
+                         ]}}
+        ):
+            training_examples = []
+            for t_example in qna.get('training_examples') or []:
+                entities = t_example.get("entities") or []
+                text = DataUtility.prepare_nlu_text(t_example["text"], entities)
+                training_examples.append({"text": text, "_id": t_example['_id']})
+            qna['training_examples'] = training_examples
+            yield qna

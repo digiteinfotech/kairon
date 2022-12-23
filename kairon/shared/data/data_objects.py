@@ -69,7 +69,7 @@ class TrainingExamples(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["$text"]}]}
+    meta = {"indexes": [{"fields": ["$text", ("bot", "intent")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -197,6 +197,8 @@ class Intents(Auditlog):
     is_integration = BooleanField(default=False)
     use_entities = BooleanField(default=False)
 
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
     def validate(self, clean=True):
         if clean:
             self.clean()
@@ -311,6 +313,8 @@ class Utterances(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
     def validate(self, clean=True):
         if clean:
             self.clean()
@@ -367,6 +371,8 @@ class Responses(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["$text", ("bot", "name")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -493,6 +499,8 @@ class Stories(Auditlog):
     status = BooleanField(default=True)
     template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
+
     def validate(self, clean=True):
         if clean:
             self.clean()
@@ -522,6 +530,9 @@ class Rules(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
 
     def clean(self):
         self.block_name = self.block_name.strip().lower()
