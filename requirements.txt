@@ -61,5 +61,5 @@ dramatiq-mongodb==0.6.1
 keybert
 bs4
 fastapi-keycloak
-openpyxl
 pyjwt==2.6.0
+openpyxl
