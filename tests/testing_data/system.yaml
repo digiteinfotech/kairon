@@ -151,3 +151,6 @@ idp:
   admin_password: ${ADMIN_PASSWORD}
   callback_frontend_url: ${CALLBACK_FRONTEND_URL}
   type: ${IDP_TYPE:idp}
+
+cors:
+  origin: ${ALLOWED_ORIGIN:["http://digite.com"]}

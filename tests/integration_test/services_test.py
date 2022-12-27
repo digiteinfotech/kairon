@@ -297,7 +297,7 @@ def test_account_registration(monkeypatch):
                                 'Cross-Origin-Embedder-Policy': 'require-corp',
                                 'Cross-Origin-Opener-Policy': 'same-origin',
                                 'Cross-Origin-Resource-Policy': 'same-origin',
-                                'Access-Control-Allow-Origin': '*'
+                                'Access-Control-Allow-Origin': Utility.environment["cors"]["origin"][0]
                                 }
 
 
@@ -626,7 +626,7 @@ def test_add_bot():
                                 'Cross-Origin-Embedder-Policy': 'require-corp',
                                 'Cross-Origin-Opener-Policy': 'same-origin',
                                 'Cross-Origin-Resource-Policy': 'same-origin',
-                                'Access-Control-Allow-Origin': '*'
+                                'Access-Control-Allow-Origin': Utility.environment["cors"]["origin"][0]
                                 }
     response = response.json()
     assert response['message'] == 'Bot created'
@@ -12074,3 +12074,56 @@ def test_idp_provider_fields_unauth():
     ).json()
 
     assert response["error_code"] == 401
+
+
+def test_allowed_origin_default(monkeypatch):
+    monkeypatch.setitem(Utility.environment['cors'], 'origin', '*')
+
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        headers={"origin": "*"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == "User does not exist!"
+    assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
+                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
+                                'x-content-type-options': 'nosniff',
+                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'cross-origin-embedder-policy': 'require-corp',
+                                'cross-origin-opener-policy': 'same-origin',
+                                'cross-origin-resource-policy': 'same-origin',
+                                'access-control-allow-origin': '*',
+                                'access-control-allow-credentials': 'true',
+                                'access-control-expose-headers': 'content-disposition'
+                                }
+
+
+def test_allowed_origin():
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        headers={"origin": "http://digite.com"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == "User does not exist!"
+    assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
+                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
+                                'x-content-type-options': 'nosniff',
+                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'cross-origin-embedder-policy': 'require-corp',
+                                'cross-origin-opener-policy': 'same-origin',
+                                'cross-origin-resource-policy': 'same-origin',
+                                'access-control-allow-origin': 'http://digite.com',
+                                'access-control-allow-credentials': 'true',
+                                'access-control-expose-headers': 'content-disposition',
+                                'vary': 'Origin'
+                                }
