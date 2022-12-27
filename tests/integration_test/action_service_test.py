@@ -4382,18 +4382,20 @@ class TestActionServer(AsyncHTTPTestCase):
         user = "test_user"
         BotSettings(rephrase_response=True, bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+        gpt_prompt = open("./template/rephrase-prompt.txt").read()
+        gpt_prompt = f"{gpt_prompt}hi\noutput:"
         gpt_response = {'id': 'cmpl-6Hh86Qkqq0PJih2YSl9JaNkPEuy4Y', 'object': 'text_completion', 'created': 1669675386,
                   'model': 'text-davinci-002', 'choices': [{
                                                                'text': "Greetings and welcome to kairon!!",
                                                                'index': 0, 'logprobs': None, 'finish_reason': 'stop'}],
-                  'usage': {'prompt_tokens': 43, 'completion_tokens': 38, 'total_tokens': 81}}
+                  'usage': {'prompt_tokens': 152, 'completion_tokens': 38, 'total_tokens': 81}}
         responses.add(
             "POST",
             Utility.environment["plugins"]["gpt"]["url"],
             status=200, json=gpt_response,
             match=[responses.json_params_matcher(
-                {'model': 'text-davinci-003', 'prompt': 'Rephrase and expand: hi', 'temperature': 0.7,
-                 'max_tokens': 8})],
+                {'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7,
+                 'max_tokens': 152})],
         )
 
         responses.start()
@@ -4518,13 +4520,15 @@ class TestActionServer(AsyncHTTPTestCase):
         user = "test_user"
         BotSettings(rephrase_response=True, bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+        gpt_prompt = open("./template/rephrase-prompt.txt").read()
+        gpt_prompt = f"{gpt_prompt}hi\noutput:"
         gpt_response = {"error": {"message": "'100' is not of type 'integer' - 'max_tokens'", "type": "invalid_request_error", "param": None, "code": None} }
         responses.add(
             "POST",
             Utility.environment["plugins"]["gpt"]["url"],
             status=400,
             json=gpt_response,
-            match=[responses.json_params_matcher({'model': 'text-davinci-003', 'prompt': 'Rephrase and expand: hi', 'temperature': 0.7, 'max_tokens': 8})],
+            match=[responses.json_params_matcher({'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7, 'max_tokens': 152})],
         )
 
         responses.start()

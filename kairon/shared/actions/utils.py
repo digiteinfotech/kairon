@@ -646,9 +646,11 @@ class ActionUtility:
     def trigger_rephrase(bot: Text, text_response: Text):
         rephrased_message = None
         raw_resp = None
+        prompt = open('./template/rephrase-prompt.txt').read()
         gpt_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=False)
         if not Utility.check_empty_string(gpt_key):
-            prompt = f"Rephrase and expand: {text_response}"
+            prompt = f"{prompt}{text_response}\noutput:"
+            logger.debug(f"gpt3_prompt: {prompt}")
             raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
             rephrased_message = Utility.retrieve_gpt_response(raw_resp)
         return raw_resp, rephrased_message
