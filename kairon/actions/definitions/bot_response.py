@@ -57,7 +57,6 @@ class ActionKaironBotResponse(ActionsBase):
         status = "SUCCESS"
         exception = None
         is_rephrased = False
-        prompt = None
         raw_resp = None
         bot_settings = self.retrieve_config()
         static_response = domain[DOMAIN.RESPONSES.value].get(self.name, [])
@@ -77,7 +76,7 @@ class ActionKaironBotResponse(ActionsBase):
             status = "FAILURE"
         finally:
             ActionServerLogs(
-                type=ActionType.email_action.value,
+                type=ActionType.kairon_bot_response.value,
                 intent=tracker.get_intent_of_latest_message(),
                 action=self.name,
                 sender=tracker.sender_id,
@@ -87,7 +86,6 @@ class ActionKaironBotResponse(ActionsBase):
                 status=status,
                 enable_rephrasing=bot_settings['rephrase_response'],
                 is_rephrased=is_rephrased,
-                gpt_prompt=prompt,
                 raw_gpt_response=raw_resp
             ).save()
         dispatcher.utter_message(**bot_response)
