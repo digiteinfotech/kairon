@@ -37,22 +37,27 @@ class TestMetering:
 
     def test_get_metric(self):
         account = 12345
-        test_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.test_chat)
-        prod_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.prod_chat)
+        bot = 'abcb345'
+        bot1 = 'bfg4657'
+        bot2 = 'rhft284'
+        test_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.test_chat, bot=bot)["logs"]
         del test_chat_count[0]["timestamp"]
-        del test_chat_count[1]["timestamp"]
-        assert test_chat_count[0]['bot'] in {'rhft284', 'abcb345'}
-        assert test_chat_count[0]['account'] == 12345
-        assert test_chat_count[0]['metric_type'] == 'test_chat'
-        assert test_chat_count[1]['bot'] in {'rhft284', 'abcb345'}
-        assert test_chat_count[1]['account'] == 12345
-        assert test_chat_count[1]['metric_type'] == 'test_chat'
+        assert test_chat_count[0]['bot'] == bot
+        assert test_chat_count[0]['account'] == account
+        assert test_chat_count[0]['metric_type'] == MetricType.test_chat.value
+        assert MeteringProcessor.get_logs(account, metric_type=MetricType.test_chat, bot=bot2)["logs"] == []
+        test_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.test_chat, bot=bot2)["logs"]
+        del test_chat_count[0]["timestamp"]
+        assert test_chat_count[0]['bot'] == bot
+        assert test_chat_count[0]['account'] == account
+        assert test_chat_count[0]['metric_type'] == MetricType.test_chat.value
+        prod_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.prod_chat, bot=bot)["logs"]
         del prod_chat_count[0]["timestamp"]
-        del prod_chat_count[1]["timestamp"]
-        print(prod_chat_count)
         assert prod_chat_count[0]['bot'] in {'bfg4657', 'abcb345'}
         assert prod_chat_count[0]['account'] == 12345
         assert prod_chat_count[0]['metric_type'] == 'prod_chat'
+        prod_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.prod_chat, bot=bot1)["logs"]
+        del prod_chat_count[0]["timestamp"]
         assert prod_chat_count[1]['bot'] in {'bfg4657', 'abcb345'}
         assert prod_chat_count[1]['account'] == 12345
         assert prod_chat_count[1]['metric_type'] == 'prod_chat'

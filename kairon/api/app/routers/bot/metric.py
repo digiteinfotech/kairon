@@ -4,7 +4,6 @@ from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
 
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.data_object import Metering
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, DictData
@@ -31,25 +30,23 @@ async def get_metering_data(
 
 @router.get("/user/logs/{metric_type}", response_model=Response)
 async def get_end_user_metrics(
+        request: Request,
         metric_type: MetricType = Path(default=None, description="metric type", example="test_chat, prod_chat"),
         start_idx: int = 0, page_size: int = 10, start_date: datetime = None, end_date: datetime = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     List end user logs.
+    This endpoint also takes key-value pairs as query parameters and
+    uses them as filter while retrieving logs.
     """
-    logs = MeteringProcessor.get_logs(
-        current_user.account, start_idx, page_size, start_date, end_date,
-        metric_type=metric_type, bot=current_user.get_bot()
-    )
-    row_cnt = mongo_processor.get_row_count(Metering, current_user.get_bot())
-    data = {
-        "logs": logs,
-        "total": row_cnt
-    }
-    return Response(
-        data=data
-    )
+    kwargs = request.query_params._dict.copy()
+    kwargs.update({
+        'metric_type': metric_type.value, 'bot': current_user.get_bot(), 'start_idx': start_idx, 'page_size': page_size,
+        'start_date': start_date, 'end_date': end_date
+    })
+    data = MeteringProcessor.get_logs(current_user.account, **kwargs)
+    return Response(data=data)
 
 
 @router.post("/user/logs/{metric_type}", response_model=Response)

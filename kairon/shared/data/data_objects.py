@@ -198,7 +198,7 @@ class Intents(Auditlog):
     is_integration = BooleanField(default=False)
     use_entities = BooleanField(default=False)
 
-    meta = {"indexes": [{"fields": ["bot"]}]}
+    meta = {"indexes": [{"fields": ["bot", ("name", "bot", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -500,7 +500,7 @@ class Stories(Auditlog):
     status = BooleanField(default=True)
     template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name", "status")]}]}
 
     def validate(self, clean=True):
         if clean:

@@ -43,9 +43,9 @@ async def refresh_token(
     """
     Generates an access token from refresh token supplied.
     """
-    access_token = Authentication.generate_token_from_refresh_token(token)
+    access_token, new_refresh_token = Authentication.generate_token_from_refresh_token(token)
     return {
-        "data": {"access_token": access_token, "token_type": "bearer"},
+        "data": {"access_token": access_token, "token_type": "bearer", "refresh_token": new_refresh_token},
         "message":
             "This token will be shown only once. Please copy this somewhere safe."
             "It is your responsibility to keep the token secret. If leaked, others may have access to your system."

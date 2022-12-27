@@ -1354,22 +1354,34 @@ class TestAccountProcessor:
         assert round((refresh_token_expiry - iat).total_seconds() / 60) == 60
         del claims['iat']
         del claims['exp']
-        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': 'refresh', 'role': 'tester', 'account': 1000,
+        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': TOKEN_TYPE.REFRESH.value, 'role': 'tester', 'account': 1000,
                           'name': 'integration_token_with_access_limit',
                           'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
                           'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
                           'access-limit': ['/api/auth/.+/token/refresh']}
 
-        new_token = Authentication.generate_token_from_refresh_token(refresh_token)
+        new_token, new_refresh_token = Authentication.generate_token_from_refresh_token(refresh_token)
         new_token_claims = Utility.decode_limited_access_token(new_token)
         assert new_token_claims['iat']
         new_token_iat = datetime.datetime.fromtimestamp(new_token_claims['iat'], tz=datetime.timezone.utc)
         new_token_expiry = datetime.datetime.fromtimestamp(new_token_claims['exp'], tz=datetime.timezone.utc)
         assert round((new_token_expiry - new_token_iat).total_seconds() / 60) == 15
-        del new_token_claims['iat']
+        new_token_iat = new_token_claims.pop('iat')
         del new_token_claims['exp']
         assert new_token_claims == {'bot': bot, 'sub': user, 'type': 'dynamic', 'role': 'admin', 'account': 1000,
                                     'name': 'from refresh token', 'access-limit': access_limit}
+        assert new_refresh_token
+        claims = Utility.decode_limited_access_token(new_refresh_token)
+        assert claims['iat'] == new_token_iat
+        new_refresh_token_expiry = datetime.datetime.fromtimestamp(claims['exp'], tz=datetime.timezone.utc)
+        assert round((new_refresh_token_expiry - iat).total_seconds() / 60) == 60
+        del claims['iat']
+        del claims['exp']
+        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': TOKEN_TYPE.REFRESH.value, 'role': 'tester', 'account': 1000,
+                          'name': 'from refresh token',
+                          'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
+                          'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
+                          'access-limit': ['/api/auth/.+/token/refresh']}
 
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'

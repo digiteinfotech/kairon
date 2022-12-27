@@ -6295,6 +6295,7 @@ def test_refresh_token(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]["access_token"]
     assert actual["data"]["token_type"]
+    assert actual["data"]["refresh_token"]
     assert actual["message"] == 'This token will be shown only once. Please copy this somewhere safe.' \
                                 'It is your responsibility to keep the token secret. ' \
                                 'If leaked, others may have access to your system.'
@@ -11037,7 +11038,7 @@ def test_get_end_user_metrics_empty():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]["logs"] == []
-    assert actual["data"]["total"] == 1
+    assert actual["data"]["total"] == 0
 
 
 def test_add_end_user_metrics():
@@ -11122,11 +11123,11 @@ def test_get_end_user_metrics():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"]
     assert actual["error_code"] == 0
+    assert actual["success"]
     print(actual["data"])
     assert len(actual["data"]["logs"]) == 5
-    assert actual["data"]["total"] == 9
+    assert actual["data"]["total"] == 5
     response = client.get(
         f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -11136,7 +11137,7 @@ def test_get_end_user_metrics():
     assert actual["error_code"] == 0
     print(actual["data"])
     assert len(actual["data"]["logs"]) == 4
-    assert actual["data"]["total"] == 9
+    assert actual["data"]["total"] == 4
     actual["data"]["logs"][0].pop('timestamp')
     actual["data"]["logs"][0].pop('account')
     assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
@@ -11171,7 +11172,7 @@ def test_get_end_user_metrics():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 1
-    assert actual["data"]["total"] == 9
+    assert actual["data"]["total"] == 5
 
 
 def test_get_roles():

@@ -3391,9 +3391,8 @@ class MongoProcessor:
                 raise AppException('Utterance not found')
 
     def get_training_data_count(self, bot: Text):
-        intents_count = list(Intents.objects(bot=bot, status=True).aggregate(
-            [{'$match': {'name': {'$nin': DEFAULT_INTENTS}, 'status': True}},
-             {'$lookup': {'from': 'training_examples',
+        intents_count = list(Intents.objects(bot=bot, status=True, name__nin=DEFAULT_INTENTS).aggregate(
+            [{'$lookup': {'from': 'training_examples',
                           'let': {'bot_id': bot, 'name': '$name'},
                           'pipeline': [{'$match': {'bot': bot, 'status': True}},
                                        {'$match': {'$expr': {'$and': [{'$eq': ['$intent', '$$name']}]}}},
@@ -3401,8 +3400,7 @@ class MongoProcessor:
              {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$intents_count.count'}}}]))
 
         utterances_count = list(Utterances.objects(bot=bot, status=True).aggregate(
-            [{'$match': {'bot': bot, 'status': True}},
-             {'$lookup': {'from': 'responses',
+            [{'$lookup': {'from': 'responses',
                           'let': {'bot_id': bot, 'utterance': '$name'},
                           'pipeline': [{'$match': {'bot': bot, 'status': True}},
                                        {'$match': {'$expr': {'$and': [{'$eq': ['$name', '$$utterance']}]}}},
