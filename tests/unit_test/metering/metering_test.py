@@ -45,19 +45,19 @@ class TestMetering:
         assert test_chat_count[0]['bot'] == bot
         assert test_chat_count[0]['account'] == account
         assert test_chat_count[0]['metric_type'] == MetricType.test_chat.value
-        assert MeteringProcessor.get_logs(account, metric_type=MetricType.test_chat, bot=bot2)["logs"] == []
+        assert MeteringProcessor.get_logs(account, metric_type=MetricType.test_chat, bot=bot1)["logs"] == []
         test_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.test_chat, bot=bot2)["logs"]
         del test_chat_count[0]["timestamp"]
-        assert test_chat_count[0]['bot'] == bot
+        assert test_chat_count[0]['bot'] == bot2
         assert test_chat_count[0]['account'] == account
         assert test_chat_count[0]['metric_type'] == MetricType.test_chat.value
         prod_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.prod_chat, bot=bot)["logs"]
         del prod_chat_count[0]["timestamp"]
-        assert prod_chat_count[0]['bot'] in {'bfg4657', 'abcb345'}
-        assert prod_chat_count[0]['account'] == 12345
-        assert prod_chat_count[0]['metric_type'] == 'prod_chat'
+        assert prod_chat_count[0]['bot'] == bot
+        assert prod_chat_count[0]['account'] == account
+        assert prod_chat_count[0]['metric_type'] == MetricType.prod_chat
         prod_chat_count = MeteringProcessor.get_logs(account, metric_type=MetricType.prod_chat, bot=bot1)["logs"]
         del prod_chat_count[0]["timestamp"]
-        assert prod_chat_count[1]['bot'] in {'bfg4657', 'abcb345'}
-        assert prod_chat_count[1]['account'] == 12345
-        assert prod_chat_count[1]['metric_type'] == 'prod_chat'
+        assert prod_chat_count[0]['bot'] == bot1
+        assert prod_chat_count[0]['account'] == account
+        assert prod_chat_count[0]['metric_type'] == MetricType.prod_chat
