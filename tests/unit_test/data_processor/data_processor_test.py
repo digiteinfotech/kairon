@@ -58,7 +58,7 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
-    HttpActionRequestBody
+    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -8593,6 +8593,198 @@ class TestMongoProcessor:
         action.headers = [HttpActionRequestBody(key="param1", value="param1", parameter_type="key_vault"),
                           HttpActionRequestBody(key="param2", value=key, parameter_type="value")]
         action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_email_action(self):
+        bot = 'test'
+        key = "KUBKEY"
+        user = "user"
+        value = "1526473-nxndj"
+        processor = MongoProcessor()
+        processor.add_secret(key, value, bot, user)
+        smtp_userid_list = CustomActionRequestParameters(key="smtp_userid", value=key, parameter_type="key_vault")
+        email_config = {"action_name": "test_delete_secret_attached_to_email_action",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": smtp_userid_list,
+                        "smtp_password": {'value': "test"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com", "test1@test.com"],
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            processor.add_email_action(email_config, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
+            processor.delete_secret(key, bot)
+
+        action = EmailActionConfig.objects(action_name="test_delete_secret_attached_to_email_action", bot=bot).get()
+        action.smtp_userid = None
+        action.smtp_password = smtp_userid_list
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            action.save()
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
+            processor.delete_secret(key, bot)
+
+        action = EmailActionConfig.objects(action_name="test_delete_secret_attached_to_email_action", bot=bot).get()
+        action.smtp_userid = None
+        action.smtp_password = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_google_action(self):
+        processor = MongoProcessor()
+        key = 'AZKEY'
+        bot = 'test'
+        user = 'test_user'
+        value = '7362-jdnsn'
+        processor.add_secret(key, value, bot, user)
+        api_key_value = {'key': "api_key", 'value': key, 'parameter_type': "key_vault"}
+        action = {
+            'name': 'test_delete_secret_attached_to_google_action',
+            'api_key': api_key_value,
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        processor.add_google_search_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_google_action']")):
+            processor.delete_secret(key, bot)
+
+        action = GoogleSearchAction.objects(name="test_delete_secret_attached_to_google_action", bot=bot).get()
+        action.api_key = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_jira_action(self):
+        processor = MongoProcessor()
+        key = 'QSKEY'
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        value = '7039-hffi'
+        processor.add_secret(key, value, bot, user)
+        api_token_value = {'key': "api_token", 'value': key, 'parameter_type': "key_vault"}
+        action = {
+            'name': 'test_delete_secret_attached_to_jira_action', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': api_token_value, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_validation):
+            processor.add_jira_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_jira_action']")):
+            processor.delete_secret(key, bot)
+
+        action = JiraAction.objects(name="test_delete_secret_attached_to_jira_action", bot=bot).get()
+        action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_validation):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_zendesk_action(self):
+        processor = MongoProcessor()
+        key = 'ABKEY'
+        bot = 'test'
+        user = 'test'
+        value = '4327-hssw'
+        processor.add_secret(key, value, bot, user)
+        api_token_value = {'key': "api_token", 'value': key, 'parameter_type': "key_vault"}
+        action = {'name': 'test_delete_secret_attached_to_zendesk_action', 'subdomain': 'digite751',
+                  'api_token': api_token_value, 'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com',
+                  'response': 'ticket filed'}
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.ZendeskAction.validate', new=_mock_validation):
+            processor.add_zendesk_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_zendesk_action']")):
+            processor.delete_secret(key, bot)
+
+        action = ZendeskAction.objects(name="test_delete_secret_attached_to_zendesk_action", bot=bot).get()
+        action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        with patch('kairon.shared.actions.data_objects.ZendeskAction.validate', new=_mock_validation):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+            
+    def test_delete_secret_attached_to_pipedrivelead_action(self):
+        processor = MongoProcessor()
+        key = 'NKKEY'
+        bot = 'test'
+        user = 'test_user'
+        value = '1518-hshw'
+        processor.add_secret(key, value, bot, user)
+        api_token_value = {'key': "api_token", 'value': key, 'parameter_type': "key_vault"}
+        action = {
+            'name': 'test_delete_secret_attached_to_pipedrivelead_action',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': api_token_value,
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.PipedriveLeadsAction.validate', new=_mock_validation):
+            processor.add_pipedrive_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_pipedrivelead_action']")):
+            processor.delete_secret(key, bot)
+
+        action = PipedriveLeadsAction.objects(name="test_delete_secret_attached_to_pipedrivelead_action", bot=bot).get()
+        action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        with patch('kairon.shared.actions.data_objects.PipedriveLeadsAction.validate', new=_mock_validation):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_hubspot_action(self):
+        processor = MongoProcessor()
+        key = 'VPKEY'
+        bot = 'test'
+        user = 'test_user'
+        value = '7728-abcg'
+        processor.add_secret(key, value, bot, user)
+        fields_list = [HttpActionRequestBody(key="param1", value="param1", parameter_type="slot"),
+                       HttpActionRequestBody(key="param2", value=key, parameter_type="key_vault")]
+        action = {
+            'name': 'test_delete_secret_attached_to_hubspot_action',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': fields_list,
+            'response': 'Form submitted'
+        }
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.HubspotFormsAction.validate', new=_mock_validation):
+            processor.add_hubspot_forms_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_hubspot_action']")):
+            processor.delete_secret(key, bot)
+
+        action = HubspotFormsAction.objects(name="test_delete_secret_attached_to_hubspot_action", bot=bot).get()
+        action.fields = [HttpActionRequestBody(key="param1", value="param1", parameter_type="key_vault"),
+                         HttpActionRequestBody(key="param2", value=key, parameter_type="value")]
+        with patch('kairon.shared.actions.data_objects.HubspotFormsAction.validate', new=_mock_validation):
+            action.save()
         processor.delete_secret(key, bot)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()

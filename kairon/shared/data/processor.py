@@ -4267,11 +4267,34 @@ class MongoProcessor:
         """
         if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
             raise AppException(f"key '{key}' does not exists!")
-        actions = list(HttpActionConfig.objects(__raw__={
+        http_action = list(HttpActionConfig.objects(__raw__={
             "bot": bot, "status": True,
             "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
                     {"params_list": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}}]
         }).values_list("action_name"))
+
+        email_action = list(EmailActionConfig.objects((
+            (Q(smtp_userid__parameter_type=ActionParameterType.key_vault.value) & Q(smtp_userid__value=key)) |
+            (Q(smtp_password__parameter_type=ActionParameterType.key_vault.value) & Q(smtp_password__value=key))
+        ), bot=bot, status=True).values_list("action_name"))
+
+        google_action = list(GoogleSearchAction.objects((
+            Q(api_key__parameter_type=ActionParameterType.key_vault.value) & Q(api_key__value=key)
+        ), bot=bot, status=True).values_list("name"))
+
+        action_list = []
+        for action_class in [JiraAction, ZendeskAction, PipedriveLeadsAction]:
+            attached_action = list(action_class.objects((
+            Q(api_token__parameter_type=ActionParameterType.key_vault.value) & Q(api_token__value=key)
+        ), bot=bot, status=True).values_list("name"))
+            action_list.extend(attached_action)
+
+        hubspot_action = list(HubspotFormsAction.objects(__raw__={
+            "bot": bot, "status": True,
+            "fields": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}
+        }).values_list("name"))
+
+        actions = http_action + email_action + google_action + action_list + hubspot_action
 
         if len(actions):
             raise AppException(f"Key is attached to action: {actions}")
