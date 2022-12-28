@@ -8960,19 +8960,21 @@ class TestMongoProcessor:
         processor.add_text_response('What are your questions?', 'utter_ask', 'test', 'test_user')
         processor.add_complex_story(first_rule_dict, 'test', 'test_user')
         processor.add_complex_story(second_rule_dict, 'test', 'test_user')
+
         def _mock_aggregation(*args, **kwargs):
             nonlocal utterances_query_counter, intents_query_counter
+
             get_intents_pipelines = [
                 {'$unwind': {'path': '$events'}},
                 {'$match': {'events.type': 'user'}},
-                {'_id': None, 'intents': {'$push': '$events.name'}},
-                {"project": {'_id': 0, 'intents': 1}}
+                {'$group': {'_id': None, 'intents': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'intents': 1}}
             ]
             get_utterances_pipelines = [
                 {'$unwind': {'path': '$events'}},
                 {'$match': {'events.type': 'action', 'events.name': {'$regex': '^utter_'}}},
-                {'_id': None, 'utterances': {'$push': '$events.name'}},
-                {"project": {'_id': 0, 'utterances': 1}}
+                {'$group': {'_id': None, 'utterances': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'utterances': 1}}
             ]
             print(args[1])
             print(args[0]._mongo_query)

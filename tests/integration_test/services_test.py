@@ -11132,12 +11132,11 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["data"])
     assert len(actual["data"]["logs"]) == 4
     assert actual["data"]["total"] == 9
     actual["data"]["logs"][0].pop('timestamp')
     actual["data"]["logs"][0].pop('account')
-    assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+    assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com', 'bot': pytest.bot,
                            'source': 'Digite.com', 'language': 'English'}
     actual["data"]["logs"][1].pop('timestamp')
     actual["data"]["logs"][1].pop('account')
@@ -11145,12 +11144,12 @@ def test_get_end_user_metrics():
     actual["data"]["logs"][2].pop('account')
     assert actual["data"]["logs"][1]['ip']
     del actual["data"]["logs"][1]['ip']
-    assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+    assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+    assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(

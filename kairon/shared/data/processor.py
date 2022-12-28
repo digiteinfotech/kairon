@@ -4511,7 +4511,7 @@ class MongoProcessor:
                 {"name": intent, "type": "INTENT"},
                 {"name": action, "type": "BOT"}
             ]
-            rule = {'name': intent, 'steps': steps, 'type': 'RULE'}
+            rule = {'name': intent, 'steps': steps, 'type': 'RULE', 'template_type': TemplateType.QNA.value}
             try:
                 training_example_errors = list(self.add_training_example(examples, intent, bot, user, False))
                 is_intent_added = True
@@ -4533,42 +4533,42 @@ class MongoProcessor:
         get_intents_pipelines = [
                 {'$unwind': {'path': '$events'}},
                 {'$match': {'events.type': 'user'}},
-                {'_id': None, 'intents': {'$push': '$events.name'}},
-                {"project": {'_id': 0, 'intents': 1}}
+                {'$group': {'_id': None, 'intents': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'intents': 1}}
             ]
         get_utterances_pipelines = [
                 {'$unwind': {'path': '$events'}},
                 {'$match': {'events.type': 'action', 'events.name': {'$regex': '^utter_'}}},
-                {'_id': None, 'utterances': {'$push': '$events.name'}},
-                {"project": {'_id': 0, 'utterances': 1}}
+                {'$group': {'_id': None, 'utterances': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'utterances': 1}}
             ]
         qna_intents = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
             get_intents_pipelines
-        ))[0].get('intents')
-        qna_intents = set(qna_intents)
+        ))
+        qna_intents = set(qna_intents[0].get('intents')) if qna_intents else set()
         story_intents = list(Stories.objects(bot=bot, status=True).aggregate(
             get_intents_pipelines
-        ))[0].get('intents')
-        story_intents = set(story_intents)
+        ))
+        story_intents = set(story_intents[0].get('intents')) if story_intents else set()
         custom_rule_intents = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.CUSTOM.value).aggregate(
             get_intents_pipelines
-        ))[0].get('intents')
-        custom_rule_intents = set(custom_rule_intents)
+        ))
+        custom_rule_intents = set(custom_rule_intents[0].get('intents')) if custom_rule_intents else set()
         delete_intents = qna_intents - story_intents - custom_rule_intents
         print(delete_intents)
 
         qna_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
             get_utterances_pipelines
-        ))[0].get('utterances')
-        qna_utterances = set(qna_utterances)
+        ))
+        qna_utterances = set(qna_utterances[0].get('utterances')) if qna_utterances else set()
         custom_rule_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.CUSTOM.value).aggregate(
             get_utterances_pipelines
-        ))[0].get('utterances')
-        custom_rule_utterances = set(custom_rule_utterances)
+        ))
+        custom_rule_utterances = set(custom_rule_utterances[0].get('utterances')) if custom_rule_utterances else set()
         story_utterances = list(Stories.objects(bot=bot, status=True).aggregate(
             get_utterances_pipelines
-        ))[0].get('utterances')
-        story_utterances = set(story_utterances)
+        ))
+        story_utterances = set(story_utterances[0].get('utterances')) if story_utterances else set()
         delete_utterances = qna_utterances - story_utterances - custom_rule_utterances
         print(delete_utterances)
 
