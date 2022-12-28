@@ -3498,7 +3498,7 @@ class MongoProcessor:
         client_config.config['headers']['authorization']['access_token_expiry'] = access_token_expiry
         client_config.config['headers']['authorization']['refresh_token_expiry'] = refresh_token_expiry
         client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
-        if client_config.config['multilingual'].get('enable'):
+        if client_config.config.get("multilingual") and client_config.config['multilingual'].get('enable'):
             accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
             enabled_bots = {}
             if client_config.config['multilingual'].get('bots'):
