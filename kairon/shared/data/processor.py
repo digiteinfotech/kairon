@@ -2960,6 +2960,7 @@ class MongoProcessor:
             return
         document_types = {
             ActionType.http_action.value: HttpActionConfig,
+            ActionType.two_stage_fallback.value: KaironTwoStageFallbackAction,
             ActionType.email_action.value: EmailActionConfig, ActionType.zendesk_action.value: ZendeskAction,
             ActionType.jira_action.value: JiraAction, ActionType.form_validation_action.value: FormValidationAction,
             ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,

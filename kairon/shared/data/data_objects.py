@@ -737,6 +737,11 @@ class KeyVault(Document):
             document.value = Utility.encrypt_message(document.value)
 
 
+from mongoengine import signals
+
+signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
+
+
 @auditlogger.log
 @push_notification.apply
 class EventConfig(Auditlog):

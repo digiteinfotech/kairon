@@ -3,7 +3,7 @@ pyyaml
 torch==1.11.0
 rasa[full]==2.8.15
 fastapi~=0.78.0
-mongomock~=3.23.0
+mongomock==4.1.2
 pytest==6.1.2
 pytest-html==3.0.0
 pytest-cov==2.10.1
@@ -61,5 +61,5 @@ dramatiq-mongodb==0.6.1
 keybert
 bs4
 fastapi-keycloak
-openpyxl
 pyjwt==2.6.0
+openpyxl
