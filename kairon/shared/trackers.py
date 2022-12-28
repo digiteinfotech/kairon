@@ -10,14 +10,16 @@ from typing import (
 )
 
 from rasa.core.brokers.broker import EventBroker
-from rasa.core.tracker_store import MongoTrackerStore
+from rasa.core.tracker_store import TrackerStore
 from rasa.shared.core.domain import Domain
 from rasa.shared.core.trackers import (
     DialogueStateTracker,
 )
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING
+from pymongo.collection import Collection
 
-class KMongoTrackerStore(MongoTrackerStore):
+
+class KMongoTrackerStore(TrackerStore):
 
     def __init__(
             self,
@@ -41,6 +43,11 @@ class KMongoTrackerStore(MongoTrackerStore):
         super().__init__(domain, event_broker, **kwargs)
 
         self._ensure_indices()
+
+    @property
+    def conversations(self) -> Collection:
+        """Returns the current conversation."""
+        return self.db[self.collection]
 
     def _ensure_indices(self) -> None:
         self.conversations.create_index("sender_id")
