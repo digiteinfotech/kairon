@@ -51,7 +51,7 @@ class KMongoTrackerStore(TrackerStore):
 
     def _ensure_indices(self) -> None:
         self.conversations.create_index("sender_id")
-        self.conversations.create_index([("sender_id", ASCENDING), ("event.event", ASCENDING)], name="")
+        self.conversations.create_index([("sender_id", ASCENDING), ("event.event", ASCENDING)], name="sender-event")
 
     def save(self, tracker, timeout=None):
         """Saves the current conversation state."""
