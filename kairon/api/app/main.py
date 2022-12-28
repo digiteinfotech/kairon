@@ -66,9 +66,10 @@ secure_headers = Secure(
 )
 
 app = FastAPI()
+allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,7 +90,7 @@ async def add_secure_headers(request: Request, call_next):
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
     requested_origin = request.headers.get("origin")
-    response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else "*"
+    response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else allowed_origins[0]
     return response
 
 
