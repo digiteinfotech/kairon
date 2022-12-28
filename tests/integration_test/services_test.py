@@ -690,8 +690,10 @@ def resource_test_upload_zip():
     shutil.make_archive(zip_file, 'zip', data_path)
     pytest.zip = open(zip_file + '.zip', 'rb').read()
     yield "resource_test_upload_zip"
-    os.remove(zip_file + '.zip')
-    shutil.rmtree(os.path.join('training_data', pytest.bot))
+    if os.path.exists(zip_file + '.zip'):
+        os.remove(zip_file + '.zip')
+    if os.path.exists(os.path.join('training_data', pytest.bot)):
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
 
 
 @responses.activate
