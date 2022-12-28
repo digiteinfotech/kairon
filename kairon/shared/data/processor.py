@@ -123,7 +123,7 @@ class MongoProcessor:
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
-    def download_files(self, bot: Text):
+    def download_files(self, bot: Text, user: Text):
         """
         create zip file containing download data
 
@@ -136,7 +136,8 @@ class MongoProcessor:
         config = self.load_config(bot)
         rules = self.get_rules_for_training(bot)
         actions = self.load_action_configurations(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions)
+        client = self.get_chat_client_config(bot, user)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, client)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -3455,15 +3456,15 @@ class MongoProcessor:
         return url
 
     def get_client_config_using_uid(self, bot: str, uid: str):
+        from kairon.shared.account.processor import AccountProcessor
         decoded_uid = Utility.validate_bot_specific_token(bot, uid)
+        AccountProcessor.get_bot_and_validate_status(bot)
         config = self.get_chat_client_config(bot, decoded_uid["sub"], is_client_live=True)
         return config.to_mongo().to_dict()
 
     def get_chat_client_config(self, bot: Text, user: Text, is_client_live: bool = False):
         from kairon.shared.auth import Authentication
         from kairon.shared.account.processor import AccountProcessor
-
-        AccountProcessor.get_bot_and_validate_status(bot)
         bot_settings = self.get_bot_settings(bot, user)
         try:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()
@@ -3476,22 +3477,24 @@ class MongoProcessor:
             client_config.config['headers'] = {}
         if not client_config.config['headers'].get('X-USER'):
             client_config.config['headers']['X-USER'] = user
-        client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
-        token, refresh_token = Authentication.generate_integration_token(
-            bot, user, expiry=bot_settings.chat_token_expiry,
-            access_limit=[
-                '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
-                '/api/bot/.+/metric/user/logs/user_metrics'
-            ],
-            token_type=TOKEN_TYPE.DYNAMIC.value
-        )
-        client_config.config['headers']['authorization'] = {}
-        client_config.config['headers']['authorization']['access_token'] = token
-        client_config.config['headers']['authorization']['token_type'] = 'Bearer'
-        client_config.config['headers']['authorization']['refresh_token'] = f'{refresh_token}'
-        client_config.config['headers']['authorization']['access_token_expiry'] = bot_settings.chat_token_expiry
-        client_config.config['headers']['authorization']['refresh_token_expiry'] = bot_settings.refresh_token_expiry
-        client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
+
+        if is_client_live:
+            client_config.config['api_server_host_url'] = Utility.environment['app']['server_url']
+            token, refresh_token = Authentication.generate_integration_token(
+                bot, user, expiry=bot_settings.chat_token_expiry,
+                access_limit=[
+                    '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
+                    '/api/bot/.+/metric/user/logs/user_metrics'
+                ],
+                token_type=TOKEN_TYPE.DYNAMIC.value
+            )
+            client_config.config['headers']['authorization'] = {}
+            client_config.config['headers']['authorization']['access_token'] = token
+            client_config.config['headers']['authorization']['token_type'] = 'Bearer'
+            client_config.config['headers']['authorization']['refresh_token'] = f'{refresh_token}'
+            client_config.config['headers']['authorization']['access_token_expiry'] = bot_settings.chat_token_expiry
+            client_config.config['headers']['authorization']['refresh_token_expiry'] = bot_settings.refresh_token_expiry
+            client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
         if client_config.config['multilingual'].get('enable'):
             accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
             enabled_bots = {}
@@ -3503,7 +3506,7 @@ class MongoProcessor:
             client_config.config['multilingual']['bots'] = []
             for bot_info in accessible_bots:
                 bot_info["is_enabled"] = True if bot_info["id"] in enabled_bots else False
-                if bot_info["is_enabled"] or not is_client_live:
+                if bot_info["is_enabled"] and is_client_live:
                     token, _ = Authentication.generate_integration_token(
                         bot_info["id"], user, expiry=bot_settings.chat_token_expiry,
                         access_limit=[

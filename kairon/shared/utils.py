@@ -986,7 +986,7 @@ class Utility:
 
     @staticmethod
     def write_training_data(nlu, domain, config: dict,
-                            stories, rules=None, actions: dict = None):
+                            stories, rules=None, actions: dict = None, client: Dict = None):
         """
         convert mongo data  to individual files
 
@@ -1011,7 +1011,7 @@ class Utility:
         config_path = os.path.join(temp_path, DEFAULT_CONFIG_PATH)
         rules_path = os.path.join(data_path, "rules.yml")
         actions_path = os.path.join(temp_path, "actions.yml")
-
+        client_path = os.path.join(temp_path, "client.yml")
         nlu_as_str = nlu.nlu_as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
 
@@ -1028,13 +1028,18 @@ class Utility:
         if actions:
             actions_as_str = yaml.dump(actions).encode()
             Utility.write_to_file(actions_path, actions_as_str)
+        if client:
+            client_as_str = yaml.dump(client).encode()
+            Utility.write_to_file(client_path, client_as_str)
+
         return temp_path
 
     @staticmethod
     def create_zip_file(
             nlu, domain, stories, config: Dict, bot: Text,
             rules=None,
-            actions: Dict = None
+            actions: Dict = None,
+            client: Dict = None
     ):
         """
         adds training files to zip
@@ -1054,7 +1059,8 @@ class Utility:
             config,
             stories,
             rules,
-            actions
+            actions,
+            client
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)

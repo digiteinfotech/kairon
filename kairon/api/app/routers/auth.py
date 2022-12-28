@@ -60,7 +60,7 @@ async def generate_limited_access_temporary_token(
     """
     Generates a limited access temporary token with Tester role.
     """
-    access_list = access_list or ['/api/bot/.+/chat/client/config$']
+    access_list = access_list or ['/api/bot/.+/chat$']
     access_token, _ = Authentication.generate_integration_token(
         current_user.get_bot(), current_user.email, ACCESS_ROLES.TESTER.value, expiry=expiry_minutes,
         access_limit=access_list, token_type=TOKEN_TYPE.DYNAMIC.value

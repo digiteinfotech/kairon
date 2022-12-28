@@ -9,9 +9,12 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
 
+import jwt
 import pandas as pd
+from jwt import PyJWTError
 from starlette.datastructures import Headers, URL
 from starlette.requests import Request
+from zipfile import ZipFile
 
 import pytest
 import responses
@@ -1497,10 +1500,50 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='No history server endpoint configured'):
             endpoint = processor.get_history_server_endpoint("test_bot")
 
-    def test_download_data_files(self):
+    @pytest.mark.asyncio
+    async def test_download_data_files_without_config(self):
+        bot = AccountProcessor.add_bot("tests", 11, "testUser")
         processor = MongoProcessor()
-        file = processor.download_files("tests")
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, bot["_id"].__str__(),
+                                        "testUser")
+        file = processor.download_files(bot["_id"].__str__(), "testUser")
         assert file.endswith(".zip")
+        with ZipFile(file, 'r') as zObject:
+            filenames=zObject.namelist()
+        assert all([name in filenames for name in ['actions.yml','config.yml','domain.yml','data/nlu.yml']])
+
+    @pytest.mark.asyncio
+    async def test_download_data_with_client_config(self):
+        bot = AccountProcessor.add_bot("tests_config", 21, "testUser1")
+        processor = MongoProcessor()
+        nlu_content = "## intent:greet\n- hey\n- hello".encode()
+        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
+        domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        client_content = "clients:\n-name:\nid:".encode()
+        nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
+        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        config = UploadFile(filename="config.yml", file=BytesIO(config_content))
+        domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
+        client = UploadFile(filename="client.yml", file=BytesIO(client_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, bot["_id"].__str__(),
+                                        "testUser1")
+        config_path = "./template/chat-client/default-config.json"
+        config_1 = json.load(open(config_path))
+        processor.save_chat_client_config(config_1, "tests_config", "testUser1")
+        file = processor.download_files(bot["_id"].__str__(), "testUser1")
+        assert file.endswith(".zip")
+        with ZipFile(file, 'r') as zObject:
+            filenames= zObject.namelist()
+        assert all([name in filenames for name in ['actions.yml','config.yml','domain.yml','data/nlu.yml','client.yml']])
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -3833,35 +3876,12 @@ class TestMongoProcessor:
         config_path = "./template/chat-client/default-config.json"
         expected_config = json.load(open(config_path))
         actual_config = processor.get_chat_client_config('test_bot', 'user@integration.com')
-        assert actual_config.config['headers']['authorization']['access_token']
-        assert actual_config.config['headers']['authorization']['token_type'] == 'Bearer'
-        assert actual_config.config['headers']['authorization']['refresh_token']
-        assert actual_config.config['headers']['authorization']['access_token_expiry'] == 30
-        assert actual_config.config['headers']['authorization']['refresh_token_expiry'] == 60
+        assert "authorization" not in actual_config.config['headers'].keys()
         assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
-        assert actual_config.config['api_server_host_url']
-        del actual_config.config['api_server_host_url']
-        assert 'chat_server_base_url' in actual_config.config
-        actual_config.config.pop('chat_server_base_url')
         headers = actual_config.config.pop('headers')
         expected_config['multilingual'] = {'enable': False, 'bots': []}
         assert expected_config == actual_config.config
 
-        primary_token_claims = Utility.decode_limited_access_token(headers['authorization']['access_token'])
-        iat = datetime.fromtimestamp(primary_token_claims.get('iat'), tz=timezone.utc)
-        claims = Utility.decode_limited_access_token(headers['authorization']['refresh_token'])
-        assert claims['iat'] == primary_token_claims.get('iat')
-        refresh_token_expiry = datetime.fromtimestamp(claims['exp'], tz=timezone.utc)
-        assert round((refresh_token_expiry - iat).total_seconds() / 60) == 60
-        del claims['iat']
-        del claims['exp']
-        assert claims == {'ttl': 30, 'bot': 'test_bot', 'sub': 'user@integration.com', 'type': 'refresh',
-                          'role': 'tester', 'account': 2,
-                          'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
-                          'primary-token-role': 'chat', 'primary-token-access-limit': [
-                '/api/bot/.+/chat', '/api/bot/.+/agent/live/.+', '/api/bot/.+/conversation',
-                '/api/bot/.+/metric/user/logs/user_metrics'
-            ], 'access-limit': ['/api/auth/.+/token/refresh']}
 
     def test_save_chat_client_config_without_whitelisted_domain(self, monkeypatch):
         def _mock_bot_info(*args, **kwargs):
@@ -9184,6 +9204,42 @@ class TestModelProcessor:
         auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
         assert len(auditlog_data) == 50
 
+    def test_get_client_config_using_uid(self):
+        bot = AccountProcessor.add_bot("test_", 16, "abc@xyz.com")
+        processor = MongoProcessor()
+        temp = processor.get_chat_client_config_url(bot["_id"].__str__(), 'abc@xyz.com')
+        uid = temp.split("/")[-1]
+        result = processor.get_client_config_using_uid(bot["_id"].__str__(), uid)
+        assert result['config']['headers']['authorization']
+        assert result['config']['headers']['authorization']['access_token']
+        assert result['config']['headers']['authorization']['token_type'] == 'Bearer'
+        assert result['config']['headers']['authorization']['refresh_token']
+        assert result['config']['headers']['authorization']['access_token_expiry'] == 30
+        assert result['config']['headers']['authorization']['refresh_token_expiry'] == 60
+        assert result['config']['headers']['X-USER'] == 'abc@xyz.com'
+
+    def test_get_client_config_using_uid_empty_bot(self):
+        bot = AccountProcessor.add_bot("test_1", 26, "xyz@abc.com")
+        processor = MongoProcessor()
+        temp = processor.get_chat_client_config_url(bot["_id"].__str__(), 'xyz@abc.com')
+        uid = temp.split("/")[-1]
+        with pytest.raises(DoesNotExist,match="Bot does not exists!"):
+            processor.get_client_config_using_uid("", uid)
+
+    def test_get_client_config_using_invalid_uid(self):
+        bot = AccountProcessor.add_bot("test_3", 6, "test_demo@2")
+        processor = MongoProcessor()
+        temp = processor.get_chat_client_config_url(bot["_id"].__str__(), 'test_demo@2')
+        uid = temp.split("/")[0]
+        with pytest.raises(PyJWTError, match="Invalid token"):
+            processor.get_client_config_using_uid(bot["_id"].__str__(), uid)
+
+    def test_get_client_config_using_empty_uid(self):
+        bot = AccountProcessor.add_bot("test_2", 46, "test_d@2")
+        processor = MongoProcessor()
+        with pytest.raises(PyJWTError, match="Invalid token"):
+            processor.get_client_config_using_uid(bot["_id"].__str__(), "")
+
     def test_get_auditlog_from_date_to_date_none(self):
         bot = "test"
         from_date = None
@@ -9211,3 +9267,39 @@ class TestModelProcessor:
                                                       "text": "Select a date"}}}}
         with pytest.raises(AppException, match="Form 'unknown' does not exists"):
             assert processor.add_custom_response(jsondata, "utter_custom", "tests", "testUser", "unknown")
+
+    def test_get_client_config_using_uid(self):
+        bot = AccountProcessor.add_bot("test_", 16, "abc@xyz.com")
+        processor = MongoProcessor()
+        temp = processor.get_chat_client_config_url(bot["_id"].__str__(), 'abc@xyz.com')
+        uid = temp.split("/")[-1]
+        result = processor.get_client_config_using_uid(bot["_id"].__str__(), uid)
+        assert result['config']['headers']['authorization']
+        assert result['config']['headers']['authorization']['access_token']
+        assert result['config']['headers']['authorization']['token_type'] == 'Bearer'
+        assert result['config']['headers']['authorization']['refresh_token']
+        assert result['config']['headers']['authorization']['access_token_expiry'] == 30
+        assert result['config']['headers']['authorization']['refresh_token_expiry'] == 60
+        assert result['config']['headers']['X-USER'] == 'abc@xyz.com'
+
+    def test_get_client_config_using_uid_empty_bot(self):
+        bot = AccountProcessor.add_bot("test_1", 26, "xyz@abc.com")
+        processor = MongoProcessor()
+        temp = processor.get_chat_client_config_url(bot["_id"].__str__(), 'xyz@abc.com')
+        uid = temp.split("/")[-1]
+        with pytest.raises(DoesNotExist, match="Bot does not exists!"):
+            processor.get_client_config_using_uid("", uid)
+
+    def test_get_client_config_using_invalid_uid(self):
+        bot = AccountProcessor.add_bot("test_3", 6, "test_demo@2")
+        processor = MongoProcessor()
+        temp = processor.get_chat_client_config_url(bot["_id"].__str__(), 'test_demo@2')
+        uid = temp.split("/")[0]
+        with pytest.raises(PyJWTError, match="Invalid token"):
+            processor.get_client_config_using_uid(bot["_id"].__str__(), uid)
+
+    def test_get_client_config_using_empty_uid(self):
+        bot = AccountProcessor.add_bot("test_2", 46, "test_d@2")
+        processor = MongoProcessor()
+        with pytest.raises(PyJWTError, match="Invalid token"):
+            processor.get_client_config_using_uid(bot["_id"].__str__(), "")

@@ -576,7 +576,7 @@ async def download_data(
     """
     Downloads training data nlu.md, domain.yml, stories.md, config.yml files
     """
-    file = mongo_processor.download_files(current_user.get_bot())
+    file = mongo_processor.download_files(current_user.get_bot(), current_user.get_user())
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
     )
