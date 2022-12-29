@@ -250,14 +250,13 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 users = list(
-                    conversations.aggregate([{"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
-                                             {"$match": {"event.event": {"$in": ["user", "bot"]},
+                    conversations.aggregate([{"$match": {"event.event": {"$in": ["user", "bot"]},
                                                          "event.timestamp": {
                                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
                                              {"$group": {"_id": "$sender_id",
-                                                         "latest_event_time": {"$first": "$latest_event_time"},
-                                                         "events": {"$push": "$events"},
-                                                         "allevents": {"$push": "$events"}}},
+                                                         "latest_event_time": {"$first": "$event.timestamp"},
+                                                         "events": {"$push": "$event"},
+                                                         "allevents": {"$push": "$event"}}},
                                              {"$unwind": "$events"},
                                              {"$project": {
                                                  "_id": 1,
