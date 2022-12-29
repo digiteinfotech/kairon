@@ -250,44 +250,17 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 users = list(
-                    conversations.aggregate([{"$match": {"event.event": {"$in": ["user", "bot"]},
+                    conversations.aggregate([{"$match": {"event.event": {"$in": ["user"]},
                                                          "event.timestamp": {
                                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
                                              {"$group": {"_id": "$sender_id",
                                                          "latest_event_time": {"$first": "$event.timestamp"},
-                                                         "events": {"$push": "$event"},
-                                                         "allevents": {"$push": "$event"}}},
-                                             {"$unwind": "$events"},
-                                             {"$project": {
-                                                 "_id": 1,
-                                                 "events": 1,
-                                                 "latest_event_time": 1,
-                                                 "following_events": {
-                                                     "$arrayElemAt": [
-                                                         "$allevents",
-                                                         {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
-                                                     ]
-                                                 }
-                                             }},
-                                             {"$project": {
-                                                 "latest_event_time": 1,
-                                                 "user_timestamp": "$events.timestamp",
-                                                 "bot_timestamp": "$following_events.timestamp",
-                                                 "user_event": "$events.event",
-                                                 "bot_event": "$following_events.event",
-                                                 "time_diff": {
-                                                     "$subtract": ["$following_events.timestamp", "$events.timestamp"]
-                                                 }
-                                             }},
-                                             {"$match": {"user_event": "user", "bot_event": "bot"}},
-                                             {"$group": {"_id": "$_id",
-                                                         "latest_event_time": {"$first": "$latest_event_time"},
-                                                         "steps": {"$sum": 1}, "time": {"$sum": "$time_diff"}}},
+                                                         "steps": {"$sum": 1},}
+                                              },
                                              {"$project": {
                                                  "sender_id": "$_id",
                                                  "_id": 0,
                                                  "steps": 1,
-                                                 "time": 1,
                                                  "latest_event_time": 1,
                                              }},
                                              {"$sort": {"latest_event_time": -1}}
