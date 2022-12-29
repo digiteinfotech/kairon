@@ -189,7 +189,10 @@ class TestHistory:
     def test_user_with_metrics(self, mock_client):
         mock_client.return_value = mongoclient
         users, message = HistoryProcessor.user_with_metrics("tests")
-        assert users == []
+        assert users
+        assert users[0]['latest_event_time']
+        assert users[0]['steps']
+        assert users[0]['sender_id']
         assert message is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
