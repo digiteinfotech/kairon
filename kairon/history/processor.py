@@ -780,9 +780,8 @@ class HistoryProcessor:
                                               ]
                                     }
                           },
-                         {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
-                         {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
-                                     "allevents": {"$push": "$events"}}},
+                         {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
+                                     "allevents": {"$push": "$event"}}},
                          {"$unwind": "$events"},
                          {"$match": {"events.event": 'user'}},
                          {"$group": {"_id": "$_id", "events": {"$push": "$events"}, "user_array":
