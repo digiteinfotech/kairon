@@ -350,7 +350,17 @@ class DataUtility:
         template_type = 'CUSTOM'
         if isinstance(story, Dict):
             steps = story['steps']
-            if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
+            if (
+                    len(steps) == 2 and
+                    steps[0]['type'] == StoryStepType.intent and
+                    steps[1]['type'] == StoryStepType.bot
+            ) or (
+                    len(steps) == 3 and
+                    steps[0]['name'] == RULE_SNIPPET_ACTION_NAME and
+                    steps[0]['type'] == StoryStepType.action and
+                    steps[1]['type'] == StoryStepType.intent and
+                    steps[2]['type'] == StoryStepType.bot
+            ):
                 template_type = 'Q&A'
         else:
             if (

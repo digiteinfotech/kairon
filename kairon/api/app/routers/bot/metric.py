@@ -63,7 +63,7 @@ async def add_end_user_metrics(
     """
     data = request_data.dict()["data"]
     MeteringProcessor.add_log_with_geo_location(
-        metric_type=metric_type.value, request=request, bot=current_user.get_bot(), sender_id=current_user.get_user(),
+        metric_type=metric_type.value, request=request, bot=current_user.get_bot(), user=current_user.get_user(),
         account_id=current_user.account, **data
     )
     return Response(message='Metrics added')
