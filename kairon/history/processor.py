@@ -527,10 +527,10 @@ class HistoryProcessor:
                                                          "event.timestamp": { "$gte": Utility.get_timestamp_previous_month(month)}
                                                          }
                                              },
-                                             {"$addFields": {"month": { "$month": {"$toDate": {"$multiply": ["event.timestamp", 1000]}}}}},
-                                             {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}, "count": {"$sum": 1}, "month": {"$last": "$month"}}},
+                                             {"$addFields": {"month": { "$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
+                                             {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}, "count": {"$sum": 1}}},
                                              {"$match": {"count": {"$gte": conversation_limit}}},
-                                             {"$group": {"_id": "$month", "count": {"$sum": "$count"}}},
+                                             {"$group": {"_id": "$_id.month", "count": {"$sum": "$count"}}},
                                              {"$project": {
                                                  "_id": 1,
                                                  "count": 1,
@@ -669,7 +669,7 @@ class HistoryProcessor:
                                                          "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}
                                                          }
                                               },
-                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["event.timestamp", 1000]}}}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
                         {"$group": {"_id": "$month", "count": {"$sum": 1}}},
                         {"$project": {"_id": 1, "count": 1}}
                     ]))
