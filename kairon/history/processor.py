@@ -776,7 +776,7 @@ class HistoryProcessor:
                                                 {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}},
                                                 {"$or": [{"event.event": {"$in": ['bot', 'user']}},
                                                          {"$and": [{"event.event": "action"},
-                                                                   {"event.name": {"$nin": ['action_session_start']}}]}]}
+                                                                   {"event.name": {"$nin": ['action_session_start', 'action_listen']}}]}]}
                                               ]
                                     }
                           },
