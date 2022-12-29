@@ -528,7 +528,7 @@ class HistoryProcessor:
                                                          }
                                              },
                                              {"$addFields": {"month": { "$month": {"$toDate": {"$multiply": ["event.timestamp", 1000]}}}}},
-                                             {"$group": {"_id": {"$month", "$sender_id"}, "count": {"$sum": 1}, "month": {"$last": "$month"}}},
+                                             {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}, "count": {"$sum": 1}, "month": {"$last": "$month"}}},
                                              {"$match": {"count": {"$gte": conversation_limit}}},
                                              {"$group": {"_id": "$month", "count": {"$sum": "$count"}}},
                                              {"$project": {
@@ -628,7 +628,7 @@ class HistoryProcessor:
                         {"$match":
                             {
                                 "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
-                                "event.event": {"$in": {fallback_action, nlu_fallback_action}}
+                                "event.event": {"$in": [fallback_action, nlu_fallback_action]}
                             }
                         },
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
