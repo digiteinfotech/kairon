@@ -254,7 +254,7 @@ class HistoryProcessor:
                                                          "event.timestamp": {
                                                              "$gte": Utility.get_timestamp_previous_month(month)}}},
                                              {"$group": {"_id": "$sender_id",
-                                                         "latest_event_time": {"$first": "$event.timestamp"},
+                                                         "latest_event_time": {"$last": "$event.timestamp"},
                                                          "steps": {"$sum": 1},}
                                               },
                                              {"$project": {
