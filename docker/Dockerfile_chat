@@ -35,6 +35,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install torch==1.11.0
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install pandas
+RUN python -m pip install uuid6
 
 RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache
