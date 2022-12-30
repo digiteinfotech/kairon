@@ -16,7 +16,7 @@ from rasa.shared.core.domain import Domain
 from rasa.shared.core.trackers import (
     DialogueStateTracker,
 )
-from uuid import uuid4
+from uuid6 import uuid7
 
 
 class KMongoTrackerStore(TrackerStore):
@@ -60,7 +60,7 @@ class KMongoTrackerStore(TrackerStore):
 
         additional_events = self._additional_events(tracker)
         sender_id = tracker.sender_id
-        conversation_id = uuid4().hex
+        conversation_id = uuid7().hex
         data = [{"sender_id": sender_id, "conversation_id": conversation_id,"event": e.as_dict()} for e in additional_events]
         if data:
             self.conversations.insert_many(data)
