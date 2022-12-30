@@ -9,14 +9,14 @@ from typing import (
     Iterator
 )
 
+from pymongo.collection import Collection
 from rasa.core.brokers.broker import EventBroker
 from rasa.core.tracker_store import TrackerStore
 from rasa.shared.core.domain import Domain
 from rasa.shared.core.trackers import (
     DialogueStateTracker,
 )
-from pymongo import ASCENDING
-from pymongo.collection import Collection
+from uuid import uuid4
 
 
 class KMongoTrackerStore(TrackerStore):
@@ -51,7 +51,7 @@ class KMongoTrackerStore(TrackerStore):
 
     def _ensure_indices(self) -> None:
         self.conversations.create_index("sender_id")
-        self.conversations.create_index([("sender_id", ASCENDING), ("event.event", ASCENDING)], name="sender-event")
+        self.conversations.create_index("conversation_id")
 
     def save(self, tracker, timeout=None):
         """Saves the current conversation state."""
@@ -60,7 +60,8 @@ class KMongoTrackerStore(TrackerStore):
 
         additional_events = self._additional_events(tracker)
         sender_id = tracker.sender_id
-        data = [{"sender_id": sender_id, "event": e.as_dict()} for e in additional_events]
+        conversation_id = uuid4().hex
+        data = [{"sender_id": sender_id, "conversation_id": conversation_id,"event": e.as_dict()} for e in additional_events]
         if data:
             self.conversations.insert_many(data)
 

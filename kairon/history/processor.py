@@ -838,7 +838,7 @@ class HistoryProcessor:
                         {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
                         {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
                         {"$project": {"_id": 1, "count": 1}}
-                    ]))
+                    ], allowDiskUse=True))
 
         except Exception as e:
             logger.error(e)
@@ -873,7 +873,7 @@ class HistoryProcessor:
                         {"$match": {"_id": {"$ne": None}}},
                         {"$sort": {"count": -1}},
                         {"$limit": top_n}
-                    ]))
+                    ], allowDiskUse=True))
             return values, None
         except Exception as e:
             logger.error(e)
@@ -908,7 +908,7 @@ class HistoryProcessor:
                         {"$group": {"_id": "$action", "count": {"$sum": 1}}},
                         {"$sort": {"count": -1}},
                         {"$limit": top_n}
-                    ]))
+                    ], allowDiskUse=True))
 
             return values, None
         except Exception as e:
@@ -956,7 +956,7 @@ class HistoryProcessor:
                         {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
                         {"$group": {"_id": "$_id.month", "count": {"$sum": 1}}},
                         {"$project": {"_id": 1, "count": 1}}
-                    ]))
+                    ], allowDiskUse=True))
         except Exception as e:
             logger.error(e)
             message = str(e)
@@ -1399,7 +1399,7 @@ class HistoryProcessor:
                                                      "on": "_id",
                                                      "whenMatched": "keepExisting",
                                                      "whenNotMatched": "insert"}}
-                                         ])
+                                         ], allowDiskUse=True)
         except Exception as e:
             logger.error(e)
             raise AppException(e)
