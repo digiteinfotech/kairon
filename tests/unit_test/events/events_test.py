@@ -1005,7 +1005,7 @@ class TestEventExecution:
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
     @responses.activate
-    def test_trigger_model_testing_event(self, monkeypatch):
+    def test_trigger_model_testing_event(self):
         bot = 'test_events_bot'
         user = 'test_user'
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_testing}")
@@ -1015,7 +1015,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user})],
+                              {'bot': bot, 'user': user, 'augment_data': True})],
                       )
         ModelTestingEvent(bot, user).enqueue()
         responses.reset()
@@ -1029,7 +1029,32 @@ class TestEventExecution:
         assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
-    def test_trigger_history_deletion_for_bot(self, monkeypatch):
+    @responses.activate
+    def test_trigger_model_testing_event_2(self):
+        bot = 'test_events_bot_2'
+        user = 'test_user'
+        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_testing}")
+        responses.add("POST",
+                      event_url,
+                      json={"success": True, "message": "Event triggered successfully!"},
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              {'bot': bot, 'user': user, 'augment_data': False})],
+                      )
+        ModelTestingEvent(bot, user, augment_data=False).enqueue()
+        responses.reset()
+
+        logs = list(ModelTestingLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0].get('end_timestamp')
+        assert not logs[0].get('status')
+        assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
+        assert not os.path.exists(os.path.join('./testing_data', bot))
+
+    def test_trigger_history_deletion_for_bot(self):
         bot = 'test_events_bot'
         user = 'test_user'
         month = 1

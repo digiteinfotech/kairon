@@ -65,6 +65,6 @@ COPY template ${MODEL_TESTER_HOME}/template
 
 ENV BOT default
 ENV USER default
+ENV AUGMENT_DATA default
 
-
-CMD ["sh","-c","python -m kairon test ${BOT} ${USER}"]
+CMD ["sh","-c","python -m kairon test ${BOT} ${USER} ${AUGMENT_DATA}"]
