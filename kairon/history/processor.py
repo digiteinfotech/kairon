@@ -84,7 +84,7 @@ class HistoryProcessor:
                         result["confidence"] = parse_data["intent"]["confidence"]
                     elif event["event"] == "bot":
                         result['data'] = event['data']
-                        result["action"] = event['metadata']['utter_action']
+                        result["action"] =  event['metadata']['utter_action'] if event.get('metadata') else None
 
                     if result:
                         yield result
