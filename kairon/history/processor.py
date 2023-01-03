@@ -84,10 +84,17 @@ class HistoryProcessor:
                         result["confidence"] = parse_data["intent"]["confidence"]
                     elif event["event"] == "bot":
                         result['data'] = event['data']
-                        result["action"] =  event['metadata']['utter_action'] if event.get('metadata') else None
+                        if event.get('metadata'):
+                            result["action"] = event['metadata']['utter_action']
+                        else:
+                            result["action"] = bot_action
 
                     if result:
                         yield result
+                else:
+                    bot_action = (
+                        event["name"] if event["event"] == "action" else None
+                    )
 
     @staticmethod
     def fetch_user_history(collection: Text, sender_id: Text, month: int = 1):
@@ -110,7 +117,7 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 values = list(conversations
                               .aggregate([{"$match": {"sender_id": sender_id, "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
-                                          {"$match": {"event.event": {"$in": ["user", "bot"]}}},
+                                          {"$match": {"event.event": {"$in": ["user", "bot", "action"]}}},
                                           {"$group": {"_id": None, "events": {"$push": "$event"}}},
                                           {"$project": {"_id": 0, "events": 1}}])
                               )
