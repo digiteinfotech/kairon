@@ -87,12 +87,12 @@ class Utility:
                     response.append("Password length must be " + str(result.length))
                 elif isinstance(result, Special):
                     response.append("Missing " + str(result.count) + " special letter")
+                elif isinstance(result, Numbers):
+                    response.append("Missing " + str(result.count) + " number")
                 elif isinstance(result, Uppercase):
                     response.append(
                         "Missing " + str(result.count) + " uppercase letter"
                     )
-                elif isinstance(result, Numbers):
-                    response.append("Missing " + str(result.count) + "number")
 
             if response:
                 raise AppException("\n".join(response))
