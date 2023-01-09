@@ -11137,12 +11137,11 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["data"])
     assert len(actual["data"]["logs"]) == 4
     assert actual["data"]["total"] == 4
     actual["data"]["logs"][0].pop('timestamp')
     actual["data"]["logs"][0].pop('account')
-    assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+    assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com', 'bot': pytest.bot,
                            'source': 'Digite.com', 'language': 'English'}
     actual["data"]["logs"][1].pop('timestamp')
     actual["data"]["logs"][1].pop('account')
@@ -11150,12 +11149,12 @@ def test_get_end_user_metrics():
     actual["data"]["logs"][2].pop('account')
     assert actual["data"]["logs"][1]['ip']
     del actual["data"]["logs"][1]['ip']
-    assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+    assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+    assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
@@ -12079,3 +12078,53 @@ def test_idp_provider_fields_unauth():
     ).json()
 
     assert response["error_code"] == 401
+
+
+def test_allowed_origin_default():
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == "User does not exist!"
+    assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
+                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
+                                'x-content-type-options': 'nosniff',
+                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'cross-origin-embedder-policy': 'require-corp',
+                                'cross-origin-opener-policy': 'same-origin',
+                                'cross-origin-resource-policy': 'same-origin',
+                                'access-control-allow-origin': '*'
+                                }
+
+
+def test_allowed_origin(monkeypatch):
+    monkeypatch.setitem(Utility.environment['cors'], 'origin', 'http://digite.com')
+
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        headers={"origin": "http://digite.com"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == "User does not exist!"
+    assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
+                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
+                                'x-content-type-options': 'nosniff',
+                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'cross-origin-embedder-policy': 'require-corp',
+                                'cross-origin-opener-policy': 'same-origin',
+                                'cross-origin-resource-policy': 'same-origin',
+                                'access-control-allow-origin': 'http://digite.com',
+                                'access-control-allow-credentials': 'true',
+                                'access-control-expose-headers': 'content-disposition',
+                                'vary': 'Origin'
+                                }

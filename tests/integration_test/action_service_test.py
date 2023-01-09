@@ -4789,3 +4789,193 @@ class TestActionServer(AsyncHTTPTestCase):
                           [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
                             'response': 'utter_greet', 'image': None, 'attachment': None}
                            ])
+
+    def test_action_handler_none(self):
+        action_name = ""
+        bot = ""
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "to_email": "test@test.com", "organization": "digite"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        assert response_json is None
+
+    def test_action_handler_exceptions(self):
+        action_name = ""
+        bot = ""
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "to_email": "test@test.com", "organization": "digite"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+
+        async def mock_process_actions(*args, **kwargs):
+            from rasa_sdk import ActionExecutionRejection
+            raise ActionExecutionRejection("Action Execution Rejection")
+
+        with patch('kairon.actions.handlers.action.ActionHandler.process_actions', mock_process_actions):
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response_json, {'error': "Custom action 'Action Execution Rejection' rejected execution.",
+                                            'action_name': 'Action Execution Rejection'})
+
+        async def mock_process_actions(*args, **kwargs):
+            from rasa_sdk.interfaces import ActionNotFoundException
+            raise ActionNotFoundException("Action Not Found Exception")
+
+        with patch('kairon.actions.handlers.action.ActionHandler.process_actions', mock_process_actions):
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response_json, {'error': "No registered action found for name 'Action Not Found Exception'.",
+                                             'action_name': 'Action Not Found Exception'})

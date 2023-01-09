@@ -1496,6 +1496,31 @@ class TestUtility:
         story["type"] = "STORY"
         assert DataUtility.get_template_type(story) == TemplateType.QNA.value
 
+    def test_get_templates_type_rule_dict(self):
+        story = {
+          "name": "share_ticket_count_323",
+          "steps": [
+              {
+                  "name": RULE_SNIPPET_ACTION_NAME,
+                  "type": "ACTION"
+              },
+            {
+              "name": "share_ticket_count_323",
+              "type": "INTENT"
+            },
+            {
+              "name": "utter_share_ticket_count_323",
+              "type": "BOT"
+            }
+          ],
+          "type": "RULE"
+        }
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+        story["type"] = "STORY"
+        assert DataUtility.get_template_type(story) == TemplateType.QNA.value
+
+
     def test_get_templates_type_story_step(self):
         story = [
             StoryEvents(type=UserUttered.type_name, name="share_ticket_count_323"),

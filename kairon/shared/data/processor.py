@@ -4273,11 +4273,34 @@ class MongoProcessor:
         """
         if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
             raise AppException(f"key '{key}' does not exists!")
-        actions = list(HttpActionConfig.objects(__raw__={
+        http_action = list(HttpActionConfig.objects(__raw__={
             "bot": bot, "status": True,
             "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
                     {"params_list": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}}]
         }).values_list("action_name"))
+
+        email_action = list(EmailActionConfig.objects((
+            (Q(smtp_userid__parameter_type=ActionParameterType.key_vault.value) & Q(smtp_userid__value=key)) |
+            (Q(smtp_password__parameter_type=ActionParameterType.key_vault.value) & Q(smtp_password__value=key))
+        ), bot=bot, status=True).values_list("action_name"))
+
+        google_action = list(GoogleSearchAction.objects((
+            Q(api_key__parameter_type=ActionParameterType.key_vault.value) & Q(api_key__value=key)
+        ), bot=bot, status=True).values_list("name"))
+
+        action_list = []
+        for action_class in [JiraAction, ZendeskAction, PipedriveLeadsAction]:
+            attached_action = list(action_class.objects((
+            Q(api_token__parameter_type=ActionParameterType.key_vault.value) & Q(api_token__value=key)
+        ), bot=bot, status=True).values_list("name"))
+            action_list.extend(attached_action)
+
+        hubspot_action = list(HubspotFormsAction.objects(__raw__={
+            "bot": bot, "status": True,
+            "fields": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}
+        }).values_list("name"))
+
+        actions = http_action + email_action + google_action + action_list + hubspot_action
 
         if len(actions):
             raise AppException(f"Key is attached to action: {actions}")
@@ -4494,7 +4517,7 @@ class MongoProcessor:
                 {"name": intent, "type": "INTENT"},
                 {"name": action, "type": "BOT"}
             ]
-            rule = {'name': intent, 'steps': steps, 'type': 'RULE'}
+            rule = {'name': intent, 'steps': steps, 'type': 'RULE', 'template_type': TemplateType.QNA.value}
             try:
                 training_example_errors = list(self.add_training_example(examples, intent, bot, user, False))
                 is_intent_added = True
@@ -4516,42 +4539,42 @@ class MongoProcessor:
         get_intents_pipelines = [
                 {'$unwind': {'path': '$events'}},
                 {'$match': {'events.type': 'user'}},
-                {'_id': None, 'intents': {'$push': '$events.name'}},
-                {"project": {'_id': 0, 'intents': 1}}
+                {'$group': {'_id': None, 'intents': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'intents': 1}}
             ]
         get_utterances_pipelines = [
                 {'$unwind': {'path': '$events'}},
                 {'$match': {'events.type': 'action', 'events.name': {'$regex': '^utter_'}}},
-                {'_id': None, 'utterances': {'$push': '$events.name'}},
-                {"project": {'_id': 0, 'utterances': 1}}
+                {'$group': {'_id': None, 'utterances': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'utterances': 1}}
             ]
         qna_intents = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
             get_intents_pipelines
-        ))[0].get('intents')
-        qna_intents = set(qna_intents)
+        ))
+        qna_intents = set(qna_intents[0].get('intents')) if qna_intents else set()
         story_intents = list(Stories.objects(bot=bot, status=True).aggregate(
             get_intents_pipelines
-        ))[0].get('intents')
-        story_intents = set(story_intents)
+        ))
+        story_intents = set(story_intents[0].get('intents')) if story_intents else set()
         custom_rule_intents = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.CUSTOM.value).aggregate(
             get_intents_pipelines
-        ))[0].get('intents')
-        custom_rule_intents = set(custom_rule_intents)
+        ))
+        custom_rule_intents = set(custom_rule_intents[0].get('intents')) if custom_rule_intents else set()
         delete_intents = qna_intents - story_intents - custom_rule_intents
         print(delete_intents)
 
         qna_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
             get_utterances_pipelines
-        ))[0].get('utterances')
-        qna_utterances = set(qna_utterances)
+        ))
+        qna_utterances = set(qna_utterances[0].get('utterances')) if qna_utterances else set()
         custom_rule_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.CUSTOM.value).aggregate(
             get_utterances_pipelines
-        ))[0].get('utterances')
-        custom_rule_utterances = set(custom_rule_utterances)
+        ))
+        custom_rule_utterances = set(custom_rule_utterances[0].get('utterances')) if custom_rule_utterances else set()
         story_utterances = list(Stories.objects(bot=bot, status=True).aggregate(
             get_utterances_pipelines
-        ))[0].get('utterances')
-        story_utterances = set(story_utterances)
+        ))
+        story_utterances = set(story_utterances[0].get('utterances')) if story_utterances else set()
         delete_utterances = qna_utterances - story_utterances - custom_rule_utterances
         print(delete_utterances)
 
