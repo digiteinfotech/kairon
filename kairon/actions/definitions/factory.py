@@ -1,5 +1,6 @@
 from typing import Text
 
+from kairon.actions.definitions.bot_response import ActionKaironBotResponse
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.form_validation import ActionFormValidation
 from kairon.actions.definitions.google import ActionGoogleSearch
@@ -27,13 +28,13 @@ class ActionFactory:
         ActionType.zendesk_action.value: ActionZendeskTicket,
         ActionType.pipedrive_leads_action.value: ActionPipedriveLeads,
         ActionType.hubspot_forms_action.value: ActionHubspotForms,
-        ActionType.two_stage_fallback.value: ActionTwoStageFallback
+        ActionType.two_stage_fallback.value: ActionTwoStageFallback,
+        ActionType.kairon_bot_response.value: ActionKaironBotResponse
     }
 
     @staticmethod
     def get_instance(bot_id: Text, action_name: Text):
-        action = ActionUtility.get_action(bot=bot_id, name=action_name)
-        action_type = action.get('type')
+        action_type = ActionUtility.get_action_type(bot=bot_id, name=action_name)
         if not ActionFactory.__implementations.get(action_type):
-            raise ActionFailure(f'{action.get("type")} type action is not supported with action server')
+            raise ActionFailure(f'{action_type} type action is not supported with action server')
         return ActionFactory.__implementations[action_type](bot_id, action_name)

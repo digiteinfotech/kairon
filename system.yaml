@@ -141,6 +141,10 @@ plugins:
   location:
     enable: ${ENABLE_LOCATION_PLUGIN}
     token: ${LOCATION_PLUGIN_TOKEN}
+  gpt:
+    url: "https://api.openai.com/v1/completions"
+    temperature: 0.7
+    model: "text-davinci-003"
 
 idp:
   enable: ${IDP_ENABLED:false}
@@ -149,3 +153,6 @@ idp:
   admin_password: ${ADMIN_PASSWORD}
   callback_frontend_url: ${CALLBACK_FRONTEND_URL}
   type: ${IDP_TYPE:idp}
+
+cors:
+  origin: ${ALLOWED_ORIGIN:["*"]}

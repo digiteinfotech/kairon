@@ -1,22 +1,23 @@
 import json
+import os
+from re import escape
 from unittest.mock import patch
 from urllib.parse import urlencode, quote_plus
 
-from mongomock.mongo_client import MongoClient
+import mongomock
+import pytest
+import responses
+from mongoengine import connect, ValidationError
 from pymongo.collection import Collection
-from pymongo.errors import ServerSelectionTimeoutError
 from slack.web.slack_response import SlackResponse
 
 from kairon.chat.utils import ChatUtils
-from kairon.shared.account.processor import AccountProcessor
 from kairon.exceptions import AppException
-from kairon.shared.utils import Utility
-import pytest
-import os
-from mongoengine import connect, ValidationError
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
-from re import escape
-import responses
+from kairon.shared.utils import Utility
+import mock
+from pymongo.errors import ServerSelectionTimeoutError
 
 
 class TestChat:
@@ -27,29 +28,7 @@ class TestChat:
         Utility.load_environment()
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
-
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
-
-    @pytest.fixture
-    def mock_db_timeout(self, monkeypatch):
-        def _mock_db_timeout(*args, **kwargs):
-            raise ServerSelectionTimeoutError('Failed to connect')
-
-        monkeypatch.setattr(Collection, 'aggregate', _mock_db_timeout)
-
-    @pytest.fixture
-    def mock_mongo_client(self, monkeypatch):
-        def db_client(*args, **kwargs):
-            client = MongoClient()
-            db = client.get_database("conversation")
-            conversations = db.get_collection("conversations")
-            json_data = json.load(
-                open("tests/testing_data/history/conversations_history.json")
-            )
-            conversations.insert_many(json_data[0]['events'])
-            return client
-
-        monkeypatch.setattr(Utility, "create_mongo_client", db_client)
 
     def test_save_channel_config_invalid(self):
         with pytest.raises(ValidationError, match="Invalid channel type custom"):
@@ -433,13 +412,16 @@ class TestChat:
                                                       "test",
                                                       "test")
 
-    def test_fetch_session_history_error(self, mock_db_timeout, monkeypatch):
-        monkeypatch.setitem(Utility.environment["database"], "url", "mongodb://localhost:3306")
+    @mock.patch('kairon.shared.utils.MongoClient', autospec=True)
+    def test_fetch_session_history_error(self, mock_mongo):
+        mock_mongo.side_effect = ServerSelectionTimeoutError("Failed to retrieve conversation: Failed to connect")
         history, message = ChatUtils.get_last_session_conversation("tests", "12345")
         assert len(history) == 0
         assert message.__contains__("Failed to retrieve conversation: Failed to connect")
 
-    def test_fetch_session_history_empty(self, mock_mongo_client):
+    @mock.patch('kairon.shared.utils.MongoClient', autospec=True)
+    def test_fetch_session_history_empty(self, mock_mongo):
+        mock_mongo.return_value = mongomock.MongoClient()
         history, message = ChatUtils.get_last_session_conversation("tests", "12345")
         assert len(history) == 0
         assert message is None
@@ -454,13 +436,19 @@ class TestChat:
         assert len(history) == 0
         assert message.__contains__("Failed to retrieve conversation: object out of memory")
 
-    def test_fetch_session_history(self, monkeypatch):
-        def events(*args, **kwargs):
-            json_data = json.load(open("tests/testing_data/history/conversation.json"))
-            yield json_data
-
-        monkeypatch.setattr(Collection, 'aggregate', events)
-        monkeypatch.setitem(Utility.environment["database"], "url", "mongodb://localhost:3306")
-        history, message = ChatUtils.get_last_session_conversation("tests", "5e564fbcdcf0d5fad89e3acd")
-        assert len(history) == 28
+    @mock.patch('kairon.shared.utils.MongoClient', autospec=True)
+    def test_fetch_session_history(self, mock_mongo):
+        import time
+        bot = '5e564fbcdcf0d5fad89e3acd'
+        test_db = Utility.environment['database']['test_db']
+        mongo_client = mongomock.MongoClient("mongodb://test/conversations")
+        db = mongo_client.get_database(test_db)
+        collection = db.get_collection(bot)
+        items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
+        for item in items:
+            item['event']['timestamp'] = time.time()
+        collection.insert_many(items)
+        mock_mongo.return_value = mongo_client
+        history, message = ChatUtils.get_last_session_conversation(bot, "fshaikh@digite.com")
+        assert len(history) == 2
         assert message is None

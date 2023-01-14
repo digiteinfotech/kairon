@@ -49,7 +49,7 @@ class TrainingDataImporterEvent(EventsBase):
         """
         import_data = "--import-data" if self.import_data is True else ''
         overwrite = '--overwrite' if self.overwrite is True else ''
-        payload = {'bot': self.bot, 'user': self.user, 'import_data': import_data, 'overwrite': overwrite}
+        payload = {'bot': self.bot, 'user': self.user, 'import_data': import_data, 'overwrite': overwrite, 'event_type': EventClass.data_importer}
         DataImporterLogProcessor.add_log(self.bot, self.user, event_status=EVENT_STATUS.ENQUEUED.value)
         try:
             Utility.request_event_server(EventClass.data_importer, payload)

@@ -13,7 +13,7 @@ from ..shared.actions.utils import ActionUtility
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
-
+from pymongo.collection import Collection
 
 class ChatUtils:
 
@@ -86,36 +86,42 @@ class ChatUtils:
         :param sender_id: user id
         :return: list of conversation events
         """
-        host = Utility.environment['database']['url']
-        db = Utility.environment['database']['test_db']
+
         events = []
         message = None
-        client = Utility.create_mongo_client(host)
-        with client as client:
-            try:
+
+        try:
+            host = Utility.environment['database']['url']
+            db = Utility.environment['database']['test_db']
+            client = Utility.create_mongo_client(host)
+            with client as client:
                 db = client.get_database(db)
                 conversations = db.get_collection(bot)
+                last_session = ChatUtils.get_last_session(conversations, sender_id)
+                if not last_session:
+                    return events, message
                 events = list(conversations.aggregate([
-                    {"$match": {"sender_id": sender_id}},
-                    {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
-                    {"$match": {"events.event": {"$in": ["session_started", "user", "bot"]}}},
-                    {"$project": {"sender_id": 1, "events.event": 1, "events.timestamp": 1, "events.text": 1,
-                                  "events.data": 1}},
-                    {"$group": {"_id": "$sender_id", "events": {"$push": "$events"},
-                                "all_events": {"$push": "$events"}}},
-                    {"$unwind": {"path": "$events", "includeArrayIndex": "arrayIndex"}},
-                    {"$match": {"events.event": "session_started"}},
-                    {"$group": {"_id": "$sender_id", "events": {"$push": "$arrayIndex"},
-                                "allevents": {"$first": '$all_events'}}},
-                    {"$project": {"lastindex": {"$last": "$events"}, "allevents": 1}},
-                    {"$project": {"events": {"$slice": ["$allevents", "$lastindex", {"$size": '$allevents'}]}}},
+                    {"$match": {"sender_id": sender_id, "event.timestamp": {"$gt": last_session['event']['timestamp']}}},
+                    {"$match": {"event.event": {"$in": ["session_started", "user", "bot"]}}},
+                    {"$project": {"sender_id": 1, "event.event": 1, "event.timestamp": 1, "event.text": 1,
+                                  "event.data": 1}},
+                    {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
                 ]))
+                print(events)
                 if events:
                     events = events[0]['events']
-            except ServerSelectionTimeoutError as e:
-                logger.error(e)
-                message = f'Failed to retrieve conversation: {e}'
-            except Exception as e:
-                logger.error(e)
-                message = f'Failed to retrieve conversation: {e}'
-            return events, message
+        except ServerSelectionTimeoutError as e:
+            logger.error(e)
+            message = f'Failed to retrieve conversation: {e}'
+        except Exception as e:
+            logger.error(e)
+            message = f'Failed to retrieve conversation: {e}'
+        return events, message
+
+    @staticmethod
+    def get_last_session(conversations: Collection, sender_id: Text):
+        last_session = list(conversations.aggregate([
+            {"$match": {"sender_id": sender_id, "event.event": "session_started"}},
+            {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
+        ]))
+        return last_session[0] if last_session else None

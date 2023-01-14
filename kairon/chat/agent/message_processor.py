@@ -1,9 +1,14 @@
+from typing import Tuple, Optional, Text
 import rasa
+from rasa.core.actions.action import Action, ActionRetrieveResponse, ActionEndToEndResponse, RemoteAction, default_actions
 from rasa.core.channels import UserMessage, OutputChannel, CollectingOutputChannel
+from rasa.core.policies.policy import PolicyPrediction
 from rasa.core.processor import MessageProcessor, logger
-from rasa.shared.constants import DOCS_URL_POLICIES
+from rasa.shared.constants import DOCS_URL_POLICIES, UTTER_PREFIX
+from rasa.shared.core.domain import Domain
 from rasa.shared.core.events import UserUttered
 from rasa.shared.core.trackers import DialogueStateTracker
+from rasa.utils.endpoints import EndpointConfig
 
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -140,3 +145,101 @@ class KaironMessageProcessor(MessageProcessor):
             return response
 
         return response
+
+    def predict_next_action(
+        self, tracker: DialogueStateTracker
+    ) -> Tuple[rasa.core.actions.action.Action, PolicyPrediction]:
+        """Predicts the next action the bot should take after seeing x.
+
+        This should be overwritten by more advanced policies to use
+        ML to predict the action. Returns the index of the next action.
+        """
+        prediction = self._get_next_action_probabilities(tracker)
+
+        action = KaironMessageProcessor.__action_for_index(
+            prediction.max_confidence_index, self.domain, self.action_endpoint
+        )
+
+        logger.debug(
+            f"Predicted next action '{action.name()}' with confidence "
+            f"{prediction.max_confidence:.2f}."
+        )
+
+        return action, prediction
+
+    @staticmethod
+    def __action_for_index(
+            index: int, domain: Domain, action_endpoint: Optional[EndpointConfig]
+    ) -> "Action":
+        """Get an action based on its index in the list of available actions.
+
+        Args:
+            index: The index of the action. This is usually used by `Policy`s as they
+                predict the action index instead of the name.
+            domain: The `Domain` of the current model. The domain contains the actions
+                provided by the user + the default actions.
+            action_endpoint: Can be used to run `custom_actions`
+                (e.g. using the `rasa-sdk`).
+
+        Returns:
+            The instantiated `Action` or `None` if no `Action` was found for the given
+            index.
+        """
+        if domain.num_actions <= index or index < 0:
+            raise IndexError(
+                f"Cannot access action at index {index}. "
+                f"Domain has {domain.num_actions} actions."
+            )
+
+        return KaironMessageProcessor.__action_for_name_or_text(
+            domain.action_names_or_texts[index], domain, action_endpoint
+        )
+
+    @staticmethod
+    def __action_for_name_or_text(
+            action_name_or_text: Text, domain: Domain, action_endpoint: Optional[EndpointConfig]
+    ) -> "Action":
+        """Retrieves an action by its name or by its text in case it's an end-to-end action.
+
+        Args:
+            action_name_or_text: The name of the action.
+            domain: The current model domain.
+            action_endpoint: The endpoint to execute custom actions.
+
+        Raises:
+            ActionNotFoundException: If action not in current domain.
+
+        Returns:
+            The instantiated action.
+        """
+        if action_name_or_text not in domain.action_names_or_texts:
+            domain.raise_action_not_found_exception(action_name_or_text)
+
+        defaults = {a.name(): a for a in default_actions(action_endpoint)}
+
+        if (
+                action_name_or_text in defaults
+                and action_name_or_text not in domain.user_actions_and_forms
+        ):
+            return defaults[action_name_or_text]
+
+        if action_name_or_text.startswith(UTTER_PREFIX) and rasa.core.actions.action.is_retrieval_action(
+                action_name_or_text, domain.retrieval_intents
+        ):
+            return ActionRetrieveResponse(action_name_or_text)
+
+        if action_name_or_text in domain.action_texts:
+            return ActionEndToEndResponse(action_name_or_text)
+
+        if action_name_or_text.startswith(UTTER_PREFIX):
+            return RemoteAction(action_name_or_text, action_endpoint)
+
+        is_form = action_name_or_text in domain.form_names
+        # Users can override the form by defining an action with the same name as the form
+        user_overrode_form_action = is_form and action_name_or_text in domain.user_actions
+        if is_form and not user_overrode_form_action:
+            from rasa.core.actions.forms import FormAction
+
+            return FormAction(action_name_or_text, action_endpoint)
+
+        return RemoteAction(action_name_or_text, action_endpoint)

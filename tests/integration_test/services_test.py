@@ -1,9 +1,9 @@
+import shutil
+import tempfile
 from datetime import datetime, timedelta
 import os
 import re
-import shutil
 import tarfile
-import tempfile
 from io import BytesIO
 from urllib.parse import urljoin
 from zipfile import ZipFile
@@ -690,8 +690,10 @@ def resource_test_upload_zip():
     shutil.make_archive(zip_file, 'zip', data_path)
     pytest.zip = open(zip_file + '.zip', 'rb').read()
     yield "resource_test_upload_zip"
-    os.remove(zip_file + '.zip')
-    shutil.rmtree(os.path.join('training_data', pytest.bot))
+    if os.path.exists(zip_file + '.zip'):
+        os.remove(zip_file + '.zip')
+    if os.path.exists(os.path.join('training_data', pytest.bot)):
+        shutil.rmtree(os.path.join('training_data', pytest.bot))
 
 
 @responses.activate
@@ -874,7 +876,7 @@ def test_upload_using_event_append(monkeypatch):
         status=200,
         match=[
             responses.json_params_matcher(
-                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': ''})],
+                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '', 'event_type': EventClass.data_importer})],
     )
 
     response = client.post(
@@ -4924,10 +4926,9 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
-    print(actual['data']['http_action'])
     assert actual['data'] == {
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
-        'hubspot_forms_action': [], 'two_stage_fallback': [],
+        'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
         'http_action': ['test_add_http_action_no_token',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
@@ -6272,7 +6273,7 @@ def test_get_client_config_url():
     assert actual["error_code"] == 0
     assert actual["data"]
     pytest.url = actual["data"]
-    
+
 
 @responses.activate
 def test_refresh_token(monkeypatch):
@@ -6287,7 +6288,7 @@ def test_refresh_token(monkeypatch):
     assert 31 >= round((datetime.utcfromtimestamp(ate) - datetime.utcnow()).total_seconds() / 60) >= 29
     assert 61 >= round((datetime.utcfromtimestamp(rte) - datetime.utcnow()).total_seconds() / 60) >= 59
     refresh_token = actual['data']['headers']['authorization']['refresh_token']
-    
+
     response = client.get(
         f"/api/auth/{pytest.bot}/token/refresh", headers={"Authorization": pytest.token_type + " " + refresh_token}
     )
@@ -6296,6 +6297,7 @@ def test_refresh_token(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["data"]["access_token"]
     assert actual["data"]["token_type"]
+    assert actual["data"]["refresh_token"]
     assert actual["message"] == 'This token will be shown only once. Please copy this somewhere safe.' \
                                 'It is your responsibility to keep the token secret. ' \
                                 'If leaked, others may have access to your system.'
@@ -11038,7 +11040,7 @@ def test_get_end_user_metrics_empty():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]["logs"] == []
-    assert actual["data"]["total"] == 1
+    assert actual["data"]["total"] == 0
 
 
 def test_add_end_user_metrics():
@@ -11123,11 +11125,11 @@ def test_get_end_user_metrics():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["success"]
     assert actual["error_code"] == 0
+    assert actual["success"]
     print(actual["data"])
     assert len(actual["data"]["logs"]) == 5
-    assert actual["data"]["total"] == 9
+    assert actual["data"]["total"] == 5
     response = client.get(
         f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -11135,12 +11137,11 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    print(actual["data"])
     assert len(actual["data"]["logs"]) == 4
-    assert actual["data"]["total"] == 9
+    assert actual["data"]["total"] == 4
     actual["data"]["logs"][0].pop('timestamp')
     actual["data"]["logs"][0].pop('account')
-    assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com', 'bot': pytest.bot,
+    assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com', 'bot': pytest.bot,
                            'source': 'Digite.com', 'language': 'English'}
     actual["data"]["logs"][1].pop('timestamp')
     actual["data"]["logs"][1].pop('account')
@@ -11148,12 +11149,12 @@ def test_get_end_user_metrics():
     actual["data"]["logs"][2].pop('account')
     assert actual["data"]["logs"][1]['ip']
     del actual["data"]["logs"][1]['ip']
-    assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com',
+    assert actual["data"]["logs"][1] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com',
                                  'bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English',
                                  'city': 'Mumbai', 'region': 'Maharashtra', 'country': 'IN', 'loc': '19.0728,72.8826',
                                  'org': 'AS13150 CATO NETWORKS LTD', 'postal': '400070', 'timezone': 'Asia/Kolkata'}
-    assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'sender_id': 'integ1@gmail.com','bot': pytest.bot,
+    assert actual["data"]["logs"][2] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com','bot': pytest.bot,
                                  'source': 'Digite.com', 'language': 'English'}
 
     response = client.get(
@@ -11172,7 +11173,7 @@ def test_get_end_user_metrics():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 1
-    assert actual["data"]["total"] == 9
+    assert actual["data"]["total"] == 5
 
 
 def test_get_roles():
@@ -11684,6 +11685,90 @@ def test_get_auditlog_for_user_2():
 
 
 @responses.activate
+def test_upload_invalid_csv():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+    csv_file = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+    csv_file = BytesIO(csv_file).read()
+    files = {'csv_file': ("config.arff", csv_file)}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/faq/upload",
+        headers = {"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files)
+    actual = response.json()
+    print(actual)
+    assert actual['data'] is None
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Invalid file type! Only csv and xlsx files are supported."
+
+
+@responses.activate
+def test_upload_faq():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+    csv_file = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
+    csv_file = BytesIO(csv_file).read()
+    files = {'csv_file': ("config.csv", csv_file)}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/faq/upload?overwrite=false",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files)
+    actual = response.json()
+    print(actual)
+    assert actual['message'] == "Upload in progress! Check logs."
+    assert actual['data'] is None
+    assert actual['success']
+    assert actual['error_code'] == 0
+
+
+def test_download_faq(monkeypatch):
+    data = [{'_id': '638dde37cfe8a7de324067fa', 'story': 'accelerator_28', 'intent': 'accelerator_28',
+             'utterance': 'utter_accelerator_28', 'training_examples': [
+            {'text': 'What is the purpose of an acceleration?', '_id': '638dde36cfe8a7de32405eaa'},
+            {'text': 'What is the purpose of an accelerators?', '_id': '638dde36cfe8a7de32405eab'}],
+             'responses': [{'_id': '638dde35cfe8a7de32405ada', 'text': {
+                 'text': '•\tAnything that helps project teams reduce effort, save cost'}}]},
+            {'_id': '638dde37cfe8a7de324067fd', 'story': 'accelerator_subscription_mainspring_31',
+             'intent': 'accelerator_subscription_mainspring_31',
+             'utterance': 'utter_accelerator_subscription_mainspring_31', 'training_examples': [
+                {'text': '•\tHow do I subscribe to accelerators for my project?',
+                 '_id': '638dde36cfe8a7de32405ec0'},
+                {'text': '•\tHow to do accelerator subscription in mainspring',
+                 '_id': '638dde36cfe8a7de32405ec1'}], 'responses': [
+                {'_id': '638dde35cfe8a7de32405b64',
+                 'custom': {'custom': {'data': [{'type': 'paragraph',
+                                                 'children': [{
+                                                     'text': 'Step 1 : Navigate to PM Plan >> Delivery Assets'}]},
+                                                {'type': 'paragraph',
+                                                 'children': [{
+                                                     'text': 'Step 2 : Subscribe the accelerators which are applicable'}]}]}}}]},
+            {'_id': '638dde37cfe8a7de324067fe', 'story': 'accelerators_auto_recommended_32',
+             'intent': 'accelerators_auto_recommended_32', 'utterance': 'utter_accelerators_auto_recommended_32',
+             'training_examples': [{'text': '•\tOn what basis are accelerators recommended for a project?',
+                                    '_id': '638dde36cfe8a7de32405ec3'}, {
+                                       'text': '•\tWhat is the criteria based on which accelerators are auto recommended ?',
+                                       '_id': '638dde36cfe8a7de32405ec4'}], 'responses': [
+                {'_id': '638dde35cfe8a7de32405b2d', 'text': {
+                    'text': '•\tAccelerators are auto-recommended from Knowhub based on these project attributes'}}]}]
+
+    def __mock_qna(*args, **kwargs):
+        for item in data:
+            yield item
+
+    monkeypatch.setattr(BaseQuerySet, "aggregate", __mock_qna)
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/faq/download",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
+
+
+@responses.activate
 def test_idp_provider_fields():
     response = client.get(
         "/api/idp/provider/fields",
@@ -11993,3 +12078,53 @@ def test_idp_provider_fields_unauth():
     ).json()
 
     assert response["error_code"] == 401
+
+
+def test_allowed_origin_default():
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == "User does not exist!"
+    assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
+                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
+                                'x-content-type-options': 'nosniff',
+                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'cross-origin-embedder-policy': 'require-corp',
+                                'cross-origin-opener-policy': 'same-origin',
+                                'cross-origin-resource-policy': 'same-origin',
+                                'access-control-allow-origin': '*'
+                                }
+
+
+def test_allowed_origin(monkeypatch):
+    monkeypatch.setitem(Utility.environment['cors'], 'origin', 'http://digite.com')
+
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        headers={"origin": "http://digite.com"}
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["message"] == "User does not exist!"
+    assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
+                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
+                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
+                                'x-content-type-options': 'nosniff',
+                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
+                                'permissions-policy': 'accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()',
+                                'cross-origin-embedder-policy': 'require-corp',
+                                'cross-origin-opener-policy': 'same-origin',
+                                'cross-origin-resource-policy': 'same-origin',
+                                'access-control-allow-origin': 'http://digite.com',
+                                'access-control-allow-credentials': 'true',
+                                'access-control-expose-headers': 'content-disposition',
+                                'vary': 'Origin'
+                                }

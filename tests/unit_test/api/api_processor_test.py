@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 import os
 import uuid
 from unittest.mock import patch
@@ -19,6 +20,7 @@ from starlette.datastructures import Headers, URL
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
+from kairon.api.app.routers.idp import get_idp_config
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.actions.models import ActionType
 from kairon.shared.auth import Authentication, LoginSSOFactory
@@ -35,6 +37,8 @@ from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 import time
+from kairon.idp.data_objects import IdpConfig
+from kairon.api.models import RegisterAccount, EventConfig, IDPConfig,StoryRequest, HttpActionParameters,Password
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -1351,22 +1355,34 @@ class TestAccountProcessor:
         assert round((refresh_token_expiry - iat).total_seconds() / 60) == 60
         del claims['iat']
         del claims['exp']
-        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': 'refresh', 'role': 'tester', 'account': 1000,
+        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': TOKEN_TYPE.REFRESH.value, 'role': 'tester', 'account': 1000,
                           'name': 'integration_token_with_access_limit',
                           'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
                           'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
                           'access-limit': ['/api/auth/.+/token/refresh']}
 
-        new_token = Authentication.generate_token_from_refresh_token(refresh_token)
+        new_token, new_refresh_token = Authentication.generate_token_from_refresh_token(refresh_token)
         new_token_claims = Utility.decode_limited_access_token(new_token)
         assert new_token_claims['iat']
         new_token_iat = datetime.datetime.fromtimestamp(new_token_claims['iat'], tz=datetime.timezone.utc)
         new_token_expiry = datetime.datetime.fromtimestamp(new_token_claims['exp'], tz=datetime.timezone.utc)
         assert round((new_token_expiry - new_token_iat).total_seconds() / 60) == 15
-        del new_token_claims['iat']
+        new_token_iat = new_token_claims.pop('iat')
         del new_token_claims['exp']
         assert new_token_claims == {'bot': bot, 'sub': user, 'type': 'dynamic', 'role': 'admin', 'account': 1000,
                                     'name': 'from refresh token', 'access-limit': access_limit}
+        assert new_refresh_token
+        claims = Utility.decode_limited_access_token(new_refresh_token)
+        assert claims['iat'] == new_token_iat
+        new_refresh_token_expiry = datetime.datetime.fromtimestamp(claims['exp'], tz=datetime.timezone.utc)
+        assert round((new_refresh_token_expiry - iat).total_seconds() / 60) == 60
+        del claims['iat']
+        del claims['exp']
+        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': TOKEN_TYPE.REFRESH.value, 'role': 'tester', 'account': 1000,
+                          'name': 'from refresh token',
+                          'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
+                          'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
+                          'access-limit': ['/api/auth/.+/token/refresh']}
 
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'
@@ -2249,3 +2265,150 @@ class TestAccountProcessor:
         result = AccountProcessor.get_organization(account=account)
         assert result.get("name") is None
         assert result == {}
+
+    def test_invalid_account_number(self):
+        with pytest.raises(DoesNotExist, match="Account does not exists"):
+            AccountProcessor.get_account(0)
+
+    @pytest.mark.asyncio
+    async def test_reset_link_with_unverified_mail(self, monkeypatch):
+        AccountProcessor.add_user(
+            email="integration@2.com",
+            first_name="user1",
+            last_name="passwrd",
+            password='Welcome@1',
+            account=1,
+            user="reuse-link_acc",
+        )
+        Utility.email_conf["email"]["enable"] = True
+        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        with pytest.raises(AppException, match="Error! The following user's mail is not verified"):
+            await(AccountProcessor.send_reset_link('integration@2.com'))
+        Utility.email_conf["email"]["enable"] = False
+
+    def test_upsert_organization(self):
+        org_name = {"name": "DEL"}
+        mail = "testing@demo.in"
+        account = "123456"
+        user = User(account=account, email=mail)
+        config = {
+            "client_id": "90",
+            "client_secret": "9099",
+        }
+        idp_config = IdpConfig(user="${user}", account="123456", organization="DEL", config=config).save()
+        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+        result = get_idp_config("123456")
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_account_setup_delete_bot_except_block(self, monkeypatch):
+        def add_user_mock(*args, **kwargs):
+            return None
+
+        account = {
+            "account": "1234",
+            "email": "vdivya4690@gmail.com",
+            "first_name": "delete_First",
+            "last_name": "delete_Last",
+            "password": SecretStr("Qwerty@4"),
+        }
+        monkeypatch.setattr(AccountProcessor, "add_user", add_user_mock)
+        bots_before_delete = list(AccountProcessor.list_bots(account["account"]))
+        result = await(AccountProcessor.account_setup(account))
+        bots_after_delete = list(AccountProcessor.list_bots(account["account"]))
+        assert bots_after_delete == bots_before_delete
+        assert result == (None, None, None)
+
+    def test_default_account_setup_error_msg(self):
+        result = AccountProcessor.default_account_setup()
+        assert result is not None
+
+    def test_validate_confirm_password(cls):
+        with pytest.raises(ValueError, match="Password and Confirm Password does not match"):
+            RegisterAccount.validate_confirm_password(SecretStr("Owners@4"), {"password": SecretStr("Winte@20")})
+
+    def test_validate_password(cls):
+        with pytest.raises(ValueError, match="Password length must be 8\n"
+                                             "Missing 1 uppercase letter\nMissing 1 special letter"):
+            Password.validate_password(SecretStr("Owners"), {})
+
+    def test_validate_password_empty(cls):
+        with pytest.raises(ValueError, match="Password length must be 8\n"
+                                             "Missing 1 uppercase letter\n"
+                                             "Missing 1 uppercase letter\n"
+                                             "Missing 1 special letter"):
+            Password.validate_password(SecretStr(""), {})
+    def test_validate_password_None(cls):
+        with pytest.raises(ValueError, match="Password length must be 8\n"
+                                             "Missing 1 uppercase letter\nMissing 1 special letter"):
+            Password.validate_password(SecretStr(None), {})
+
+    def test_check(cls):
+        with pytest.raises(ValueError, match="Provide key from key vault as value"):
+            HttpActionParameters.check({"parameter_type": "key_vault", "key": "key"})
+
+    def test_validate_organization_empty(self):
+        with pytest.raises(ValueError, match="Organization can not be empty"):
+            IDPConfig.validate_organization("", {})
+
+    def test_validate_organization(self):
+        result = IDPConfig.validate_organization("NXT", {})
+        assert result == "NXT"
+
+    def test_validate_organization_None(self):
+        with pytest.raises(ValueError, match="Organization can not be empty"):
+            IDPConfig.validate_organization(None, {})
+
+    def test_validate_ws_url_empty(cls):
+        with pytest.raises(ValueError, match="url can not be empty"):
+            EventConfig.validate_ws_url("", {})
+
+    def test_validate_ws_url_none_value(cls):
+        config = EventConfig(ws_url="ws_url", headers={"headers": "Headers"}, method="method")
+        with pytest.raises(ValueError, match="url can not be empty"):
+            result = config.validate_ws_url(None, {})
+            assert result is None
+
+    def test_validate_ws_url(cls):
+        config = EventConfig(ws_url="ws_url", headers={"headers": "Headers"}, method="method")
+        result = config.validate_ws_url("https://www.google.com", {})
+        assert result == "https://www.google.com"
+
+    def test_validate_headers_empty(cls):
+        result = EventConfig.validate_headers("", {})
+        assert result == {}
+
+    def test_validate_headers(cls):
+        result = EventConfig.validate_headers({"headers": "Headers"}, {})
+        assert result == {"headers": "Headers"}
+
+    def test_validate_headers_None(cls):
+        result = EventConfig.validate_headers(None, {})
+        assert result == {}
+
+    def test_validate_config_empty(cls):
+        result = IDPConfig.validate_config("", {})
+        assert result == {}
+
+    def test_validate_config(cls):
+        result = IDPConfig.validate_config({}, {})
+        assert result == {}
+
+    def test_validate_config_None(cls):
+        result = IDPConfig.validate_config(None, {})
+        assert result == {}
+
+    def test_get_steps(cls):
+        temp = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "FORM_ACTION"},
+            {"name": "know_user", "type": "FORM_START"},
+            {"type": "FORM_END"},
+            {"name": "utter_submit", "type": "BOT"},
+        ]
+
+        request = StoryRequest(name="registration", type="STORY", steps=temp)
+        result = request.get_steps()
+        temp[3] = {'name': None, 'type': 'FORM_END'}
+        assert result == temp
+        assert all([i for i in temp if type(i) is dict])

@@ -8,6 +8,8 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
+
+import pandas as pd
 from starlette.datastructures import Headers, URL
 from starlette.requests import Request
 
@@ -56,7 +58,7 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
-    HttpActionRequestBody
+    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -67,6 +69,8 @@ from kairon.train import train_model_for_bot, start_training, train_model_from_m
 from kairon.shared.utils import Utility
 from kairon.shared.data.constant import ENDPOINT_TYPE
 from unittest.mock import patch
+
+from kairon.shared.data.utils import DataUtility
 
 
 class TestMongoProcessor:
@@ -99,6 +103,14 @@ class TestMongoProcessor:
             return nlu, story_graph, domain, config, http_actions
 
         return _read_and_get_data
+
+    def test_auditlog_event_config_does_not_exist(self):
+        result = MongoProcessor.get_auditlog_event_config("nobot")
+        assert result == {}
+
+    def test_auditlog_event_config_does_not_exist_none(self):
+        result = MongoProcessor.get_auditlog_event_config(None)
+        assert result == {}
 
     @pytest.mark.asyncio
     async def test_load_from_path(self):
@@ -7107,7 +7119,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
             'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
-            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': []
+            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -7126,7 +7138,7 @@ class TestMongoProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("test_with_action")
         assert actions == {
-            'actions': ['action_check'], 'two_stage_fallback': [],
+            'actions': ['action_check'], 'two_stage_fallback': [], 'kairon_bot_response': [],
             'http_action': [], 'jira_action': [], 'hubspot_forms_action': [],
             'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
             'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
@@ -7148,7 +7160,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("tests")
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
-                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
+                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'kairon_bot_response': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -7426,7 +7438,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
-            'hubspot_forms_action': [], 'two_stage_fallback': [],
+            'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -7532,7 +7544,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("tests")
         assert actions == {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [],
+            'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
@@ -8591,6 +8603,198 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
 
+    def test_delete_secret_attached_to_email_action(self):
+        bot = 'test'
+        key = "KUBKEY"
+        user = "user"
+        value = "1526473-nxndj"
+        processor = MongoProcessor()
+        processor.add_secret(key, value, bot, user)
+        smtp_userid_list = CustomActionRequestParameters(key="smtp_userid", value=key, parameter_type="key_vault")
+        email_config = {"action_name": "test_delete_secret_attached_to_email_action",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": smtp_userid_list,
+                        "smtp_password": {'value': "test"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com", "test1@test.com"],
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            processor.add_email_action(email_config, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
+            processor.delete_secret(key, bot)
+
+        action = EmailActionConfig.objects(action_name="test_delete_secret_attached_to_email_action", bot=bot).get()
+        action.smtp_userid = None
+        action.smtp_password = smtp_userid_list
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            action.save()
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
+            processor.delete_secret(key, bot)
+
+        action = EmailActionConfig.objects(action_name="test_delete_secret_attached_to_email_action", bot=bot).get()
+        action.smtp_userid = None
+        action.smtp_password = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        with patch("kairon.shared.utils.SMTP", autospec=True):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_google_action(self):
+        processor = MongoProcessor()
+        key = 'AZKEY'
+        bot = 'test'
+        user = 'test_user'
+        value = '7362-jdnsn'
+        processor.add_secret(key, value, bot, user)
+        api_key_value = {'key': "api_key", 'value': key, 'parameter_type': "key_vault"}
+        action = {
+            'name': 'test_delete_secret_attached_to_google_action',
+            'api_key': api_key_value,
+            'search_engine_id': 'asdfg:123456',
+            'failure_response': 'I have failed to process your request',
+        }
+        processor.add_google_search_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_google_action']")):
+            processor.delete_secret(key, bot)
+
+        action = GoogleSearchAction.objects(name="test_delete_secret_attached_to_google_action", bot=bot).get()
+        action.api_key = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_jira_action(self):
+        processor = MongoProcessor()
+        key = 'QSKEY'
+        bot = 'test'
+        user = 'test_user'
+        url = 'https://test-digite.atlassian.net'
+        value = '7039-hffi'
+        processor.add_secret(key, value, bot, user)
+        api_token_value = {'key': "api_token", 'value': key, 'parameter_type': "key_vault"}
+        action = {
+            'name': 'test_delete_secret_attached_to_jira_action', 'url': url, 'user_name': 'test@digite.com',
+            'api_token': api_token_value, 'project_key': 'HEL', 'issue_type': 'Bug', 'summary': 'new user',
+            'response': 'We have logged a ticket'
+        }
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_validation):
+            processor.add_jira_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_jira_action']")):
+            processor.delete_secret(key, bot)
+
+        action = JiraAction.objects(name="test_delete_secret_attached_to_jira_action", bot=bot).get()
+        action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_validation):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_zendesk_action(self):
+        processor = MongoProcessor()
+        key = 'ABKEY'
+        bot = 'test'
+        user = 'test'
+        value = '4327-hssw'
+        processor.add_secret(key, value, bot, user)
+        api_token_value = {'key': "api_token", 'value': key, 'parameter_type': "key_vault"}
+        action = {'name': 'test_delete_secret_attached_to_zendesk_action', 'subdomain': 'digite751',
+                  'api_token': api_token_value, 'subject': 'new ticket', 'user_name': 'udit.pandey@digite.com',
+                  'response': 'ticket filed'}
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.ZendeskAction.validate', new=_mock_validation):
+            processor.add_zendesk_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_zendesk_action']")):
+            processor.delete_secret(key, bot)
+
+        action = ZendeskAction.objects(name="test_delete_secret_attached_to_zendesk_action", bot=bot).get()
+        action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        with patch('kairon.shared.actions.data_objects.ZendeskAction.validate', new=_mock_validation):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+            
+    def test_delete_secret_attached_to_pipedrivelead_action(self):
+        processor = MongoProcessor()
+        key = 'NKKEY'
+        bot = 'test'
+        user = 'test_user'
+        value = '1518-hshw'
+        processor.add_secret(key, value, bot, user)
+        api_token_value = {'key': "api_token", 'value': key, 'parameter_type': "key_vault"}
+        action = {
+            'name': 'test_delete_secret_attached_to_pipedrivelead_action',
+            'domain': 'https://digite751.pipedrive.com/',
+            'api_token': api_token_value,
+            'title': 'new lead',
+            'response': 'I have failed to create lead for you',
+            'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        }
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.PipedriveLeadsAction.validate', new=_mock_validation):
+            processor.add_pipedrive_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_pipedrivelead_action']")):
+            processor.delete_secret(key, bot)
+
+        action = PipedriveLeadsAction.objects(name="test_delete_secret_attached_to_pipedrivelead_action", bot=bot).get()
+        action.api_token = CustomActionRequestParameters(key="param2", value="param2", parameter_type="key_vault")
+        with patch('kairon.shared.actions.data_objects.PipedriveLeadsAction.validate', new=_mock_validation):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
+    def test_delete_secret_attached_to_hubspot_action(self):
+        processor = MongoProcessor()
+        key = 'VPKEY'
+        bot = 'test'
+        user = 'test_user'
+        value = '7728-abcg'
+        processor.add_secret(key, value, bot, user)
+        fields_list = [HttpActionRequestBody(key="param1", value="param1", parameter_type="slot"),
+                       HttpActionRequestBody(key="param2", value=key, parameter_type="key_vault")]
+        action = {
+            'name': 'test_delete_secret_attached_to_hubspot_action',
+            'portal_id': '12345678',
+            'form_guid': 'asdfg:123456',
+            'fields': fields_list,
+            'response': 'Form submitted'
+        }
+
+        def _mock_validation(*args, **kwargs):
+            return None
+
+        with patch('kairon.shared.actions.data_objects.HubspotFormsAction.validate', new=_mock_validation):
+            processor.add_hubspot_forms_action(action, bot, user)
+        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_hubspot_action']")):
+            processor.delete_secret(key, bot)
+
+        action = HubspotFormsAction.objects(name="test_delete_secret_attached_to_hubspot_action", bot=bot).get()
+        action.fields = [HttpActionRequestBody(key="param1", value="param1", parameter_type="key_vault"),
+                         HttpActionRequestBody(key="param2", value=key, parameter_type="value")]
+        with patch('kairon.shared.actions.data_objects.HubspotFormsAction.validate', new=_mock_validation):
+            action.save()
+        processor.delete_secret(key, bot)
+        with pytest.raises(DoesNotExist):
+            KeyVault.objects(key=key, bot=bot).get()
+
     def test_get_logs(self):
         bot = "test_get_logs"
         user = "testUser2"
@@ -8673,6 +8877,144 @@ class TestMongoProcessor:
         processor.delete_audit_logs()
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         assert len(logs) == num_logs + 1
+
+    def test_save_faq_csv(self):
+        processor = MongoProcessor()
+        bot = 'tests'
+        user = 'tester'
+        file = UploadFile(filename="upload.csv", file=open("./tests/testing_data/upload_faq/upload.csv", "rb"))
+        df = Utility.read_faq(file)
+        component_count, error_summary = processor.save_faq(bot, user, df)
+        assert component_count == {'intents': 0, 'utterances': 5, 'stories': 0, 'rules': 0, 'training_examples': 5, 'domain': {'intents': 0, 'utterances': 0}}
+        assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces'], 'training_examples': ['Training Example cannot be empty or blank spaces:    ']}
+
+    def test_save_faq_xlsx(self):
+        processor = MongoProcessor()
+        bot = 'test_faq'
+        user = 'tester'
+        file = UploadFile(filename="upload.xlsx", file=open("./tests/testing_data/upload_faq/upload.xlsx", "rb"))
+        df = Utility.read_faq(file)
+        component_count, error_summary = processor.save_faq(bot, user, df)
+        assert component_count == {'intents': 0, 'utterances': 5, 'stories': 0, 'rules': 0, 'training_examples': 5, 'domain': {'intents': 0, 'utterances': 0}}
+        assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces', 'Utterance already exists!'], 'training_examples': ['Training Example cannot be empty or blank spaces: ']}
+
+    def test_save_faq_delete_data(self):
+        processor = MongoProcessor()
+        bot = 'test_save_faq_delete_data'
+        user = 'tester'
+
+        def __mock_exception(*args, **kwargs):
+            raise Exception("Failed to add story")
+
+        df = pd.DataFrame([{"questions": "what is digite?", "answer": "IT company"}])
+        with patch("kairon.shared.data.processor.MongoProcessor.add_complex_story") as mock_failure:
+            mock_failure.side_effect = __mock_exception
+            component_count, error_summary = processor.save_faq(bot, user, df)
+        assert component_count == {'intents': 0, 'utterances': 1, 'stories': 0, 'rules': 0, 'training_examples': 1, 'domain': {'intents': 0, 'utterances': 0}}
+        assert error_summary == {'intents': [], 'utterances': ['Failed to add story'], 'training_examples': []}
+
+    def test_validate_faq_training_file(self, monkeypatch):
+        processor = MongoProcessor()
+        bot = 'tests_faq'
+        utterance = "test_delete_utterance"
+        user = 'testUser'
+        file = UploadFile(filename="validate.csv", file=open("./tests/testing_data/upload_faq/validate.csv", "rb"))
+        df = Utility.read_faq(file)
+        processor.add_response({"text": "I am good here!!"}, utterance, bot, user)
+        training_examples_expected = {'hi': 'greet', 'hello': 'greet', 'ok': 'affirm', 'no': 'deny'}
+
+        def _mongo_aggregation(*args, **kwargs):
+            return training_examples_expected
+
+        monkeypatch.setattr(MongoProcessor, 'get_training_examples_as_dict', _mongo_aggregation)
+        error_summary, component_count = DataUtility.validate_faq_training_data(bot, df)
+        assert len(error_summary['utterances']) == 3
+        assert len(error_summary['training_examples']) == 4
+        assert component_count == {'intents': 0, 'utterances': 8, 'stories': 0, 'rules': 0, 'training_examples': 10, 'domain': {'intents': 0, 'utterances': 0}}
+
+    def test_validate_faq_training_file_empty(self):
+        bot = 'tests'
+        df = pd.DataFrame()
+        with pytest.raises(AppException, match="No data found!"):
+            DataUtility.validate_faq_training_data(bot, df)
+
+    def test_delete_all_faq(self, monkeypatch):
+        processor = MongoProcessor()
+        utterances_query_counter = 0
+        intents_query_counter = 0
+        first_list = ['Hi', 'Hey', 'hello']
+        second_list = ['unhappy', 'sad']
+        var = ['good morning', 'morning']
+        first_steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+        ]
+        first_rule_dict = {'name': "first rule", 'steps': first_steps, 'type': 'RULE', 'template_type': 'Q&A'}
+        second_steps = [
+            {"name": "sad", "type": "INTENT"},
+            {"name": "utter_sad", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+        ]
+        second_rule_dict = {'name': "second rule", 'steps': second_steps, 'type': 'RULE', 'template_type': 'Q&A'}
+
+        list(processor.add_training_example(first_list, 'greet', 'test', 'test_user', False))
+        list(processor.add_training_example(second_list, 'sad', 'test', 'test_user', False))
+        list(processor.add_training_example(var, 'message', 'test', 'test_user', False))
+        processor.add_text_response('I am good', 'utter_greet', 'test', 'test_user')
+        processor.add_text_response('I am sad', 'utter_sad', 'test', 'test_user')
+        processor.add_text_response('What are your questions?', 'utter_ask', 'test', 'test_user')
+        processor.add_complex_story(first_rule_dict, 'test', 'test_user')
+        processor.add_complex_story(second_rule_dict, 'test', 'test_user')
+
+        def _mock_aggregation(*args, **kwargs):
+            nonlocal utterances_query_counter, intents_query_counter
+
+            get_intents_pipelines = [
+                {'$unwind': {'path': '$events'}},
+                {'$match': {'events.type': 'user'}},
+                {'$group': {'_id': None, 'intents': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'intents': 1}}
+            ]
+            get_utterances_pipelines = [
+                {'$unwind': {'path': '$events'}},
+                {'$match': {'events.type': 'action', 'events.name': {'$regex': '^utter_'}}},
+                {'$group': {'_id': None, 'utterances': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'utterances': 1}}
+            ]
+            print(args[1])
+            print(args[0]._mongo_query)
+            if args[0]._collection_obj.name == 'stories':
+                print("stories")
+                yield {'intents': [], 'utterances': []}
+            elif args[1] == get_intents_pipelines and intents_query_counter == 0:
+                intents_query_counter += 1
+                print("intents")
+                yield {'intents': ['greet', 'sad']}
+            elif args[1] == get_utterances_pipelines and utterances_query_counter == 0:
+                utterances_query_counter += 1
+                print("utterances")
+                yield {'utterances': ['utter_greet', 'utter_sad']}
+            else:
+                print("else")
+                yield {'intents': [], 'utterances': []}
+
+        monkeypatch.setattr(BaseQuerySet, 'aggregate', _mock_aggregation)
+        processor.delete_all_faq('test')
+        assert not Utility.is_exist(TrainingExamples, raise_error=False, intent='greet', bot='test')
+        assert not Utility.is_exist(TrainingExamples, raise_error=False, intent='sad', bot='test')
+        assert not Utility.is_exist(Intents, raise_error=False, name='greet', bot='test')
+        assert not Utility.is_exist(Intents, raise_error=False, name='sad', bot='test')
+        assert not Utility.is_exist(Utterances, raise_error=False, name='utter_greet', bot='test')
+        assert not Utility.is_exist(Utterances, raise_error=False, name='utter_sad', bot='test')
+        assert not Utility.is_exist(Responses, raise_error=False, name='utter_greet', bot='test')
+        assert not Utility.is_exist(Responses, raise_error=False, name='utter_sad', bot='test')
+        assert not Utility.is_exist(Rules, raise_error=False, block_name='first rule', bot='test')
+        assert not Utility.is_exist(Rules, raise_error=False, block_name='second rule', bot='test')
+        assert Utility.is_exist(TrainingExamples, raise_error=False, intent='message', bot='test')
+        assert Utility.is_exist(Intents, raise_error=False, name='message', bot='test')
+        assert Utility.is_exist(Utterances, raise_error=False, name='utter_ask', bot='test')
+        assert Utility.is_exist(Responses, raise_error=False, name='utter_ask', bot='test')
 
 
 class TestTrainingDataProcessor:
@@ -9049,3 +9391,23 @@ class TestModelProcessor:
         page_size = 50
         auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
         assert len(auditlog_data) == 50
+
+    def test_edit_training_example_empty_or_blank(self):
+        processor = MongoProcessor()
+        examples = list(processor.get_training_examples("greet", "tests"))
+        with pytest.raises(AppException, match="Training Example cannot be empty or blank spaces"):
+            processor.edit_training_example(examples[0]["_id"], example="", intent="greet", bot="tests",
+                                            user="testUser")
+
+    def test_add_custom_form_attached_does_not_exist(self):
+        processor = MongoProcessor()
+        jsondata = {"type": "section",
+                    "text": {
+                        "text": "Make a bet on when the world will end:",
+                        "type": "mrkdwn",
+                        "accessory": {"type": "datepicker",
+                                      "initial_date": "2019-05-21",
+                                      "placeholder": {"type": "plain_text",
+                                                      "text": "Select a date"}}}}
+        with pytest.raises(AppException, match="Form 'unknown' does not exists"):
+            assert processor.add_custom_response(jsondata, "utter_custom", "tests", "testUser", "unknown")

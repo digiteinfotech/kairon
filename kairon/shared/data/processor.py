@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
+from pandas import DataFrame
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
     DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
 import yaml
@@ -184,12 +185,6 @@ class MongoProcessor:
 
             self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite,
                                     REQUIREMENTS.copy())
-        except InvalidDomain as e:
-            logging.exception(e)
-            raise AppException(
-                """Failed to validate yaml file.
-                            Please make sure the file is initial and all mandatory parameters are specified"""
-            )
         except Exception as e:
             logging.exception(e)
             raise AppException(e)
@@ -804,7 +799,7 @@ class MongoProcessor:
             }
 
     def __extract_response_value(self, values: List[Dict], key, bot: Text, user: Text):
-        saved_responses = self.__fetch_list_of_response(bot)
+        saved_responses = self.fetch_list_of_response(bot)
         for value in values:
             if value not in saved_responses:
                 response = Responses()
@@ -1924,7 +1919,7 @@ class MongoProcessor:
                 resp_type = "json"
             yield {"_id": value.id.__str__(), "value": val, "type": resp_type}
 
-    def __fetch_list_of_response(self, bot: Text):
+    def fetch_list_of_response(self, bot: Text):
         saved_responses = list(
             Responses.objects(bot=bot, status=True).aggregate(
                 [
@@ -1974,7 +1969,7 @@ class MongoProcessor:
     def __check_response_existence(
             self, response: Dict, bot: Text, exp_message: Text = None, raise_error=True
     ):
-        saved_items = self.__fetch_list_of_response(bot)
+        saved_items = self.fetch_list_of_response(bot)
 
         if response in saved_items:
             if raise_error:
@@ -2965,6 +2960,7 @@ class MongoProcessor:
             return
         document_types = {
             ActionType.http_action.value: HttpActionConfig,
+            ActionType.two_stage_fallback.value: KaironTwoStageFallbackAction,
             ActionType.email_action.value: EmailActionConfig, ActionType.zendesk_action.value: ZendeskAction,
             ActionType.jira_action.value: JiraAction, ActionType.form_validation_action.value: FormValidationAction,
             ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,
@@ -3396,9 +3392,8 @@ class MongoProcessor:
                 raise AppException('Utterance not found')
 
     def get_training_data_count(self, bot: Text):
-        intents_count = list(Intents.objects(bot=bot, status=True).aggregate(
-            [{'$match': {'name': {'$nin': DEFAULT_INTENTS}, 'status': True}},
-             {'$lookup': {'from': 'training_examples',
+        intents_count = list(Intents.objects(bot=bot, status=True, name__nin=DEFAULT_INTENTS).aggregate(
+            [{'$lookup': {'from': 'training_examples',
                           'let': {'bot_id': bot, 'name': '$name'},
                           'pipeline': [{'$match': {'bot': bot, 'status': True}},
                                        {'$match': {'$expr': {'$and': [{'$eq': ['$intent', '$$name']}]}}},
@@ -3406,8 +3401,7 @@ class MongoProcessor:
              {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$intents_count.count'}}}]))
 
         utterances_count = list(Utterances.objects(bot=bot, status=True).aggregate(
-            [{'$match': {'bot': bot, 'status': True}},
-             {'$lookup': {'from': 'responses',
+            [{'$lookup': {'from': 'responses',
                           'let': {'bot_id': bot, 'utterance': '$name'},
                           'pipeline': [{'$match': {'bot': bot, 'status': True}},
                                        {'$match': {'$expr': {'$and': [{'$eq': ['$name', '$$utterance']}]}}},
@@ -3504,7 +3498,7 @@ class MongoProcessor:
         client_config.config['headers']['authorization']['access_token_expiry'] = access_token_expiry
         client_config.config['headers']['authorization']['refresh_token_expiry'] = refresh_token_expiry
         client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
-        if client_config.config['multilingual'].get('enable'):
+        if client_config.config.get("multilingual") and client_config.config['multilingual'].get('enable'):
             accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
             enabled_bots = {}
             if client_config.config['multilingual'].get('bots'):
@@ -4279,11 +4273,34 @@ class MongoProcessor:
         """
         if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
             raise AppException(f"key '{key}' does not exists!")
-        actions = list(HttpActionConfig.objects(__raw__={
+        http_action = list(HttpActionConfig.objects(__raw__={
             "bot": bot, "status": True,
             "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
                     {"params_list": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}}]
         }).values_list("action_name"))
+
+        email_action = list(EmailActionConfig.objects((
+            (Q(smtp_userid__parameter_type=ActionParameterType.key_vault.value) & Q(smtp_userid__value=key)) |
+            (Q(smtp_password__parameter_type=ActionParameterType.key_vault.value) & Q(smtp_password__value=key))
+        ), bot=bot, status=True).values_list("action_name"))
+
+        google_action = list(GoogleSearchAction.objects((
+            Q(api_key__parameter_type=ActionParameterType.key_vault.value) & Q(api_key__value=key)
+        ), bot=bot, status=True).values_list("name"))
+
+        action_list = []
+        for action_class in [JiraAction, ZendeskAction, PipedriveLeadsAction]:
+            attached_action = list(action_class.objects((
+            Q(api_token__parameter_type=ActionParameterType.key_vault.value) & Q(api_token__value=key)
+        ), bot=bot, status=True).values_list("name"))
+            action_list.extend(attached_action)
+
+        hubspot_action = list(HubspotFormsAction.objects(__raw__={
+            "bot": bot, "status": True,
+            "fields": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}
+        }).values_list("name"))
+
+        actions = http_action + email_action + google_action + action_list + hubspot_action
 
         if len(actions):
             raise AppException(f"Key is attached to action: {actions}")
@@ -4474,3 +4491,94 @@ class MongoProcessor:
                 training_examples.append({"text": text, "_id": t_example['_id']})
             qna['training_examples'] = training_examples
             yield qna
+
+    def save_faq(self, bot: Text, user: Text, df: DataFrame):
+        from kairon.shared.augmentation.utils import AugmentationUtils
+
+        error_summary = {'intents': [], 'utterances': [], 'training_examples': []}
+        component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 
+                           'domain': {'intents': 0, 'utterances': 0}}
+        for index, row in df.iterrows():
+            is_intent_added = False
+            is_response_added = False
+            training_example_errors = None
+            component_count['utterances'] = component_count['utterances'] + 1
+            key_tokens = AugmentationUtils.get_keywords(row['questions'])
+            if key_tokens:
+                key_tokens = key_tokens[0][0]
+            else:
+                key_tokens = row['questions'].split('\n')[0]
+            intent = key_tokens.replace(' ', '_') + "_" + str(index)
+            examples = row['questions'].split("\n")
+            component_count['training_examples'] = component_count['training_examples'] + len(examples)
+            action = f"utter_{intent}"
+            steps = [
+                {"name": "...", "type": "BOT"},
+                {"name": intent, "type": "INTENT"},
+                {"name": action, "type": "BOT"}
+            ]
+            rule = {'name': intent, 'steps': steps, 'type': 'RULE', 'template_type': TemplateType.QNA.value}
+            try:
+                training_example_errors = list(self.add_training_example(examples, intent, bot, user, False))
+                is_intent_added = True
+                self.add_text_response(row['answer'], action, bot, user)
+                is_response_added = True
+                self.add_complex_story(rule, bot, user)
+            except Exception as e:
+                logging.exception(e)
+                training_example_errors = [f"{a['message']}: {a['text']}" for a in training_example_errors if a["_id"] is None]
+                error_summary['training_examples'].extend(training_example_errors)
+                if is_intent_added:
+                    error_summary['utterances'].append(str(e))
+                    self.delete_intent(intent, bot, user, False)
+                if is_response_added:
+                    self.delete_utterance(action, bot)
+        return component_count, error_summary
+
+    def delete_all_faq(self, bot: Text):
+        get_intents_pipelines = [
+                {'$unwind': {'path': '$events'}},
+                {'$match': {'events.type': 'user'}},
+                {'$group': {'_id': None, 'intents': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'intents': 1}}
+            ]
+        get_utterances_pipelines = [
+                {'$unwind': {'path': '$events'}},
+                {'$match': {'events.type': 'action', 'events.name': {'$regex': '^utter_'}}},
+                {'$group': {'_id': None, 'utterances': {'$push': '$events.name'}}},
+                {"$project": {'_id': 0, 'utterances': 1}}
+            ]
+        qna_intents = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
+            get_intents_pipelines
+        ))
+        qna_intents = set(qna_intents[0].get('intents')) if qna_intents else set()
+        story_intents = list(Stories.objects(bot=bot, status=True).aggregate(
+            get_intents_pipelines
+        ))
+        story_intents = set(story_intents[0].get('intents')) if story_intents else set()
+        custom_rule_intents = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.CUSTOM.value).aggregate(
+            get_intents_pipelines
+        ))
+        custom_rule_intents = set(custom_rule_intents[0].get('intents')) if custom_rule_intents else set()
+        delete_intents = qna_intents - story_intents - custom_rule_intents
+        print(delete_intents)
+
+        qna_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
+            get_utterances_pipelines
+        ))
+        qna_utterances = set(qna_utterances[0].get('utterances')) if qna_utterances else set()
+        custom_rule_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.CUSTOM.value).aggregate(
+            get_utterances_pipelines
+        ))
+        custom_rule_utterances = set(custom_rule_utterances[0].get('utterances')) if custom_rule_utterances else set()
+        story_utterances = list(Stories.objects(bot=bot, status=True).aggregate(
+            get_utterances_pipelines
+        ))
+        story_utterances = set(story_utterances[0].get('utterances')) if story_utterances else set()
+        delete_utterances = qna_utterances - story_utterances - custom_rule_utterances
+        print(delete_utterances)
+
+        Utility.hard_delete_document([TrainingExamples], bot, intent__in=delete_intents)
+        Utility.hard_delete_document([Intents], bot, name__in=delete_intents)
+        Utility.hard_delete_document([Utterances, Responses], bot, name__in=delete_utterances)
+        Utility.hard_delete_document([Rules], bot, template_type=TemplateType.QNA.value)

@@ -4,7 +4,6 @@ import tempfile
 import uuid
 
 import pytest
-import responses
 from mongoengine import connect
 from rasa.shared.importers.rasa import RasaFileImporter
 
@@ -82,16 +81,29 @@ class TestModelTesting:
         assert logs['total'] == 2
 
     def test_run_test_on_nlu(self):
+        saved_phrases = {'hey', 'goodbye', 'that sounds good', 'I am feeling very good'}
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_success/nlu.yml',
-                                             pytest.model_path)
+                                             pytest.model_path, saved_phrases)
+        assert result['intent_evaluation']['total_count'] == 43
+        assert result['intent_evaluation']['failure_count'] == 0
+        assert len(result['intent_evaluation']['successes']) == 0
         assert len(result['intent_evaluation']['errors']) == 0
         assert result['intent_evaluation']['precision']
         assert result['intent_evaluation']['f1_score']
         assert result['intent_evaluation']['accuracy']
 
     def test_run_test_on_nlu_failure(self):
+        saved_phrases = {'sad', 'awful', 'that sounds good', 'I am feeling very good'}
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_failures/nlu.yml',
-                                             pytest.model_path)
+                                             pytest.model_path, saved_phrases)
+        assert result['intent_evaluation']['total_count'] == 52
+        assert result['intent_evaluation']['success_count'] == 29
+        assert result['intent_evaluation']['failure_count'] == 23
+        assert len(result['intent_evaluation']['successes']) == 0
+        synthesized_phrases = [err for err in result['intent_evaluation']['errors'] if err['is_synthesized']]
+        from_training_phrases = [err for err in result['intent_evaluation']['errors'] if err['is_synthesized'] == False]
+        assert len(synthesized_phrases) == 21
+        assert len(from_training_phrases) == 2
         assert len(result['intent_evaluation']['errors']) == 23
         assert result['intent_evaluation']['precision']
         assert result['intent_evaluation']['f1_score']
@@ -106,9 +118,13 @@ class TestModelTesting:
                                                  nlu_result=result,
                                                  event_status='Completed')
         logs1 = list(ModelTestingLogProcessor.get_logs('test_bot'))
-        assert logs1[0]['data'][0]['intent_evaluation']['success_count'] == 0
+        assert logs1[0]['data'][0]['intent_evaluation']['success_count'] == 29
         assert logs1[0]['data'][0]['intent_evaluation']['failure_count'] == 23
-        assert logs1[0]['data'][0]['intent_evaluation']['total_count'] == 23
+        assert logs1[0]['data'][0]['intent_evaluation']['total_count'] == 52
+        synthesized_phrases = [err for err in logs1[0]['data'][0]['intent_evaluation']['errors'] if err['is_synthesized']]
+        from_training_phrases = [err for err in logs1[0]['data'][0]['intent_evaluation']['errors'] if err['is_synthesized'] == False]
+        assert len(synthesized_phrases) == 21
+        assert len(from_training_phrases) == 2
         assert logs1[0]['data'][0]['entity_evaluation']['DIETClassifier']['success_count'] == 2
         assert logs1[0]['data'][0]['entity_evaluation']['DIETClassifier']['failure_count'] == 2
         assert logs1[0]['data'][0]['entity_evaluation']['DIETClassifier']['total_count'] == 4
@@ -211,9 +227,19 @@ class TestModelTesting:
             return []
 
         monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
-        nlu_path, stories_path = TestDataGenerator.create(bot, True)
+        nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
+        assert saved_phrases == {'name?', 'am i talking to a tiger?', 'good morning', 'are you a bot?', 'never',
+                                 'what is your name?', 'am i talking to an elephant?', 'not really', 'extremely sad',
+                                 'am I talking to a human?', 'bye', 'not very good', 'see you around', 'see you later',
+                                 'sad', 'hello', 'correct', 'that sounds good', 'I am great', 'unhappy', 'great',
+                                 'very bad', 'awful', 'of course', 'no', 'yes', 'what do you do?', 'terrible',
+                                 'very sad', 'good evening', 'hi', 'am i talking to a mango?', 'bad', 'no way',
+                                 "I don't think so", "I'm good", 'am i talking to a apple?', 'introduce yourself',
+                                 'indeed', 'are you a human?', 'so sad', 'hey', 'wonderful', 'I am feeling very good',
+                                 'am I talking to a bot?', 'where do you work?', 'very good', 'perfect', 'amazing',
+                                 'hey there', "don't like that", 'goodbye'}
 
     @pytest.mark.asyncio
     async def test_data_generator_no_training_example_for_intent(self, load_data, monkeypatch):
@@ -239,9 +265,10 @@ class TestModelTesting:
             return ["agree", "right", "exactly"]
 
         monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
-        nlu_path, stories_path = TestDataGenerator.create(bot, True)
+        nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
+        assert saved_phrases == {'yes', 'that sounds good', 'indeed', 'correct', 'of course'}
 
     def test_data_generator_no_training_data(self):
         bot = 'no_data_bot'
@@ -263,6 +290,15 @@ class TestModelTesting:
 
         monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
 
-        nlu_path, stories_path = TestDataGenerator.create(bot, True)
+        nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
+        assert len(saved_phrases) == 20
+
+    @pytest.mark.asyncio
+    async def test_data_generator_disable_augmentation(self):
+        bot = 'test_threshold'
+        nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, True, False)
+        assert os.path.exists(nlu_path)
+        assert os.path.exists(stories_path)
+        assert len(saved_phrases) == 135

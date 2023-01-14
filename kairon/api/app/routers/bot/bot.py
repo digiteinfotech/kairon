@@ -611,12 +611,13 @@ async def download_model(
 
 @router.post("/test", response_model=Response)
 async def test_model(
+        augment_data: bool = True,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Run tests on a trained model.
     """
-    event = ModelTestingEvent(current_user.get_bot(), current_user.get_user())
+    event = ModelTestingEvent(current_user.get_bot(), current_user.get_user(), augment_data=augment_data)
     event.validate()
     event.enqueue()
     return {"message": "Testing in progress! Check logs."}

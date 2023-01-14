@@ -77,13 +77,3 @@ async def conversation_steps(request: HistoryQuery = HistoryQuery(month=6),
         collection, request.month
     )
     return {"data": range_value, "message": message}
-
-
-@router.get("/conversations/time", response_model=Response)
-async def conversation_time(request: HistoryQuery = HistoryQuery(month=6),
-                            collection: str = Depends(Authentication.authenticate_and_get_collection)):
-    """Fetches the average conversation time of the bot for previous months."""
-    range_value, message = HistoryProcessor.average_conversation_time_range(
-        collection, request.month
-    )
-    return {"data": range_value, "message": message}

@@ -21,6 +21,7 @@ RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install ujson==5.1.0
+RUN python -m pip install pyjwt==2.6.0
 
 COPY augmentation app/augmentation
 EXPOSE 8000

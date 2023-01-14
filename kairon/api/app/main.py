@@ -26,7 +26,7 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.app.routers import auth, augment, history, user, account, idp, system
-from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual, metric, data_generator
+from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual, metric, data_generator, data
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -66,9 +66,10 @@ secure_headers = Secure(
 )
 
 app = FastAPI()
+allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,7 +90,7 @@ async def add_secure_headers(request: Request, call_next):
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
     requested_origin = request.headers.get("origin")
-    response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else "*"
+    response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else allowed_origins[0]
     return response
 
 
@@ -287,3 +288,4 @@ app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
 app.include_router(history.router, prefix="/api/history/{bot}", tags=["History"])
 app.include_router(idp.router, prefix="/api/idp", tags=["SSO", "IDP"])
 app.include_router(system.router, prefix="/api/system", tags=["Application"])
+app.include_router(data.router, prefix="/api/bot/{bot}/data", tags=["File Upload/Download"])

@@ -107,14 +107,6 @@ def mock_mongo_processor_endpoint_not_configured(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_endpoints", _mock_exception)
 
 
-@pytest.fixture
-def mock_db_client(monkeypatch):
-    def db_client(*args, **kwargs):
-        return MongoClient(), "conversation", None
-
-    monkeypatch.setattr(HistoryProcessor, "get_mongo_connection", db_client)
-
-
 def history_users(*args, **kwargs):
     return [
                "5b029887-bed2-4bbb-aa25-bd12fda26244",
@@ -128,7 +120,7 @@ def history_users(*args, **kwargs):
 
 
 def user_history(*args, **kwargs):
-    json_data = json.load(open("tests/testing_data/history/conversation.json"))
+    json_data = json.load(open("tests/testing_data/history/conversations_history.json"))
     return (
         json_data['events'],
         None
@@ -229,7 +221,7 @@ def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual["data"]["history"]) == 7
+    assert len(actual["data"]["history"]) == 1759
     assert actual["message"] is None
     assert actual["success"]
 
@@ -252,7 +244,7 @@ def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual["data"]["history"]) == 7
+    assert len(actual["data"]["history"]) == 1759
     assert actual["message"] is None
     assert actual["success"]
 
@@ -641,7 +633,7 @@ def test_flat_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual["data"]["conversation_data"]) == 7
+    assert len(actual["data"]["conversation_data"]) == 1759
     assert actual["message"] is None
     assert actual["success"]
 
@@ -657,7 +649,7 @@ def mock_list_bots(monkeypatch):
 
 @responses.activate
 def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
-    file = open('./tests/testing_data/history/conversation.json')
+    file = open('./tests/testing_data/history/conversations_history.json')
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",

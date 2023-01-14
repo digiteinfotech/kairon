@@ -4,11 +4,13 @@ import tempfile
 from typing import Text, List, Dict
 import uuid
 
+import pandas as pd
 import requests
 from fastapi import File
 from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 from mongoengine.errors import ValidationError
+from pandas import DataFrame
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
@@ -348,7 +350,17 @@ class DataUtility:
         template_type = 'CUSTOM'
         if isinstance(story, Dict):
             steps = story['steps']
-            if len(steps) == 2 and steps[0]['type'] == StoryStepType.intent and steps[1]['type'] == StoryStepType.bot:
+            if (
+                    len(steps) == 2 and
+                    steps[0]['type'] == StoryStepType.intent and
+                    steps[1]['type'] == StoryStepType.bot
+            ) or (
+                    len(steps) == 3 and
+                    steps[0]['name'] == RULE_SNIPPET_ACTION_NAME and
+                    steps[0]['type'] == StoryStepType.action and
+                    steps[1]['type'] == StoryStepType.intent and
+                    steps[2]['type'] == StoryStepType.bot
+            ):
                 template_type = 'Q&A'
         else:
             if (
@@ -408,6 +420,72 @@ class DataUtility:
 
         if intent_count < 2 or (stories_count < 2 and rule_count < 2):
             raise AppException('Please add at least 2 flows and 2 intents before training the bot!')
+
+    @staticmethod
+    def validate_faq_training_data(bot: Text, df: DataFrame):
+        '''
+        Checks whether there are duplicates between file and the existing bot data.
+        Also validates whether there are duplicates within the file data.
+        Total count of training examples and responses are recorded.
+
+        :param bot: bot id
+        :param df: dataframe from user given file
+        :return: error_summary and component_count
+        '''
+        from kairon.shared.data.processor import MongoProcessor
+
+        processor = MongoProcessor()
+        error_summary = {'intents': [], 'utterances': [], 'training_examples': []}
+        component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 
+                           'domain': {'intents': 0, 'utterances': 0}}
+        if df.empty:
+            raise AppException("No data found!")
+        existing_responses = processor.fetch_list_of_response(bot=bot)
+        existing_training_examples = processor.get_training_examples_as_dict(bot)
+        existing_training_examples = {k.lower(): v for k, v in existing_training_examples.items()}
+
+        # Iterate over excel/csv
+        for index, row in df.iterrows():
+
+            # Validate Training examples and keep count
+            for question in row['questions'].split('\n'):
+                if Utility.check_empty_string(question):
+                    error_summary['training_examples'].append(f"Empty questions found at index {index + 1} for response '{row['answer']}'")
+                if question.lower() in existing_training_examples:
+                    error_summary['training_examples'].append(f"Phrase '{question}' already exists in the bot!")
+                component_count['training_examples'] = component_count['training_examples'] + 1
+
+            # Validate response and keep count
+            if Utility.check_empty_string(row['answer']):
+                error_summary['utterances'].append(f"Empty answer found at index {index + 1}")
+            if {'text': row['answer']} in existing_responses:
+                error_summary['utterances'].append(f"Answer '{row['answer']}' already exists in the bot!")
+            component_count['utterances'] = component_count['utterances'] + 1
+
+        # Duplicates within the given data
+        duplicate_question = DataUtility.get_duplicate_values(df, 'questions')
+        duplicate_utterance = DataUtility.get_duplicate_values(df, 'answer')
+        if duplicate_question:
+            error_summary['training_examples'].append(f"Found duplicate phrases within the given data - {duplicate_question}")
+        if duplicate_utterance:
+            error_summary['utterances'].append(f"Found duplicate answers within the given data - {duplicate_utterance}")
+        return error_summary, component_count
+
+    @staticmethod
+    def get_duplicate_values(df: DataFrame, column_name: Text):
+        '''
+        Checks whether there are duplicates in a particular column.
+
+        :param df: dataframe from user given file
+        :param column_name: column on which duplicates are to be found
+        :return: duplicates
+        '''
+        column_data = pd.DataFrame()
+        column_data[column_name] = df.apply(lambda x: x[column_name].split("\n"), axis=1)
+        new_line_splitted_data = column_data[column_name].explode()
+        duplicates = new_line_splitted_data[new_line_splitted_data.duplicated(keep=False)]
+        duplicates = set(duplicates.unique())
+        return duplicates
 
 
 class ChatHistoryUtils:

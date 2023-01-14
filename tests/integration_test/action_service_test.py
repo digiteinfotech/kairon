@@ -8,9 +8,11 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations
 from kairon.shared.actions.models import ActionType
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
-from kairon.shared.data.data_objects import Slots, KeyVault
+from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.actions.utils import ActionUtility
@@ -3887,8 +3889,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
-        self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
-        self.assertEquals(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
+        self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
+        self.assertEqual(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
 
         action.text_recommendations = TwoStageFallbackTextualRecommendations(**{"count": 3})
         action.save()
@@ -3902,8 +3904,8 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json['events'], [])
-            self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
-            self.assertEquals(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
+            self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
+            self.assertEqual(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
 
         def _mock_search(*args, **kwargs):
             for _ in []:
@@ -3914,7 +3916,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json['events'], [])
-            self.assertEquals(response_json['responses'], [
+            self.assertEqual(response_json['responses'], [
                 {"text": None, "buttons": [], "elements": [], "custom": {}, "template": "utter_default",
                  "response": "utter_default", "image": None, "attachment": None}])
 
@@ -4018,8 +4020,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
-        self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
-        self.assertEquals(response_json['responses'][0]['buttons'], [
+        self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
+        self.assertEqual(response_json['responses'][0]['buttons'], [
             {'payload': '/set_context', 'text': 'Trigger'},
             {'payload': '/send_mail{"kairon_user_msg": "welcome new user"}', 'text': 'Mail me'},
             {'payload': '/send_mail{"kairon_user_msg": "get intents"}', 'text': 'Mail me'}])
@@ -4128,8 +4130,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
-        self.assertEquals(len(response_json['responses'][0]['buttons']), 2)
-        self.assertEquals(response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
+        self.assertEqual(len(response_json['responses'][0]['buttons']), 2)
+        self.assertEqual(response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
                                                                      {"text": "Mail me", "payload": "/send_mail"}])
 
         config = KaironTwoStageFallbackAction.objects(bot=bot, user=user).get()
@@ -4140,3 +4142,840 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json, {'events': [], 'responses': [
             {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': "utter_default",
              'response': "utter_default", 'image': None, 'attachment': None}]})
+
+    def test_bot_response_action(self):
+        action_name = 'utter_greet'
+        bot = "5f50fd0a56b698ca10d35d2e"
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
+                          'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
+                "latest_message": {'text': 'hi', 'intent_ranking': [
+                    {"name": "greet", "confidence": 0.853578245639801},
+                    {"name": "goodbye", "confidence": 0.1504897326231},
+                    {"name": "greet", "confidence": 0.138640150427818},
+                    {"name": "affirm", "confidence": 0.0857767835259438},
+                    {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                    {"name": "deny", "confidence": 0.069614589214325},
+                    {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                    {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                    {"name": "faq_testing", "confidence": 0.0530692934989929},
+                    {"name": "out_of_scope", "confidence": 0.0480506233870983}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {"config": {"store_entities_as_slots": True},
+                       "session_config": {"session_expiration_time": 60, "carry_over_slots_to_new_session": True},
+                       "intents": [{"greet": {"use_entities": []}}, {"list_movie": {"use_entities": []}},
+                                   {"movie_poster": {"use_entities": []}}, {"movie_trailer": {"use_entities": []}},
+                                   {"movie_location": {"use_entities": []}}, {"booking_link": {"use_entities": []}},
+                                   {"send_details": {"use_entities": []}}, {"restart": {"use_entities": True}},
+                                   {"back": {"use_entities": True}}, {"out_of_scope": {"use_entities": True}},
+                                   {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
+                                   {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
+                       "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
+                                         "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                         "influence_conversation": True},
+                                 "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
+                                                            "initial_value": None, "auto_fill": False,
+                                                            "influence_conversation": False}}, "responses": {
+                    "utter_please_rephrase": [
+                        {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
+                    "utter_movietrailer": [{"custom": {"data": [
+                        {"type": "video", "url": "https://www.youtube.com/watch?v=rUyrekdj5xs",
+                         "children": [{"text": ""}]}, {"type": "paragraph", "children": [{"text": ""}]}],
+                                                       "type": "video"}}],
+                    "utter_movielocation": [{"custom": {"central bellandue": "godfather", "Jp nagar central": "CHUP"}}],
+                    "utter_listmovie": [{"text": "PS1, CHUP, Brhamastra, Godfather"}],
+                    "utter_greet": [{"text": "hi tell me"}],
+                    "utter_default": [{"text": "Sorry I didn\'t get that. Can you rephrase?"}]},
+                       "actions": ["ticket details", "kairon_two_stage_fallback", "call_api"], "forms": {},
+                       "e2e_actions": []}, "version": "2.8.15"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': {'response': 'utter_greet'}}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+             'response': 'utter_greet', 'image': None, 'attachment': None}
+        ])
+
+    def test_bot_response_action_empty_response_in_domain(self):
+        action_name = 'utter_greet'
+        bot = "5f50fd0a56b698ca10d35d2e"
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
+                          'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
+                "latest_message": {'text': 'hi', 'intent_ranking': [
+                    {"name": "greet", "confidence": 0.853578245639801},
+                    {"name": "goodbye", "confidence": 0.1504897326231},
+                    {"name": "greet", "confidence": 0.138640150427818},
+                    {"name": "affirm", "confidence": 0.0857767835259438},
+                    {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                    {"name": "deny", "confidence": 0.069614589214325},
+                    {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                    {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                    {"name": "faq_testing", "confidence": 0.0530692934989929},
+                    {"name": "out_of_scope", "confidence": 0.0480506233870983}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {"config": {"store_entities_as_slots": True},
+                       "session_config": {"session_expiration_time": 60, "carry_over_slots_to_new_session": True},
+                       "intents": [{"greet": {"use_entities": []}}, {"list_movie": {"use_entities": []}},
+                                   {"movie_poster": {"use_entities": []}}, {"movie_trailer": {"use_entities": []}},
+                                   {"movie_location": {"use_entities": []}}, {"booking_link": {"use_entities": []}},
+                                   {"send_details": {"use_entities": []}}, {"restart": {"use_entities": True}},
+                                   {"back": {"use_entities": True}}, {"out_of_scope": {"use_entities": True}},
+                                   {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
+                                   {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
+                       "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
+                                         "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                         "influence_conversation": True},
+                                 "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
+                                                            "initial_value": None, "auto_fill": False,
+                                                            "influence_conversation": False}}, "responses": {
+                    "utter_please_rephrase": [
+                        {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
+                    "utter_movietrailer": [{"custom": {"data": [
+                        {"type": "video", "url": "https://www.youtube.com/watch?v=rUyrekdj5xs",
+                         "children": [{"text": ""}]}, {"type": "paragraph", "children": [{"text": ""}]}],
+                                                       "type": "video"}}],
+                    "utter_movielocation": [{"custom": {"central bellandue": "godfather", "Jp nagar central": "CHUP"}}],
+                    "utter_listmovie": [{"text": "PS1, CHUP, Brhamastra, Godfather"}],
+                    "utter_greet": [],
+                    "utter_default": [{"text": "Sorry I didn\'t get that. Can you rephrase?"}]},
+                       "actions": ["ticket details", "kairon_two_stage_fallback", "call_api"], "forms": {},
+                       "e2e_actions": []}, "version": "2.8.15"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': {'response': 'utter_greet'}}])
+        self.assertEqual(response_json['responses'],
+            [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+             'response': 'utter_greet', 'image': None, 'attachment': None}
+        ])
+
+    def test_bot_response_action_rephrase_enabled(self):
+        action_name = 'utter_greet'
+        bot = "5f50fd0a56b698ca10d35d2h"
+        user = "test_user"
+        BotSettings(rephrase_response=True, bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+        gpt_prompt = open("./template/rephrase-prompt.txt").read()
+        gpt_prompt = f"{gpt_prompt}hi\noutput:"
+        gpt_response = {'id': 'cmpl-6Hh86Qkqq0PJih2YSl9JaNkPEuy4Y', 'object': 'text_completion', 'created': 1669675386,
+                  'model': 'text-davinci-002', 'choices': [{
+                                                               'text': "Greetings and welcome to kairon!!",
+                                                               'index': 0, 'logprobs': None, 'finish_reason': 'stop'}],
+                  'usage': {'prompt_tokens': 152, 'completion_tokens': 38, 'total_tokens': 81}}
+        responses.add(
+            "POST",
+            Utility.environment["plugins"]["gpt"]["url"],
+            status=200, json=gpt_response,
+            match=[responses.json_params_matcher(
+                {'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7,
+                 'max_tokens': 152})],
+        )
+
+        responses.start()
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
+                          'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
+                "latest_message": {'text': 'hi', 'intent_ranking': [
+                    {"name": "greet", "confidence": 0.853578245639801},
+                    {"name": "goodbye", "confidence": 0.1504897326231},
+                    {"name": "greet", "confidence": 0.138640150427818},
+                    {"name": "affirm", "confidence": 0.0857767835259438},
+                    {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                    {"name": "deny", "confidence": 0.069614589214325},
+                    {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                    {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                    {"name": "faq_testing", "confidence": 0.0530692934989929},
+                    {"name": "out_of_scope", "confidence": 0.0480506233870983}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {"config": {"store_entities_as_slots": True},
+                       "session_config": {"session_expiration_time": 60, "carry_over_slots_to_new_session": True},
+                       "intents": [{"greet": {"use_entities": []}}, {"list_movie": {"use_entities": []}},
+                                   {"movie_poster": {"use_entities": []}}, {"movie_trailer": {"use_entities": []}},
+                                   {"movie_location": {"use_entities": []}}, {"booking_link": {"use_entities": []}},
+                                   {"send_details": {"use_entities": []}}, {"restart": {"use_entities": True}},
+                                   {"back": {"use_entities": True}}, {"out_of_scope": {"use_entities": True}},
+                                   {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
+                                   {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
+                       "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
+                                         "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                         "influence_conversation": True},
+                                 "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
+                                                            "initial_value": None, "auto_fill": False,
+                                                            "influence_conversation": False}}, "responses": {
+                    "utter_please_rephrase": [
+                        {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
+                    "utter_movietrailer": [{"custom": {"data": [
+                        {"type": "video", "url": "https://www.youtube.com/watch?v=rUyrekdj5xs",
+                         "children": [{"text": ""}]}, {"type": "paragraph", "children": [{"text": ""}]}],
+                                                       "type": "video"}}],
+                    "utter_movielocation": [{"custom": {"central bellandue": "godfather", "Jp nagar central": "CHUP"}}],
+                    "utter_listmovie": [{"text": "PS1, CHUP, Brhamastra, Godfather"}],
+                    "utter_greet": [{"text": "hi"}],
+                    "utter_default": [{"text": "Sorry I didn\'t get that. Can you rephrase?"}]},
+                       "actions": ["ticket details", "kairon_two_stage_fallback", "call_api"], "forms": {},
+                       "e2e_actions": []}, "version": "2.8.15"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': {'text': "Greetings and welcome to kairon!!"}}])
+        self.assertEqual(response_json['responses'],
+            [{'text': "Greetings and welcome to kairon!!", 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+             'response': None, 'image': None, 'attachment': None}
+        ])
+        responses.stop()
+        responses.reset()
+
+    def test_bot_response_action_rephrase_failure(self):
+        action_name = 'utter_greet'
+        bot = "5f50fd0a56b698ca10d35d2i"
+        user = "test_user"
+        BotSettings(rephrase_response=True, bot=bot, user=user).save()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+        gpt_prompt = open("./template/rephrase-prompt.txt").read()
+        gpt_prompt = f"{gpt_prompt}hi\noutput:"
+        gpt_response = {"error": {"message": "'100' is not of type 'integer' - 'max_tokens'", "type": "invalid_request_error", "param": None, "code": None} }
+        responses.add(
+            "POST",
+            Utility.environment["plugins"]["gpt"]["url"],
+            status=400,
+            json=gpt_response,
+            match=[responses.json_params_matcher({'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7, 'max_tokens': 152})],
+        )
+
+        responses.start()
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
+                          'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
+                "latest_message": {'text': 'hi', 'intent_ranking': [
+                    {"name": "greet", "confidence": 0.853578245639801},
+                    {"name": "goodbye", "confidence": 0.1504897326231},
+                    {"name": "greet", "confidence": 0.138640150427818},
+                    {"name": "affirm", "confidence": 0.0857767835259438},
+                    {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                    {"name": "deny", "confidence": 0.069614589214325},
+                    {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                    {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                    {"name": "faq_testing", "confidence": 0.0530692934989929},
+                    {"name": "out_of_scope", "confidence": 0.0480506233870983}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {"config": {"store_entities_as_slots": True},
+                       "session_config": {"session_expiration_time": 60, "carry_over_slots_to_new_session": True},
+                       "intents": [{"greet": {"use_entities": []}}, {"list_movie": {"use_entities": []}},
+                                   {"movie_poster": {"use_entities": []}}, {"movie_trailer": {"use_entities": []}},
+                                   {"movie_location": {"use_entities": []}}, {"booking_link": {"use_entities": []}},
+                                   {"send_details": {"use_entities": []}}, {"restart": {"use_entities": True}},
+                                   {"back": {"use_entities": True}}, {"out_of_scope": {"use_entities": True}},
+                                   {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
+                                   {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
+                       "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
+                                         "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                         "influence_conversation": True},
+                                 "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
+                                                            "initial_value": None, "auto_fill": False,
+                                                            "influence_conversation": False}}, "responses": {
+                    "utter_please_rephrase": [
+                        {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
+                    "utter_movietrailer": [{"custom": {"data": [
+                        {"type": "video", "url": "https://www.youtube.com/watch?v=rUyrekdj5xs",
+                         "children": [{"text": ""}]}, {"type": "paragraph", "children": [{"text": ""}]}],
+                                                       "type": "video"}}],
+                    "utter_movielocation": [{"custom": {"central bellandue": "godfather", "Jp nagar central": "CHUP"}}],
+                    "utter_listmovie": [{"text": "PS1, CHUP, Brhamastra, Godfather"}],
+                    "utter_greet": [{"text": "hi"}],
+                    "utter_default": [{"text": "Sorry I didn\'t get that. Can you rephrase?"}]},
+                       "actions": ["ticket details", "kairon_two_stage_fallback", "call_api"], "forms": {},
+                       "e2e_actions": []}, "version": "2.8.15"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': {'response': 'utter_greet'}}])
+        self.assertEqual(response_json['responses'],
+                          [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+                            'response': 'utter_greet', 'image': None, 'attachment': None}
+                           ])
+        assert len(responses.calls._calls) == 1
+
+        secret.value = ""
+        secret.save()
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': {'response': 'utter_greet'}}])
+        self.assertEqual(response_json['responses'],
+                          [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+                            'response': 'utter_greet', 'image': None, 'attachment': None}
+                           ])
+        assert len(responses.calls._calls) == 1
+        responses.stop()
+        responses.reset()
+    
+    def test_bot_response_action_failure(self):
+        action_name = 'utter_greet'
+        bot = "5f50fd0a56b698ca10d35d2j"
+        user = "test_user"
+
+        def __mock_error(*args, **kwargs):
+            raise Exception("Failed to retrieve value")
+
+        BotSettings(rephrase_response=True, bot=bot, user=user).save()
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': bot, 'firstname_slot': 'udit pandey', 'organization': 'digite',
+                          'email_slot': 'pandey.udit867@gmail.com', 'phone': '9876543210'},
+                "latest_message": {'text': 'hi', 'intent_ranking': [
+                    {"name": "greet", "confidence": 0.853578245639801},
+                    {"name": "goodbye", "confidence": 0.1504897326231},
+                    {"name": "greet", "confidence": 0.138640150427818},
+                    {"name": "affirm", "confidence": 0.0857767835259438},
+                    {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                    {"name": "deny", "confidence": 0.069614589214325},
+                    {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                    {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                    {"name": "faq_testing", "confidence": 0.0530692934989929},
+                    {"name": "out_of_scope", "confidence": 0.0480506233870983}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {"config": {"store_entities_as_slots": True},
+                       "session_config": {"session_expiration_time": 60, "carry_over_slots_to_new_session": True},
+                       "intents": [{"greet": {"use_entities": []}}, {"list_movie": {"use_entities": []}},
+                                   {"movie_poster": {"use_entities": []}}, {"movie_trailer": {"use_entities": []}},
+                                   {"movie_location": {"use_entities": []}}, {"booking_link": {"use_entities": []}},
+                                   {"send_details": {"use_entities": []}}, {"restart": {"use_entities": True}},
+                                   {"back": {"use_entities": True}}, {"out_of_scope": {"use_entities": True}},
+                                   {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
+                                   {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
+                       "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
+                                         "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                         "influence_conversation": True},
+                                 "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
+                                                            "initial_value": None, "auto_fill": False,
+                                                            "influence_conversation": False}}, "responses": {
+                    "utter_please_rephrase": [
+                        {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
+                    "utter_movietrailer": [{"custom": {"data": [
+                        {"type": "video", "url": "https://www.youtube.com/watch?v=rUyrekdj5xs",
+                         "children": [{"text": ""}]}, {"type": "paragraph", "children": [{"text": ""}]}],
+                                                       "type": "video"}}],
+                    "utter_movielocation": [{"custom": {"central bellandue": "godfather", "Jp nagar central": "CHUP"}}],
+                    "utter_listmovie": [{"text": "PS1, CHUP, Brhamastra, Godfather"}],
+                    "utter_greet": [{"text": "hi"}],
+                    "utter_default": [{"text": "Sorry I didn\'t get that. Can you rephrase?"}]},
+                       "actions": ["ticket details", "kairon_two_stage_fallback", "call_api"], "forms": {},
+                       "e2e_actions": []}, "version": "2.8.15"
+        }
+
+        with patch.object(ActionUtility, "trigger_rephrase") as mock_utils:
+            mock_utils.side_effect = __mock_error
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': {'response': 'utter_greet'}}])
+        self.assertEqual(response_json['responses'],
+                          [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+                            'response': 'utter_greet', 'image': None, 'attachment': None}
+                           ])
+
+    def test_action_handler_none(self):
+        action_name = ""
+        bot = ""
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "to_email": "test@test.com", "organization": "digite"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        assert response_json is None
+
+    def test_action_handler_exceptions(self):
+        action_name = ""
+        bot = ""
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, "to_email": "test@test.com", "organization": "digite"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [
+                    {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                     "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                    {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                     "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                           "parse_data": {
+                                               "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                               "entities": [], "intent_ranking": [
+                                                   {"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                               "response_selector": {
+                                                   "default": {"response": {"name": None, "confidence": 0},
+                                                               "ranking": [], "full_retrieval_intent": None}},
+                                               "text": "can't"}, "input_channel": None,
+                                           "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}},
+                    {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                     "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                    {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                     "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                    "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                       {"name": "goodbye", "confidence": 0.1504897326231},
+                                                       {"name": "greet", "confidence": 0.138640150427818},
+                                                       {"name": "affirm", "confidence": 0.0857767835259438},
+                                                       {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                       {"name": "deny", "confidence": 0.069614589214325},
+                                                       {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                       {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                       {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                       {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                    "response_selector": {
+                                        "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                    "full_retrieval_intent": None}}, "text": "can\"t"},
+                     "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                    {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                     "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                    {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                     "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                              "image": None, "custom": None}, "metadata": {}}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+
+        async def mock_process_actions(*args, **kwargs):
+            from rasa_sdk import ActionExecutionRejection
+            raise ActionExecutionRejection("Action Execution Rejection")
+
+        with patch('kairon.actions.handlers.action.ActionHandler.process_actions', mock_process_actions):
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response_json, {'error': "Custom action 'Action Execution Rejection' rejected execution.",
+                                            'action_name': 'Action Execution Rejection'})
+
+        async def mock_process_actions(*args, **kwargs):
+            from rasa_sdk.interfaces import ActionNotFoundException
+            raise ActionNotFoundException("Action Not Found Exception")
+
+        with patch('kairon.actions.handlers.action.ActionHandler.process_actions', mock_process_actions):
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response_json, {'error': "No registered action found for name 'Action Not Found Exception'.",
+                                             'action_name': 'Action Not Found Exception'})

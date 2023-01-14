@@ -32,6 +32,7 @@ from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType
 from validators import domain
+from mongoengine import signals
 
 
 class Entity(EmbeddedDocument):
@@ -197,7 +198,7 @@ class Intents(Auditlog):
     is_integration = BooleanField(default=False)
     use_entities = BooleanField(default=False)
 
-    meta = {"indexes": [{"fields": ["bot"]}]}
+    meta = {"indexes": [{"fields": ["bot", ("name", "bot", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -499,7 +500,7 @@ class Stories(Auditlog):
     status = BooleanField(default=True)
     template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -664,6 +665,7 @@ class TrainingDataGenerator(Document):
 class BotSettings(Auditlog):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
+    rephrase_response = BooleanField(default=False)
     website_data_generator_depth_search_limit = IntField(default=2)
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
@@ -673,6 +675,9 @@ class BotSettings(Auditlog):
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
+        if clean:
+            self.clean()
+
         if self.refresh_token_expiry <= self.chat_token_expiry:
             raise ValidationError("refresh_token_expiry must be greater than chat_token_expiry!")
 
@@ -757,3 +762,4 @@ class EventConfig(Auditlog):
 
 
 signals.pre_save_post_validation.connect(EventConfig.pre_save_post_validation, sender=EventConfig)
+signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)

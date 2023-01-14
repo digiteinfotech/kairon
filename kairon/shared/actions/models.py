@@ -38,6 +38,7 @@ class ActionType(str, Enum):
     pipedrive_leads_action = "pipedrive_leads_action"
     hubspot_forms_action = "hubspot_forms_action"
     two_stage_fallback = "two_stage_fallback"
+    kairon_bot_response = "kairon_bot_response"
 
 
 class HttpRequestContentType(str, Enum):

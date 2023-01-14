@@ -6,6 +6,7 @@ from urllib.parse import urlencode, quote_plus
 from mock import patch
 from mongoengine import connect
 from rasa.core.agent import Agent
+from rasa.utils.endpoints import EndpointConfig
 from slack.web.slack_response import SlackResponse
 from tornado.test.testing_test import AsyncHTTPTestCase
 
@@ -200,7 +201,9 @@ class TestChatServer(AsyncHTTPTestCase):
             assert headers[10] == ('Permissions-Policy',
                                    'accelerometer=(self), ambient-light-sensor=(self), autoplay=(self), battery=(self), camera=(self), cross-origin-isolated=(self), display-capture=(self), document-domain=(self), encrypted-media=(self), execution-while-not-rendered=(self), execution-while-out-of-viewport=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), keyboard-map=(self), magnetometer=(self), microphone=(self), midi=(self), navigation-override=(self), payment=(self), picture-in-picture=(self), publickey-credentials-get=(self), screen-wake-lock=(self), sync-xhr=(self), usb=(self), web-share=(self), xr-spatial-tracking=(self)')
             assert headers[11] == ('Cache-Control', 'no-store')
-            assert len(MeteringProcessor.get_logs(user['account'], metric_type=MetricType.test_chat)) > 0
+            data = MeteringProcessor.get_logs(user['account'], metric_type=MetricType.test_chat, bot=bot)
+            assert len(data["logs"]) > 0
+            assert len(data["logs"]) == data["total"]
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat, channel_type="chat_client") > 0
 
     def test_chat_with_user(self):
@@ -345,21 +348,32 @@ class TestChatServer(AsyncHTTPTestCase):
             assert Utility.check_empty_string(actual["message"])
 
     def test_chat_with_limited_access(self):
+        action_response = {
+            "events": [{"event": "slot", "timestamp": None, "name": "kairon_action_response", "value": "Michael"}],
+            "responses": [{"text": "Welcome to kairon", "buttons": [], "elements": [], "custom": {}, "template": None,
+                           "response": None, "image": None, "attachment": None}]
+        }
+
         access_token, _ = Authentication.generate_integration_token(
             bot2, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/chat'], name="integration token"
         )
-        response = self.fetch(
-            f"/api/bot/{bot2}/chat",
-            method="POST",
-            body=json.dumps({"data": "Hi"}).encode("utf8"),
-            headers={
-                "Authorization": f"{token_type} {access_token}", 'X-USER': 'testUser'
-            },
-        )
+        with patch.object(EndpointConfig, "request") as mocked:
+            mocked.return_value = action_response
+            response = self.fetch(
+                f"/api/bot/{bot2}/chat",
+                method="POST",
+                body=json.dumps({"data": "Hi"}).encode("utf8"),
+                headers={
+                    "Authorization": f"{token_type} {access_token}", 'X-USER': 'testUser'
+                },
+            )
         actual = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
+        self.assertEqual(actual["data"]["response"], [{'recipient_id': 'testUser', 'text': 'Welcome to kairon'}])
         assert actual['data']['response']
-        assert len(MeteringProcessor.get_logs(user['account'], metric_type=MetricType.prod_chat)) > 0
+        data = MeteringProcessor.get_logs(user['account'], metric_type=MetricType.prod_chat, bot=bot2)
+        assert len(data["logs"]) > 0
+        assert len(data["logs"]) == data["total"]
         assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
                                                   channel_type="chat_client") > 0
 
@@ -376,20 +390,28 @@ class TestChatServer(AsyncHTTPTestCase):
         assert actual['message'] == 'Alias user missing for integration'
 
     def test_chat_with_limited_access_without_integration(self):
+        action_response = {
+            "events": [{"event": "slot", "timestamp": None, "name": "kairon_action_response", "value": "Michael"}],
+            "responses": [{"text": None, "buttons": [], "elements": [], "custom": {}, "template": None,
+                           "response": "utter_greet", "image": None, "attachment": None}]
+        }
+
         access_token = Authentication.create_access_token(
             data={"sub": "test@chat.com", 'access-limit': ['/api/bot/.+/chat']},
         )
-        response = self.fetch(
-            f"/api/bot/{bot2}/chat",
-            method="POST",
-            body=json.dumps({"data": "Hi"}).encode("utf8"),
-            headers={
-                "Authorization": f"{token_type} {access_token}", 'X-USER': 'testUser'
-            },
-        )
+        with patch.object(EndpointConfig, "request") as mocked:
+            mocked.return_value = action_response
+            response = self.fetch(
+                f"/api/bot/{bot2}/chat",
+                method="POST",
+                body=json.dumps({"data": "Hi"}).encode("utf8"),
+                headers={
+                    "Authorization": f"{token_type} {access_token}", 'X-USER': 'testUser'
+                },
+            )
         actual = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
-        assert actual['data']['response']
+        assert actual["data"]["response"][0]
 
     def test_chat_limited_access_prevent_chat(self):
         access_token = Authentication.create_access_token(
@@ -1177,7 +1199,9 @@ class TestChatServer(AsyncHTTPTestCase):
                                                                'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
 
-                assert len(MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")) == 1
+                data = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
+                assert len(data["logs"]) > 0
+                assert len(data["logs"]) == data["total"]
                 assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) > 0
 
     def test_chat_with_chatwoot_agent_fallback_existing_contact(self):
@@ -1281,7 +1305,9 @@ class TestChatServer(AsyncHTTPTestCase):
                                                                'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
                                                                'websocket_url': 'wss://app.chatwoot.com/cable'
                                                            }}
-                assert len(MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")) == 2
+                data = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
+                assert len(data["logs"]) > 0
+                assert len(data["logs"]) == data["total"]
                 assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) == 2
 
     def test_chat_with_live_agent(self):
@@ -1454,9 +1480,10 @@ class TestChatServer(AsyncHTTPTestCase):
                                                            'additional_properties': None}
                 responses.reset()
                 responses.stop()
-                logs = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
-                assert len(logs) == 3
-                assert logs[0]['exception'] == 'Failed to create conversation: Service Unavailable'
+                data = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
+                assert len(data["logs"]) == 3
+                assert len(data["logs"]) == data["total"]
+                assert data["logs"][0]['exception'] == 'Failed to create conversation: Service Unavailable'
 
     def test_chat_with_bot_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
