@@ -2171,9 +2171,9 @@ class MongoProcessor:
             block_name = item.pop("block_name")
             events = item.pop("events")
             final_data["_id"] = item["_id"].__str__()
+            final_data['template_type'] = item.pop("template_type")
             if isinstance(value, Stories):
                 final_data['type'] = 'STORY'
-                final_data['template_type'] = item.pop("template_type")
             elif isinstance(value, Rules):
                 final_data['type'] = 'RULE'
             else:

@@ -2067,7 +2067,7 @@ def test_get_stories():
     assert actual["data"][1]['template_type'] == 'CUSTOM'
     assert actual["data"][16]['template_type'] == 'Q&A'
     assert actual["data"][17]['template_type'] == 'Q&A'
-    assert not actual["data"][19].get('template_type')
+    assert actual["data"][19].get('template_type')
 
 
 def test_get_utterance_from_intent():

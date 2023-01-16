@@ -9322,12 +9322,19 @@ class TestModelProcessor:
         headers = json.loads(result.get("headers"))
         assert headers == {}
 
+    @responses.activate
     def test_save_auditlog_event_config(self):
         bot = "tests"
         user = "testuser"
         data = {"ws_url": "http://localhost:5000/event_url",
                 "headers": {'Autharization': '123456789'},
                 "method": "GET"}
+        responses.add(
+            responses.GET,
+            "http://localhost:5000/event_url",
+            status=200,
+            json='{"message": "success"}'
+        )
         MongoProcessor.save_auditlog_event_config(bot=bot, user=user, data=data)
         result = MongoProcessor.get_auditlog_event_config(bot)
         assert result.get("ws_url") == data.get("ws_url")

@@ -451,5 +451,5 @@ class TestDataGenerator:
             plain_text, entities = phrase.get("text"), phrase.get("entities")
         message.data = {TRAINING_EXAMPLE.INTENT.value: intent, TEXT: plain_text}
         if entities:
-            message.data[TRAINING_EXAMPLE.ENTITIES.value] = phrase.get("entities")
+            message.data[TRAINING_EXAMPLE.ENTITIES.value] = entities
         return message
