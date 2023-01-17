@@ -24,8 +24,11 @@ class KMongoTrackerStore(TrackerStore):
     def __init__(
             self,
             domain: Domain,
-            host: Optional[Text],
+            host: Optional[Text] = "mongodb://localhost:27017",
             db: Optional[Text] = "kairon",
+            username: Optional[Text] = None,
+            password: Optional[Text] = None,
+            auth_source: Optional[Text] = "admin",
             collection: Optional[Text] = "conversations",
             event_broker: Optional[EventBroker] = None,
             **kwargs: Dict[Text, Any],
@@ -34,8 +37,12 @@ class KMongoTrackerStore(TrackerStore):
         from pymongo import MongoClient
 
         self.client = MongoClient(
-            host=host,
-            connect=False
+            host,
+            username=username,
+            password=password,
+            authSource=auth_source,
+            # delay connect until process forking is done
+            connect=False,
         )
 
         self.db = Database(self.client, db)
