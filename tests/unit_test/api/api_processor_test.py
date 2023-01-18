@@ -2329,18 +2329,19 @@ class TestAccountProcessor:
 
     def test_validate_password(cls):
         with pytest.raises(ValueError, match="Password length must be 8\n"
-                                             "Missing 1 uppercase letter\nMissing 1 special letter"):
+                                             "Missing 1 number\nMissing 1 special letter"):
             Password.validate_password(SecretStr("Owners"), {})
 
     def test_validate_password_empty(cls):
         with pytest.raises(ValueError, match="Password length must be 8\n"
                                              "Missing 1 uppercase letter\n"
-                                             "Missing 1 uppercase letter\n"
+                                             "Missing 1 number\n"
                                              "Missing 1 special letter"):
             Password.validate_password(SecretStr(""), {})
+
     def test_validate_password_None(cls):
         with pytest.raises(ValueError, match="Password length must be 8\n"
-                                             "Missing 1 uppercase letter\nMissing 1 special letter"):
+                                             "Missing 1 number\nMissing 1 special letter"):
             Password.validate_password(SecretStr(None), {})
 
     def test_check(cls):

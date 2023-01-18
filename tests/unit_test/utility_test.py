@@ -11,14 +11,16 @@ import requests
 import responses
 from fastapi import UploadFile
 from mongoengine import connect
+from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from websockets import InvalidStatusCode
 
+from mongoengine.queryset.visitor import Q
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.data.base_data import AuditLogData
-from kairon.shared.data.data_objects import EventConfig, StoryEvents
+from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility
@@ -1679,3 +1681,105 @@ class TestUtility:
         response = await msteams.messageConverter(input_json)
         expected_output = json_data.get("msteams_video_op")
         assert expected_output == response.get("text")
+
+    @pytest.mark.parametrize("testing_password,results,err_msg",
+                             [
+                                 ("TEST@2", [Length(8)], "Password length must be 8"),
+                                 ("TESTING123", [Special(1)], "Missing 1 special letter"),
+                                 ("testing@123", [Uppercase(1)], "Missing 1 uppercase letter"),
+                                 ("TESTING@test", [Numbers(1)], "Missing 1 number"),
+                                 ("TestingTest", [Numbers(1), Special(1)], "Missing 1 number\nMissing 1 special letter")
+                             ])
+    @mock.patch("kairon.shared.utils.Utility.password_policy.test")
+    def test_valid_password(self, mock_password_policy_test, testing_password, results, err_msg):
+        mock_password_policy_test.return_value = results
+        with pytest.raises(AppException) as error:
+            Utility.valid_password(password=testing_password)
+        assert str(error.value) == err_msg
+        mock_password_policy_test.assert_called_once_with(testing_password)
+
+    def test_valid_password_with_correct_password(self):
+        testing_password = "TESTING@123"
+        assert Utility.valid_password(password=testing_password) is None
+
+    def test_is_exist_with_raise_error_false(self):
+        assert Utility.is_exist(Slots, raise_error=False) is True
+
+    def test_is_exist_with_raise_error_true_without_exp_message(self):
+        with pytest.raises(AppException) as error:
+            Utility.is_exist(Slots, raise_error=True)
+        assert str(error.value) == "Exception message cannot be empty"
+
+    def test_is_exist_with_raise_error_true_with_exp_message(self):
+        err_msg = "Testing Error Message"
+        with pytest.raises(AppException) as error:
+            Utility.is_exist(Slots, raise_error=True, exp_message=err_msg)
+        assert str(error.value) == err_msg
+
+    @pytest.mark.parametrize("is_raise_error,expected_output", [(True, None), (False, False)])
+    def test_is_exist_with_zero_docs(self, is_raise_error, expected_output):
+        assert Utility.is_exist(Slots, raise_error=is_raise_error, exp_message="Testing",
+                                name__iexact="random") is expected_output
+
+    def test_is_exist(self):
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'location'
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+        assert Utility.is_exist(Slots, raise_error=False, name=slot, type="text", bot=bot, user=user) is True
+
+    def test_is_exist_query_with_raise_error_false(self):
+        assert Utility.is_exist_query(Slots, raise_error=False, query=(Q(name="bot") & Q(status=True))) is True
+
+    def test_is_exist_query_with_raise_error_true_without_exp_message(self):
+        with pytest.raises(AppException) as error:
+            Utility.is_exist_query(Slots, raise_error=True, query=(Q(name="bot") & Q(status=True)))
+        assert str(error.value) == "Exception message cannot be empty"
+
+    def test_is_exist_query_with_raise_error_true_with_exp_message(self):
+        err_msg = "Testing Error Message"
+        with pytest.raises(AppException) as error:
+            Utility.is_exist_query(Slots, raise_error=True, query=(Q(name="bot") & Q(status=True)),
+                                   exp_message=err_msg)
+        assert str(error.value) == err_msg
+
+    @pytest.mark.parametrize("is_raise_error,expected_output", [(False, False), (True, None)])
+    def test_is_exist_query_with_zero_docs(self, is_raise_error, expected_output):
+        assert Utility.is_exist_query(Slots, raise_error=is_raise_error,
+                                      query=(Q(name="random") & Q(status=True))) is expected_output
+
+    def test_is_exist_query(self):
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'location'
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+        assert Utility.is_exist_query(Slots, raise_error=False, query=(Q(name=slot) & Q(bot=bot))) is True
+
+    def test_special_match(self):
+        assert Utility.special_match(strg="Testing@123") is True
+
+    def test_special_match_without_special_character(self):
+        assert Utility.special_match(strg="Testing123") is False
+
+    def test_load_json_file(self):
+        testing_path = "./template/chat-client/default-config.json"
+        expected_output = {'name': 'kairon', 'buttonType': 'button', 'welcomeMessage': 'Hello! How are you?', 'container': '#root', 'userType': 'custom', 'userStorage': 'ls', 'whitelist': ['*'], 'styles': {'headerStyle': {'backgroundColor': '#2b3595', 'color': '#ffffff', 'height': '60px'}, 'botStyle': {'backgroundColor': '#e0e0e0', 'color': '#000000', 'iconSrc': '', 'fontFamily': "'Roboto', sans-serif", 'fontSize': '14px', 'showIcon': 'false'}, 'userStyle': {'backgroundColor': '#2b3595', 'color': '#ffffff', 'iconSrc': '', 'fontFamily': "'Roboto', sans-serif", 'fontSize': '14px', 'showIcon': 'false'}, 'buttonStyle': {'color': '#ffffff', 'backgroundColor': '#2b3595'}, 'containerStyles': {'height': '500px', 'width': '350px', 'background': '#ffffff'}}, 'headerClassName': '', 'containerClassName': '', 'chatContainerClassName': '', 'userClassName': '', 'botClassName': '', 'formClassName': '', 'openButtonClassName': '', 'multilingual': {'enable': False, 'bots': []}}
+        config = Utility.load_json_file(path=testing_path)
+        assert config == expected_output
+
+    def test_load_json_file_with_incorrect_path_raise_exception(self):
+        testing_path = "./template/chat-client/testing.json"
+        with pytest.raises(AppException) as error:
+            Utility.load_json_file(path=testing_path)
+        assert str(error.value) == "file not found"
+
+    def test_get_channels(self):
+        expected_channels = ['msteams', 'slack', 'telegram', 'hangouts', 'messenger', 'instagram', 'whatsapp']
+        channels = Utility.get_channels()
+        assert channels == expected_channels
+
+    def test_get_channels_with_no_channels(self, monkeypatch):
+        expected_channels = []
+        monkeypatch.setitem(Utility.system_metadata, "channels", [])
+        channels = Utility.get_channels()
+        assert channels == expected_channels
