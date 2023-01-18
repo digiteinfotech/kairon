@@ -1,10 +1,10 @@
 import datetime
+from io import BytesIO
 from typing import Text
 
 from fastapi import APIRouter, Security
 from fastapi import Query
 from starlette.responses import StreamingResponse
-from io import BytesIO
 
 from kairon.api.app.routers.bot.action import mongo_processor
 from kairon.api.models import Response
@@ -13,10 +13,9 @@ from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, ADMIN_ACCESS
 from kairon.shared.data.data_objects import ConversationsHistoryDeleteLogs
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
-from kairon.shared.models import User
-from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility, ChatHistoryUtils
+from kairon.shared.models import User
+from kairon.shared.utils import Utility
 
 router = APIRouter()
 

@@ -1,9 +1,9 @@
 sentence-transformers
 pyyaml
-torch
+torch==1.11.0
 rasa[full]==2.8.15
 fastapi~=0.78.0
-mongomock~=3.23.0
+mongomock==4.1.2
 pytest==6.1.2
 pytest-html==3.0.0
 pytest-cov==2.10.1
@@ -21,7 +21,7 @@ validators
 secure
 password-strength==0.0.3.post2
 loguru
-transformers==4.5.0
+transformers==4.23.0
 smart-config==0.1.3
 moto==3.1.18
 botocore==1.23.23
@@ -61,4 +61,6 @@ dramatiq-mongodb==0.6.1
 keybert
 bs4
 fastapi-keycloak
+pyjwt==2.6.0
 openpyxl
+uuid6

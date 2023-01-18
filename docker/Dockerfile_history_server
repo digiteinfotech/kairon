@@ -25,7 +25,7 @@ RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
-RUN python -m pip install transformers==4.5.0
+RUN python -m pip install transformers==4.23.0
 RUN python -m pip install fastapi_sso
 RUN python -m pip install blinker
 RUN python -m pip install json2html
@@ -36,6 +36,8 @@ RUN python -m pip install jira
 RUN python -m pip install protobuf==3.20.2
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
+RUN python -m pip install pyjwt==2.6.0
+RUN python -m pip install uuid6
 
 COPY kairon /app/kairon
 COPY metadata /app/metadata

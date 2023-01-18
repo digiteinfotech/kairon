@@ -272,13 +272,13 @@ class Authentication:
                 detail=f"Refresh only allowed for {TOKEN_TYPE.DYNAMIC.value} tokens!",
             )
 
-        access_token, _ = Authentication.generate_integration_token(
+        access_token, new_refresh_token = Authentication.generate_integration_token(
             claims["bot"], claims["sub"], role=claims["primary-token-role"], expiry=claims["ttl"],
             access_limit=claims["primary-token-access-limit"],
             token_type=claims["primary-token-type"],
             name='from refresh token'
         )
-        return access_token
+        return access_token, new_refresh_token
 
     @staticmethod
     def update_integration_token(

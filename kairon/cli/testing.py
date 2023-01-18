@@ -10,7 +10,8 @@ from kairon.events.definitions.model_testing import ModelTestingEvent
 def run_tests_on_model(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
-    ModelTestingEvent(args.bot, args.user).execute()
+    logger.info("augment_data: {}", args.augment_data)
+    ModelTestingEvent(args.bot, args.user, augment_data=args.augment_data).execute()
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
@@ -27,5 +28,8 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
     test_parser.add_argument('user',
                              type=str,
                              help="Kairon user who is initiating the command", action='store')
-
+    test_parser.add_argument('--augment',
+                             default=True,
+                             action='store_false',
+                             help="Augment training data and test against the model.")
     test_parser.set_defaults(func=run_tests_on_model)

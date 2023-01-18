@@ -22,7 +22,7 @@ RUN python -m pip install fastapi>=0.68.1
 RUN python -m spacy download en_core_web_md
 RUN python -m spacy link en_core_web_md en
 RUN python -m pip install cryptography~=3.4.8
-RUN python -m pip install transformers==4.5.0
+RUN python -m pip install transformers==4.23.0
 RUN python -m pip install websockets==10.1
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
@@ -32,8 +32,10 @@ RUN python -m pip install blinker
 RUN python -m pip install protobuf==3.20.2
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
-RUN python -m pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+RUN python -m pip install torch==1.11.0
+RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install pandas
+RUN python -m pip install uuid6
 
 RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache

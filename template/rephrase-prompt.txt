@@ -1,0 +1,4 @@
+Rephrase and expand:
+input: We’d love to hear from you. Contact our 24x7 customer care at 0120-4456-456. You can also leave your mail id and we will get back to you shortly.
+output: We look forward to your response. Please don't hesitate to get in touch with our 24x7 customer care team at 0120-4456-456. Alternatively, you can also provide us with your email address and we will make sure to get back to you as soon as possible.
+input:

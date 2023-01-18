@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 from collections import ChainMap
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
@@ -1523,7 +1523,7 @@ class MongoProcessor:
         results = (
             TrainingExamples.objects(bot=bot, status=True)
                 .search_text(search)
-                .order_by("-text_score")
+                .order_by("$text_score")
                 .limit(limit)
         )
         for result in results:
@@ -2171,9 +2171,9 @@ class MongoProcessor:
             block_name = item.pop("block_name")
             events = item.pop("events")
             final_data["_id"] = item["_id"].__str__()
+            final_data['template_type'] = item.pop("template_type")
             if isinstance(value, Stories):
                 final_data['type'] = 'STORY'
-                final_data['template_type'] = item.pop("template_type")
             elif isinstance(value, Rules):
                 final_data['type'] = 'RULE'
             else:
@@ -2960,6 +2960,7 @@ class MongoProcessor:
             return
         document_types = {
             ActionType.http_action.value: HttpActionConfig,
+            ActionType.two_stage_fallback.value: KaironTwoStageFallbackAction,
             ActionType.email_action.value: EmailActionConfig, ActionType.zendesk_action.value: ZendeskAction,
             ActionType.jira_action.value: JiraAction, ActionType.form_validation_action.value: FormValidationAction,
             ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,
@@ -3391,9 +3392,8 @@ class MongoProcessor:
                 raise AppException('Utterance not found')
 
     def get_training_data_count(self, bot: Text):
-        intents_count = list(Intents.objects(bot=bot, status=True).aggregate(
-            [{'$match': {'name': {'$nin': DEFAULT_INTENTS}, 'status': True}},
-             {'$lookup': {'from': 'training_examples',
+        intents_count = list(Intents.objects(bot=bot, status=True, name__nin=DEFAULT_INTENTS).aggregate(
+            [{'$lookup': {'from': 'training_examples',
                           'let': {'bot_id': bot, 'name': '$name'},
                           'pipeline': [{'$match': {'bot': bot, 'status': True}},
                                        {'$match': {'$expr': {'$and': [{'$eq': ['$intent', '$$name']}]}}},
@@ -3401,8 +3401,7 @@ class MongoProcessor:
              {'$project': {'_id': 0, 'name': 1, 'count': {'$first': '$intents_count.count'}}}]))
 
         utterances_count = list(Utterances.objects(bot=bot, status=True).aggregate(
-            [{'$match': {'bot': bot, 'status': True}},
-             {'$lookup': {'from': 'responses',
+            [{'$lookup': {'from': 'responses',
                           'let': {'bot_id': bot, 'utterance': '$name'},
                           'pipeline': [{'$match': {'bot': bot, 'status': True}},
                                        {'$match': {'$expr': {'$and': [{'$eq': ['$name', '$$utterance']}]}}},
@@ -3485,14 +3484,21 @@ class MongoProcessor:
             ],
             token_type=TOKEN_TYPE.DYNAMIC.value
         )
+        iat = datetime.now(tz=timezone.utc).replace(microsecond=0).replace(second=0)
+        access_token_expiry = iat + timedelta(minutes=bot_settings.chat_token_expiry)
+        access_token_expiry = access_token_expiry.timestamp()
+        refresh_token_expiry = iat + timedelta(minutes=bot_settings.refresh_token_expiry)
+        refresh_token_expiry = refresh_token_expiry.timestamp()
         client_config.config['headers']['authorization'] = {}
         client_config.config['headers']['authorization']['access_token'] = token
         client_config.config['headers']['authorization']['token_type'] = 'Bearer'
         client_config.config['headers']['authorization']['refresh_token'] = f'{refresh_token}'
-        client_config.config['headers']['authorization']['access_token_expiry'] = bot_settings.chat_token_expiry
-        client_config.config['headers']['authorization']['refresh_token_expiry'] = bot_settings.refresh_token_expiry
+        client_config.config['headers']['authorization']['access_token_ttl'] = bot_settings.chat_token_expiry
+        client_config.config['headers']['authorization']['refresh_token_ttl'] = bot_settings.refresh_token_expiry
+        client_config.config['headers']['authorization']['access_token_expiry'] = access_token_expiry
+        client_config.config['headers']['authorization']['refresh_token_expiry'] = refresh_token_expiry
         client_config.config['chat_server_base_url'] = Utility.environment['model']['agent']['url']
-        if client_config.config['multilingual'].get('enable'):
+        if client_config.config.get("multilingual") and client_config.config['multilingual'].get('enable'):
             accessible_bots = AccountProcessor.get_accessible_multilingual_bots(bot, user)
             enabled_bots = {}
             if client_config.config['multilingual'].get('bots'):

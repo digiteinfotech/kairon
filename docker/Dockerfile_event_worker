@@ -46,7 +46,7 @@ RUN python -m pip install cryptography
 RUN python -m pip install dramatiq
 RUN python -m pip install dramatiq-mongodb==0.6.1
 RUN python -m pip install google-cloud-translate
-RUN python -m pip install transformers==4.5.0
+RUN python -m pip install transformers==4.23.0
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install sentence-transformers
 RUN python -m pip install keybert
@@ -54,8 +54,10 @@ RUN python -m pip install bs4
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install protobuf==3.20.2
-RUN python -m pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
+RUN python -m pip install torch==1.11.0
+RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install openpyxl
+RUN python -m pip install uuid6
 
 RUN mkdir data_generator
 RUN mkdir training_data

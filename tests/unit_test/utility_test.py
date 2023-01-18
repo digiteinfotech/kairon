@@ -14,7 +14,6 @@ from mongoengine import connect
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from websockets import InvalidStatusCode
-from websockets.datastructures import Headers
 
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
@@ -771,11 +770,12 @@ class TestUtility:
 
     @pytest.mark.asyncio
     async def test_websocket_request_connect_exception(self):
+        from websockets.datastructures import Headers
         url = 'ws://localhost/events/bot_id'
         msg = 'hello'
 
         def _mock_websocket_connect_exception(*args, **kwargs):
-            raise InvalidStatusCode(404, Headers())
+            raise InvalidStatusCode(404, headers=Headers())
 
         with patch('kairon.shared.utils.connect', autospec=True) as mock:
             mock.side_effect = _mock_websocket_connect_exception

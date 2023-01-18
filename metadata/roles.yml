@@ -9,11 +9,13 @@ roles:
       trainingHistory: true
       modelConfiguration: true
       configureClient: true
+      configureTelemetry: true
       integrations: true
       administration: true
       chatHistory: true
       analytics: true
       logs: true
+      generateStories: true
     pages:
       chatbots:
         renameBot: true
@@ -48,6 +50,9 @@ roles:
         save: true
         get: true
         generate: true
+      configureTelemetry:
+        save: true
+        get: true
       integrations:
         get: true
         save: true
@@ -92,11 +97,13 @@ roles:
       trainingHistory: true
       modelConfiguration: true
       configureClient: true
+      configureTelemetry: true
       integrations: true
       administration: true
       chatHistory: true
       analytics: true
       logs: true
+      generateStories: true
     pages:
       chatbots:
         renameBot: false
@@ -131,6 +138,9 @@ roles:
         save: true
         get: true
         generate: true
+      configureTelemetry:
+        save: true
+        get: true
       integrations:
         get: true
         save: true
@@ -175,11 +185,13 @@ roles:
       trainingHistory: true
       modelConfiguration: true
       configureClient: true
+      configureTelemetry: true
       integrations: true
       administration: false
       chatHistory: true
       analytics: true
       logs: true
+      generateStories: true
     pages:
       chatbots:
         renameBot: false
@@ -214,6 +226,9 @@ roles:
         save: true
         get: true
         generate: true
+      configureTelemetry:
+        save: true
+        get: true
       integrations:
         get: true
         save: true
@@ -258,11 +273,13 @@ roles:
       trainingHistory: true
       modelConfiguration: true
       configureClient: true
+      configureTelemetry: true
       integrations: false
       administration: false
       chatHistory: true
       analytics: true
       logs: true
+      generateStories: false
     pages:
       chatbots:
         renameBot: false
@@ -297,6 +314,9 @@ roles:
         save: false
         get: true
         generate: false
+      configureTelemetry:
+        save: false
+        get: true
       integrations:
         get: false
         save: false

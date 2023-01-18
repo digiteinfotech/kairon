@@ -3889,8 +3889,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
-        self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
-        self.assertEquals(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
+        self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
+        self.assertEqual(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
 
         action.text_recommendations = TwoStageFallbackTextualRecommendations(**{"count": 3})
         action.save()
@@ -3904,8 +3904,8 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json['events'], [])
-            self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
-            self.assertEquals(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
+            self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
+            self.assertEqual(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
 
         def _mock_search(*args, **kwargs):
             for _ in []:
@@ -3916,7 +3916,7 @@ class TestActionServer(AsyncHTTPTestCase):
             response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json['events'], [])
-            self.assertEquals(response_json['responses'], [
+            self.assertEqual(response_json['responses'], [
                 {"text": None, "buttons": [], "elements": [], "custom": {}, "template": "utter_default",
                  "response": "utter_default", "image": None, "attachment": None}])
 
@@ -4020,8 +4020,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
-        self.assertEquals(len(response_json['responses'][0]['buttons']), 3)
-        self.assertEquals(response_json['responses'][0]['buttons'], [
+        self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
+        self.assertEqual(response_json['responses'][0]['buttons'], [
             {'payload': '/set_context', 'text': 'Trigger'},
             {'payload': '/send_mail{"kairon_user_msg": "welcome new user"}', 'text': 'Mail me'},
             {'payload': '/send_mail{"kairon_user_msg": "get intents"}', 'text': 'Mail me'}])
@@ -4130,8 +4130,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
-        self.assertEquals(len(response_json['responses'][0]['buttons']), 2)
-        self.assertEquals(response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
+        self.assertEqual(len(response_json['responses'][0]['buttons']), 2)
+        self.assertEqual(response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
                                                                      {"text": "Mail me", "payload": "/send_mail"}])
 
         config = KaironTwoStageFallbackAction.objects(bot=bot, user=user).get()
@@ -4254,7 +4254,7 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': {'response': 'utter_greet'}}])
-        self.assertEquals(
+        self.assertEqual(
             response_json['responses'],
             [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
              'response': 'utter_greet', 'image': None, 'attachment': None}
@@ -4371,7 +4371,7 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': {'response': 'utter_greet'}}])
-        self.assertEquals(response_json['responses'],
+        self.assertEqual(response_json['responses'],
             [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
              'response': 'utter_greet', 'image': None, 'attachment': None}
         ])
@@ -4382,18 +4382,20 @@ class TestActionServer(AsyncHTTPTestCase):
         user = "test_user"
         BotSettings(rephrase_response=True, bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+        gpt_prompt = open("./template/rephrase-prompt.txt").read()
+        gpt_prompt = f"{gpt_prompt}hi\noutput:"
         gpt_response = {'id': 'cmpl-6Hh86Qkqq0PJih2YSl9JaNkPEuy4Y', 'object': 'text_completion', 'created': 1669675386,
                   'model': 'text-davinci-002', 'choices': [{
                                                                'text': "Greetings and welcome to kairon!!",
                                                                'index': 0, 'logprobs': None, 'finish_reason': 'stop'}],
-                  'usage': {'prompt_tokens': 43, 'completion_tokens': 38, 'total_tokens': 81}}
+                  'usage': {'prompt_tokens': 152, 'completion_tokens': 38, 'total_tokens': 81}}
         responses.add(
             "POST",
             Utility.environment["plugins"]["gpt"]["url"],
             status=200, json=gpt_response,
             match=[responses.json_params_matcher(
-                {'model': 'text-davinci-003', 'prompt': 'Rephrase and expand: hi', 'temperature': 0.7,
-                 'max_tokens': 8})],
+                {'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7,
+                 'max_tokens': 152})],
         )
 
         responses.start()
@@ -4505,7 +4507,7 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': {'text': "Greetings and welcome to kairon!!"}}])
-        self.assertEquals(response_json['responses'],
+        self.assertEqual(response_json['responses'],
             [{'text': "Greetings and welcome to kairon!!", 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
              'response': None, 'image': None, 'attachment': None}
         ])
@@ -4518,13 +4520,15 @@ class TestActionServer(AsyncHTTPTestCase):
         user = "test_user"
         BotSettings(rephrase_response=True, bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value="uditpandey", bot=bot, user=user).save()
+        gpt_prompt = open("./template/rephrase-prompt.txt").read()
+        gpt_prompt = f"{gpt_prompt}hi\noutput:"
         gpt_response = {"error": {"message": "'100' is not of type 'integer' - 'max_tokens'", "type": "invalid_request_error", "param": None, "code": None} }
         responses.add(
             "POST",
             Utility.environment["plugins"]["gpt"]["url"],
             status=400,
             json=gpt_response,
-            match=[responses.json_params_matcher({'model': 'text-davinci-003', 'prompt': 'Rephrase and expand: hi', 'temperature': 0.7, 'max_tokens': 8})],
+            match=[responses.json_params_matcher({'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7, 'max_tokens': 152})],
         )
 
         responses.start()
@@ -4638,7 +4642,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['events'], [
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': {'response': 'utter_greet'}}])
-        self.assertEquals(response_json['responses'],
+        self.assertEqual(response_json['responses'],
                           [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
                             'response': 'utter_greet', 'image': None, 'attachment': None}
                            ])
@@ -4651,7 +4655,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['events'], [
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': {'response': 'utter_greet'}}])
-        self.assertEquals(response_json['responses'],
+        self.assertEqual(response_json['responses'],
                           [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
                             'response': 'utter_greet', 'image': None, 'attachment': None}
                            ])
@@ -4781,7 +4785,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['events'], [
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': {'response': 'utter_greet'}}])
-        self.assertEquals(response_json['responses'],
+        self.assertEqual(response_json['responses'],
                           [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
                             'response': 'utter_greet', 'image': None, 'attachment': None}
                            ])

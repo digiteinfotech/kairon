@@ -20,6 +20,7 @@ class ModelTestingEvent(EventsBase):
         self.bot = bot
         self.user = user
         self.run_e2e = kwargs.get('run_e2e', False)
+        self.augment_data = kwargs.get('augment_data', True)
 
     def validate(self):
         """
@@ -36,7 +37,7 @@ class ModelTestingEvent(EventsBase):
         Send event to event server.
         """
         try:
-            payload = {'bot': self.bot, 'user': self.user}
+            payload = {'bot': self.bot, 'user': self.user, "augment_data": self.augment_data}
             ModelTestingLogProcessor.log_test_result(self.bot, self.user, event_status=EVENT_STATUS.ENQUEUED.value)
             Utility.request_event_server(EventClass.model_testing, payload)
         except Exception as e:
@@ -50,7 +51,7 @@ class ModelTestingEvent(EventsBase):
         from kairon.test.test_models import ModelTester
         try:
             ModelTestingLogProcessor.log_test_result(self.bot, self.user, event_status=EVENT_STATUS.INPROGRESS.value)
-            nlu_results, stories_results = ModelTester.run_tests_on_model(self.bot, self.run_e2e)
+            nlu_results, stories_results = ModelTester.run_tests_on_model(self.bot, self.run_e2e, self.augment_data)
             ModelTestingLogProcessor.log_test_result(self.bot, self.user, stories_result=stories_results,
                                                      nlu_result=nlu_results,
                                                      event_status=EVENT_STATUS.COMPLETED.value)

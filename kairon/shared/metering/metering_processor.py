@@ -87,6 +87,8 @@ class MeteringProcessor:
         :param page_size: size of the page.
         :return: all the metrics as json.
         """
+        from kairon.shared.data.processor import MongoProcessor
+
         if not start_date:
             start_date = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if not end_date:
@@ -96,4 +98,10 @@ class MeteringProcessor:
         kwargs.update({"account": account, "timestamp__gte": start_date, "timestamp__lte": end_date})
         metrics = Metering.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size) \
             .exclude('id').to_json()
-        return json.loads(metrics)
+
+        row_cnt = MongoProcessor().get_row_count(Metering, **kwargs)
+        data = {
+            "logs": json.loads(metrics),
+            "total": row_cnt
+        }
+        return data
