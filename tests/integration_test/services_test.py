@@ -435,6 +435,51 @@ def test_api_login():
     assert actual["error_code"] == 0
 
 
+@responses.activate
+def test_augment_questions_without_authenticated():
+    response = client.post(
+        "/api/augment/questions",
+        json={"data": "TESTING TEXTDATA"},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 401
+    assert actual["data"] is None
+    assert actual["message"] == "Not authenticated"
+
+
+@responses.activate
+def test_augment_questions():
+    responses.add(
+        responses.POST,
+        url="http://localhost:8000/questions",
+        match=[responses.json_params_matcher({"data": "TESTING TEXTDATA"})],
+        json={
+            "success": True,
+            "data": {
+                "question": "How can I help you?"
+            },
+            "message": None,
+            "error_code": 0,
+        },
+        status=200
+    )
+    response = client.post(
+        "/api/augment/questions",
+        json={"data": "TESTING TEXTDATA"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == {
+        "question": "How can I help you?"
+    }
+    assert Utility.check_empty_string(actual["message"])
+
+
 def test_api_login_enabled_with_fingerprint(monkeypatch):
     monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
     email = "integration@demo.ai"
