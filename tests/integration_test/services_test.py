@@ -12113,6 +12113,7 @@ def test_allowed_origin(monkeypatch):
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == "User does not exist!"
+    print(response.headers)
     assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
                                 'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
                                 'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',

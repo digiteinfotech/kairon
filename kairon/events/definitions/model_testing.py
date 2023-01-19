@@ -37,7 +37,8 @@ class ModelTestingEvent(EventsBase):
         Send event to event server.
         """
         try:
-            payload = {'bot': self.bot, 'user': self.user, "augment_data": self.augment_data}
+            augment_data = '--augment' if self.augment_data else ''
+            payload = {'bot': self.bot, 'user': self.user, "augment_data": augment_data}
             ModelTestingLogProcessor.log_test_result(self.bot, self.user, event_status=EVENT_STATUS.ENQUEUED.value)
             Utility.request_event_server(EventClass.model_testing, payload)
         except Exception as e:

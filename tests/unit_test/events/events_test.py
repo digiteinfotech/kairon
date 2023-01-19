@@ -1015,7 +1015,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'augment_data': True})],
+                              {'bot': bot, 'user': user, 'augment_data': '--augment'})],
                       )
         ModelTestingEvent(bot, user).enqueue()
         responses.reset()
@@ -1040,7 +1040,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'augment_data': False})],
+                              {'bot': bot, 'user': user, 'augment_data': ''})],
                       )
         ModelTestingEvent(bot, user, augment_data=False).enqueue()
         responses.reset()
