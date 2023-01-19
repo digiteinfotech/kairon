@@ -12,6 +12,7 @@ RUN rm /usr/bin/python
 RUN ln -s /usr/bin/python3.8 /usr/bin/python
 RUN python -m pip install --upgrade pip
 RUN python -m pip install pyyaml
+RUN python -m pip install pandas
 RUN python -m pip install rasa[full]==2.8.15
 RUN python -m pip install validators
 RUN python -m pip install loguru

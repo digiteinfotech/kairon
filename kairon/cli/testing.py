@@ -10,8 +10,8 @@ from kairon.events.definitions.model_testing import ModelTestingEvent
 def run_tests_on_model(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
-    logger.info("augment_data: {}", args.augment_data)
-    ModelTestingEvent(args.bot, args.user, augment_data=args.augment_data).execute()
+    logger.info("augment_data: {}", args.augment)
+    ModelTestingEvent(args.bot, args.user, augment_data=args.augment).execute()
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
