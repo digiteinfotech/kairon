@@ -4514,6 +4514,17 @@ class TestActionServer(AsyncHTTPTestCase):
         responses.stop()
         responses.reset()
 
+        request_object["domain"]["responses"]["utter_greet"] = [{"custom": {"type": "button", "text": "Greet"}}]
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': {'response': 'utter_greet'}}])
+        self.assertEqual(response_json['responses'],
+                         [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+                           'response': 'utter_greet', 'image': None, 'attachment': None}
+                          ])
+
     def test_bot_response_action_rephrase_failure(self):
         action_name = 'utter_greet'
         bot = "5f50fd0a56b698ca10d35d2i"
