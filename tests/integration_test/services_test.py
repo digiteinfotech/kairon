@@ -12127,5 +12127,4 @@ def test_allowed_origin(monkeypatch):
                                 'access-control-allow-origin': 'http://digite.com',
                                 'access-control-allow-credentials': 'true',
                                 'access-control-expose-headers': 'content-disposition',
-                                'vary': 'Origin'
                                 }
