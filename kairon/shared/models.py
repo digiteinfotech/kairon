@@ -59,6 +59,7 @@ class User(BaseModel):
     first_name: str
     last_name: str
     active_bot: str = None
+    bot_account: int = None
     account: int
     status: bool
     alias_user: str = None

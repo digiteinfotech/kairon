@@ -11109,16 +11109,12 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
 
 
 def test_get_end_user_metrics():
-    response = client.get(
-        "/api/user/details",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-    account = response["data"]["user"]["account"]
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    for i in range(5):
+        client.post(
+            f"/api/bot/{pytest.bot}/metric/user/logs/{MetricType.agent_handoff}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            json={"data": {"source": "Digite.com", "language": "English"}}
+        )
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff?start_idx=0&page_size=10",
