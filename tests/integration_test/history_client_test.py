@@ -162,12 +162,15 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_chat_history_users_kairon_client_user_endpoint(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/users",
         status=200,
         json={"data": {"users": history_users()[0]}},
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
     )
     response = client.get(
         f"/api/history/{pytest.bot}/users",
@@ -184,12 +187,15 @@ def test_chat_history_users_kairon_client_user_endpoint(mock_auth, mock_mongo_pr
 
 @responses.activate
 def test_chat_history_users_kairon_client_kairon_endpoint(mock_auth, mock_mongo_processor_endpoint_not_configured):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"{Utility.environment['history_server']['url']}/api/history/{pytest.bot}/conversations/users",
         status=200,
         json={"data": {"users": history_users()[0]}},
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
     )
     response = client.get(
         f"/api/history/{pytest.bot}/users",
@@ -206,12 +212,15 @@ def test_chat_history_users_kairon_client_kairon_endpoint(mock_auth, mock_mongo_
 
 @responses.activate
 def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
         status=200,
         json={"data": {"history": history_conversations()[0]}},
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
     )
 
     response = client.get(
@@ -229,12 +238,15 @@ def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
 @responses.activate
 def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_mongo_processor):
     from urllib.parse import quote_plus
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f'https://localhost:8083/api/history/{pytest.bot}/conversations/users/LNLMC1/daIk=',
         status=200,
         json={"data": {"history": history_conversations()[0]}},
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
     )
 
     response = client.get(
@@ -251,11 +263,15 @@ def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_
 
 @responses.activate
 def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback",
         status=200,
-        match=[responses.json_params_matcher({'month': 6, 'action_fallback': 'action_default_fallback',
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': None})],
         json={"data": {'fallback_counts': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
@@ -273,13 +289,44 @@ def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_process
 
 
 @responses.activate
+def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback",
+        status=200,
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'action_fallback': 'action_default_fallback',
+                                              'nlu_fallback': None})],
+        json={"data": {'fallback_count_rate': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/fallback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["fallback_count_rate"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
 def test_visitor_hit_fallback_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback",
         status=200,
         json={"data": {'fallback_count': 10, 'total_count': 90}},
-        match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
     )
 
@@ -305,11 +352,14 @@ def test_visitor_hit_fallback_with_kairon_client(mock_auth, mock_mongo_processor
 
 @responses.activate
 def test_conversation_steps_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/steps",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": 100}
     )
 
@@ -327,11 +377,14 @@ def test_conversation_steps_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_time_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/time",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": 900.5}
     )
 
@@ -349,11 +402,14 @@ def test_conversation_time_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_user_with_metrics_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {'users': [{'sender_id': 'test@kairon.com', 'steps': 55, 'time': 15},
                                  {'sender_id': 'bot@kairon.com', 'steps': 20, 'time': 5}]}}
     )
@@ -373,10 +429,14 @@ def test_user_with_metrics_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_engaged_users_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged",
-        match=[responses.json_params_matcher({'month': 1, 'conversation_step_threshold': 10})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'conversation_step_threshold': 10})],
         status=200,
         json={"data": {'engaged_users': 50}}
     )
@@ -394,11 +454,40 @@ def test_engaged_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
+def test_engaged_users_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged",
+        status=200,
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'conversation_step_threshold': 11})],
+        json={"data": {'engaged_users': 60}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/user/engaged?month=5&conversation_step_threshold=11",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["engaged_users"] == 60
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
 def test_new_users_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/new",
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         status=200,
         json={"data": {'new_users': 50}}
     )
@@ -417,11 +506,15 @@ def test_new_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_successful_conversation_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/success",
         status=200,
-        match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
         json={"data": {'successful_conversations': 150}}
     )
@@ -440,10 +533,13 @@ def test_successful_conversation_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_user_retention_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/retention",
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         status=200,
         json={"data": {'user_retention': 25}}
     )
@@ -462,11 +558,15 @@ def test_user_retention_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged",
         status=200,
-        match=[responses.json_params_matcher({'month': 6, 'conversation_step_threshold': 10})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'conversation_step_threshold': 10})],
         json={"data": {'engaged_user_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -483,12 +583,42 @@ def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
+def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged",
+        status=200,
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'conversation_step_threshold': 11})],
+        json={"data": {'engaged_user_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/engaged/?month=5&conversation_step_threshold=11",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]['engaged_user_range'] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+
+@responses.activate
 def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/users/new",
         status=200,
-        match=[responses.json_params_matcher({'month': 6})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {'new_user_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -506,11 +636,15 @@ def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/success",
         status=200,
-        match=[responses.json_params_matcher({'month': 6, 'action_fallback': 'action_default_fallback',
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
         json={"data": {"successful_sessions": {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
@@ -529,11 +663,14 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_user_retention_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/users/retention",
         status=200,
-        match=[responses.json_params_matcher({'month': 6})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {'retention_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -550,79 +687,15 @@ def test_user_retention_range_with_kairon_client(mock_auth, mock_mongo_processor
 
 
 @responses.activate
-def test_engaged_users_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
-    responses.add(
-        responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged",
-        status=200,
-        match=[responses.json_params_matcher({'month': 5, 'conversation_step_threshold': 11})],
-        json={"data": {'engaged_users': 60}}
-    )
-
-    response = client.get(
-        f"/api/history/{pytest.bot}/metrics/user/engaged?month=5&conversation_step_threshold=11",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"]["engaged_users"] == 60
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@responses.activate
-def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
-    responses.add(
-        responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged",
-        status=200,
-        match=[responses.json_params_matcher({'month': 5, 'conversation_step_threshold': 11})],
-        json={"data": {'engaged_user_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
-    )
-
-    response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/engaged/?month=5&conversation_step_threshold=11",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"]['engaged_user_range'] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@responses.activate
-def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    responses.add(
-        responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback",
-        status=200,
-        match=[responses.json_params_matcher({'month': 6, 'action_fallback': 'action_default_fallback',
-                                              'nlu_fallback': 'utter_please_rephrase'})],
-        json={"data": {'fallback_count_rate': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
-    )
-
-    response = client.get(
-        f"/api/history/{pytest.bot}/metrics/trend/user/fallback",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"]["fallback_count_rate"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@responses.activate
 def test_flat_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {'conversation_data': history_conversations()[0]}}
     )
 
@@ -649,12 +722,15 @@ def mock_list_bots(monkeypatch):
 
 @responses.activate
 def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     file = open('./tests/testing_data/history/conversations_history.json')
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         body=file.read(),
         content_type="text/plain",
         adding_headers={"Content-Disposition": "attachment; filename=conversations.csv"},
@@ -672,11 +748,14 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, moc
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client_access_denied1(mock_auth, mock_mongo_processor, mock_list_bots):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={'error_code': 422, 'message': "No data available!", 'success': False}
     )
 
@@ -688,15 +767,18 @@ def test_download_conversation_with_error_with_kairon_client_access_denied1(mock
     assert actual["error_code"] == 401
     assert actual["message"] == "['owner', 'admin'] access is required to perform this operation on the bot"
     assert not actual["success"]
-    
-    
+
+
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client_access_denied2(mock_auth_designer, mock_mongo_processor, mock_list_bots):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={'error_code': 422, 'message': "No data available!", 'success': False}
     )
 
@@ -712,11 +794,14 @@ def test_download_conversation_with_error_with_kairon_client_access_denied2(mock
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={'error_code': 422, 'message': "No data available!", 'success': False}
     )
 
@@ -732,11 +817,14 @@ def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mo
 
 @responses.activate
 def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/total",
         status=200,
-        match=[responses.json_params_matcher({'month': 6})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -754,10 +842,14 @@ def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_proce
 
 @responses.activate
 def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/topmost",
-        match=[responses.json_params_matcher({'month': 1, "top_n": 10})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              "top_n": 10})],
         status=200,
         json={"data": [{'_id': 'action_google_search_kanban', 'count': 43}]}
     )
@@ -776,10 +868,14 @@ def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/actions/topmost",
-        match=[responses.json_params_matcher({'month': 1, "top_n": 10})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              "top_n": 10})],
         status=200,
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
     )
@@ -798,11 +894,14 @@ def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/steps",
         status=200,
-        match=[responses.json_params_matcher({'month': 6})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {'average_conversation_steps': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -820,11 +919,15 @@ def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/wordcloud",
         status=200,
-        match=[responses.json_params_matcher({'month': 1, 'l_bound': 0, 'u_bound': 1, 'stopword_list': None})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'l_bound': 0, 'u_bound': 1, 'stopword_list': None})],
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
     )
 
@@ -839,11 +942,14 @@ def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/input",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
     )
 
@@ -861,11 +967,14 @@ def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_time_range_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/time",
         status=200,
-        match=[responses.json_params_matcher({'month': 6})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -883,11 +992,15 @@ def test_conversation_time_range_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback/dropoff",
         status=200,
-        match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
@@ -906,11 +1019,14 @@ def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/dropoff",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -928,11 +1044,15 @@ def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor)
 
 @responses.activate
 def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
         status=200,
-        match=[responses.json_params_matcher({'month': 1, 'action_fallback': 'action_default_fallback',
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y"),
+                                              'action_fallback': 'action_default_fallback',
                                               'nlu_fallback': 'utter_please_rephrase'})],
         json={"data": {'user_1': 25, 'user_2': 24}}
     )
@@ -951,11 +1071,14 @@ def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_pro
 
 @responses.activate
 def test_total_sessions_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = datetime.date.today() - datetime.timedelta(30)
+    to_date = datetime.date.today()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/total",
         status=200,
-        match=[responses.json_params_matcher({'month': 1})],
+        match=[responses.json_params_matcher({'from_date': from_date.strftime("%d-%m-%Y"),
+                                              'to_date': to_date.strftime("%d-%m-%Y")})],
         json={"data": {"user_1": 250, "user_2": 240}}
     )
 

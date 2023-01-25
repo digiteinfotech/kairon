@@ -21,7 +21,9 @@ router = APIRouter()
 
 
 @router.get("/users", response_model=Response)
-async def chat_history_users(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def chat_history_users(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                             to_date: datetime.date = datetime.date.today(),
+                             current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
 
     """
     Fetches the list of user who has conversation with the agent
@@ -29,13 +31,15 @@ async def chat_history_users(month: int = Query(default=1, ge=1, le=6), current_
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/conversations/users',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/users/{sender:path}", response_model=Response)
 async def chat_history(
-    sender: Text, month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+    sender: Text, from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     Fetches the list of conversation with the agent by particular user
@@ -43,25 +47,41 @@ async def chat_history(
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/conversations/users/{sender}',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
+    )
+
+
+@router.get("/metrics/trend/user/fallback", response_model=Response)
+async def fallback_trend(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                         to_date: datetime.date = datetime.date.today(), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Fetches the fallback count of the bot for previous months
+    """
+    fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
+    return Utility.trigger_history_server_request(
+        current_user.get_bot(),
+        f'/api/history/{current_user.get_bot()}/trends/fallback',
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"), 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
     )
 
 
 @router.get("/metrics/users", response_model=Response)
-async def user_with_metrics(
-        month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def user_with_metrics(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                            to_date: datetime.date = datetime.date.today(),
+                            current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the list of user who has conversation with the agent with steps anf time
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/users',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/metrics/fallback", response_model=Response)
-async def visitor_hit_fallback(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def visitor_hit_fallback(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                               to_date: datetime.date = datetime.date.today(), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries
     """
@@ -69,35 +89,41 @@ async def visitor_hit_fallback(month: int = Query(default=1, ge=1, le=6), curren
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/fallback',
-        {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"),
+         'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
     )
 
 
 @router.get("/metrics/conversation/steps", response_model=Response)
-async def conversation_steps(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def conversation_steps(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                             to_date: datetime.date = datetime.date.today(),
+                             current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
      Fetches the number of conversation steps that took place in the chat between the users and the agent
      """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/conversation/steps',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/metrics/conversation/time", response_model=Response)
-async def conversation_time(month: int = Query(default=1, ge=1, le=6),current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def conversation_time(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                            to_date: datetime.date = datetime.date.today(),
+                            current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the duration of the chat that took place between the users and the agent"""
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/conversation/time',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/metrics/user/engaged", response_model=Response)
-async def count_engaged_users(month: int = Query(default=1, ge=1, le=6), conversation_step_threshold: int = 10,
+async def count_engaged_users(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                              to_date: datetime.date = datetime.date.today(), conversation_step_threshold: int = 10,
                               current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
 
     """
@@ -106,24 +132,29 @@ async def count_engaged_users(month: int = Query(default=1, ge=1, le=6), convers
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/users/engaged',
-        {'month': month, 'conversation_step_threshold': conversation_step_threshold}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"),
+         'conversation_step_threshold': conversation_step_threshold}
     )
 
 
 @router.get("/metrics/user/new", response_model=Response)
-async def count_new_users(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def count_new_users(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                          to_date: datetime.date = datetime.date.today(),
+                          current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the number of new users of the bot
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/users/new',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/metrics/conversation/success", response_model=Response)
-async def complete_conversations(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def complete_conversations(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                                 to_date: datetime.date = datetime.date.today(),
+                                 current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the number of successful conversations of the bot, which had no fallback
     """
@@ -131,24 +162,28 @@ async def complete_conversations(month: int = Query(default=1, ge=1, le=6), curr
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/conversation/success',
-        {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"),
+         'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
     )
 
 
 @router.get("/metrics/user/retention", response_model=Response)
-async def calculate_retention(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def calculate_retention(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                              to_date: datetime.date = datetime.date.today(),
+                              current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the user retention percentage of the bot
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/users/retention',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/metrics/trend/user/engaged", response_model=Response)
-async def engaged_users_trend(month: int = Query(default=6, ge=1, le=6),
+async def engaged_users_trend(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                              to_date: datetime.date = datetime.date.today(),
                               conversation_step_threshold: int = 10,
                               current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
 
@@ -158,75 +193,74 @@ async def engaged_users_trend(month: int = Query(default=6, ge=1, le=6),
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/users/engaged',
-        {'month': month, 'conversation_step_threshold': conversation_step_threshold}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"),
+         'conversation_step_threshold': conversation_step_threshold}
     )
 
 
 @router.get("/metrics/trend/user/new", response_model=Response)
-async def new_users_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def new_users_trend(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                          to_date: datetime.date = datetime.date.today(),
+                          current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the counts of new users of the bot for previous months
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/users/new',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/metrics/trend/conversation/success", response_model=Response)
-async def complete_conversation_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def complete_conversation_trend(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                                      to_date: datetime.date = datetime.date.today(),
+                                      current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the counts of successful conversations of the bot for previous months
     """
     fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
+    print(fallback_action, nlu_fallback_action)
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/success',
-        {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"),
+         'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
     )
 
 
 @router.get("/metrics/trend/user/retention", response_model=Response)
-async def retention_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def retention_trend(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                          to_date: datetime.date = datetime.date.today(),
+                          current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the counts of user retention percentages of the bot for previous months
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/users/retention',
-        {'month': month}
-    )
-
-
-@router.get("/metrics/trend/user/fallback", response_model=Response)
-async def fallback_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    """
-    Fetches the fallback count of the bot for previous months
-    """
-    fallback_action, nlu_fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
-    return Utility.trigger_history_server_request(
-        current_user.get_bot(),
-        f'/api/history/{current_user.get_bot()}/trends/fallback',
-        {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/conversations", response_model=Response)
-async def flat_conversations(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def flat_conversations(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+                             to_date: datetime.date = datetime.date.today(),
+                             current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the flattened conversation data of the bot for previous months
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/conversations/',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/conversations/download")
 async def download_conversations(
-        month: int = Query(default=1, ge=1, le=6),
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS),
 ):
     """
@@ -235,7 +269,8 @@ async def download_conversations(
     response = Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/conversations/download',
-        {'month': month}, return_json=False
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")},
+        return_json=False
     )
 
     response.headers[
@@ -245,58 +280,72 @@ async def download_conversations(
 
 
 @router.get("/metrics/intents/topmost", response_model=Response)
-async def top_n_intents(month: int = Query(default=1, ge=1, le=6), top_n: int = Query(default=10, ge=1),
-                        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def top_n_intents(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        top_n: int = Query(default=10, ge=1),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the top n identified intents of the bot
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/intents/topmost',
-        {'month': month, 'top_n': top_n}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"), 'top_n': top_n}
     )
 
 
 @router.get("/metrics/actions/topmost", response_model=Response)
-async def top_n_actions(month: int = Query(default=1, ge=1, le=6), top_n: int = Query(default=10, ge=1),
-                        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def top_n_actions(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        top_n: int = Query(default=10, ge=1),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the top n identified actions of the bot
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/actions/topmost',
-        {'month': month, 'top_n': top_n}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"), 'top_n': top_n}
     )
 
 
 @router.get("/metrics/trend/conversations/total", response_model=Response)
-async def total_conversation_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def total_conversation_trend(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the counts of conversations of the bot for previous months
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/total',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")},
     )
 
 
 @router.get("/metrics/trend/conversations/steps", response_model=Response)
-async def conversation_step_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def conversation_step_trend(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Fetches the average conversation steps of the bot for previous months
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/steps',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")},
     )
 
 
 @router.get("/conversations/wordcloud")
 async def word_cloud(
-        month: int = Query(default=1, ge=1, le=6),
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
         l_bound: float = Query(default=0, ge=0, lt=1),
         u_bound: float = Query(default=1, gt=0, le=1),
         stopword_list: list = Query(default=None),
@@ -308,36 +357,45 @@ async def word_cloud(
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/conversations/wordcloud',
-        {'u_bound': u_bound, 'l_bound': l_bound, 'stopword_list': stopword_list, 'month': month}
+        {'u_bound': u_bound, 'l_bound': l_bound, 'stopword_list': stopword_list,
+         'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/conversations/input/unique")
 async def user_input_unique(
-        month: int = Query(default=1, ge=1, le=6),
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
     Returns the list of user inputs that are not included as part of training examples
     """
-    queries_not_present = ChatHistoryUtils.unique_user_input(month, current_user.get_bot())
+    queries_not_present = ChatHistoryUtils.unique_user_input(from_date, to_date, current_user.get_bot())
     return Response(data=queries_not_present)
 
 
 @router.get("/metrics/trend/conversations/time", response_model=Response)
-async def conversation_time_trend(month: int = Query(default=6, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def conversation_time_trend(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the average conversation time of the bot for previous months
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/time',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/metrics/user/fallback/dropoff", response_model=Response)
-async def fallback_dropoff(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def fallback_dropoff(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
     """
     Fetches the list of users that dropped off after encountering fallback
     """
@@ -345,24 +403,31 @@ async def fallback_dropoff(month: int = Query(default=1, ge=1, le=6), current_us
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/fallback/dropoff',
-        {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"),
+         'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
     )
 
 
 @router.get("/metrics/user/intent/dropoff", response_model=Response)
-async def user_intent_dropoff(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def user_intent_dropoff(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the identified intents and their counts for users before dropping off from the conversations.
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/intents/dropoff',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
 @router.get("/metrics/user/sessions/unsuccessful", response_model=Response)
-async def unsuccessful_session_count(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def unsuccessful_session_count(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the count of sessions that encountered a fallback for a particular user.
     """
@@ -370,19 +435,23 @@ async def unsuccessful_session_count(month: int = Query(default=1, ge=1, le=6), 
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/sessions/unsuccessful',
-        {'month': month, 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"),
+         'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
     )
 
 
 @router.get("/metrics/user/sessions/total", response_model=Response)
-async def total_sessions(month: int = Query(default=1, ge=1, le=6), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def total_sessions(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the total session count for users for the past months.
     """
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/sessions/total',
-        {'month': month}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
     )
 
 
