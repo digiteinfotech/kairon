@@ -24,7 +24,7 @@ async def get_metering_data(
     """
     Returns metering for supplied type.
     """
-    metric_count = MeteringProcessor.get_metric_count(current_user.account, metric_type, start_date, end_date)
+    metric_count = MeteringProcessor.get_metric_count(current_user.bot_account, metric_type, start_date, end_date)
     return Response(data=metric_count)
 
 
@@ -45,7 +45,7 @@ async def get_end_user_metrics(
         'metric_type': metric_type.value, 'bot': current_user.get_bot(), 'start_idx': start_idx, 'page_size': page_size,
         'start_date': start_date, 'end_date': end_date
     })
-    data = MeteringProcessor.get_logs(current_user.account, **kwargs)
+    data = MeteringProcessor.get_logs(current_user.bot_account, **kwargs)
     return Response(data=data)
 
 
@@ -61,6 +61,6 @@ async def add_end_user_metrics(
     data = request_data.dict()["data"]
     MeteringProcessor.add_log_with_geo_location(
         metric_type=metric_type.value, request=request, bot=current_user.get_bot(), user=current_user.get_user(),
-        account_id=current_user.account, **data
+        account_id=current_user.bot_account, **data
     )
     return Response(message='Metrics added')

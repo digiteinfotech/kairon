@@ -113,8 +113,9 @@ class Authentication:
                 detail=f"{security_scopes.scopes} access is required to perform this operation on the bot",
                 headers={"WWW-Authenticate": authenticate_value},
             )
-        AccountProcessor.get_bot_and_validate_status(bot_id)
+        bot_info = AccountProcessor.get_bot_and_validate_status(bot_id)
         user.active_bot = bot_id
+        user.bot_account = bot_info['account']
         return user
 
     @staticmethod
