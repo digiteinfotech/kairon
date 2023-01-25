@@ -52,8 +52,10 @@ async def chat_history(
 
 
 @router.get("/metrics/trend/user/fallback", response_model=Response)
-async def fallback_trend(from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
-                         to_date: datetime.date = datetime.date.today(), current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def fallback_trend(
+        from_date: datetime.date = datetime.date.today() - datetime.timedelta(30),
+        to_date: datetime.date = datetime.date.today(),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Fetches the fallback count of the bot for previous months
     """
@@ -61,7 +63,8 @@ async def fallback_trend(from_date: datetime.date = datetime.date.today() - date
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/fallback',
-        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"), 'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
+        {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y"),
+         'action_fallback': fallback_action, 'nlu_fallback': nlu_fallback_action}
     )
 
 
