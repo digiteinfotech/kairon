@@ -987,3 +987,22 @@ class AccountProcessor:
             return data
         except DoesNotExist:
             return {}
+
+    @staticmethod
+    def get_model_testing_accuracy_of_all_accessible_bots(account_id: int, email: Text):
+        from kairon.shared.test.data_objects import ModelTestingLogs
+
+        bot_accuracies = {}
+        bots = AccountProcessor.get_accessible_bot_details(account_id, email)
+        for bot in bots["account_owned"] + bots["shared"]:
+            accuracy_list = list(ModelTestingLogs.objects(bot=bot["_id"]).aggregate([{'$match': {'type': 'nlu'}},
+                                    {'$match': {'data.intent_evaluation.accuracy': {'$ne': None}}},{'$project': {
+                       'accuracy':'$data.intent_evaluation.accuracy'}}]))
+
+            if accuracy_list:
+                accuracy = accuracy_list[-1]["accuracy"]
+            else:
+                accuracy = None
+
+            bot_accuracies[bot["_id"]] = accuracy
+        return bot_accuracies
