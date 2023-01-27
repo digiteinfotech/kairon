@@ -496,7 +496,7 @@ class ChatHistoryUtils:
         response = Utility.trigger_history_server_request(
             current_user_bot,
             f'/api/history/{current_user_bot}/metrics/users/input',
-            {'from_date': from_date.strftime("%d-%m-%Y"), 'to_date': to_date.strftime("%d-%m-%Y")}
+            {'from_date': Utility.convert_date_to_string(from_date), 'to_date': Utility.convert_date_to_string(to_date)}
         )
 
         user_input = response['data']

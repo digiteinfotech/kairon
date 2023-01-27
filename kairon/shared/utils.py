@@ -554,6 +554,10 @@ class Utility:
         return start_time.timestamp()
 
     @staticmethod
+    def convert_date_to_string(date_obj: date = date.today()):
+        return date_obj.strftime("%d-%m-%Y")
+
+    @staticmethod
     def get_timestamp_from_date(date_obj: date = date.today()):
         date_time = datetime.now().replace(date_obj.year, date_obj.month, date_obj.day)
         return date_time.timestamp()
