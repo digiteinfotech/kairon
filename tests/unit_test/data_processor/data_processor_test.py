@@ -9345,5 +9345,5 @@ class TestModelProcessor:
 
         result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(3, "wxyz@abcd.com")
         print(result)
-        assert result[bot_a["_id"].__str__()] is 0.9424565337899992
-        assert result[bot_c["_id"].__str__()] is 0.8424565337899992
+        assert result[bot_a["_id"].__str__()] == 0.9424565337899992
+        assert result[bot_c["_id"].__str__()] == 0.8424565337899992
