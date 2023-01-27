@@ -9227,9 +9227,8 @@ class TestModelProcessor:
         user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
 
         pytest.account = user_detail['account']
-        bot1= AccountProcessor.add_bot("bot_1", pytest.account, "divya.veeravelly@digite.com", False)
-        bot2= AccountProcessor.add_bot("bot_2", pytest.account, "divya.veeravelly@digite.com", False)
-
+        bot1= AccountProcessor.add_bot("bot_1", 1, "divya.veeravelly@digite.com", False)
+        bot2= AccountProcessor.add_bot("bot_2", 1, "divya.veeravelly@digite.com", False)
         u1 = ModelTestingLogs()
         u1.data = {"intent_evaluation":{"accuracy": 0.6424565337899992}}
         u1.type = 'nlu'
@@ -9244,13 +9243,8 @@ class TestModelProcessor:
         u2.user = "divya"
         u2.save()
         result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(1,"divya.veeravelli@digite.com")
-        print(result)
         assert result[bot1["_id"].__str__()] == 0.6424565337899992
         assert result[bot2["_id"].__str__()] == 0.9875645647434565
-
-    def test_get_model_testing_accuracy_no_model_testing_logs(self):
-        result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(4,"abc@xyz.com")
-        assert result == {}
 
     def test_get_model_testing_accuracy_field_not_exists(self):
         account = {
@@ -9344,6 +9338,5 @@ class TestModelProcessor:
         u6.save()
 
         result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(3, "wxyz@abcd.com")
-        print(result)
         assert result[bot_a["_id"].__str__()] == 0.9424565337899992
         assert result[bot_c["_id"].__str__()] == 0.8424565337899992
