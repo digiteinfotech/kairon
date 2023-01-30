@@ -11,6 +11,7 @@ from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.shared.account.activity_log import UserActivityLogger
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.utils import ExpressionEvaluator
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -1516,3 +1517,17 @@ async def get_qna_flattened(
         "total": page_cnt
     }
     return Response(data=data)
+
+
+@router.get("/test/accuracy",response_model=Response)
+async def get_model_testing_logs_accuracy(
+        current_user: User = Security(Authentication.get_current_user, scopes=TESTER_ACCESS)
+):
+    """
+    Fetches all logs with accuracy
+    """
+
+    data = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(
+        account_id=current_user.account, email=current_user.email)
+    return Response(data=data)
+
