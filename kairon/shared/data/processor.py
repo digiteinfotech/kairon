@@ -4460,15 +4460,19 @@ class MongoProcessor:
         overdue_time = datetime.utcnow() - timedelta(days=retention_period)
         AuditLogData.objects(timestamp__lte=overdue_time).delete()
 
-    def flatten_qna(self, bot: Text, start_idx=0, page_size=10):
+    def flatten_qna(self, bot: Text, start_idx=0, page_size=10, fetch_all=False):
         """
         Returns Q&As having intent name, utterance name, training examples,
         responses in flattened form.
         :param bot: bot id
         :param start_idx: start index of the page
         :param page_size: size of the page
+        :param fetch_all: removes paginated result if True
         """
-        for qna in Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).skip(start_idx).limit(page_size).aggregate(
+        query = Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).skip(start_idx).limit(page_size)
+        if fetch_all:
+            query = Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value)
+        for qna in query.aggregate(
             {'$addFields': {'story': '$block_name', 'intent': {'$arrayElemAt': ['$events', 1]}, 'action': {'$arrayElemAt': ['$events', 2]}}},
             {'$project': {'_id': { "$toString": "$_id" }, 'story': 1, 'intent': '$intent.name', 'utterance': '$action.name'}},
             {'$lookup': {'from': 'training_examples', 'as': 'training_examples',

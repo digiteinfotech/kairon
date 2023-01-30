@@ -16,6 +16,7 @@ roles:
       analytics: true
       logs: true
       generateStories: true
+      manageQnaStories: true
     pages:
       chatbots:
         renameBot: true
@@ -86,6 +87,12 @@ roles:
       modelTestingLogs:
         viewLogs: true
         testModel: true
+      manageQnaStories:
+        add: true
+        edit: true
+        delete: true
+        augment: true
+        download: true
 
   admin:
     menu:
@@ -104,6 +111,7 @@ roles:
       analytics: true
       logs: true
       generateStories: true
+      manageQnaStories: true
     pages:
       chatbots:
         renameBot: false
@@ -174,6 +182,12 @@ roles:
       modelTestingLogs:
         viewLogs: true
         testModel: true
+      manageQnaStories:
+        add: true
+        edit: true
+        delete: true
+        augment: true
+        download: true
 
   designer:
     menu:
@@ -192,6 +206,7 @@ roles:
       analytics: true
       logs: true
       generateStories: true
+      manageQnaStories: true
     pages:
       chatbots:
         renameBot: false
@@ -262,6 +277,12 @@ roles:
       modelTestingLogs:
         viewLogs: true
         testModel: true
+      manageQnaStories:
+        add: true
+        edit: true
+        delete: true
+        augment: true
+        download: true
 
   tester:
     menu:
@@ -280,6 +301,7 @@ roles:
       analytics: true
       logs: true
       generateStories: false
+      manageQnaStories: true
     pages:
       chatbots:
         renameBot: false
@@ -350,3 +372,9 @@ roles:
       modelTestingLogs:
         viewLogs: true
         testModel: false
+      manageQnaStories:
+        add: false
+        edit: false
+        delete: false
+        augment: false
+        download: false

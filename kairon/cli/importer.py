@@ -35,7 +35,7 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
     data_parser.add_argument('user',
                              type=str,
                              help="Kairon user who is initiating the command", action='store')
-    data_parser.add_argument('event-type',
+    data_parser.add_argument('event_type',
                              type=str,
                              help="Event type: faq_importer/data_importer", action='store')
     data_parser.add_argument('--import-data',

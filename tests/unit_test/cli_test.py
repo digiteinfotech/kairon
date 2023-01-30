@@ -166,7 +166,7 @@ class TestModelTestingCli:
         assert str(e).__contains__("'Namespace' object has no attribute 'user'")
 
     @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=run_tests_on_model, bot="test_cli", user="testUser", augment_data=False))
+                return_value=argparse.Namespace(func=run_tests_on_model, bot="test_cli", user="testUser", augment=False))
     def test_kairon_cli_test(self, monkeypatch):
         def mock_testing(*args, **kwargs):
             return None
@@ -175,7 +175,7 @@ class TestModelTestingCli:
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=run_tests_on_model, bot="test_cli", user="testUser", token="test", augment_data=True))
+                return_value=argparse.Namespace(func=run_tests_on_model, bot="test_cli", user="testUser", token="test", augment=True))
     def test_kairon_cli_test_with_all_arguments(self, monkeypatch):
         def mock_testing(*args, **kwargs):
             return None

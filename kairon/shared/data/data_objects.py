@@ -70,7 +70,7 @@ class TrainingExamples(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["$text", ("bot", "intent")]}]}
+    meta = {"indexes": [{"fields": ["$text", ("bot", "status"), ("bot", "intent", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -198,7 +198,7 @@ class Intents(Auditlog):
     is_integration = BooleanField(default=False)
     use_entities = BooleanField(default=False)
 
-    meta = {"indexes": [{"fields": ["bot", ("name", "bot", "status")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -314,7 +314,7 @@ class Utterances(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["bot"]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -373,7 +373,7 @@ class Responses(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["$text", ("bot", "name")]}]}
+    meta = {"indexes": [{"fields": ["$text", ("bot", "status"), ("bot", "name", "status")]}]}
 
     def validate(self, clean=True):
         if clean:

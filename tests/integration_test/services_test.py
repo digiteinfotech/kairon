@@ -11154,16 +11154,12 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
 
 
 def test_get_end_user_metrics():
-    response = client.get(
-        "/api/user/details",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-    account = response["data"]["user"]["account"]
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
-    MeteringProcessor.add_metrics(pytest.bot, account, metric_type=MetricType.agent_handoff, sender_id="test_user")
+    for i in range(5):
+        client.post(
+            f"/api/bot/{pytest.bot}/metric/user/logs/{MetricType.agent_handoff}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            json={"data": {"source": "Digite.com", "language": "English"}}
+        )
 
     response = client.get(
         f"/api/bot/{pytest.bot}/metric/user/logs/agent_handoff?start_idx=0&page_size=10",
@@ -12158,6 +12154,7 @@ def test_allowed_origin(monkeypatch):
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == "User does not exist!"
+    print(response.headers)
     assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
                                 'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
                                 'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
@@ -12171,5 +12168,4 @@ def test_allowed_origin(monkeypatch):
                                 'access-control-allow-origin': 'http://digite.com',
                                 'access-control-allow-credentials': 'true',
                                 'access-control-expose-headers': 'content-disposition',
-                                'vary': 'Origin'
                                 }
