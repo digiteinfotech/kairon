@@ -554,11 +554,11 @@ class Utility:
         return start_time.timestamp()
 
     @staticmethod
-    def convert_date_to_string(date_obj: date = date.today()):
+    def convert_date_to_string(date_obj: date = datetime.utcnow().date()):
         return date_obj.strftime("%d-%m-%Y")
 
     @staticmethod
-    def get_timestamp_from_date(date_obj: date = date.today()):
+    def get_timestamp_from_date(date_obj: date = datetime.utcnow().date()):
         date_time = datetime.now().replace(date_obj.year, date_obj.month, date_obj.day)
         return date_time.timestamp()
 

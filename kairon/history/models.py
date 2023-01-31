@@ -4,8 +4,8 @@ from pydantic.main import BaseModel
 
 
 class HistoryQuery(BaseModel):
-    from_date: datetime.date = datetime.date.today() - datetime.timedelta(30)
-    to_date: datetime.date = datetime.date.today()
+    from_date: datetime.date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
+    to_date: datetime.date = datetime.datetime.utcnow().date()
     conversation_step_threshold: int = Query(default=10, ge=2)
     action_fallback: str = Query(default="action_default_fallback")
     nlu_fallback: str = Query(default=None)

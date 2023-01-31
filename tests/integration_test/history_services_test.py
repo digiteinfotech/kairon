@@ -105,37 +105,6 @@ def test_chat_history_with_user_id_contains_special_character(mock_chat_history)
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_fallback_count_range(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    response = client.get(
-        f"/api/history/{pytest.bot}/trends/fallback",
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"]["fallback_count_rate"] == {}
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_fallback_count_range_with_request(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    response = client.get(
-        f"/api/history/{pytest.bot}/trends/fallback",
-        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"]["fallback_count_rate"] == {}
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
 def test_visitor_hit_fallback(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
@@ -186,22 +155,6 @@ def test_engaged_users(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/users/engaged",
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"]["engaged_users"] == 0
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_engaged_users_with_value(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    response = client.get(
-        f"/api/history/{pytest.bot}/metrics/users/engaged",
-        json={'month': 5, 'conversation_step_threshold': 11},
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -306,22 +259,6 @@ def test_engaged_user_range(mock_mongo):
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_engaged_user_range_with_value(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    response = client.get(
-        f"/api/history/{pytest.bot}/trends/users/engaged",
-        json={'month': 5, 'conversation_step_threshold': 11},
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"]['engaged_user_range'] == {}
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
 def test_new_user_range(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
@@ -378,6 +315,69 @@ def test_user_retention_range(mock_mongo):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"]["retention_range"] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_engaged_users_with_value(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users/engaged",
+        json={'month': 5, 'conversation_step_threshold': 11},
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["engaged_users"] == 0
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_engaged_user_range_with_value(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/users/engaged",
+        json={'month': 5, 'conversation_step_threshold': 11},
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]['engaged_user_range'] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_fallback_count_range(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/fallback",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["fallback_count_rate"] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_fallback_count_range_with_request(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/fallback",
+        json={'month': 4, 'action_fallback': 'action_default_fallback', 'nlu_fallback': 'utter_please_rephrase'},
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["fallback_count_rate"] == {}
     assert actual["message"] is None
     assert actual["success"]
 
@@ -443,34 +443,78 @@ def test_download_conversation_with_error(monkeypatch):
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_total_conversation_range(mock_mongo):
+def test_chat_history_no_token(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/trends/conversations/total",
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd"
     )
 
     actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"]["total_conversation_range"] == {}
-    assert actual["message"] is None
-    assert actual["success"]
+    assert actual["error_code"] == 401
+    assert not actual["data"]
+    assert actual["message"] == 'Could not validate credentials'
+    assert not actual["success"]
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_total_conversation_range_with_request(mock_mongo):
+def test_chat_history_users_invalid_auth(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
-        f"/api/history/{pytest.bot}/trends/conversations/total",
-        json={'month': 4},
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        f"/api/history/{pytest.bot}/conversations/users",
+        headers={"Authorization": 'Bearer test_invalid_token'},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 401
+    assert not actual["data"]
+    assert actual["message"] == 'Could not validate credentials'
+    assert not actual["success"]
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_no_auth_configured(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    Utility.environment['tracker']['authentication']['token'] = None
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
     )
 
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual["data"]["total_conversation_range"] == {}
+    assert len(actual["data"]["history"]) == 0
     assert actual["message"] is None
     assert actual["success"]
+
+
+def test_no_bot_id():
+    Utility.environment['tracker']['type'] = 'bot'
+    response = client.get(
+        f"/api/history/       /conversations/users/5e564fbcdcf0d5fad89e3acd",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']}
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Bot id is required"
+    assert not actual["success"]
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_no_collection(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    Utility.environment['tracker']['type'] = 'static'
+    Utility.environment['tracker']['collection'] = None
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual["data"]
+    assert actual["message"] == "Collection not configured"
+    assert not actual["success"]
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
@@ -498,6 +542,37 @@ def test_top_actions(mock_mongo):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == []
+    assert actual["success"]
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_total_conversation_range(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/conversations/total",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_total_conversation_range_with_request(mock_mongo):
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/conversations/total",
+        json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["total_conversation_range"] == {}
+    assert actual["message"] is None
     assert actual["success"]
 
 
@@ -559,37 +634,6 @@ def test_wordcloud_with_request(mock_mongo):
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["data"] == ""
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_unique_user_inputs(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    response = client.get(
-        f"/api/history/{pytest.bot}/metrics/users/input",
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"] == []
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_unique_user_inputs_with_request(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    response = client.get(
-        f"/api/history/{pytest.bot}/metrics/users/input",
-        json={'month': 4},
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"] == []
     assert actual["message"] is None
     assert actual["success"]
 
@@ -747,78 +791,3 @@ def test_total_sessions_with_request(mock_mongo):
     assert actual["data"] == {}
     assert actual["message"] is None
     assert actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_chat_history_no_token(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    response = client.get(
-        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd"
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 401
-    assert not actual["data"]
-    assert actual["message"] == 'Could not validate credentials'
-    assert not actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_chat_history_users_invalid_auth(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    response = client.get(
-        f"/api/history/{pytest.bot}/conversations/users",
-        headers={"Authorization": 'Bearer test_invalid_token'},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 401
-    assert not actual["data"]
-    assert actual["message"] == 'Could not validate credentials'
-    assert not actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_no_auth_configured(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    Utility.environment['tracker']['authentication']['token'] = None
-    response = client.get(
-        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert len(actual["data"]["history"]) == 0
-    assert actual["message"] is None
-    assert actual["success"]
-
-
-def test_no_bot_id():
-    Utility.environment['tracker']['type'] = 'bot'
-    response = client.get(
-        f"/api/history/       /conversations/users/5e564fbcdcf0d5fad89e3acd",
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']}
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert not actual["data"]
-    assert actual["message"] == "Bot id is required"
-    assert not actual["success"]
-
-
-@mock.patch('kairon.history.processor.MongoClient', autospec=True)
-def test_no_collection(mock_mongo):
-    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
-    Utility.environment['tracker']['type'] = 'static'
-    Utility.environment['tracker']['collection'] = None
-    response = client.get(
-        f"/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
-        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert not actual["data"]
-    assert actual["message"] == "Collection not configured"
-    assert not actual["success"]

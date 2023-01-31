@@ -21,8 +21,8 @@ class HistoryProcessor:
 
     @staticmethod
     def fetch_chat_history(collection: Text, sender,
-                           from_date: date = date.today()-timedelta(30),
-                           to_date: date = date.today()):
+                           from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                           to_date: date = datetime.utcnow().date()):
 
         """
         Fetches chat history.
@@ -39,7 +39,9 @@ class HistoryProcessor:
         return list(HistoryProcessor.__prepare_data(events)), message
 
     @staticmethod
-    def fetch_chat_users(collection: Text, from_date: date = date.today()-timedelta(30), to_date: date = date.today()):
+    def fetch_chat_users(collection: Text,
+                         from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                         to_date: date = datetime.utcnow().date()):
 
         """
         Fetch users.
@@ -103,8 +105,9 @@ class HistoryProcessor:
                     )
 
     @staticmethod
-    def fetch_user_history(collection: Text, sender_id: Text, from_date: date = date.today()-timedelta(30),
-                           to_date: date = date.today()):
+    def fetch_user_history(collection: Text, sender_id: Text,
+                           from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                           to_date: date = datetime.utcnow().date()):
 
         """
         List conversation events.
@@ -145,8 +148,8 @@ class HistoryProcessor:
 
     @staticmethod
     def visitor_hit_fallback(collection: Text,
-                             from_date: date = date.today() - timedelta(30),
-                             to_date: date = date.today(),
+                             from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                             to_date: date = datetime.utcnow().date(),
                              fallback_action: str = 'action_default_fallback',
                              nlu_fallback_action: str = None):
 
@@ -208,7 +211,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def conversation_steps(collection: Text, from_date: date = date.today()-timedelta(30), to_date: date = date.today()):
+    def conversation_steps(collection: Text,
+                           from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                           to_date: date = datetime.utcnow().date()):
 
         """
         Total conversation steps for bot.
@@ -251,7 +256,9 @@ class HistoryProcessor:
         return values, message
 
     @staticmethod
-    def user_with_metrics(collection: Text, from_date: date = date.today()-timedelta(30), to_date: date = date.today()):
+    def user_with_metrics(collection: Text,
+                          from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                          to_date: date = datetime.utcnow().date()):
 
         """
         Fetches user with the steps and time in conversation.
@@ -290,8 +297,10 @@ class HistoryProcessor:
         return users, message
 
     @staticmethod
-    def engaged_users(collection: Text, from_date: date = date.today()-timedelta(30),
-                      to_date: date = date.today(), conversation_limit: int = 10):
+    def engaged_users(collection: Text,
+                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                      to_date: date = datetime.utcnow().date(),
+                      conversation_limit: int = 10):
 
         """
         Counts the number of engaged users having a minimum number of conversation steps.
@@ -336,7 +345,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def new_users(collection: Text, from_date: date = date.today()-timedelta(30), to_date: date = date.today()):
+    def new_users(collection: Text,
+                  from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                  to_date: date = datetime.utcnow().date()):
 
         """
         Counts the number of new users of the bot.
@@ -385,8 +396,8 @@ class HistoryProcessor:
 
     @staticmethod
     def successful_conversations(collection: Text,
-                                 from_date: date = date.today()-timedelta(30),
-                                 to_date: date = date.today(),
+                                 from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                                 to_date: date = datetime.utcnow().date(),
                                  fallback_action: str = 'action_default_fallback',
                                  nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -451,7 +462,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def user_retention(collection: Text, from_date: date = date.today()-timedelta(30), to_date: date = date.today()):
+    def user_retention(collection: Text,
+                       from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                       to_date: date = datetime.utcnow().date()):
 
         """
         Computes the user retention percentage of the bot
@@ -507,8 +520,10 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def engaged_users_range(collection: Text, from_date: date = date.today()-timedelta(30),
-                            to_date: date = date.today(), conversation_limit: int = 10):
+    def engaged_users_range(collection: Text,
+                            from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                            to_date: date = datetime.utcnow().date(),
+                            conversation_limit: int = 10):
 
         """
         Computes the trend for engaged user count
@@ -552,7 +567,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def new_users_range(collection: Text, from_date: date = date.today()-timedelta(30), to_date: date = date.today()):
+    def new_users_range(collection: Text,
+                        from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                        to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for new user count
@@ -598,8 +615,8 @@ class HistoryProcessor:
 
     @staticmethod
     def successful_conversation_range(collection: Text,
-                                      from_date: date = date.today()-timedelta(30),
-                                      to_date: date = date.today(),
+                                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                                      to_date: date = datetime.utcnow().date(),
                                       fallback_action: str = 'action_default_fallback',
                                       nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -660,7 +677,8 @@ class HistoryProcessor:
 
     @staticmethod
     def user_retention_range(collection: Text,
-                             from_date: date = date.today()-timedelta(30), to_date: date = date.today()):
+                             from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                             to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for user retention percentages
@@ -715,8 +733,8 @@ class HistoryProcessor:
 
     @staticmethod
     def fallback_count_range(collection: Text,
-                             from_date: date = date.today()-timedelta(30),
-                             to_date: date = date.today(),
+                             from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                             to_date: date = datetime.utcnow().date(),
                              fallback_action: str = 'action_default_fallback',
                              nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -774,8 +792,8 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def flatten_conversations(collection: Text, from_date: date = date.today()-timedelta(30),
-                              to_date: date = date.today(), sort_by_date: bool = True):
+    def flatten_conversations(collection: Text, from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                              to_date: date = datetime.utcnow().date(), sort_by_date: bool = True):
 
         """
         Retrieves the flattened conversation data of the bot
@@ -866,8 +884,8 @@ class HistoryProcessor:
 
     @staticmethod
     def total_conversation_range(collection: Text,
-                                 from_date: date = date.today()-timedelta(30),
-                                 to_date: date = date.today()):
+                                 from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                                 to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for conversation count
@@ -905,8 +923,10 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def top_n_intents(collection: Text, from_date: date = date.today()-timedelta(30),
-                      to_date: date = date.today(), top_n: int = 10):
+    def top_n_intents(collection: Text,
+                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                      to_date: date = datetime.utcnow().date(),
+                      top_n: int = 10):
 
         """
         Fetches the top n identified intents of the bot for a given time
@@ -938,8 +958,10 @@ class HistoryProcessor:
             raise AppException(e)
 
     @staticmethod
-    def top_n_actions(collection: Text, from_date: date = date.today()-timedelta(30),
-                      to_date: date = date.today(), top_n: int = 10):
+    def top_n_actions(collection: Text,
+                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                      to_date: date = datetime.utcnow().date(),
+                      top_n: int = 10):
 
         """
         Fetches the top n identified actions of the bot for a given time
@@ -978,8 +1000,8 @@ class HistoryProcessor:
 
     @staticmethod
     def average_conversation_step_range(collection: Text,
-                                        from_date: date = date.today()-timedelta(30),
-                                        to_date: date = date.today()):
+                                        from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                                        to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for average conversation step count
@@ -1037,8 +1059,8 @@ class HistoryProcessor:
 
     @staticmethod
     def word_cloud(collection: Text, u_bound=1, l_bound=0, stopword_list=None,
-                   from_date: date = date.today()-timedelta(30),
-                   to_date: date = date.today()):
+                   from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                   to_date: date = datetime.utcnow().date()):
 
         """
         Creates the string that is necessary for the word cloud formation
@@ -1097,8 +1119,8 @@ class HistoryProcessor:
 
     @staticmethod
     def user_input_count(collection: Text,
-                         from_date: date = date.today()-timedelta(30),
-                         to_date: date = date.today()):
+                         from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                         to_date: date = datetime.utcnow().date()):
 
         """
         Gets the user inputs along with their frequencies
@@ -1133,8 +1155,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def user_fallback_dropoff(collection: Text, from_date: date = date.today()-timedelta(30),
-                              to_date: date = date.today(),
+    def user_fallback_dropoff(collection: Text,
+                              from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                              to_date: date = datetime.utcnow().date(),
                               fallback_action: str = 'action_default_fallback',
                               nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -1218,8 +1241,8 @@ class HistoryProcessor:
 
     @staticmethod
     def intents_before_dropoff(collection: Text,
-                               from_date: date = date.today()-timedelta(30),
-                               to_date: date = date.today()):
+                               from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                               to_date: date = datetime.utcnow().date()):
 
         """
         Computes the identified intents and their counts for users before dropping off from the conversations
@@ -1310,8 +1333,8 @@ class HistoryProcessor:
 
     @staticmethod
     def unsuccessful_session(collection: Text,
-                             from_date: date = date.today()-timedelta(30),
-                             to_date: date = date.today(),
+                             from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                             to_date: date = datetime.utcnow().date(),
                              fallback_action: str = 'action_default_fallback',
                              nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -1396,7 +1419,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def session_count(collection: Text, from_date: date = date.today()-timedelta(30), to_date: date = date.today()):
+    def session_count(collection: Text,
+                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                      to_date: date = datetime.utcnow().date()):
 
         """
         Computes the total session count for users for the past months
