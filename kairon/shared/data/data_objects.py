@@ -29,8 +29,8 @@ from rasa.shared.core.slots import (
 from validators import url, ValidationFailure
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.exceptions import AppException
-from kairon.shared.utils import Utility
-from kairon.shared.models import TemplateType
+from kairon.shared.utils import Utility, StoryValidator
+from kairon.shared.models import TemplateType, StoryStepType
 from validators import domain
 from mongoengine import signals
 
@@ -487,6 +487,26 @@ class StoryEvents(EmbeddedDocument):
                and self.entities == other.entities
 
 
+class StepFlowEvent(EmbeddedDocument):
+    name = StringField(required=True)
+    type = StringField(required=True, choices=[step_type.value for step_type in StoryStepType])
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Name cannot be empty")
+
+    def clean(self):
+        if not Utility.check_empty_string(self.name):
+            self.name = self.name.strip().lower()
+
+
+class MultiflowStoryEvents(EmbeddedDocument):
+    step = EmbeddedDocumentField(StepFlowEvent, required=True)
+    connections = ListField(EmbeddedDocumentField(StepFlowEvent))
+
+
 @auditlogger.log
 @push_notification.apply
 class Stories(Auditlog):
@@ -517,6 +537,34 @@ class Stories(Auditlog):
         self.block_name = self.block_name.strip().lower()
         for event in self.events:
             event.clean()
+
+
+@auditlogger.log
+@push_notification.apply
+class MultiflowStories(Auditlog):
+    block_name = StringField(required=True)
+    start_checkpoints = ListField(StringField(), required=True)
+    end_checkpoints = ListField(StringField())
+    events = ListField(EmbeddedDocumentField(MultiflowStoryEvents))
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+    template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.block_name):
+            raise ValidationError("Story name cannot be empty or blank spaces")
+        elif not self.events:
+            raise ValidationError("events cannot be empty")
+
+    def clean(self):
+        self.block_name = self.block_name.strip().lower()
 
 
 @auditlogger.log
