@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from typing import Text
 
 from loguru import logger
@@ -20,23 +20,28 @@ class HistoryProcessor:
         return MongoClient(host=url)
 
     @staticmethod
-    def fetch_chat_history(collection: Text, sender, month: int = 1):
+    def fetch_chat_history(collection: Text, sender,
+                           from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                           to_date: date = datetime.utcnow().date()):
 
         """
         Fetches chat history.
 
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param collection: collection to connect to
         :param sender: history details for user
         :return: list of conversations
         """
         events, message = HistoryProcessor.fetch_user_history(
-            collection, sender, month=month
+            collection, sender, from_date=from_date, to_date=to_date
         )
         return list(HistoryProcessor.__prepare_data(events)), message
 
     @staticmethod
-    def fetch_chat_users(collection: Text, month: int = 1):
+    def fetch_chat_users(collection: Text,
+                         from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                         to_date: date = datetime.utcnow().date()):
 
         """
         Fetch users.
@@ -44,7 +49,8 @@ class HistoryProcessor:
         Fetches user list who has conversation with the agent
 
         :param collection: collection to connect to
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: list of user id
         """
         client = HistoryProcessor.get_mongo_connection()
@@ -52,7 +58,9 @@ class HistoryProcessor:
             db = client.get_database()
             conversations = db.get_collection(collection)
             try:
-                values = conversations.distinct(key="sender_id", filter={"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}})
+                values = conversations.distinct(key="sender_id",
+                                                filter={"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                            "$lte": Utility.get_timestamp_from_date(to_date)}})
                 return values, None
             except ServerSelectionTimeoutError as e:
                 logger.error(e)
@@ -97,14 +105,17 @@ class HistoryProcessor:
                     )
 
     @staticmethod
-    def fetch_user_history(collection: Text, sender_id: Text, month: int = 1):
+    def fetch_user_history(collection: Text, sender_id: Text,
+                           from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                           to_date: date = datetime.utcnow().date()):
 
         """
         List conversation events.
 
         Loads list of conversation events from chat history
 
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month date
         :param collection: collection to connect to
         :param sender_id: user id
         :return: list of conversation events
@@ -116,7 +127,8 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 values = list(conversations
-                              .aggregate([{"$match": {"sender_id": sender_id, "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                              .aggregate([{"$match": {"sender_id": sender_id, "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                                                  "$lte": Utility.get_timestamp_from_date(to_date)}}},
                                           {"$match": {"event.event": {"$in": ["user", "bot", "action"]}}},
                                           {"$group": {"_id": None, "events": {"$push": "$event"}}},
                                           {"$project": {"_id": 0, "events": 1}}])
@@ -136,7 +148,8 @@ class HistoryProcessor:
 
     @staticmethod
     def visitor_hit_fallback(collection: Text,
-                             month: int = 1,
+                             from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                             to_date: date = datetime.utcnow().date(),
                              fallback_action: str = 'action_default_fallback',
                              nlu_fallback_action: str = None):
 
@@ -146,7 +159,8 @@ class HistoryProcessor:
         Counts the number of times, the agent was unable to provide a response to users
 
         :param collection: collection to connect to
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param fallback_action: fallback action configured for bot
         :param nlu_fallback_action: nlu fallback configured for bot
         :return: list of visitor fallback
@@ -163,7 +177,8 @@ class HistoryProcessor:
                                                                 {"$match": {"event.event": "action",
                                                                             "event.name": {"$in": [fallback_action, nlu_fallback_action]},
                                                                             "event.timestamp": {
-                                                                                "$gte": Utility.get_timestamp_previous_month(month)}
+                                                                                "$gte": Utility.get_timestamp_from_date(from_date),
+                                                                                "$lte": Utility.get_timestamp_from_date(to_date)}
                                                                             }
                                                                  },
                                                                 {"$group": {"_id": None, "fallback_count": {"$sum": 1}}},
@@ -172,7 +187,9 @@ class HistoryProcessor:
 
                 total_counts = list(conversations.aggregate([
                                                              {"$match": {"event.event": "user",
-                                                                         "event.timestamp": { "$gte": Utility.get_timestamp_previous_month(month)}
+                                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                                             "$lte": Utility.get_timestamp_from_date(to_date)
+                                                                                             }
                                                                          }
                                                               },
                                                              {"$group": {"_id": None, "total_count": {"$sum": 1}}},
@@ -194,7 +211,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def conversation_steps(collection: Text, month: int = 1):
+    def conversation_steps(collection: Text,
+                           from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                           to_date: date = datetime.utcnow().date()):
 
         """
         Total conversation steps for bot.
@@ -202,7 +221,8 @@ class HistoryProcessor:
         calculates the number of conversation steps between agent and users
 
         :param collection: collection to connect to
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: list of conversation step count
         """
         values = []
@@ -214,7 +234,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 values = list(conversations
                               .aggregate([{"$match": {"event.event": "user",
-                                                      "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}
+                                                      "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                          "$lte": Utility.get_timestamp_from_date(to_date)}
                                                       }
                                           },
                                           {"$group": {"_id": "$sender_id",
@@ -235,13 +256,16 @@ class HistoryProcessor:
         return values, message
 
     @staticmethod
-    def user_with_metrics(collection: Text, month=1):
+    def user_with_metrics(collection: Text,
+                          from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                          to_date: date = datetime.utcnow().date()):
 
         """
         Fetches user with the steps and time in conversation.
 
         :param collection: collection to connect to
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: list of users with step and time in conversation
         """
         users = []
@@ -253,7 +277,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 users = list(
                     conversations.aggregate([{"$match": {"event.event": "user",
-                                                         "event.timestamp": { "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)}}},
                                              {"$group": {"_id": "$sender_id",
                                                          "latest_event_time": {"$last": "$event.timestamp"},
                                                          "steps": {"$sum": 1},}
@@ -272,13 +297,17 @@ class HistoryProcessor:
         return users, message
 
     @staticmethod
-    def engaged_users(collection: Text, month: int = 1, conversation_limit: int = 10):
+    def engaged_users(collection: Text,
+                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                      to_date: date = datetime.utcnow().date(),
+                      conversation_limit: int = 10):
 
         """
         Counts the number of engaged users having a minimum number of conversation steps.
 
         :param collection: collection to connect to
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param conversation_limit: conversation step number to determine engaged users
         :return: number of engaged users
         """
@@ -291,7 +320,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 values = list(
                     conversations.aggregate([{"$match": {"event.event": "user",
-                                                         "event.timestamp": { "$gte": Utility.get_timestamp_previous_month(month)}}
+                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)}}
                                               },
                                              {"$group": {"_id": "$sender_id", "event": {"$sum": 1}}},
                                              {"$match": {"event": {"$gte": conversation_limit}}},
@@ -315,13 +345,16 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def new_users(collection: Text, month: int = 1):
+    def new_users(collection: Text,
+                  from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                  to_date: date = datetime.utcnow().date()):
 
         """
         Counts the number of new users of the bot.
 
         :param collection: collection to connect to
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: number of new users
         """
 
@@ -341,7 +374,8 @@ class HistoryProcessor:
                                                          }
                                              },
                                              {"$match": {
-                                                 "latest_event_time": {"$gte": Utility.get_timestamp_previous_month(month)},
+                                                 "latest_event_time": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                       "$lte": Utility.get_timestamp_from_date(to_date)},
                                                  "count": {"$eq": 1},
                                                 }
                                              },
@@ -362,7 +396,8 @@ class HistoryProcessor:
 
     @staticmethod
     def successful_conversations(collection: Text,
-                                 month: int = 1,
+                                 from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                                 to_date: date = datetime.utcnow().date(),
                                  fallback_action: str = 'action_default_fallback',
                                  nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -370,7 +405,8 @@ class HistoryProcessor:
         Counts the number of successful conversations of the bot
 
         :param collection: collection to connect to
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param fallback_action: fallback action configured for bot
         :param nlu_fallback_action: nlu fallback configured for bot
         :return: number of successful conversations
@@ -385,7 +421,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 total = list(
                     conversations.aggregate([{"$match": {
-                                                        "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                                                        "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                            "$lte": Utility.get_timestamp_from_date(to_date)},
                                                         "event.event": "user"
                                                         }
                                              },
@@ -396,7 +433,8 @@ class HistoryProcessor:
                 fallback_count = list(
                     conversations.aggregate([
                         {"$match": {
-                            "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                            "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                "$lte": Utility.get_timestamp_from_date(to_date)},
                             "event.name": {"$in": [fallback_action, nlu_fallback_action]}
                         }
                         },
@@ -424,13 +462,16 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def user_retention(collection: Text, month: int = 1):
+    def user_retention(collection: Text,
+                       from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                       to_date: date = datetime.utcnow().date()):
 
         """
         Computes the user retention percentage of the bot
 
         :param collection: collection to connect to
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: user retention percentage
         """
         total = []
@@ -450,7 +491,8 @@ class HistoryProcessor:
                                                          }
                                              },
                                              {"$match": {
-                                                 "latest_event_time": {"$gte": Utility.get_timestamp_previous_month(month)},
+                                                 "latest_event_time": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                       "$lte": Utility.get_timestamp_from_date(to_date)},
                                                  "count": {"$gte": 2},
                                                 }
                                              },
@@ -478,13 +520,17 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def engaged_users_range(collection: Text, month: int = 6, conversation_limit: int = 10):
+    def engaged_users_range(collection: Text,
+                            from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                            to_date: date = datetime.utcnow().date(),
+                            conversation_limit: int = 10):
 
         """
         Computes the trend for engaged user count
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param conversation_limit: conversation step number to determine engaged users
         :return: dictionary of counts of engaged users for the previous months
         """
@@ -497,7 +543,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 engaged = list(
                     conversations.aggregate([{"$match": {"event.event": "user",
-                                                         "event.timestamp": { "$gte": Utility.get_timestamp_previous_month(month)}
+                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)}
                                                          }
                                              },
                                              {"$addFields": {"month": { "$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
@@ -520,13 +567,16 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def new_users_range(collection: Text, month: int = 6):
+    def new_users_range(collection: Text,
+                        from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                        to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for new user count
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of counts of new users for the previous months
         """
         values = []
@@ -546,7 +596,9 @@ class HistoryProcessor:
                                              {"$addFields": {"month": { "$month": {"$toDate": {"$multiply": ["$latest_event_time", 1000]}}}}},
                                              {"$match": {
                                                  "latest_event_time": {
-                                                     "$gte": Utility.get_timestamp_previous_month(month)},
+                                                     "$gte": Utility.get_timestamp_from_date(from_date),
+                                                     "$lte": Utility.get_timestamp_from_date(to_date)
+                                                 },
                                                  "count": {"$eq": 1},
                                              }},
                                              {"$group": {"_id": "$month", "count": {"$sum": 1}}},
@@ -563,7 +615,8 @@ class HistoryProcessor:
 
     @staticmethod
     def successful_conversation_range(collection: Text,
-                                      month: int = 6,
+                                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                                      to_date: date = datetime.utcnow().date(),
                                       fallback_action: str = 'action_default_fallback',
                                       nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -571,7 +624,8 @@ class HistoryProcessor:
         Computes the trend for successful conversation count
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param fallback_action: fallback action configured for bot
         :param nlu_fallback_action: nlu fallback configured for bot
         :return: dictionary of counts of successful bot conversations for the previous months
@@ -588,7 +642,8 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
-                            "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                            "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                "$lte": Utility.get_timestamp_from_date(to_date)},
                             "event.event": "user"
                         }
                         },
@@ -600,7 +655,8 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
-                                "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                                "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                    "$lte": Utility.get_timestamp_from_date(to_date)},
                                 "event.event": {"$in": [fallback_action, nlu_fallback_action]}
                             }
                         },
@@ -620,13 +676,16 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def user_retention_range(collection: Text, month: int = 6):
+    def user_retention_range(collection: Text,
+                             from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                             to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for user retention percentages
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of user retention percentages for the previous months
         """
         total = []
@@ -639,7 +698,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 total = list(
                     conversations.aggregate([{"$match": {"event.name": {"$regex": ".*session_start*."},
-                                                         "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}
+                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)}
                                                          }
                                               },
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
@@ -648,7 +708,8 @@ class HistoryProcessor:
                     ]))
                 repeating_users = list(
                     conversations.aggregate([{"$match": {"event.name": {"$regex": ".*session_start*."},
-                                                         "event.timestamp": { "$gte": Utility.get_timestamp_previous_month(month)}
+                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)}
                                                          }
                                               },
                                              {"$group": {"_id": '$sender_id', "count": {"$sum": 1},
@@ -672,14 +733,16 @@ class HistoryProcessor:
 
     @staticmethod
     def fallback_count_range(collection: Text,
-                             month: int = 6,
+                             from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                             to_date: date = datetime.utcnow().date(),
                              fallback_action: str = 'action_default_fallback',
                              nlu_fallback_action: str = 'nlu_fallback'):
 
         """
         Computes the trend for fallback counts
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param fallback_action: fallback action configured for bot
         :param nlu_fallback_action: nlu fallback configured for bot
         :return: dictionary of fallback counts for the previous months
@@ -694,7 +757,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 fallback_counts = list(
                     conversations.aggregate([{"$match": {"event.event": "action",
-                                                         "event.timestamp": { "$gte": Utility.get_timestamp_previous_month(month)},
+                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
                                                          "event.name": {"$in": [fallback_action, nlu_fallback_action]}
                                                          }
                                               },
@@ -707,7 +771,8 @@ class HistoryProcessor:
                                                              [
                                                                  {"event.event": "action"},
                                                                  {"event.name": {"$nin": ['action_listen', 'action_session_start']}},
-                                                                 {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}
+                                                                 {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                                      "$lte": Utility.get_timestamp_from_date(to_date)}}
                                                              ],
                                                         }
                                              },
@@ -727,12 +792,14 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def flatten_conversations(collection: Text, month: int = 3, sort_by_date: bool = True):
+    def flatten_conversations(collection: Text, from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                              to_date: date = datetime.utcnow().date(), sort_by_date: bool = True):
 
         """
         Retrieves the flattened conversation data of the bot
         :param collection: collection to connect to
-        :param month: default is 3 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param sort_by_date: This flag sorts the records by timestamp if set to True
         :return: dictionary of the bot users and their conversation data
         """
@@ -746,7 +813,8 @@ class HistoryProcessor:
                 user_data = list(
                     conversations.aggregate(
                         [{"$match": { "$and": [
-                                                {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}},
+                                                {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                     "$lte": Utility.get_timestamp_from_date(to_date)}},
                                                 {"$or": [{"event.event": {"$in": ['bot', 'user']}},
                                                          {"$and": [{"event.event": "action"},
                                                                    {"event.name": {"$nin": ['action_session_start', 'action_listen']}}]}]}
@@ -815,13 +883,16 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def total_conversation_range(collection: Text, month: int = 6):
+    def total_conversation_range(collection: Text,
+                                 from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                                 to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for conversation count
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of counts of bot conversations for the previous months
         """
         total = []
@@ -833,7 +904,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 total = list(
                     conversations.aggregate([
-                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                        "$lte": Utility.get_timestamp_from_date(to_date)}}},
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
 
                         {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
@@ -851,12 +923,16 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def top_n_intents(collection: Text, month: int = 1, top_n: int = 10):
+    def top_n_intents(collection: Text,
+                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                      to_date: date = datetime.utcnow().date(),
+                      top_n: int = 10):
 
         """
         Fetches the top n identified intents of the bot for a given time
 
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param collection: collection to connect to
         :param top_n: The first n number of most occurring intents
         :return: list of intents and their counts
@@ -868,7 +944,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 values = list(
                     conversations.aggregate([
-                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}}},
+                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                        "$lte": Utility.get_timestamp_from_date(to_date)}}},
                         {"$project": {"intent": "$event.parse_data.intent.name", "_id": 0}},
                         {"$group": {"_id": "$intent", "count": {"$sum": 1}}},
                         {"$match": {"_id": {"$ne": None}}},
@@ -881,12 +958,16 @@ class HistoryProcessor:
             raise AppException(e)
 
     @staticmethod
-    def top_n_actions(collection: Text, month: int = 1, top_n: int = 10):
+    def top_n_actions(collection: Text,
+                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                      to_date: date = datetime.utcnow().date(),
+                      top_n: int = 10):
 
         """
         Fetches the top n identified actions of the bot for a given time
 
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param collection: collection to connect to
         :param top_n: The first n number of most occurring actions
         :return: list of actions and their counts
@@ -899,7 +980,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 values = list(
                     conversations.aggregate([
-                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                        "$lte": Utility.get_timestamp_from_date(to_date)},
                                     "event.event": "action",
                                     "event.name": {"$nin": ['action_listen', 'action_session_start']}
                                     }
@@ -917,13 +999,16 @@ class HistoryProcessor:
             raise AppException(e)
 
     @staticmethod
-    def average_conversation_step_range(collection: Text, month: int = 6):
+    def average_conversation_step_range(collection: Text,
+                                        from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                                        to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for average conversation step count
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of counts of average conversation step for the previous months
         """
         total = []
@@ -936,7 +1021,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 steps = list(
                     conversations.aggregate([{"$match": {"event.event": "user",
-                                                         "event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)}
+                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)}
                                                          }
                                               },
                                              {"$addFields": {
@@ -948,7 +1034,8 @@ class HistoryProcessor:
 
                 total = list(
                     conversations.aggregate([
-                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                        {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                        "$lte": Utility.get_timestamp_from_date(to_date)},
                                     "event.event": "user"
                                     }
 
@@ -971,12 +1058,15 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def word_cloud(collection: Text, u_bound=1, l_bound=0, stopword_list=None, month=1):
+    def word_cloud(collection: Text, u_bound=1, l_bound=0, stopword_list=None,
+                   from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                   to_date: date = datetime.utcnow().date()):
 
         """
         Creates the string that is necessary for the word cloud formation
 
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param collection: collection to connect to
         :param u_bound: The upper bound for the slider to filter the words for the wordcloud
         :param l_bound: The lower bound for the slider to filter the words for the wordcloud
@@ -994,7 +1084,8 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 word_list = list(conversations.aggregate(
-                    [{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                    [{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                     "$lte": Utility.get_timestamp_from_date(to_date)},
                                  "event.event": "user"
                                  }
                      },
@@ -1027,13 +1118,16 @@ class HistoryProcessor:
             raise AppException(e)
 
     @staticmethod
-    def user_input_count(collection: Text, month: int = 6):
+    def user_input_count(collection: Text,
+                         from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                         to_date: date = datetime.utcnow().date()):
 
         """
         Gets the user inputs along with their frequencies
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of counts of user inputs for the given duration
         """
         user_input = []
@@ -1044,7 +1138,8 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 user_input = list(conversations.aggregate(
-                    [{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                    [{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                     "$lte": Utility.get_timestamp_from_date(to_date)},
                                  "event.event": "user"
                                 }
                      },
@@ -1060,7 +1155,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def user_fallback_dropoff(collection: Text, month: int = 6,
+    def user_fallback_dropoff(collection: Text,
+                              from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                              to_date: date = datetime.utcnow().date(),
                               fallback_action: str = 'action_default_fallback',
                               nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -1070,7 +1167,8 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param fallback_action: fallback action configured for bot
         :param nlu_fallback_action: nlu fallback configured for bot
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of users and their dropoff counts
         """
         new_session, single_session = [], []
@@ -1082,7 +1180,9 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 new_session = list(
                     conversations.aggregate([{"$match": {"event.timestamp": {
-                                                 "$gte": Utility.get_timestamp_previous_month(month)},
+                        "$gte": Utility.get_timestamp_from_date(from_date),
+                        "$lte": Utility.get_timestamp_from_date(to_date)
+                    },
                                                  "event.name": {"$ne": "action_listen"},
                                                  "event.event": {
                                                      "$nin": ["session_started", "restart", "bot"]}}},
@@ -1110,7 +1210,9 @@ class HistoryProcessor:
                 single_session = list(
                     conversations.aggregate([
                                              {"$match": {"event.timestamp": {
-                                                 "$gte": Utility.get_timestamp_previous_month(month)},
+                                                 "$gte": Utility.get_timestamp_from_date(from_date),
+                                                 "$lte": Utility.get_timestamp_from_date(to_date)
+                                            },
                                                  "event.name": {"$ne": "action_listen"},
                                                  "event.event": {
                                                      "$nin": ["session_started", "restart", "bot"]}}},
@@ -1138,13 +1240,16 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def intents_before_dropoff(collection: Text, month: int = 6):
+    def intents_before_dropoff(collection: Text,
+                               from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                               to_date: date = datetime.utcnow().date()):
 
         """
         Computes the identified intents and their counts for users before dropping off from the conversations
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of intents and their counts for the respective users
         """
         new_session_dict, single_session_dict = {}, {}
@@ -1157,7 +1262,9 @@ class HistoryProcessor:
                 new_session_list = list(
                     conversations.aggregate([
                                              {"$match": {"event.timestamp": {
-                                                 "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                                 "$gte": Utility.get_timestamp_from_date(from_date),
+                                                 "$lte": Utility.get_timestamp_from_date(to_date)
+                                             }}},
                                              {"$match": {"$or": [{"event.event": "user"},
                                                                  {"event.name": "action_session_start"}]}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
@@ -1190,7 +1297,9 @@ class HistoryProcessor:
                 single_session_list = list(
                     conversations.aggregate([
                                              {"$match": {"event.timestamp": {
-                                                 "$gte": Utility.get_timestamp_previous_month(month)}}},
+                                                 "$gte": Utility.get_timestamp_from_date(from_date),
+                                                 "$lte": Utility.get_timestamp_from_date(to_date)
+                                             }}},
                                              {"$match": {"$or": [{"event.event": "user"},
                                                                  {"event.name": "action_session_start"}]}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
@@ -1223,7 +1332,9 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def unsuccessful_session(collection: Text, month: int = 6,
+    def unsuccessful_session(collection: Text,
+                             from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                             to_date: date = datetime.utcnow().date(),
                              fallback_action: str = 'action_default_fallback',
                              nlu_fallback_action: str = 'nlu_fallback'):
 
@@ -1233,7 +1344,8 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param fallback_action: fallback action configured for bot
         :param nlu_fallback_action: nlu fallback configured for bot
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of users and their unsuccessful session counts
         """
         new_session, single_session = [], []
@@ -1245,7 +1357,8 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 new_session = list(
                     conversations.aggregate([
-                                             {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                                             {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
                                                          "event.name": {
                                                              "$in": ["action_session_start", fallback_action,
                                                                      nlu_fallback_action]}
@@ -1274,7 +1387,8 @@ class HistoryProcessor:
                                              ], allowDiskUse=True))
 
                 single_session = list(
-                    conversations.aggregate([{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                    conversations.aggregate([{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
                                                          "event.name": {
                                                              "$in": ["action_session_start", fallback_action,
                                                                      nlu_fallback_action]}
@@ -1305,13 +1419,16 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def session_count(collection: Text, month: int = 6):
+    def session_count(collection: Text,
+                      from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+                      to_date: date = datetime.utcnow().date()):
 
         """
         Computes the total session count for users for the past months
 
         :param collection: collection to connect to
-        :param month: default is 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :return: dictionary of users and their session counts
         """
         new_session, single_session = [], []
@@ -1323,14 +1440,17 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 new_session = list(
                     conversations.aggregate([{"$match": {"event.timestamp": {
-                                                 "$gte": Utility.get_timestamp_previous_month(month)},
+                        "$gte": Utility.get_timestamp_from_date(from_date),
+                        "$lte": Utility.get_timestamp_from_date(to_date)
+                    },
                                                  "event.name": "action_session_start"
                                              }},
                                              {"$group": {"_id": "$sender_id", "count": {"$sum": 1}}}
                                              ], allowDiskUse=True))
 
                 single_session = list(
-                    conversations.aggregate([{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_previous_month(month)},
+                    conversations.aggregate([{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
                                                          "$or": [{"event.event": "user"},
                                                                  {"event.name": "action_session_start"}]
                                                         }

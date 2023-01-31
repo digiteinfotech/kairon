@@ -6,7 +6,7 @@ import re
 import shutil
 import string
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
@@ -549,9 +549,18 @@ class Utility:
         Utility.email_conf = ConfigLoader(os.getenv("EMAIL_CONF", "./email.yaml")).get_config()
 
     @staticmethod
-    def get_timestamp_previous_month(month: int):
+    def get_timestamp_previous_month(month: int = 1):
         start_time = datetime.now() - timedelta(month * 30, seconds=0, minutes=0, hours=0)
         return start_time.timestamp()
+
+    @staticmethod
+    def convert_date_to_string(date_obj: date = datetime.utcnow().date()):
+        return date_obj.strftime("%d-%m-%Y")
+
+    @staticmethod
+    def get_timestamp_from_date(date_obj: date = datetime.utcnow().date()):
+        date_time = datetime.now().replace(date_obj.year, date_obj.month, date_obj.day)
+        return date_time.timestamp()
 
     @staticmethod
     def get_local_db(url=None, db_name=None):

@@ -35,7 +35,7 @@ async def questions(
     Generates question from text or url
     """
     response = requests.post(
-        Utility.environment["augmentation"]["question_generation_url"], json=request_data
+        Utility.environment["augmentation"]["question_generation_url"], json=request_data.dict()
     )
     return response.json()
 

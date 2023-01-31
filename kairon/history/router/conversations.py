@@ -18,7 +18,7 @@ async def flat_conversations(request: HistoryQuery = HistoryQuery(),
                              collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the flattened conversation data of the bot for previous months."""
     flat_data, message = HistoryProcessor.flatten_conversations(
-        collection, request.month, request.sort_by_date
+        collection, request.from_date, request.to_date, request.sort_by_date
     )
     return {"data": flat_data, "message": message}
 
@@ -30,7 +30,7 @@ async def download_conversations(
         collection: str = Depends(Authentication.authenticate_and_get_collection),
 ):
     """Downloads conversation history of the bot, for the specified months."""
-    conversation_data, _ = HistoryProcessor.flatten_conversations(collection, request.month, request.sort_by_date)
+    conversation_data, _ = HistoryProcessor.flatten_conversations(collection, request.from_date, request.to_date, request.sort_by_date)
     file, temp_path = Utility.download_csv(conversation_data.get("conversation_data"))
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
@@ -46,7 +46,7 @@ async def download_conversations(
 async def chat_history_users(request: HistoryQuery = HistoryQuery(),
                              collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the list of user who has conversation with the agent."""
-    users, message = HistoryProcessor.fetch_chat_users(collection, request.month)
+    users, message = HistoryProcessor.fetch_chat_users(collection, request.from_date, request.to_date)
     return {"data": {"users": users}, "message": message}
 
 
@@ -55,7 +55,7 @@ async def chat_history(sender: Text,
                        request: HistoryQuery = HistoryQuery(),
                        collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the list of conversation with the agent by particular user."""
-    history, message = HistoryProcessor.fetch_chat_history(collection, sender, request.month)
+    history, message = HistoryProcessor.fetch_chat_history(collection, sender, request.from_date, request.to_date)
     return {"data": {"history": list(history)}, "message": message}
 
 
@@ -64,5 +64,5 @@ async def word_cloud(request: HistoryQuery = HistoryQuery(),
                              collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the string required for word cloud formation."""
     sentence, message = HistoryProcessor.word_cloud(collection, request.u_bound, request.l_bound,
-                                                    request.stopword_list, request.month)
+                                                    request.stopword_list, request.from_date, request.to_date)
     return {"data": sentence, "message": message}

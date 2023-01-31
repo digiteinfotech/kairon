@@ -1,9 +1,11 @@
+import datetime
 from fastapi import Query
 from pydantic.main import BaseModel
 
 
 class HistoryQuery(BaseModel):
-    month: int = Query(default=1, ge=1, le=6)
+    from_date: datetime.date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
+    to_date: datetime.date = datetime.datetime.utcnow().date()
     conversation_step_threshold: int = Query(default=10, ge=2)
     action_fallback: str = Query(default="action_default_fallback")
     nlu_fallback: str = Query(default=None)

@@ -491,12 +491,12 @@ class DataUtility:
 class ChatHistoryUtils:
 
     @staticmethod
-    def unique_user_input(month, current_user_bot):
+    def unique_user_input(from_date, to_date, current_user_bot):
         from ...shared.data.processor import MongoProcessor
         response = Utility.trigger_history_server_request(
             current_user_bot,
             f'/api/history/{current_user_bot}/metrics/users/input',
-            {'month': month}
+            {'from_date': Utility.convert_date_to_string(from_date), 'to_date': Utility.convert_date_to_string(to_date)}
         )
 
         user_input = response['data']

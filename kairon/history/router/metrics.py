@@ -15,7 +15,7 @@ async def user_with_metrics(
         collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the list of user who has conversation with the agent with steps and time."""
     users, message = HistoryProcessor.user_with_metrics(
-        collection, request.month
+        collection, request.from_date, request.to_date
     )
     return {"data": {"users": users}, "message": message}
 
@@ -25,7 +25,7 @@ async def visitor_hit_fallback_count(request: HistoryQuery = HistoryQuery(),
                                      collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries."""
     visitor_hit_fallback, message = HistoryProcessor.visitor_hit_fallback(
-        collection, request.month, request.action_fallback, request.nlu_fallback
+        collection, request.from_date, request.to_date, request.action_fallback, request.nlu_fallback
     )
     return {"data": visitor_hit_fallback, "message": message}
 
@@ -34,7 +34,7 @@ async def visitor_hit_fallback_count(request: HistoryQuery = HistoryQuery(),
 async def conversation_steps(request: HistoryQuery = HistoryQuery(),
                              collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of conversation steps that took place in the chat between the users and the agent."""
-    conversation_steps, message = HistoryProcessor.conversation_steps(collection, request.month)
+    conversation_steps, message = HistoryProcessor.conversation_steps(collection, request.from_date, request.to_date)
     return {"data": conversation_steps, "message": message}
 
 
@@ -43,7 +43,7 @@ async def count_engaged_users(request: HistoryQuery = HistoryQuery(),
                               collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of engaged users of the bot."""
     engaged_user_count, message = HistoryProcessor.engaged_users(
-        collection, request.month, request.conversation_step_threshold
+        collection, request.from_date, request.to_date, request.conversation_step_threshold
     )
     return {"data": engaged_user_count, "message": message}
 
@@ -53,7 +53,7 @@ async def count_new_users(request: HistoryQuery = HistoryQuery(),
                           collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of new users of the bot."""
     user_count, message = HistoryProcessor.new_users(
-        collection, request.month
+        collection, request.from_date, request.to_date
     )
     return {"data": user_count, "message": message}
 
@@ -63,7 +63,7 @@ async def complete_conversations(request: HistoryQuery = HistoryQuery(),
                                  collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the number of successful conversations of the bot, which had no fallback."""
     conversation_count, message = HistoryProcessor.successful_conversations(
-        collection, request.month, request.action_fallback, request.nlu_fallback
+        collection, request.from_date, request.to_date, request.action_fallback, request.nlu_fallback
     )
     return {"data": conversation_count, "message": message}
 
@@ -73,7 +73,7 @@ async def calculate_retention(request: HistoryQuery = HistoryQuery(),
                               collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the user retention percentage of the bot."""
     retention_count, message = HistoryProcessor.user_retention(
-        collection, request.month
+        collection, request.from_date, request.to_date
     )
     return {"data": retention_count, "message": message}
 
@@ -83,7 +83,7 @@ async def top_intents(request: HistoryQuery = HistoryQuery(),
                       collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the top n identified intents of the bot."""
     top_intent, message = HistoryProcessor.top_n_intents(
-        collection, request.month, request.top_n
+        collection, request.from_date, request.to_date, request.top_n
     )
     return {"data": top_intent, "message": message}
 
@@ -93,7 +93,7 @@ async def top_actions(request: HistoryQuery = HistoryQuery(),
                       collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the top n identified actions of the bot."""
     top_action, message = HistoryProcessor.top_n_actions(
-        collection, request.month, request.top_n
+        collection, request.from_date, request.to_date, request.top_n
     )
     return {"data": top_action, "message": message}
 
@@ -103,7 +103,7 @@ async def user_input_count(request: HistoryQuery = HistoryQuery(),
                            collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the user inputs along with their frequencies."""
     user_inputs, message = HistoryProcessor.user_input_count(
-        collection, request.month
+        collection, request.from_date, request.to_date
     )
     return {"data": user_inputs, "message": message}
 
@@ -113,7 +113,7 @@ async def fallback_dropoff(request: HistoryQuery = HistoryQuery(),
                            collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the list of users that dropped off after encountering fallback."""
     user_list, message = HistoryProcessor.user_fallback_dropoff(
-        collection, request.month, request.action_fallback, request.nlu_fallback
+        collection, request.from_date, request.to_date, request.action_fallback, request.nlu_fallback
     )
     return {"data": user_list, "message": message}
 
@@ -123,7 +123,7 @@ async def intents_dropoff(request: HistoryQuery = HistoryQuery(),
                           collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the identified intents and their counts for users before dropping off from the conversations."""
     dropoff_intents, message = HistoryProcessor.intents_before_dropoff(
-        collection, request.month
+        collection, request.from_date, request.to_date
     )
     return {"data": dropoff_intents, "message": message}
 
@@ -133,7 +133,7 @@ async def unsuccessful_sessions(request: HistoryQuery = HistoryQuery(),
                            collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the count of sessions that encountered a fallback for a particular user."""
     user_list, message = HistoryProcessor.unsuccessful_session(
-        collection, request.month, request.action_fallback, request.nlu_fallback
+        collection, request.from_date, request.to_date, request.action_fallback, request.nlu_fallback
     )
     return Response(data=user_list, message=message)
 
@@ -143,6 +143,6 @@ async def total_sessions(request: HistoryQuery = HistoryQuery(),
                           collection: str = Depends(Authentication.authenticate_and_get_collection)):
     """Fetches the total session count for users for the past months."""
     user_list, message = HistoryProcessor.session_count(
-        collection, request.month
+        collection, request.from_date, request.to_date
     )
     return Response(data=user_list, message=message)
