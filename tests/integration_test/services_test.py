@@ -11846,6 +11846,17 @@ def test_get_organization_after_update():
     assert result['data']["user"] == "integration1234567890@demo.ai"
 
 
+def test_get_model_testing_logs_accuracy():
+    response = client.get(
+        f"/api/user/test/accuracy",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+
+    assert response["data"] is not None
+    assert response["success"] is True
+    assert response["error_code"] == 0
+
+
 def test_delete_account():
     response_log = client.post(
         "/api/auth/login",
