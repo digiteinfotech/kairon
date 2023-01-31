@@ -10,6 +10,7 @@ from io import BytesIO
 from typing import List
 
 import pandas as pd
+from pydantic import SecretStr
 from starlette.datastructures import Headers, URL
 from starlette.requests import Request
 
@@ -29,6 +30,7 @@ from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Chec
 from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
+from kairon.shared.test.data_objects import ModelTestingLogs
 
 from kairon.api import models
 from kairon.shared.auth import Authentication
@@ -9418,3 +9420,130 @@ class TestModelProcessor:
                                                       "text": "Select a date"}}}}
         with pytest.raises(AppException, match="Form 'unknown' does not exists"):
             assert processor.add_custom_response(jsondata, "utter_custom", "tests", "testUser", "unknown")
+
+    def test_get_model_testing_accuracy(self):
+        account = {
+            "account": "test_accuarcy",
+            "email": "divya.veeravelly@digite.com",
+            "first_name": "test_first",
+            "last_name": "test_last",
+            "password": SecretStr("Quailink@46"),
+        }
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
+
+        pytest.account = user_detail['account']
+        bot1 = AccountProcessor.add_bot("bot_1", 1, "divya.veeravelly@digite.com", False)
+        bot2 = AccountProcessor.add_bot("bot_2", 1, "divya.veeravelly@digite.com", False)
+        u1 = ModelTestingLogs()
+        u1.data = {"intent_evaluation": {"accuracy": 0.6424565337899992}}
+        u1.type = 'nlu'
+        u1.bot = bot1["_id"].__str__()
+        u1.user = "divya"
+        u1.save()
+
+        u2 = ModelTestingLogs()
+        u2.data = {"intent_evaluation": {"accuracy": 0.9875645647434565}}
+        u2.type = 'nlu'
+        u2.bot = bot2["_id"].__str__()
+        u2.user = "divya"
+        u2.save()
+        result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(1, "divya.veeravelli@digite.com")
+        assert result[bot1["_id"].__str__()] == 0.6424565337899992
+        assert result[bot2["_id"].__str__()] == 0.9875645647434565
+
+    def test_get_model_testing_accuracy_field_not_exists(self):
+        account = {
+            "account": "test_accuarcy_log",
+            "email": "abcd@xyz.com",
+            "first_name": "test_first_1",
+            "last_name": "test_last_1",
+            "password": SecretStr("Quailink@46"),
+        }
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
+
+        pytest.account = user_detail['account']
+        bot3 = AccountProcessor.add_bot("bot_3", 2, "abcd@xyz.com", False)
+        bot4 = AccountProcessor.add_bot("bot_4", 2, "abcd@xyz.com", False)
+
+        u1 = ModelTestingLogs()
+        u1.data = {"intent_evaluation": {}}
+        u1.type = 'nlu'
+        u1.bot = bot3["_id"].__str__()
+        u1.user = "divya"
+        u1.save()
+
+        u2 = ModelTestingLogs()
+        u2.data = {"intent_evaluation": {}}
+        u2.type = 'nlu'
+        u2.bot = bot4["_id"].__str__()
+        u2.user = "divya"
+        u2.save()
+        result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(2, "abcd@xyz.com")
+        assert result[bot3["_id"].__str__()] is None
+        assert result[bot4["_id"].__str__()] is None
+
+    def test_get_model_testing_accuracy_mutliple_logs(self):
+        account = {
+            "account": "test_accuarcy_logs",
+            "email": "wxyz@abcd.com",
+            "first_name": "test_first_2",
+            "last_name": "test_last_2",
+            "password": SecretStr("abcdefg@123"),
+        }
+
+        loop = asyncio.new_event_loop()
+        user_detail, mail, link = loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
+
+        pytest.account = user_detail['account']
+        bot_a = AccountProcessor.add_bot("bot_a", 3, "wxyz@abcd.com", False)
+        bot_c = AccountProcessor.add_bot("bot_c", 3, "wxyz@abcd.com", False)
+
+        u1 = ModelTestingLogs()
+        u1.type = "nlu"
+        u1.user = "wxyz@abcd.com"
+        u1.data = {"intent_evaluation": {}}
+        u1.bot = bot_a["_id"].__str__()
+        u1.save()
+
+        u3 = ModelTestingLogs()
+        u3.type = "nlu"
+        u3.user = "wxyz@abcd.com"
+        u3.bot = bot_a["_id"].__str__()
+        u3.data = {"intent_evaluation": {"accuracy": 0.9424565337899992}}
+        u3.save()
+
+        u2 = ModelTestingLogs()
+        u2.type = "nlu"
+        u2.user = "wxyz@abcd.com"
+        u2.bot = bot_a["_id"].__str__()
+        u2.data = {"intent_evaluation": {}}
+        u2.save()
+
+        u4 = ModelTestingLogs()
+        u4.type = "nlu"
+        u4.user = "wxyz@abcd.com"
+        u4.data = {"intent_evaluation": {"accuracy": 0.8424565337899992}}
+        u4.bot = bot_c["_id"].__str__()
+        u4.save()
+
+        u5 = ModelTestingLogs()
+        u5.type = "nlu"
+        u5.user = "wxyz@abcd.com"
+        u5.bot = bot_c["_id"].__str__()
+        u5.data = {"intent_evaluation": {"accuracy": None}}
+        u5.save()
+
+        u6 = ModelTestingLogs()
+        u6.type = "nlu"
+        u6.user = "wxyz@abcd.com"
+        u6.bot = bot_c["_id"].__str__()
+        u6.data = {"intent_evaluation": {}}
+        u6.save()
+
+        result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(3, "wxyz@abcd.com")
+        assert result[bot_a["_id"].__str__()] == 0.9424565337899992
+        assert result[bot_c["_id"].__str__()] == 0.8424565337899992
