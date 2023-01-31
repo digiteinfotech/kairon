@@ -190,3 +190,18 @@ async def get_supported_languages(current_user: User = Security(Authentication.g
     Get supported languages for translation
     """
     return Response(data=Translator.get_supported_languages())
+
+
+@router.get("/test/accuracy",response_model=Response)
+async def get_model_testing_logs_accuracy(
+        current_user: User = Security(Authentication.get_current_user, scopes=TESTER_ACCESS)
+):
+    """
+    Fetches all logs with accuracy
+    """
+
+    data = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(
+        account_id=current_user.account, email=current_user.email)
+    return Response(data=data)
+
+
