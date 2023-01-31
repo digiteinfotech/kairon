@@ -11848,7 +11848,7 @@ def test_get_organization_after_update():
 
 def test_get_model_testing_logs_accuracy():
     response = client.get(
-        f"/api/bot/{pytest.bot}/test/accuracy",
+        f"/api/user/test/accuracy",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
 
