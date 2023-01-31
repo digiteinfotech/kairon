@@ -7551,6 +7551,45 @@ class TestMongoProcessor:
             story_dict = {'name': None, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.add_multiflow_story(story_dict, "tests", "testUser")
 
+    def test_add_multiflow_story_same_source(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "mood", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+        ]
+
+        with pytest.raises(AppException, match="Story cannot have multiple sources!"):
+            story_dict = {'name': 'story with multiple source node', 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "tests", "testUser")
+
+    def test_add_multiflow_story_connected_steps(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "mood", "type": "INTENT"},
+                "connections": [{"name": "utter_mood", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_mood", "type": "BOT"},
+             "connections": None
+            },
+        ]
+
+        with pytest.raises(AppException, match="All steps must be connected!"):
+            story_dict = {'name': 'story with no connected steps', 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "tests", "testUser")
+
     def test_add_empty_multiflow_story_name(self):
         processor = MongoProcessor()
         steps = [
@@ -7692,7 +7731,7 @@ class TestMongoProcessor:
              "connections": [{"name": "utter_more_queries", "type": "BOT"}]
              }
         ]
-        with pytest.raises(Exception):
+        with pytest.raises(AppException, match="Flow does not exists"):
             story_dict = {'name': "non existing story conditional", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.update_multiflow_story(story_dict, "test")
 
@@ -7771,7 +7810,7 @@ class TestMongoProcessor:
              "connections": [{"name": "utter_more_queries", "type": "BOT"}]
              }
         ]
-        with pytest.raises(AppException):
+        with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
             story_dict = {'name': None, 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.update_multiflow_story(story_dict, "tests")
 
@@ -7798,7 +7837,7 @@ class TestMongoProcessor:
              "connections": [{"name": "utter_more_queries", "type": "BOT"}]
              }
         ]
-        with pytest.raises(AppException):
+        with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
             story_dict = {'name': "", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.update_multiflow_story(story_dict, "tests")
 
@@ -7825,13 +7864,13 @@ class TestMongoProcessor:
              "connections": [{"name": "utter_more_queries", "type": "BOT"}]
              }
         ]
-        with pytest.raises(AppException):
+        with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
             story_dict = {'name': " ", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.update_multiflow_story(story_dict, "tests")
 
     def test_update_empty_multiflow_story_event(self):
         processor = MongoProcessor()
-        with pytest.raises(Exception):
+        with pytest.raises(AppException, match='steps are required'):
             story_dict = {'name': "empty path", 'steps': [], 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
             processor.update_multiflow_story(story_dict, "tests")
 

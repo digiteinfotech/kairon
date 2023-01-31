@@ -2,11 +2,13 @@ import os
 
 import pytest
 from mongoengine import ValidationError, connect
+from rasa.shared.core.training_data.structures import STORY_START
 
 from kairon import Utility
 from kairon.api.models import HttpActionConfigRequest, HttpActionParameters, ActionResponseEvaluation
 from kairon.shared.actions.data_objects import SetSlots, HttpActionRequestBody, KaironTwoStageFallbackAction
-from kairon.shared.data.data_objects import Slots, SlotMapping, Entity, StoryEvents
+from kairon.shared.data.data_objects import Slots, SlotMapping, Entity, StoryEvents, StepFlowEvent, \
+    MultiflowStoryEvents, MultiflowStories
 
 
 class TestBotModels:
@@ -142,3 +144,81 @@ class TestBotModels:
         assert story_events_one == story_events_duplicate
         assert not story_events_one == story_events_two
         assert not story_events_one == other_instance_type
+
+    def test_multiflow_story_events_stepname_empty(self):
+        steps = [
+            {"step": {"name": "", "type": "INTENT"},
+             "connections": [{"name": "utter_greet", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+
+        events = [MultiflowStoryEvents(**step) for step in steps]
+        story_obj = MultiflowStories()
+        story_obj.block_name = "a story"
+        story_obj.events = events
+        story_obj.bot = "test"
+        story_obj.user = "testdemo"
+        story_obj.start_checkpoints = [STORY_START]
+        with pytest.raises(ValidationError, match="Name cannot be empty"):
+            story_obj.save()
+
+    def test_multiflow_story_events_storyname_empty(self):
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_greet", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+
+        events = [MultiflowStoryEvents(**step) for step in steps]
+        story_obj = MultiflowStories()
+        story_obj.block_name = " "
+        story_obj.events = events
+        story_obj.bot = "test"
+        story_obj.user = "testdemo"
+        story_obj.start_checkpoints = [STORY_START]
+        with pytest.raises(ValidationError, match="Story name cannot be empty or blank spaces"):
+            story_obj.save()
+
+    def test_multiflow_story_events_empty(self):
+        steps = []
+        events = [MultiflowStoryEvents(**step) for step in steps]
+        story_obj = MultiflowStories()
+        story_obj.block_name = "empty event story"
+        story_obj.events = events
+        story_obj.bot = "test"
+        story_obj.user = "testdemo"
+        story_obj.start_checkpoints = [STORY_START]
+        with pytest.raises(ValidationError, match="events cannot be empty"):
+            story_obj.save()

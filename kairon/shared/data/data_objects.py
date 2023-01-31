@@ -562,6 +562,10 @@ class MultiflowStories(Auditlog):
             raise ValidationError("Story name cannot be empty or blank spaces")
         elif not self.events:
             raise ValidationError("events cannot be empty")
+        for event in self.events:
+            event.step.validate()
+            for connection in event.connections or []:
+                connection.validate()
 
     def clean(self):
         self.block_name = self.block_name.strip().lower()

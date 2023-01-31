@@ -1731,7 +1731,7 @@ class StoryValidator:
 
         source = [x for x in story_graph.nodes() if story_graph.out_degree(x) >= 1 and story_graph.in_degree(x) == 0]
         if len(source) > 1:
-            raise AppException("No multiple sources!")
+            raise AppException("Story cannot have multiple sources!")
 
         if steps[0]['step']['type'] != StoryStepType.intent:
             raise AppException("First step should be an intent")
