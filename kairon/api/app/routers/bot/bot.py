@@ -1,7 +1,6 @@
 import os
 from datetime import date, datetime
 from typing import List, Optional
-from urllib.parse import urljoin
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
 from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
@@ -22,7 +21,7 @@ from kairon.api.models import (
     BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
-    TextDataLowerCase, SlotMappingRequest, EventConfig
+    TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
@@ -46,6 +45,7 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.models import ChannelRequest
 
 router = APIRouter()
+v2 = APIRouter()
 mongo_processor = MongoProcessor()
 
 
@@ -391,7 +391,46 @@ async def get_stories(current_user: User = Security(Authentication.get_current_u
     """
     Fetches existing list of stories (conversation flows)
     """
-    return {"data": list(mongo_processor.get_stories(current_user.get_bot()))}
+    return {"data": list(mongo_processor.get_all_stories(current_user.get_bot()))}
+
+
+@v2.post("/stories", response_model=Response)
+async def add_story_multiflow(
+        story: MultiFlowStoryRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Adds a multiflow story (conversational flow) in the particular bot
+    """
+    return {
+        "message": "Story flow added successfully",
+        "data": {
+            "_id": mongo_processor.add_multiflow_story(
+                story.dict(),
+                current_user.get_bot(),
+                current_user.get_user(),
+            )
+        },
+    }
+
+
+@v2.put("/stories", response_model=Response)
+async def update_story_multiflow(
+        story: MultiFlowStoryRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates a multiflow story (conversational flow) in the particular bot
+    """
+    return {
+        "message": "Story flow updated successfully",
+        "data": {
+            "_id": mongo_processor.update_multiflow_story(
+                story.dict(),
+                current_user.get_bot(),
+            )
+        },
+    }
 
 
 @router.delete("/stories/{story}/{type}", response_model=Response)
@@ -1516,3 +1555,6 @@ async def get_qna_flattened(
         "total": page_cnt
     }
     return Response(data=data)
+
+router.include_router(v2, prefix="/v2")
+

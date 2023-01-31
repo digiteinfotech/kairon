@@ -26,6 +26,7 @@ class StoryStepType(str, Enum):
 class StoryType(str, Enum):
     story = "STORY"
     rule = "RULE"
+    multiflow_story = "MULTIFLOW"
 
 
 class TemplateType(str, Enum):
