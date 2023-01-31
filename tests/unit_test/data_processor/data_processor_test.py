@@ -7235,7 +7235,6 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        print(actions)
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'kairon_bot_response': [],
