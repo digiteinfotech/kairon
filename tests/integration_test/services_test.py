@@ -4002,6 +4002,16 @@ def test_train_on_different_bot(monkeypatch):
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
 
+    response = client.post(
+        f"/api/bot/{pytest.bot_2}/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."
+    complete_end_to_end_event_execution(pytest.bot_2, "integration@demo.ai", EventClass.model_training)
 
 
 def test_train_insufficient_data(monkeypatch):
