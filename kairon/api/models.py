@@ -359,6 +359,22 @@ class StoryStepRequest(BaseModel):
     type: StoryStepType
 
 
+class StoryStepData(BaseModel):
+    step: StoryStepRequest
+    connections: List[StoryStepRequest] = None
+
+
+class MultiFlowStoryRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    steps: List[StoryStepData]
+
+    @validator("steps")
+    def validate_request_method(cls, v, values, **kwargs):
+        if not v:
+            raise ValueError("Steps are required to form Flow")
+        return v
+
+
 class StoryRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     type: StoryType
