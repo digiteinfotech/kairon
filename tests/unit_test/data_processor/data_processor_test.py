@@ -7495,6 +7495,39 @@ class TestMongoProcessor:
                           'template_type': 'CUSTOM'}
             processor.add_multiflow_story(story_dict, "test", "TestUser")
 
+    def test_add_multiflow_story_no_multiple_action_for_intent(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "heyyy", "type": "INTENT"},
+             "connections": [{"name": "utter_heyyy", "type": "BOT"},
+                             {"name": "utter_greet", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+             "connections": [{"name": "more_queriesss", "type": "INTENT"},
+                             {"name": "goodbyeee", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbyeee", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbyeee", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbyeee", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queriesss", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queriesss", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queriesss", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_heyyy", "type": "BOT"},
+             "connections": None
+            }
+        ]
+
+        with pytest.raises(AppException, match="Intent can only have one connection of action type"):
+            story_dict = {'name': "story with multiple action for an intent", 'steps': steps, 'type': 'MULTIFLOW',
+                          'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "test", "TestUser")
+
     def test_add_multiflow_story_with_connected_nodes(self):
         processor = MongoProcessor()
         steps = [

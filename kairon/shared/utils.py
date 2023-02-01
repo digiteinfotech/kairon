@@ -1729,21 +1729,24 @@ class StoryValidator:
         if not is_connected(Graph(story_graph)):
             raise AppException("All steps must be connected!")
 
-        source = [x for x in story_graph.nodes() if story_graph.out_degree(x) >= 1 and story_graph.in_degree(x) == 0]
+        source = [x for x in story_graph.nodes() if story_graph.in_degree(x) == 0]
         if len(source) > 1:
             raise AppException("Story cannot have multiple sources!")
 
-        if steps[0]['step']['type'] != StoryStepType.intent:
+        if source[0].step_type != StoryStepType.intent:
             raise AppException("First step should be an intent")
 
         if recursive_simple_cycles(story_graph):
             raise AppException("Story cannot contain cycle!")
 
-        leaf_nodes_with_intent = [node for node in story_graph.nodes() if story_graph.in_degree(node) != 0 and story_graph.out_degree(node) == 0
+        leaf_nodes_with_intent = [node for node in story_graph.nodes() if story_graph.out_degree(node) == 0
                                     and node.step_type == 'INTENT']
         if leaf_nodes_with_intent:
             raise AppException("Leaf nodes cannot be intent")
 
         for story_node in story_graph.nodes():
-            if story_node.step_type == "INTENT" and [successor for successor in story_graph.successors(story_node) if successor.step_type == "INTENT"]:
-                raise AppException("Intent should be followed by an Action")
+            if story_node.step_type == "INTENT":
+                if [successor for successor in story_graph.successors(story_node) if successor.step_type == "INTENT"]:
+                    raise AppException("Intent should be followed by an Action")
+                if len(list(story_graph.successors(story_node))) > 1:
+                    raise AppException("Intent can only have one connection of action type")
