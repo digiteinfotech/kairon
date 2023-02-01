@@ -7711,24 +7711,24 @@ class TestMongoProcessor:
     def test_update_non_existing_multiflow_story(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT"},
-             "connections": [{"name": "utter_time", "type": "BOT"}]
+            {"step": {"name": "greeted", "type": "INTENT"},
+             "connections": [{"name": "utter_timed", "type": "BOT"}]
              },
-            {"step": {"name": "utter_time", "type": "BOT"},
-             "connections": [{"name": "more_queries", "type": "INTENT"},
-                             {"name": "goodbye", "type": "INTENT"}]
+            {"step": {"name": "utter_timed", "type": "BOT"},
+             "connections": [{"name": "some_more_queries", "type": "INTENT"},
+                             {"name": "saying_goodbye", "type": "INTENT"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            {"step": {"name": "saying_goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_saying_goodbye", "type": "BOT"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT"},
+            {"step": {"name": "utter_saying_goodbye", "type": "BOT"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT"},
+            {"step": {"name": "utter_some_more_queries", "type": "BOT"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            {"step": {"name": "some_more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_some_more_queries", "type": "BOT"}]
              }
         ]
         with pytest.raises(AppException, match="Flow does not exists"):
