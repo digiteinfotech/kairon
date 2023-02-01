@@ -29,7 +29,7 @@ from rasa.shared.core.slots import (
 from validators import url, ValidationFailure
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.exceptions import AppException
-from kairon.shared.utils import Utility, StoryValidator
+from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType, StoryStepType
 from validators import domain
 
