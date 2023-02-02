@@ -2,6 +2,7 @@ import itertools
 import json
 import os
 import uuid
+import networkx as nx
 from collections import ChainMap
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -44,8 +45,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
-from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType
-from kairon.shared.utils import Utility
+from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType
+from kairon.shared.utils import Utility, StoryValidator
 from .base_data import AuditLogData
 from .constant import (
     DOMAIN,
@@ -82,7 +83,8 @@ from .data_objects import (
     StoryEvents,
     ModelDeployment,
     Rules,
-    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator
+    Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
+    MultiflowStories, MultiflowStoryEvents
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
@@ -383,6 +385,15 @@ class MongoProcessor:
         :return: StoryGraph
         """
         return self.__prepare_training_story(bot)
+
+    def load_multiflow_stories(self, bot: Text) -> StoryGraph:
+        """
+        loads stories for training
+
+        :param bot: bot id
+        :return: StoryGraph
+        """
+        return self.__prepare_training_multiflow_story(bot)
 
     def __save_training_examples(self, training_examples, bot: Text, user: Text):
         if training_examples:
@@ -1058,6 +1069,45 @@ class MongoProcessor:
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
+    def __prepare_training_multiflow_story_events(self, events, timestamp):
+        roots = []
+        leaves = []
+        paths = []
+        events = StoryValidator.get_graph(events)
+        for node in events.nodes:
+            if events.in_degree(node) == 0:
+                roots.append(node)
+            elif events.out_degree(node) == 0:
+                leaves.append(node)
+
+        for root in roots:
+            for leaf in leaves:
+                for path in nx.all_simple_paths(events, root, leaf):
+                    paths.append(path)
+        for path in paths:
+            for event in path:
+                if event.step_type == StoryStepType.intent.value:
+
+                    intent = {
+                        STORY_EVENT.NAME.value: event.name,
+                        STORY_EVENT.CONFIDENCE.value: 1.0,
+                    }
+                    parse_data = {
+                        "text": INTENT_MESSAGE_PREFIX + event.name,
+                        "intent": intent,
+                        "intent_ranking": [intent],
+                        "entities": [],
+                    }
+                    yield UserUttered(
+                        text=event.name,
+                        intent=intent,
+                        parse_data=parse_data,
+                        timestamp=timestamp,
+                        entities=[],
+                    )
+                else:
+                    yield ActionExecuted(action_name=event.name, timestamp=timestamp)
+
     def fetch_stories(self, bot: Text, status=True):
         """
         fetches stories
@@ -1088,8 +1138,32 @@ class MongoProcessor:
                 ],
             )
 
+    def __prepare_training_multiflow_story_step(self, bot: Text):
+        for story in MultiflowStories.objects(bot=bot, status=True):
+            events = story.to_mongo().to_dict()['events']
+            story_events = list(
+                self.__prepare_training_multiflow_story_events(
+                    events, datetime.now().timestamp()
+                )
+            )
+            yield StoryStep(
+                block_name=story.block_name,
+                events=story_events,
+                start_checkpoints=[
+                    Checkpoint(start_checkpoint)
+                    for start_checkpoint in story.start_checkpoints
+                ],
+                end_checkpoints=[
+                    Checkpoint(end_checkpoints)
+                    for end_checkpoints in story.end_checkpoints
+                ],
+            )
+
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
+
+    def __prepare_training_multiflow_story(self, bot: Text):
+        return StoryGraph(list(self.__prepare_training_multiflow_story_step(bot)))
 
     def save_config(self, configs: dict, bot: Text, user: Text):
         """
@@ -2078,6 +2152,48 @@ class MongoProcessor:
 
         return id
 
+    def add_multiflow_story(self, story: Dict, bot: Text, user: Text):
+        """
+        save conditional story in mongodb
+
+        :param story: story steps list
+        :param bot: bot id
+        :param user: user id
+        :return: story id
+        :raises: AppException: Story already exist!
+
+        """
+
+        name = story['name']
+        steps = story['steps']
+        if Utility.check_empty_string(name):
+            raise AppException("Story name cannot be empty or blank spaces")
+
+        if not steps:
+            raise AppException("steps are required")
+
+        StoryValidator.validate_steps(steps)
+        events = [MultiflowStoryEvents(**step) for step in steps]
+        Utility.is_exist_query(MultiflowStories,
+                               query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
+                               exp_message="Story flow already exists!")
+
+        story_obj = MultiflowStories()
+        story_obj.block_name = name
+        story_obj.events = events
+        story_obj.bot = bot
+        story_obj.user = user
+        story_obj.start_checkpoints = [STORY_START]
+
+        id = (
+            story_obj.save().to_mongo().to_dict()["_id"].__str__()
+        )
+
+        self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
+                      raise_exception_if_exists=False)
+
+        return id
+
     def update_complex_story(self, story: Dict, bot: Text, user: Text):
         """
         Updates story in mongodb
@@ -2121,6 +2237,41 @@ class MongoProcessor:
         )
         return story_id
 
+    def update_multiflow_story(self, story: Dict, bot: Text):
+        """
+        Updates story in mongodb
+
+        :param story: dict contains name, steps and type for either rules or story
+        :param bot: bot id
+        :param user: user id
+        :return: story id
+        :raises: AppException: Story already exist!
+
+        """
+        name = story['name']
+        steps = story['steps']
+        if Utility.check_empty_string(name):
+            raise AppException("Story name cannot be empty or blank spaces")
+
+        if not steps:
+            raise AppException("steps are required")
+
+        StoryValidator.validate_steps(steps)
+        events = [MultiflowStoryEvents(**step) for step in steps]
+        Utility.is_exist_query(MultiflowStories,
+                               query=(Q(bot=bot) & Q(status=True) & Q(events=events)),
+                               exp_message="Story flow already exists!")
+
+        try:
+            story_obj = MultiflowStories.objects(bot=bot, status=True, block_name__iexact=name).get()
+            story_obj.events = events
+            story_id = (
+                story_obj.save().to_mongo().to_dict()["_id"].__str__()
+            )
+            return story_id
+        except DoesNotExist:
+            raise AppException("Flow does not exists")
+
     def delete_complex_story(self, name: str, type: Text, bot: Text, user: Text):
         """
         Soft deletes complex story.
@@ -2131,11 +2282,12 @@ class MongoProcessor:
         :return:
         """
 
-        data_class = None
-        if type == 'STORY':
+        if type == StoryType.story.value:
             data_class = Stories
-        elif type == 'RULE':
+        elif type == StoryType.rule.value:
             data_class = Rules
+        elif type == StoryType.multiflow_story.value:
+            data_class = MultiflowStories
         else:
             raise AppException("Invalid type")
         try:
@@ -2145,6 +2297,11 @@ class MongoProcessor:
         Utility.delete_document(
             [data_class], bot=bot, user=user, block_name__iexact=name
         )
+
+    def get_all_stories(self, bot: Text):
+        standard_stories = list(self.get_stories(bot=bot))
+        multiflow_stories = list(self.get_multiflow_stories(bot=bot))
+        return standard_stories + multiflow_stories
 
     def get_stories(self, bot: Text):
         """
@@ -2173,9 +2330,9 @@ class MongoProcessor:
             final_data["_id"] = item["_id"].__str__()
             final_data['template_type'] = item.pop("template_type")
             if isinstance(value, Stories):
-                final_data['type'] = 'STORY'
+                final_data['type'] = StoryType.story.value
             elif isinstance(value, Rules):
-                final_data['type'] = 'RULE'
+                final_data['type'] = StoryType.rule.value
             else:
                 continue
             steps = []
@@ -2222,6 +2379,25 @@ class MongoProcessor:
 
             final_data['name'] = block_name
             final_data['steps'] = steps
+            yield final_data
+
+    def get_multiflow_stories(self, bot: Text):
+        """
+        fetches stories
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        multiflow = list(MultiflowStories.objects(bot=bot, status=True))
+        for value in multiflow:
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            block_name = item.pop("block_name")
+            events = item.pop("events")
+            final_data['type'] = StoryType.multiflow_story.value
+            final_data["_id"] = item["_id"].__str__()
+            final_data['name'] = block_name
+            final_data['steps'] = events
             yield final_data
 
     def get_utterance_from_intent(self, intent: Text, bot: Text):

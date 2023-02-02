@@ -1861,9 +1861,8 @@ def test_add_story_invalid_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'],
-                                  'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'",
-                                  'type': 'type_error.enum'}]
+    assert actual["message"] == [{'loc': ['body', 'type'], 'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE', 'MULTIFLOW'",
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['STORY', 'RULE', 'MULTIFLOW']}}]
 
 
 def test_add_story_empty_event():
@@ -2011,6 +2010,155 @@ def test_add_story_invalid_event_type():
     )
 
 
+def test_add_multiflow_story():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": [{"name": "more_queries", "type": "INTENT"},
+                                {"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+            },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            }
+        ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == "Story flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_multiflow_story_no_steps():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path",
+            "steps": []
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'steps'], 'msg': 'Steps are required to form Flow', 'type': 'value_error'}]
+    assert actual["data"] is None
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_multiflow_story_lone_intent():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_add_multiflow_story_lone_intent",
+            "steps": [
+                {"step": {"name": "greet", "type": "INTENT"},
+                 "connections": [{"name": "utter_greet", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_greet", "type": "BOT"},
+                 "connections": [{"name": "queries", "type": "INTENT"},
+                                 {"name": "goodbye", "type": "INTENT"}]
+                 },
+                {"step": {"name": "goodbye", "type": "INTENT"},
+                 "connections": None
+                },
+                {"step": {"name": "queries", "type": "INTENT"},
+                 "connections": None
+                },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    print(actual["message"])
+    assert actual["message"] == "Leaf nodes cannot be intent"
+
+
+def test_add_multiflow_story_missing_event_type():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+                {"step": {"name": "hi"},
+                 "connections": [{"name": "utter_hi", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_greet", "type": "BOT"},
+                 "connections": [{"name": "queries", "type": "INTENT"},
+                                 {"name": "goodbye", "type": "INTENT"}]
+                 },
+                {"step": {"name": "goodbye", "type": "INTENT"},
+                 "connections": None
+                 },
+                {"step": {"name": "queries", "type": "INTENT"},
+                 "connections": None
+                 },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    print(actual["message"])
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == [{'loc': ['body', 'steps', 0, 'step', 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    )
+
+
+def test_add_multiflow_story_invalid_event_type():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+                {"step": {"name": "hi", "type": "data"},
+                 "connections": [{"name": "utter_hi", "type": "BOT"}]
+                 },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    print(actual["message"])
+    assert (
+            actual["message"]
+            == [{'loc': ['body', 'steps', 0, 'step', 'type'],
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', "
+                        "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
+                        "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
+                        "'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT',
+                 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
+                 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION',
+                 'TWO_STAGE_FALLBACK_ACTION']}
+                 }]
+    )
+
+
 def test_update_story():
     response = client.put(
         f"/api/bot/{pytest.bot}/stories",
@@ -2056,6 +2204,128 @@ def test_update_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
+
+
+def test_update_multiflow_story():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+                {"step": {"name": "greeting", "type": "INTENT"},
+                 "connections": [{"name": "utter_greeting", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_greeting", "type": "BOT"},
+                 "connections": [{"name": "more_query", "type": "INTENT"},
+                                 {"name": "goodbye", "type": "INTENT"}]
+                 },
+                {"step": {"name": "goodbye", "type": "INTENT"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_goodbye", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "utter_more_query", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "more_query", "type": "INTENT"},
+                 "connections": [{"name": "utter_more_query", "type": "BOT"}]
+                 }
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == "Story flow updated successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_update_multiflow_story_invalid_event_type():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+                {"step": {"name": "hiie", "type": "data"},
+                 "connections": [{"name": "utter_hiie", "type": "BOT"}]
+                 },
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    print(actual["message"])
+    assert (
+            actual["message"]
+            == [{'loc': ['body', 'steps', 0, 'step', 'type'],
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', "
+                        "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
+                        "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
+                        "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END',
+                        'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
+                        'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
+                        'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']}
+                 }]
+    )
+
+
+def test_get_multiflow_stories():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["data"])
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert Utility.check_empty_string(actual["message"])
+    get_story = [x for x in actual["data"] if x['type'] == 'MULTIFLOW' and x['name'] == 'test_path']
+    assert len(get_story) == 1
+    get_story = get_story[0]
+    assert get_story['type'] == 'MULTIFLOW'
+    assert get_story['name'] == 'test_path'
+    assert get_story['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT'},
+                                            'connections': [{'name': 'utter_greeting', 'type': 'BOT'}]},
+                                           {'step': {'name': 'utter_greeting', 'type': 'BOT'},
+                                            'connections': [{'name': 'more_query', 'type': 'INTENT'},
+                                                            {'name': 'goodbye', 'type': 'INTENT'}]},
+                                           {'step': {'name': 'goodbye', 'type': 'INTENT'},
+                                            'connections': [{'name': 'utter_goodbye', 'type': 'BOT'}]},
+                                           {'step': {'name': 'utter_goodbye', 'type': 'BOT'},
+                                            'connections': []},
+                                           {'step': {'name': 'utter_more_query', 'type': 'BOT'},
+                                            'connections': []},
+                                           {'step': {'name': 'more_query', 'type': 'INTENT'},
+                                            'connections': [{'name': 'utter_more_query', 'type': 'BOT'}]}]
+
+
+def test_delete_multiflow_story():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/stories/test_path/MULTIFLOW",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Flow deleted successfully"
+
+
+def test_delete_multiflow_non_existing_story():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/stories/test_path2/MULTIFLOW",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Flow does not exists"
 
 
 def test_delete_story():
@@ -5513,9 +5783,9 @@ def test_add_rule_invalid_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'ctx': {'enum_values': ['STORY', 'RULE']}, 'loc': ['body', 'type'],
-                                  'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE'",
-                                  'type': 'type_error.enum'}]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'type'], 'msg': "value is not a valid enumeration member; permitted: 'STORY', 'RULE', 'MULTIFLOW'",
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['STORY', 'RULE', 'MULTIFLOW']}}]
 
 
 def test_add_rule_empty_event():

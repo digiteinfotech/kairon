@@ -29,6 +29,7 @@ from loguru import logger
 from mongoengine.document import BaseDocument, Document
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.visitor import QCombination
+from networkx import DiGraph, Graph, is_connected, recursive_simple_cycles
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
@@ -54,6 +55,8 @@ from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES
 from .constants import EventClass
 from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK
+from .data.dto import KaironStoryStep
+from .models import StoryStepType
 from ..exceptions import AppException
 
 
@@ -1701,3 +1704,49 @@ class Utility:
         required_headers = {'questions', 'answer'}
         if not required_headers.issubset(columns):
             raise AppException(f"Required columns {required_headers} not present in file.")
+
+
+class StoryValidator:
+
+    @staticmethod
+    def get_graph(steps: List) -> DiGraph:
+        graph = DiGraph()
+        vertices = {}
+        for story_step in steps:
+            vertices[story_step['step']['name']] = KaironStoryStep(story_step["step"]["name"],
+                                                                   story_step["step"]["type"])
+        for story_step in steps:
+            story_step_object = vertices[story_step["step"]["name"]]
+            for connected_story_step in story_step['connections'] or []:
+                connection_object = vertices[connected_story_step["name"]]
+                graph.add_edge(story_step_object, connection_object)
+        return graph
+
+    @staticmethod
+    def validate_steps(steps: List):
+        story_graph = StoryValidator.get_graph(steps)
+
+        if not is_connected(Graph(story_graph)):
+            raise AppException("All steps must be connected!")
+
+        source = [x for x in story_graph.nodes() if story_graph.in_degree(x) == 0]
+        if len(source) > 1:
+            raise AppException("Story cannot have multiple sources!")
+
+        if source[0].step_type != StoryStepType.intent:
+            raise AppException("First step should be an intent")
+
+        if recursive_simple_cycles(story_graph):
+            raise AppException("Story cannot contain cycle!")
+
+        leaf_nodes_with_intent = [node for node in story_graph.nodes() if story_graph.out_degree(node) == 0
+                                    and node.step_type == 'INTENT']
+        if leaf_nodes_with_intent:
+            raise AppException("Leaf nodes cannot be intent")
+
+        for story_node in story_graph.nodes():
+            if story_node.step_type == "INTENT":
+                if [successor for successor in story_graph.successors(story_node) if successor.step_type == "INTENT"]:
+                    raise AppException("Intent should be followed by an Action")
+                if len(list(story_graph.successors(story_node))) > 1:
+                    raise AppException("Intent can only have one connection of action type")

@@ -51,7 +51,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
                                              TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
-                                             SlotMapping, KeyVault
+                                             SlotMapping, KeyVault, MultiflowStories
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -1191,6 +1191,49 @@ class TestMongoProcessor:
                 user="testUser",
             )
 
+    def test_train_on_multiflow_story(self):
+        bot = "tests"
+        user = "testUser"
+        processor = MongoProcessor()
+        list(processor.add_training_example(["How is the sky today?"], intent="query", bot=bot, user=user,
+                                           is_integration=False))
+        list(processor.add_training_example(["Will it rain?"], intent="more_queries", bot=bot, user=user,
+                                            is_integration=False))
+        list(processor.add_training_example(["Bubye, will see you!"], intent="goodbye", bot=bot, user=user,
+                                            is_integration=False))
+
+        processor.add_response({"text": "It is Sunny!"}, "utter_query", bot, user)
+        processor.add_response({"text": "See you, Bye!"}, "utter_goodbye", bot, user)
+        processor.add_response({"text": "No, it won't rain."}, "utter_more_queries", bot, user)
+
+
+        steps = [
+            {"step": {"name": "query", "type": "INTENT"},
+                "connections": [{"name": "utter_query", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_query", "type": "BOT"},
+                "connections": [{"name": "more_queries", "type": "INTENT"},
+                                {"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+            },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            }
+        ]
+
+        story_dict = {'name': "story for training", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        story = MultiflowStories.objects(block_name="story for training", bot=bot).get()
+        assert len(story.events) == 6
+
     def test_add_session_config(self):
         processor = MongoProcessor()
         id_add = processor.add_session_config(
@@ -1526,6 +1569,38 @@ class TestMongoProcessor:
         assert stories[0]['steps'][1]['name'] == 'utter_greet'
         assert stories[0]['steps'][1]['type'] == 'BOT'
         assert stories[0]['template_type'] == 'CUSTOM'
+
+    def test_get_multiflow_stories(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greeting", "type": "INTENT"},
+             "connections": [{"name": "utter_hiii", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_hiii", "type": "BOT"},
+             "connections": [{"name": "record", "type": "INTENT"},
+                             {"name": "id", "type": "INTENT"}]
+             },
+            {"step": {"name": "id", "type": "INTENT"},
+             "connections": [{"name": "utter_id", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_id", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_record", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "record", "type": "INTENT"},
+             "connections": [{"name": "utter_record", "type": "BOT"}]
+             }
+        ]
+        story_dict = {"name": "a different story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "tester", "TesterUser")
+        stories = list(processor.get_multiflow_stories("tester"))
+        print(stories)
+        assert stories.__len__() == 1
+        assert stories[0]['name'] == 'a different story'
+        assert stories[0]['type'] == 'MULTIFLOW'
+        assert stories[0]['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT'}, 'connections': [{'name': 'utter_hiii', 'type': 'BOT'}]}, {'step': {'name': 'utter_hiii', 'type': 'BOT'}, 'connections': [{'name': 'record', 'type': 'INTENT'}, {'name': 'id', 'type': 'INTENT'}]}, {'step': {'name': 'id', 'type': 'INTENT'}, 'connections': [{'name': 'utter_id', 'type': 'BOT'}]}, {'step': {'name': 'utter_id', 'type': 'BOT'}, 'connections': []}, {'step': {'name': 'utter_record', 'type': 'BOT'}, 'connections': []}, {'step': {'name': 'record', 'type': 'INTENT'}, 'connections': [{'name': 'utter_record', 'type': 'BOT'}]}]
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -6542,7 +6617,7 @@ class TestMongoProcessor:
     def test_get_intents_and_training_examples(self):
         processor = MongoProcessor()
         actual = processor.get_intents_and_training_examples("tests")
-        assert len(actual) == 17
+        assert len(actual) == 19
 
     def test_delete_intent_no_training_examples(self):
         processor = MongoProcessor()
@@ -7160,6 +7235,7 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
+        print(actions)
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'kairon_bot_response': [],
@@ -7173,7 +7249,7 @@ class TestMongoProcessor:
                                           'utter_good_feedback',
                                           'utter_bad_feedback',
                                           'utter_default',
-                                          'utter_please_rephrase', 'utter_custom']}
+                                          'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}
 
     def test_add_duplicate_complex_story(self):
         processor = MongoProcessor()
@@ -7294,6 +7370,573 @@ class TestMongoProcessor:
         rule_dict = {'name': "rule with invalid events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
             processor.add_complex_story(rule_dict, "tests", "testUser")
+
+    def test_add_multiflow_story(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": [{"name": "more_queries", "type": "INTENT"},
+                                {"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+            },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            }
+        ]
+
+        story_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "test", "TestUser")
+        story = MultiflowStories.objects(block_name="story", bot="test").get()
+        assert len(story.events) == 6
+
+    def test_add_multiflow_story_with_same_events(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": [{"name": "more_queries", "type": "INTENT"},
+                                {"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+            },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            }
+        ]
+
+        story_dict = {'name': "story with same flow events", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException, match="Story flow already exists!"):
+            processor.add_multiflow_story(story_dict, "test", "TestUser")
+
+    def test_add_multiflow_story_with_multiple_actions(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": [{"name": "utter_qoute", "type": "BOT"},
+                                {"name": "utter_thought", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_thought", "type": "BOT"},
+                "connections": [{"name": "more_queries", "type": "INTENT"}]
+            },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_qoute", "type": "BOT"},
+             "connections": [{"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+            },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+            }
+        ]
+
+        story_dict = {'name': "story with multiple actions", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "test", "TestUser")
+        story = MultiflowStories.objects(block_name="story with multiple actions", bot="test").get()
+        assert len(story.events) == 8
+
+    def test_add_multiflow_story_with_cycle(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": [{"name": "utter_qoute", "type": "BOT"},
+                                {"name": "utter_thought", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_thought", "type": "BOT"},
+                "connections": [{"name": "more_queries", "type": "INTENT"}]
+            },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+                "connections": [{"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "utter_qoute", "type": "BOT"},
+             "connections": [{"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+                "connections": [{"name": "utter_qoute", "type": "BOT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": None
+            }
+        ]
+
+        with pytest.raises(AppException, match="Story cannot contain cycle!"):
+            story_dict = {'name': "story with cycle", 'steps': steps, 'type': 'MULTIFLOW',
+                          'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "test", "TestUser")
+
+    def test_add_multiflow_story_no_multiple_action_for_intent(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "heyyy", "type": "INTENT"},
+             "connections": [{"name": "utter_heyyy", "type": "BOT"},
+                             {"name": "utter_greet", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+             "connections": [{"name": "more_queriesss", "type": "INTENT"},
+                             {"name": "goodbyeee", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbyeee", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbyeee", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbyeee", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queriesss", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queriesss", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queriesss", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_heyyy", "type": "BOT"},
+             "connections": None
+            }
+        ]
+
+        with pytest.raises(AppException, match="Intent can only have one connection of action type"):
+            story_dict = {'name': "story with multiple action for an intent", 'steps': steps, 'type': 'MULTIFLOW',
+                          'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "test", "TestUser")
+
+    def test_add_multiflow_story_with_connected_nodes(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": [{"name": "thought", "type": "INTENT"},
+                                {"name": "mood", "type": "INTENT"}]
+            },
+            {"step": {"name": "mood", "type": "INTENT"},
+                "connections": [{"name": "utter_mood", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_mood", "type": "BOT"},
+                "connections": [{"name": "utter_thought", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_thought", "type": "BOT"},
+             "connections": None
+            },
+            {"step": {"name": "thought", "type": "INTENT"},
+                "connections": [{"name": "utter_thought", "type": "BOT"}]
+            }
+        ]
+
+        story_dict = {'name': "story with connected nodes", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "test", "TestUser")
+        story = MultiflowStories.objects(block_name="story with connected nodes", bot="test").get()
+        assert len(story.events) == 6
+
+    def test_add_none_multiflow_story_name(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_greet", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        with pytest.raises(AppException, match="Story name cannot be empty or blank spaces"):
+            story_dict = {'name': None, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "tests", "testUser")
+
+    def test_add_multiflow_story_same_source(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "mood", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+        ]
+
+        with pytest.raises(AppException, match="Story cannot have multiple sources!"):
+            story_dict = {'name': 'story with multiple source node', 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "tests", "testUser")
+
+    def test_add_multiflow_story_connected_steps(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "mood", "type": "INTENT"},
+                "connections": [{"name": "utter_mood", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_mood", "type": "BOT"},
+             "connections": None
+            },
+        ]
+
+        with pytest.raises(AppException, match="All steps must be connected!"):
+            story_dict = {'name': 'story with no connected steps', 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "tests", "testUser")
+
+    def test_add_empty_multiflow_story_name(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_greet", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        with pytest.raises(AppException, match="Story name cannot be empty or blank spaces"):
+            story_dict = {'name': "", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "tests", "testUser")
+
+    def test_add_blank_multiflow_story_name(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_greet", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        with pytest.raises(AppException, match="Story name cannot be empty or blank spaces"):
+            story_dict = {'name': " ", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "tests", "testUser")
+
+    def test_add_empty_multiflow_story_event(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="steps are required"):
+            story_dict = {'name': "empty path", 'steps': [], 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.add_multiflow_story(story_dict, "test", "TestUser")
+
+    def test_update_multiflow_story(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_time", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_time", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        story_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.update_multiflow_story(story_dict, "test")
+        story = MultiflowStories.objects(block_name="story", bot="test").get()
+        assert story.events[0]['connections'][0]['name'] == "utter_time"
+        # print(story.events[1].name)
+        # assert story.events[1].name == "utter_nonsense"
+
+    def test_update_multiflow_story_with_same_events(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_time", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_time", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+
+        story_dict = {'name': "story update with same flow events", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException, match="Story flow already exists!"):
+            processor.update_multiflow_story(story_dict, "test")
+
+    def test_update_non_existing_multiflow_story(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greeted", "type": "INTENT"},
+             "connections": [{"name": "utter_timed", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_timed", "type": "BOT"},
+             "connections": [{"name": "some_more_queries", "type": "INTENT"},
+                             {"name": "saying_goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "saying_goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_saying_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_saying_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_some_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "some_more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_some_more_queries", "type": "BOT"}]
+             }
+        ]
+        with pytest.raises(AppException, match="Flow does not exists"):
+            story_dict = {'name': "non existing story conditional", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.update_multiflow_story(story_dict, "test")
+
+    def test_update_multiflow_story_with_invalid_event(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "BOT"},
+             "connections": [{"name": "utter_time", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_time", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        story_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException, match="First step should be an intent"):
+            processor.update_multiflow_story(story_dict, "test")
+
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_time", "type": "INTENT"}]
+             },
+            {"step": {"name": "utter_time", "type": "INTENT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        rule_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException, match="Intent should be followed by an Action"):
+            processor.update_multiflow_story(rule_dict, "test")
+
+    def test_update_multiflow_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"step": {"name": "greet", "type": "BOT"},
+             "connections": [{"name": "utter_greeting", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_time", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
+            story_dict = {'name': None, 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.update_multiflow_story(story_dict, "tests")
+
+    def test_update_empty_multiflow_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"step": {"name": "greet", "type": "BOT"},
+             "connections": [{"name": "utter_time", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_time", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
+            story_dict = {'name': "", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.update_multiflow_story(story_dict, "tests")
+
+    def test_update_blank_multiflow_story_name(self):
+        processor = MongoProcessor()
+        events = [
+            {"step": {"name": "greet", "type": "BOT"},
+             "connections": [{"name": "utter_time", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_time", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
+            story_dict = {'name': " ", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.update_multiflow_story(story_dict, "tests")
+
+    def test_update_empty_multiflow_story_event(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='steps are required'):
+            story_dict = {'name': "empty path", 'steps': [], 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            processor.update_multiflow_story(story_dict, "tests")
+
+    def test_delete_multiflow_story(self):
+        processor = MongoProcessor()
+        processor.delete_complex_story("story", "MULTIFLOW", "test", "TestUser")
+
+    def test_case_delete_multiflow_story(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_hi", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_hi", "type": "BOT"},
+             "connections": [{"name": "status", "type": "INTENT"},
+                             {"name": "id", "type": "INTENT"}]
+             },
+            {"step": {"name": "id", "type": "INTENT"},
+             "connections": [{"name": "utter_id", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_id", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_status", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "status", "type": "INTENT"},
+             "connections": [{"name": "utter_status", "type": "BOT"}]
+             }
+        ]
+        story_dict = {"name": "a story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "test", "TestUser")
+        processor.delete_complex_story("a story", "MULTIFLOW", "test", "TestUser")
 
     def test_update_complex_story(self):
         processor = MongoProcessor()
@@ -7558,7 +8201,7 @@ class TestMongoProcessor:
                            'utter_good_feedback',
                            'utter_bad_feedback',
                            'utter_default',
-                           'utter_please_rephrase', 'utter_custom']}
+                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}
 
     def test_add_duplicate_rule(self):
         processor = MongoProcessor()

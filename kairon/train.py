@@ -105,6 +105,8 @@ def train_model_for_bot(bot: str):
         raise AppException("Training data does not exists!")
     domain = processor.load_domain(bot)
     stories = processor.load_stories(bot)
+    multiflow_stories = processor.load_multiflow_stories(bot)
+    stories.merge(multiflow_stories)
     config = processor.load_config(bot)
     rules = processor.get_rules_for_training(bot)
 
@@ -132,6 +134,8 @@ def train_model_for_bot(bot: str):
     del nlu
     del domain
     del stories
+    del rules
+    del multiflow_stories
     del config
     Utility.move_old_models(output, model)
     Utility.delete_models(bot)
