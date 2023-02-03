@@ -2194,10 +2194,11 @@ class MongoProcessor:
 
         return id
 
-    def update_complex_story(self, story: Dict, bot: Text, user: Text):
+    def update_complex_story(self, story_id: Text, story: Dict, bot: Text, user: Text):
         """
         Updates story in mongodb
 
+        :param story_id: story id
         :param story: dict contains name, steps and type for either rules or story
         :param bot: bot id
         :param user: user id
@@ -2222,7 +2223,7 @@ class MongoProcessor:
             raise AppException("Invalid type")
 
         try:
-            data_object = data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
+            data_object = data_class.objects(bot=bot, status=True, id=story_id).get()
         except DoesNotExist:
             raise AppException("Flow does not exists")
 
@@ -2231,16 +2232,17 @@ class MongoProcessor:
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
                                exp_message="Flow already exists!")
-
+        data_object['block_name'] = name
         story_id = (
             data_object.save().to_mongo().to_dict()["_id"].__str__()
         )
         return story_id
 
-    def update_multiflow_story(self, story: Dict, bot: Text):
+    def update_multiflow_story(self, story_id: Text, story: Dict, bot: Text):
         """
         Updates story in mongodb
 
+        :param story_id: story id
         :param story: dict contains name, steps and type for either rules or story
         :param bot: bot id
         :param user: user id
@@ -2263,8 +2265,9 @@ class MongoProcessor:
                                exp_message="Story flow already exists!")
 
         try:
-            story_obj = MultiflowStories.objects(bot=bot, status=True, block_name__iexact=name).get()
+            story_obj = MultiflowStories.objects(bot=bot, status=True, id=story_id).get()
             story_obj.events = events
+            story_obj.block_name = name
             story_id = (
                 story_obj.save().to_mongo().to_dict()["_id"].__str__()
             )

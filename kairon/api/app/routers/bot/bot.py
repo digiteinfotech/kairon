@@ -366,8 +366,9 @@ async def add_story(
     }
 
 
-@router.put("/stories", response_model=Response)
+@router.put("/stories/{story_id}", response_model=Response)
 async def update_story(
+        story_id: str,
         story: StoryRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
@@ -378,6 +379,7 @@ async def update_story(
         "message": "Flow updated successfully",
         "data": {
             "_id": mongo_processor.update_complex_story(
+                story_id,
                 story.dict(),
                 current_user.get_bot(),
                 current_user.get_user(),
@@ -414,8 +416,9 @@ async def add_story_multiflow(
     }
 
 
-@v2.put("/stories", response_model=Response)
+@v2.put("/stories/{story_id}", response_model=Response)
 async def update_story_multiflow(
+        story_id: str,
         story: MultiFlowStoryRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
@@ -426,6 +429,7 @@ async def update_story_multiflow(
         "message": "Story flow updated successfully",
         "data": {
             "_id": mongo_processor.update_multiflow_story(
+                story_id,
                 story.dict(),
                 current_user.get_bot(),
             )
