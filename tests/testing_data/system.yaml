@@ -22,6 +22,7 @@ security:
   secret_key: ${SECRET_KEY:"b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"}
   algorithm: "HS256"
   token_expire: ${TOKEN_EXPIRE:10080}
+  refresh_token_expire: ${REFRESH_TOKEN_EXPIRE:11520}
   test_user_password: "Welcome@1"
   fernet_key: ${FERNET_KEY:"gH8F9M-3GTxT1z-XyvJXZlCfxfbMuFr2HgXDHl7Xkuw="}
   validate_recaptcha: ${VALIDATE_RECAPTCHA:false}
