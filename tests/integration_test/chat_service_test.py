@@ -52,7 +52,7 @@ loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email
                                                                           "confirm_password": "resetPswrd@12",
                                                                           "account": "ResetPassword"}).dict()))
 
-token = Authentication.authenticate("test@chat.com", "testChat@12")
+token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
 bot = user['bots']['account_owned'][0]['_id']
@@ -1509,7 +1509,7 @@ class TestChatServer(AsyncHTTPTestCase):
     def test_reload_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
         bot = user['bots']['account_owned'][0]['_id']
-        access_token = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
+        access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
         UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
         reload_response = self.fetch(
             f"/api/bot/{bot}/reload",
@@ -1527,7 +1527,7 @@ class TestChatServer(AsyncHTTPTestCase):
     def test_live_agent_after_reset_passwrd(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
         bot = user['bots']['account_owned'][0]['_id']
-        access_token = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
+        access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
         UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
         live_response = self.fetch(
             f"/api/bot/{bot}/agent/live/2",
@@ -1645,7 +1645,7 @@ class TestChatServer(AsyncHTTPTestCase):
     def test_get_chat_history_http_error(self):
         user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
         bot = user['bots']['account_owned'][0]['_id']
-        access_token = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
+        access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
         UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
         reload_response = self.fetch(
             f"/api/bot/{bot}/conversation",
