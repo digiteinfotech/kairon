@@ -7995,9 +7995,9 @@ class TestMongoProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
-        with pytest.raises(Exception):
+        with pytest.raises(AppException, match="Flow does not exists"):
             story_dict = {'name': "non existing story", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-            processor.update_complex_story('non existing story_id', story_dict, "tests", "testUser")
+            processor.update_complex_story('5e564fbcdcf0d5fad89e3acd', story_dict, "tests", "testUser")
 
     def test_update_complex_story_with_invalid_event(self):
         processor = MongoProcessor()
