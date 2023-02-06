@@ -4097,6 +4097,8 @@ class MongoProcessor:
                 Utility.delete_document([HubspotFormsAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.two_stage_fallback.value:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.razorpay_action.value:
+                Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
