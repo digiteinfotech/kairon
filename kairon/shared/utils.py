@@ -558,7 +558,7 @@ class Utility:
 
     @staticmethod
     def convert_date_to_string(date_obj: date = datetime.utcnow().date()):
-        return date_obj.strftime("%d-%m-%Y")
+        return date_obj.strftime("%Y-%m-%d")
 
     @staticmethod
     def get_timestamp_from_date(date_obj: date = datetime.utcnow().date()):
