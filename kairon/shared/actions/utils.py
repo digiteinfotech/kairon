@@ -628,6 +628,10 @@ class ActionUtility:
         return {"fields": request}
 
     @staticmethod
+    def get_basic_auth_str(username: Text, password: Text):
+        return requests.auth._basic_auth_str(username, password)
+
+    @staticmethod
     def evaluate_script(script: Text, data: Any, raise_err_on_failure: bool = True):
         log = f"script: {script} || data: {data} || raise_err_on_failure: {raise_err_on_failure}"
         endpoint = Utility.environment['evaluator']['url']
