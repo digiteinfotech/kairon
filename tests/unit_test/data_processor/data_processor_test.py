@@ -5359,7 +5359,7 @@ class TestMongoProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, bot, user)
+        pytest.story_id = processor.add_complex_story(story_dict, bot, user)
 
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -5368,7 +5368,7 @@ class TestMongoProcessor:
         story_dict = {'name': "story without action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(AppException,
                            match='utterance "utter_ask_restaurant_form_outdoor_seating" is attached to a form'):
-            processor.update_complex_story(story_dict, bot, user)
+            processor.update_complex_story(pytest.story_id, story_dict, bot, user)
 
     def test_add_slot_set_action_from_value_no_value_passed(self):
         processor = MongoProcessor()
@@ -7231,7 +7231,7 @@ class TestMongoProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        processor.add_complex_story(story_dict, "tests", "testUser")
+        pytest.story_id = processor.add_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
@@ -7553,7 +7553,7 @@ class TestMongoProcessor:
         ]
 
         story_dict = {'name': "story with connected nodes", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-        processor.add_multiflow_story(story_dict, "test", "TestUser")
+        pytest.multiflow_story_id = processor.add_multiflow_story(story_dict, "test", "TestUser")
         story = MultiflowStories.objects(block_name="story with connected nodes", bot="test").get()
         assert len(story.events) == 6
 
@@ -7706,9 +7706,9 @@ class TestMongoProcessor:
              "connections": [{"name": "utter_more_queries", "type": "BOT"}]
              }
         ]
-        story_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-        processor.update_multiflow_story(story_dict, "test")
-        story = MultiflowStories.objects(block_name="story", bot="test").get()
+        story_dict = {'name': "updated_story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
+        story = MultiflowStories.objects(block_name="updated_story", bot="test").get()
         assert story.events[0]['connections'][0]['name'] == "utter_time"
         # print(story.events[1].name)
         # assert story.events[1].name == "utter_nonsense"
@@ -7739,7 +7739,7 @@ class TestMongoProcessor:
 
         story_dict = {'name': "story update with same flow events", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Story flow already exists!"):
-            processor.update_multiflow_story(story_dict, "test")
+            processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
 
     def test_update_non_existing_multiflow_story(self):
         processor = MongoProcessor()
@@ -7766,7 +7766,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException, match="Flow does not exists"):
             story_dict = {'name': "non existing story conditional", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-            processor.update_multiflow_story(story_dict, "test")
+            processor.update_multiflow_story("5e564fbcdcf0d5fad89e3acd", story_dict, "test")
 
     def test_update_multiflow_story_with_invalid_event(self):
         processor = MongoProcessor()
@@ -7793,7 +7793,7 @@ class TestMongoProcessor:
         ]
         story_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="First step should be an intent"):
-            processor.update_multiflow_story(story_dict, "test")
+            processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
 
         steps = [
             {"step": {"name": "greet", "type": "INTENT"},
@@ -7818,7 +7818,7 @@ class TestMongoProcessor:
         ]
         rule_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Intent should be followed by an Action"):
-            processor.update_multiflow_story(rule_dict, "test")
+            processor.update_multiflow_story(pytest.multiflow_story_id, rule_dict, "test")
 
     def test_update_multiflow_story_name(self):
         processor = MongoProcessor()
@@ -7845,7 +7845,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
             story_dict = {'name': None, 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-            processor.update_multiflow_story(story_dict, "tests")
+            processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
     def test_update_empty_multiflow_story_name(self):
         processor = MongoProcessor()
@@ -7872,7 +7872,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
             story_dict = {'name': "", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-            processor.update_multiflow_story(story_dict, "tests")
+            processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
     def test_update_blank_multiflow_story_name(self):
         processor = MongoProcessor()
@@ -7899,13 +7899,13 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
             story_dict = {'name': " ", 'steps': events, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-            processor.update_multiflow_story(story_dict, "tests")
+            processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
     def test_update_empty_multiflow_story_event(self):
         processor = MongoProcessor()
         with pytest.raises(AppException, match='steps are required'):
             story_dict = {'name': "empty path", 'steps': [], 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-            processor.update_multiflow_story(story_dict, "tests")
+            processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "tests")
 
     def test_delete_multiflow_story(self):
         processor = MongoProcessor()
@@ -7949,7 +7949,7 @@ class TestMongoProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        processor.update_complex_story(story_dict, "tests", "testUser")
+        processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
 
@@ -7966,7 +7966,7 @@ class TestMongoProcessor:
             ]
             story_dict = {'name': "story with same events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             with pytest.raises(AppException, match="FLow already exists!"):
-                processor.update_complex_story(story_dict, "tests", "testUser")
+                processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
 
     def test_case_insensitive_update_complex_story(self):
         processor = MongoProcessor()
@@ -7981,7 +7981,7 @@ class TestMongoProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         story_dict = {'name': "STory with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        processor.update_complex_story(story_dict, "tests", "testUser")
+        processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
 
@@ -7995,9 +7995,9 @@ class TestMongoProcessor:
             {"name": "utter_greet", "type": "BOT"},
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"},
         ]
-        with pytest.raises(Exception):
+        with pytest.raises(AppException, match="Flow does not exists"):
             story_dict = {'name': "non existing story", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-            processor.update_complex_story(story_dict, "tests", "testUser")
+            processor.update_complex_story('5e564fbcdcf0d5fad89e3acd', story_dict, "tests", "testUser")
 
     def test_update_complex_story_with_invalid_event(self):
         processor = MongoProcessor()
@@ -8010,7 +8010,7 @@ class TestMongoProcessor:
         ]
         rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="First event should be an user"):
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -8020,7 +8020,7 @@ class TestMongoProcessor:
         ]
         rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="user event should be followed by action"):
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -8032,7 +8032,7 @@ class TestMongoProcessor:
         ]
         rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
     def test_update_complex_story_name(self):
         processor = MongoProcessor()
@@ -8044,7 +8044,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException):
             story_dict = {'name': None, 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
-            processor.update_complex_story(story_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
 
     def test_update_empty_complex_story_name(self):
         processor = MongoProcessor()
@@ -8056,7 +8056,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException):
             story_dict = {'name': "", 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
-            processor.update_complex_story(story_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
 
     def test_update_blank_complex_story_name(self):
         processor = MongoProcessor()
@@ -8068,13 +8068,13 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException):
             story_dict = {'name': " ", 'steps': events, 'type': 'STORY', 'template_type': 'CUSTOM'}
-            processor.update_complex_story(story_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
 
     def test_update_empty_complex_story_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             story_dict = {'name': "empty path", 'steps': [], 'type': 'STORY', 'template_type': 'CUSTOM'}
-            processor.update_complex_story(story_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
 
     def test_list_actions(self):
         processor = MongoProcessor()
@@ -8181,7 +8181,7 @@ class TestMongoProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
-        processor.add_complex_story(rule_dict, "tests", "testUser")
+        pytest.story_id = processor.add_complex_story(rule_dict, "tests", "testUser")
         story = Rules.objects(block_name="rule with action", bot="tests").get()
         assert len(story.events) == 4
         assert story.events[0].name == "..."
@@ -8330,7 +8330,7 @@ class TestMongoProcessor:
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
-        processor.update_complex_story(rule_dict, "tests", "testUser")
+        processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
         assert rule.events[2].name == "utter_nonsense"
         assert rule.events[0].name == "..."
@@ -8345,7 +8345,7 @@ class TestMongoProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         rule_dict = {'name': "RUle with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
-        processor.update_complex_story(rule_dict, "tests", "testUser")
+        processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
         rule = Rules.objects(block_name="rule with action", bot="tests").get()
         assert rule.events[4].name == "utter_greet"
 
@@ -8358,7 +8358,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(Exception):
             rule_dict = {'name': "non existing story", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story('non existing story_id', rule_dict, "tests", "testUser")
 
     def test_update_rule_name(self):
         processor = MongoProcessor()
@@ -8368,7 +8368,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': None, 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
     def test_fetch_stories_with_rules(self):
         processor = MongoProcessor()
@@ -8384,7 +8384,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': "", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
     def test_update_blank_rule_name(self):
         processor = MongoProcessor()
@@ -8394,13 +8394,13 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': " ", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
     def test_update_empty_rule_event(self):
         processor = MongoProcessor()
         with pytest.raises(Exception):
             rule_dict = {'name': "empty path", 'steps': [], 'type': 'RULE', 'template_type': 'RULE'}
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
     def test_update_rule_invalid_type(self):
         processor = MongoProcessor()
@@ -8411,7 +8411,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException):
             rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'TEST', 'template_type': 'RULE'}
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
     def test_delete_non_existing_rule(self):
         processor = MongoProcessor()
@@ -8429,7 +8429,7 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError,
                            match="Found rules 'rule with action' that contain more than user event.\nPlease use stories for this case"):
             rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
     def test_update_rules_with_invalid_type(self):
         processor = MongoProcessor()
@@ -8441,7 +8441,7 @@ class TestMongoProcessor:
         ]
         with pytest.raises(AppException, match="Invalid event type!"):
             rule_dict = {'name': "rule with action", 'steps': events, 'type': 'RULE', 'template_type': 'RULE'}
-            processor.update_complex_story(rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
 
     def test_delete_empty_rule(self):
         processor = MongoProcessor()

@@ -1840,6 +1840,7 @@ def test_add_story():
     actual = response.json()
     assert actual["message"] == "Flow added successfully"
     assert actual["data"]["_id"]
+    pytest.story_id = actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
 
@@ -2043,6 +2044,7 @@ def test_add_multiflow_story():
     print(actual["message"])
     assert actual["message"] == "Story flow added successfully"
     assert actual["data"]["_id"]
+    pytest.multiflow_story_id = actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
 
@@ -2161,7 +2163,7 @@ def test_add_multiflow_story_invalid_event_type():
 
 def test_update_story():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "STORY",
@@ -2182,7 +2184,7 @@ def test_update_story():
 
 def test_update_story_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "STORY",
@@ -2208,7 +2210,7 @@ def test_update_story_invalid_event_type():
 
 def test_update_multiflow_story():
     response = client.put(
-        f"/api/bot/{pytest.bot}/v2/stories",
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
         json={
             "name": "test_path",
             "steps": [
@@ -2245,7 +2247,7 @@ def test_update_multiflow_story():
 
 def test_update_multiflow_story_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/v2/stories",
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
         json={
             "name": "test_path",
             "steps": [
@@ -5764,6 +5766,7 @@ def test_add_rule():
     assert actual["error_code"] == 0
     assert actual["message"] == "Flow added successfully"
     assert actual["data"]["_id"]
+    pytest.story_id = actual["data"]["_id"]
 
 
 def test_add_rule_invalid_type():
@@ -5930,7 +5933,7 @@ def test_add_rule_invalid_event_type():
 
 def test_update_rule():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "RULE",
@@ -5950,7 +5953,7 @@ def test_update_rule():
 
 def test_update_rule_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "RULE",
