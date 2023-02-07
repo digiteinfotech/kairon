@@ -11,7 +11,8 @@ def run_tests_on_model(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
     logger.info("augment_data: {}", args.augment)
-    ModelTestingEvent(args.bot, args.user, augment_data=args.augment).execute()
+    augment = True if args.augment else False
+    ModelTestingEvent(args.bot, args.user, augment_data=augment).execute()
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
@@ -29,7 +30,7 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                              type=str,
                              help="Kairon user who is initiating the command", action='store')
     test_parser.add_argument('--augment',
-                             default=True,
-                             action='store_false',
+                             default=False,
+                             action='store_true',
                              help="Augment training data and test against the model.")
     test_parser.set_defaults(func=run_tests_on_model)
