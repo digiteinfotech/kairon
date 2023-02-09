@@ -1309,9 +1309,10 @@ class Utility:
                 'data': metadata
             }
         }
-        payload = json.dumps(payload)
         io_loop = asyncio.get_event_loop()
-        io_loop.run_until_complete(Utility.websocket_request(push_server_endpoint, payload))
+        io_loop.run_until_complete(
+            Utility.execute_http_request(request_method='POST', http_url=push_server_endpoint, request_body=payload)
+        )
 
     @staticmethod
     def get_slack_team_info(token: Text):
