@@ -552,11 +552,6 @@ class Utility:
         Utility.email_conf = ConfigLoader(os.getenv("EMAIL_CONF", "./email.yaml")).get_config()
 
     @staticmethod
-    def get_timestamp_previous_month(month: int = 1):
-        start_time = datetime.now() - timedelta(month * 30, seconds=0, minutes=0, hours=0)
-        return start_time.timestamp()
-
-    @staticmethod
     def convert_date_to_string(date_obj: date = datetime.utcnow().date()):
         return date_obj.strftime("%Y-%m-%d")
 
@@ -1140,7 +1135,7 @@ class Utility:
             elasticapm.label(**kwargs)
 
     @staticmethod
-    def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict = {}, request_method: str = 'GET',
+    def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict = None, request_method: str = 'GET',
                                        return_json: bool = True):
         from kairon.shared.data.processor import MongoProcessor
 
@@ -1149,6 +1144,8 @@ class Utility:
         history_server = mongo_processor.get_history_server_endpoint(bot)
         if not Utility.check_empty_string(history_server.get('token')):
             headers = {'Authorization': f'Bearer {history_server["token"]}'}
+        if not request_body:
+            request_body = {}
         url = urljoin(history_server['url'], endpoint)
         try:
             logger.info(f"url : {url} {request_body}")

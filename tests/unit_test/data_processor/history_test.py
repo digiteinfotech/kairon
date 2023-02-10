@@ -53,6 +53,17 @@ class TestHistory:
                                              from_date=from_date, to_date=to_date)
         assert True
 
+    @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
+    def test_delete_user_conversations(self, mock_history):
+        from_date_timestamp = Utility.get_timestamp_from_date((datetime.utcnow() - timedelta(30)).date())
+        to_date_timestamp = Utility.get_timestamp_from_date(datetime.utcnow().date())
+        collection = '5ebc195d5b04bcbaa45c70cc'
+        sender_id = 'fshaikh@digite.com'
+        HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
+                                                   from_date_timestamp=from_date_timestamp,
+                                                   to_date_timestamp=to_date_timestamp)
+        assert True
+
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_delete_bot_history(self, mock_client):
         from_date = (datetime.utcnow() - timedelta(30)).date()

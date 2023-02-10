@@ -59,11 +59,6 @@ class HistoryDeletionLogProcessor:
         return in_progress
 
     @staticmethod
-    def get_datetime_previous_month(month: int):
-        start_time = datetime.now() - timedelta(month * 30, seconds=0, minutes=0, hours=0)
-        return start_time
-
-    @staticmethod
     def get_logs(bot: str, start_idx: int = 0, page_size: int = 10):
         """
         Get all logs for history deletion event.
