@@ -5634,7 +5634,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
 
         responses.add(
-            'PUT',
+            'POST',
             f'{url}/tests',
             json={'message': 'Event updated'}
         )
