@@ -5634,7 +5634,7 @@ class TestMongoProcessor:
         # list(processor.add_training_example(["hi", "hello"], "greet", bot, user, False))
 
         responses.add(
-            'PUT',
+            'POST',
             f'{url}/tests',
             json={'message': 'Event updated'}
         )
