@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timedelta
 from io import BytesIO
 from urllib.parse import urljoin
 
@@ -540,6 +541,8 @@ class TestEventDefinitions:
 
     @responses.activate
     def test_delete_history_enqueue(self):
+        from_date = (datetime.utcnow() - timedelta(30)).date()
+        to_date = datetime.utcnow().date()
         bot = 'test_definitions'
         user = 'test_user'
         url = f"http://localhost:5001/api/events/execute/{EventClass.delete_history}"
@@ -552,12 +555,13 @@ class TestEventDefinitions:
                 'ExecutedVersion': 'v1.0'
             }}
         )
-        DeleteHistoryEvent(bot, user, month=10, sender_id='udit.pandey@digite.com').enqueue()
+        DeleteHistoryEvent(bot, user, from_date=from_date, to_date=to_date, sender_id='udit.pandey@digite.com').enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
         assert body['bot'] == bot
         assert body['user'] == user
-        assert body['month'] == str(10)
+        assert body['from_date'] == str(from_date)
+        assert body['to_date'] == str(to_date)
         assert body['sender_id'] == 'udit.pandey@digite.com'
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -608,7 +612,8 @@ class TestEventDefinitions:
         body = json.loads(body.decode())
         assert body['bot'] == bot
         assert body['user'] == user
-        assert body['month']
+        assert body['from_date']
+        assert body['to_date']
         assert body['sender_id'] is None
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -622,7 +627,7 @@ class TestEventDefinitions:
         assert len(logs) == 1
 
         with pytest.raises(AppException, match='Failed to execute the url:*'):
-            DeleteHistoryEvent(bot, user, month=2).enqueue()
+            DeleteHistoryEvent(bot, user).enqueue()
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
 

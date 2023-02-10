@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import Text
 from loguru import logger
 from kairon import Utility
@@ -20,7 +21,8 @@ class DeleteHistoryEvent(EventsBase):
         """
         self.bot = bot
         self.user = user
-        self.month = int(kwargs.get('month', 1))
+        self.from_date = kwargs.get('from_date', (datetime.utcnow() - timedelta(30)).date())
+        self.to_date = kwargs.get('to_date', datetime.utcnow().date())
         self.sender_id = kwargs.get('sender_id')
 
     def validate(self):
@@ -36,9 +38,12 @@ class DeleteHistoryEvent(EventsBase):
         Send event to event server.
         """
         try:
-            payload = {'bot': self.bot, 'user': self.user, 'month': str(self.month), 'sender_id': self.sender_id}
+            payload = {'bot': self.bot, 'user': self.user,
+                       'from_date': Utility.convert_date_to_string(self.from_date),
+                       'to_date': Utility.convert_date_to_string(self.to_date), 'sender_id': self.sender_id}
             HistoryDeletionLogProcessor.add_log(
-                self.bot, self.user, self.month, status=EVENT_STATUS.ENQUEUED.value, sender_id=self.sender_id
+                self.bot, self.user, self.from_date, self.to_date,
+                status=EVENT_STATUS.ENQUEUED.value, sender_id=self.sender_id
             )
             Utility.request_event_server(EventClass.delete_history, payload)
         except Exception as e:
@@ -52,12 +57,13 @@ class DeleteHistoryEvent(EventsBase):
         from kairon.history.processor import HistoryProcessor
         try:
             HistoryDeletionLogProcessor.add_log(
-                self.bot, self.user, self.month, status=EVENT_STATUS.INPROGRESS.value, sender_id=self.sender_id
+                self.bot, self.user, self.from_date, self.to_date,
+                status=EVENT_STATUS.INPROGRESS.value, sender_id=self.sender_id
             )
             if not Utility.check_empty_string(self.sender_id):
-                HistoryProcessor.delete_user_history(self.bot, self.sender_id, self.month)
+                HistoryProcessor.delete_user_history(self.bot, self.sender_id, self.from_date, self.to_date)
             else:
-                HistoryProcessor.delete_bot_history(self.bot, self.month)
+                HistoryProcessor.delete_bot_history(self.bot, self.from_date, self.to_date)
             HistoryDeletionLogProcessor.add_log(
                 self.bot, self.user, status=EVENT_STATUS.COMPLETED.value, sender_id=self.sender_id
             )
