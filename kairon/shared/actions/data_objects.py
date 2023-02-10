@@ -237,7 +237,8 @@ class FormValidationAction(Auditlog):
 class CustomActionRequestParameters(HttpActionRequestBody):
     value = StringField(required=True)
     parameter_type = StringField(default=ActionParameterType.value,
-                                 choices=[ActionParameterType.value, ActionParameterType.slot, ActionParameterType.key_vault])
+                                 choices=[ActionParameterType.value, ActionParameterType.slot,
+                                          ActionParameterType.key_vault, ActionParameterType.sender_id])
 
 
 @auditlogger.log
@@ -477,6 +478,47 @@ class KaironTwoStageFallbackAction(Auditlog):
 
     def clean(self):
         self.name = self.name.strip().lower()
+
+
+@auditlogger.log
+@push_notification.apply
+class RazorpayAction(Auditlog):
+    name = StringField(required=True)
+    api_key = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
+    api_secret = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
+    amount = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
+    currency = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
+    username = EmbeddedDocumentField(CustomActionRequestParameters)
+    email = EmbeddedDocumentField(CustomActionRequestParameters)
+    contact = EmbeddedDocumentField(CustomActionRequestParameters)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if not (self.api_key and self.api_secret and self.amount and self.currency):
+            raise ValidationError("Fields api_key, api_secret, amount, currency are required!")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        if self.api_key:
+            self.api_key.key = "api_key"
+        if self.api_secret:
+            self.api_secret.key = "api_secret"
+        if self.amount:
+            self.amount.key = "amount"
+        if self.currency:
+            self.currency.key = "currency"
+        if self.username:
+            self.username.key = "username"
+        if self.email:
+            self.email.key = "email"
+        if self.contact:
+            self.contact.key = "contact"
 
 
 from mongoengine import signals

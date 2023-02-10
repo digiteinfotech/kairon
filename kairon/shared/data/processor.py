@@ -42,7 +42,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
-    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies
+    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType
@@ -2318,6 +2318,7 @@ class MongoProcessor:
         zendesk_actions = set(ZendeskAction.objects(bot=bot, status=True).values_list('name'))
         pipedrive_leads_actions = set(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name'))
         hubspot_forms_actions = set(HubspotFormsAction.objects(bot=bot, status=True).values_list('name'))
+        razorpay_actions = set(RazorpayAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
@@ -2363,6 +2364,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.pipedrive_leads_action.value
                     elif event['name'] in hubspot_forms_actions:
                         step['type'] = StoryStepType.hubspot_forms_action.value
+                    elif event["name"] in razorpay_actions:
+                        step['type'] = StoryStepType.razorpay_action.value
                     elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
                     elif str(event['name']).startswith("utter_"):
@@ -4094,6 +4097,8 @@ class MongoProcessor:
                 Utility.delete_document([HubspotFormsAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.two_stage_fallback.value:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.razorpay_action.value:
+                Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4476,7 +4481,17 @@ class MongoProcessor:
             "fields": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}
         }).values_list("name"))
 
-        actions = http_action + email_action + google_action + action_list + hubspot_action
+        razorpay_actions = list(RazorpayAction.objects((
+                (Q(api_key__parameter_type=ActionParameterType.key_vault.value) & Q(api_key__value=key)) |
+                (Q(api_secret__parameter_type=ActionParameterType.key_vault.value) & Q(api_secret__value=key)) |
+                (Q(amount__parameter_type=ActionParameterType.key_vault.value) & Q(amount__value=key)) |
+                (Q(currency__parameter_type=ActionParameterType.key_vault.value) & Q(currency__value=key)) |
+                (Q(username__parameter_type=ActionParameterType.key_vault.value) & Q(username__value=key)) |
+                (Q(email__parameter_type=ActionParameterType.key_vault.value) & Q(email__value=key)) |
+                (Q(contact__parameter_type=ActionParameterType.key_vault.value) & Q(contact__value=key))
+        ), bot=bot, status=True).values_list("name"))
+
+        actions = http_action + email_action + google_action + action_list + hubspot_action + razorpay_actions
 
         if len(actions):
             raise AppException(f"Key is attached to action: {actions}")
@@ -4762,3 +4777,68 @@ class MongoProcessor:
         Utility.hard_delete_document([Intents], bot, name__in=delete_intents)
         Utility.hard_delete_document([Utterances, Responses], bot, name__in=delete_utterances)
         Utility.hard_delete_document([Rules], bot, template_type=TemplateType.QNA.value)
+
+    def add_razorpay_action(
+            self, request_data: dict, bot: Text, user: Text
+    ):
+        """
+        Add razorpay config.
+
+        :param request_data: request config for razorpay action
+        :param bot: bot id
+        :param user: user
+        """
+        Utility.is_exist(
+            Actions, exp_message="Action exists!", name__iexact=request_data.get('name'), bot=bot, status=True
+        )
+        Utility.is_exist(
+            RazorpayAction, exp_message="Action exists!", name__iexact=request_data.get('name'), bot=bot, status=True
+        )
+        request_data["bot"] = bot
+        request_data["user"] = user
+        action_id = RazorpayAction(**request_data).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(
+            request_data['name'], bot, user, raise_exception=False, action_type=ActionType.razorpay_action
+        )
+        return action_id
+
+    def edit_razorpay_action(
+            self, request_data: dict, bot: Text, user: Text
+    ):
+        """
+        Edit razorpay config.
+
+        :param request_data: request config for razorpay action
+        :param bot: bot id
+        :param user: user
+        :param name: action name
+        """
+        if not Utility.is_exist(
+                RazorpayAction, raise_error=False, name=request_data.get('name'), bot=bot, status=True
+        ):
+            raise AppException(f'Action with name "{request_data.get("name")}" not found')
+        action = RazorpayAction.objects(name=request_data.get("name"), bot=bot).get()
+        action.api_key = CustomActionRequestParameters(**request_data.get("api_key"))
+        action.api_secret = CustomActionRequestParameters(**request_data.get("api_secret"))
+        action.amount = CustomActionRequestParameters(**request_data.get("amount"))
+        action.currency = CustomActionRequestParameters(**request_data.get("currency"))
+        action.username = CustomActionRequestParameters(**request_data.get("username")) if request_data.get("username") else None
+        action.email = CustomActionRequestParameters(**request_data.get("email")) if request_data.get("email") else None
+        action.contact = CustomActionRequestParameters(**request_data.get("contact")) if request_data.get("contact") else None
+        action.user = user
+        action.save()
+
+    def get_razorpay_action_config(self, bot: Text):
+        """
+        Retrieve razorpay config.
+
+        :param bot: bot id
+        """
+        for action in RazorpayAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            action.pop('_id')
+            action.pop('status')
+            action.pop('bot')
+            action.pop('user')
+
+            yield action

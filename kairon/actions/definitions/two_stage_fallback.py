@@ -21,7 +21,7 @@ class ActionTwoStageFallback(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
         """
-        Initialize Email action.
+        Initialize Two stage fallback action.
 
         @param bot: bot id
         @param name: action name
