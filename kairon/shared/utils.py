@@ -566,10 +566,7 @@ class Utility:
         return date_time.timestamp()
 
     @staticmethod
-    def validate_from_date_and_to_date(
-            from_date: datetime.date = (datetime.utcnow() - timedelta(30)).date(),
-            to_date: datetime.date = datetime.utcnow().date()
-    ):
+    def validate_from_date_and_to_date(from_date: date, to_date: date):
         six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
         today_date = datetime.utcnow().date()
         if six_months_back_date > from_date or from_date > today_date:
@@ -1143,7 +1140,7 @@ class Utility:
             elasticapm.label(**kwargs)
 
     @staticmethod
-    def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict, request_method: str = 'GET',
+    def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict = {}, request_method: str = 'GET',
                                        return_json: bool = True):
         from kairon.shared.data.processor import MongoProcessor
 

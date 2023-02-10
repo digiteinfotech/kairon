@@ -22,7 +22,6 @@ async def flat_conversations(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the flattened conversation data of the bot for previous months."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     flat_data, message = HistoryProcessor.flatten_conversations(
         collection, from_date, to_date, sort_by_date
     )
@@ -38,7 +37,6 @@ async def download_conversations(
         collection: str = Depends(Authentication.authenticate_and_get_collection),
 ):
     """Downloads conversation history of the bot, for the specified months."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     conversation_data, _ = HistoryProcessor.flatten_conversations(collection, from_date, to_date, sort_by_date)
     file, temp_path = Utility.download_csv(conversation_data.get("conversation_data"))
     response = FileResponse(
@@ -58,7 +56,6 @@ async def chat_history_users(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the list of user who has conversation with the agent."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     users, message = HistoryProcessor.fetch_chat_users(collection, from_date, to_date)
     return {"data": {"users": users}, "message": message}
 
@@ -71,7 +68,6 @@ async def chat_history(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the list of conversation with the agent by particular user."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     history, message = HistoryProcessor.fetch_chat_history(collection, sender, from_date, to_date)
     return {"data": {"history": list(history)}, "message": message}
 
@@ -86,6 +82,5 @@ async def word_cloud(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the string required for word cloud formation."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     sentence, message = HistoryProcessor.word_cloud(collection, u_bound, l_bound, stopword_list, from_date, to_date)
     return {"data": sentence, "message": message}

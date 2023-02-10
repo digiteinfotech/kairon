@@ -3,7 +3,6 @@ from typing import Text
 
 from loguru import logger
 from pymongo import MongoClient
-from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 
 from kairon.shared.utils import Utility
@@ -33,6 +32,7 @@ class HistoryProcessor:
         :param sender: history details for user
         :return: list of conversations
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         events, message = HistoryProcessor.fetch_user_history(
             collection, sender, from_date=from_date, to_date=to_date
         )
@@ -53,6 +53,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: list of user id
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         client = HistoryProcessor.get_mongo_connection()
         with client as client:
             db = client.get_database()
@@ -165,6 +166,7 @@ class HistoryProcessor:
         :param nlu_fallback_action: nlu fallback configured for bot
         :return: list of visitor fallback
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         fallback_counts, total_counts = [], []
         message = None
         try:
@@ -225,6 +227,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: list of conversation step count
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         values = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -268,6 +271,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: list of users with step and time in conversation
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         users = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -311,6 +315,7 @@ class HistoryProcessor:
         :param conversation_limit: conversation step number to determine engaged users
         :return: number of engaged users
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         values = []
         message = None
         try:
@@ -358,7 +363,7 @@ class HistoryProcessor:
         :return: number of new users
         """
 
-
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         values = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -411,6 +416,7 @@ class HistoryProcessor:
         :param nlu_fallback_action: nlu fallback configured for bot
         :return: number of successful conversations
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         total = []
         fallback_count = []
         try:
@@ -474,6 +480,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: user retention percentage
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         total = []
         repeating_users = []
         message = None
@@ -534,6 +541,7 @@ class HistoryProcessor:
         :param conversation_limit: conversation step number to determine engaged users
         :return: dictionary of counts of engaged users for the previous months
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         engaged = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -579,6 +587,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of counts of new users for the previous months
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         values = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -630,6 +639,7 @@ class HistoryProcessor:
         :param nlu_fallback_action: nlu fallback configured for bot
         :return: dictionary of counts of successful bot conversations for the previous months
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         total = []
         total_unsuccess = []
         try:
@@ -688,6 +698,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of user retention percentages for the previous months
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         total = []
         repeating_users = []
         try:
@@ -747,6 +758,7 @@ class HistoryProcessor:
         :param nlu_fallback_action: nlu fallback configured for bot
         :return: dictionary of fallback counts for the previous months
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         action_counts = []
         fallback_counts = []
         try:
@@ -803,6 +815,7 @@ class HistoryProcessor:
         :param sort_by_date: This flag sorts the records by timestamp if set to True
         :return: dictionary of the bot users and their conversation data
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         user_data = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -895,6 +908,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of counts of bot conversations for the previous months
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         total = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -937,6 +951,7 @@ class HistoryProcessor:
         :param top_n: The first n number of most occurring intents
         :return: list of intents and their counts
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         try:
             client = HistoryProcessor.get_mongo_connection()
             with client as client:
@@ -972,7 +987,7 @@ class HistoryProcessor:
         :param top_n: The first n number of most occurring actions
         :return: list of actions and their counts
         """
-
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         try:
             client = HistoryProcessor.get_mongo_connection()
             with client as client:
@@ -1011,6 +1026,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of counts of average conversation step for the previous months
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         total = []
         steps = []
         try:
@@ -1075,6 +1091,8 @@ class HistoryProcessor:
         """
 
         from nltk.corpus import stopwords
+
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         if stopword_list is None:
             stopword_list = []
 
@@ -1130,6 +1148,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of counts of user inputs for the given duration
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         user_input = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -1171,6 +1190,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of users and their dropoff counts
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         new_session, single_session = [], []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -1252,6 +1272,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of intents and their counts for the respective users
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         new_session_dict, single_session_dict = {}, {}
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -1348,6 +1369,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of users and their unsuccessful session counts
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         new_session, single_session = [], []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -1431,6 +1453,7 @@ class HistoryProcessor:
         :param to_date: default is current month today date
         :return: dictionary of users and their session counts
         """
+        Utility.validate_from_date_and_to_date(from_date, to_date)
         new_session, single_session = [], []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -1476,32 +1499,42 @@ class HistoryProcessor:
         )
 
     @staticmethod
-    def delete_user_history(collection: Text, sender_id: Text, month: int = 3):
+    def delete_user_history(
+            collection: Text, sender_id: Text,
+            from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+            to_date: date = datetime.utcnow().date()
+    ):
 
         """
         Deletes chat history for specific user in a bot
 
         Archives conversations based on month to conversations_archive DB
 
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param collection: collection to connect to
         :param sender_id: user id
         :return: string message
         """
-        timestamp_req = Utility.get_timestamp_previous_month(month)
-        HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id, timestamp_req=timestamp_req)
+        from_date_timestamp = Utility.get_timestamp_from_date(from_date)
+        to_date_timestamp = Utility.get_timestamp_from_date(to_date)
+        HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id,
+                                              from_date_timestamp=from_date_timestamp,
+                                              to_date_timestamp=to_date_timestamp)
         HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
-                                                   timestamp_req=timestamp_req)
+                                                   from_date_timestamp=from_date_timestamp,
+                                                   to_date_timestamp=to_date_timestamp)
 
     @staticmethod
-    def archive_user_history(collection: Text, sender_id: Text, timestamp_req: float):
+    def archive_user_history(collection: Text, sender_id: Text, from_date_timestamp: float, to_date_timestamp: float):
 
         """
         Archives conversations based on month to conversations_archive DB
 
         :param collection: collection to connect to
         :param sender_id: user id
-        :param timestamp_req: the timestamp based on month up to which chat to be archived
+        :param from_date_timestamp: the timestamp based on from_date
+        :param to_date_timestamp: the timestamp based on to_date
         :return: none
         """
         try:
@@ -1514,7 +1547,7 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 conversations.aggregate([{"$match": {"sender_id": sender_id}},
                                          {"$match": {"event.timestamp": {
-                                             "$lt": timestamp_req}}},
+                                             "$lte": to_date_timestamp, "$gte": from_date_timestamp}}},
                                          {"$project": {"_id":0}},
                                          {"$merge": {"into": {"db": archive_db, "coll": archive_collection},
                                                      "on": "_id",
@@ -1526,14 +1559,16 @@ class HistoryProcessor:
             raise AppException(e)
 
     @staticmethod
-    def delete_user_conversations(collection: Text, sender_id: Text, timestamp_req: float):
+    def delete_user_conversations(collection: Text, sender_id: Text,
+                                  from_date_timestamp: float, to_date_timestamp: float):
 
         """
         Removes archived conversations events from existing collection
 
         :param collection: collection to connect to
         :param sender_id: user id
-        :param timestamp_req: the timestamp based on month up to which chat to be archived
+        :param from_date_timestamp: the timestamp based on from_date
+        :param to_date_timestamp: the timestamp based on to_date
         :return: none
         """
         try:
@@ -1544,13 +1579,14 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
 
                 # Remove Archived Events
-                conversations.delete_many(filter={'sender_id': sender_id, "event.timestamp": {'$lt': timestamp_req}})
+                conversations.delete_many(filter={'sender_id': sender_id, "event.timestamp": {'$lte': to_date_timestamp,
+                                                                                              '$gte': from_date_timestamp}})
         except Exception as e:
             logger.error(e)
             raise AppException(e)
 
     @staticmethod
-    def fetch_chat_users_for_delete(collection: Text, timestamp_req: float):
+    def fetch_chat_users_for_delete(collection: Text, from_date_timestamp: float, to_date_timestamp: float):
 
         """
         Fetch users.
@@ -1558,7 +1594,8 @@ class HistoryProcessor:
         Fetches user list who has conversation with the agent before specified month
 
         :param collection: collection to connect to
-        :param timestamp_req: the timestamp based on month before which users present
+        :param from_date_timestamp: the timestamp based on from_date
+        :param to_date_timestamp: the timestamp based on to_date
         :return: list of user id
         """
         try:
@@ -1567,34 +1604,45 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                values = list(conversations.distinct("sender_id", {"event.timestamp": {"$lt": timestamp_req}}))
+                values = list(conversations.distinct("sender_id", {"event.timestamp": {"$lte": to_date_timestamp,
+                                                                                       "$gte": from_date_timestamp}}))
                 return values
         except Exception as e:
             logger.error(e)
             raise AppException(e)
 
     @staticmethod
-    def delete_bot_history(collection: Text, month: int = 1):
+    def delete_bot_history(
+            collection: Text,
+            from_date: date = (datetime.utcnow() - timedelta(30)).date(),
+            to_date: date = datetime.utcnow().date()
+    ):
 
         """
         Deletes chat history for all users in a bot
 
         Archives conversations based on month to conversations_archive DB
 
-        :param month: default is current month and max is last 6 months
+        :param from_date: default is last month date
+        :param to_date: default is current month today date
         :param collection: collection to connect to
         :return: string message
         """
-        timestamp_req = Utility.get_timestamp_previous_month(month)
+        from_date_timestamp = Utility.get_timestamp_from_date(from_date)
+        to_date_timestamp = Utility.get_timestamp_from_date(to_date)
         try:
-            users = HistoryProcessor.fetch_chat_users_for_delete(collection=collection, timestamp_req=timestamp_req)
+            users = HistoryProcessor.fetch_chat_users_for_delete(
+                collection=collection, from_date_timestamp=from_date_timestamp, to_date_timestamp=to_date_timestamp
+            )
 
             for sender_id in users:
                 HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id,
-                                                      timestamp_req=timestamp_req)
+                                                      from_date_timestamp=from_date_timestamp,
+                                                      to_date_timestamp=to_date_timestamp)
 
                 HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
-                                                           timestamp_req=timestamp_req)
+                                                           from_date_timestamp=from_date_timestamp,
+                                                           to_date_timestamp=to_date_timestamp)
             return "Deleting User history!"
         except Exception as e:
             logger.error(e)

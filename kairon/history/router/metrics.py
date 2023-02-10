@@ -4,7 +4,6 @@ from fastapi import APIRouter, Query
 from kairon.api.models import Response
 from fastapi import Depends
 
-from kairon.shared.utils import Utility
 from ..processor import HistoryProcessor
 from ...shared.auth import Authentication
 
@@ -18,7 +17,6 @@ async def user_with_metrics(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the list of user who has conversation with the agent with steps and time."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     users, message = HistoryProcessor.user_with_metrics(
         collection, from_date, to_date
     )
@@ -34,7 +32,6 @@ async def visitor_hit_fallback_count(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     visitor_hit_fallback, message = HistoryProcessor.visitor_hit_fallback(
         collection, from_date, to_date, action_fallback, nlu_fallback
     )
@@ -48,7 +45,6 @@ async def conversation_steps(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of conversation steps that took place in the chat between the users and the agent."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     conversation_steps, message = HistoryProcessor.conversation_steps(collection, from_date, to_date)
     return {"data": conversation_steps, "message": message}
 
@@ -61,7 +57,6 @@ async def count_engaged_users(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of engaged users of the bot."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     engaged_user_count, message = HistoryProcessor.engaged_users(
         collection, from_date, to_date, conversation_step_threshold
     )
@@ -75,7 +70,6 @@ async def count_new_users(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of new users of the bot."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     user_count, message = HistoryProcessor.new_users(
         collection, from_date, to_date
     )
@@ -91,7 +85,6 @@ async def complete_conversations(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of successful conversations of the bot, which had no fallback."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     conversation_count, message = HistoryProcessor.successful_conversations(
         collection, from_date, to_date, action_fallback, nlu_fallback
     )
@@ -105,7 +98,6 @@ async def calculate_retention(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the user retention percentage of the bot."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     retention_count, message = HistoryProcessor.user_retention(
         collection, from_date, to_date
     )
@@ -120,7 +112,6 @@ async def top_intents(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the top n identified intents of the bot."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     top_intent, message = HistoryProcessor.top_n_intents(
         collection, from_date, to_date, top_n
     )
@@ -135,7 +126,6 @@ async def top_actions(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the top n identified actions of the bot."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     top_action, message = HistoryProcessor.top_n_actions(
         collection, from_date, to_date, top_n
     )
@@ -149,7 +139,6 @@ async def user_input_count(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the user inputs along with their frequencies."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     user_inputs, message = HistoryProcessor.user_input_count(
         collection, from_date, to_date
     )
@@ -165,7 +154,6 @@ async def fallback_dropoff(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the list of users that dropped off after encountering fallback."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     user_list, message = HistoryProcessor.user_fallback_dropoff(
         collection, from_date, to_date, action_fallback, nlu_fallback
     )
@@ -179,7 +167,6 @@ async def intents_dropoff(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the identified intents and their counts for users before dropping off from the conversations."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     dropoff_intents, message = HistoryProcessor.intents_before_dropoff(
         collection, from_date, to_date
     )
@@ -195,7 +182,6 @@ async def unsuccessful_sessions(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the count of sessions that encountered a fallback for a particular user."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     user_list, message = HistoryProcessor.unsuccessful_session(
         collection, from_date, to_date, action_fallback, nlu_fallback
     )
@@ -209,7 +195,6 @@ async def total_sessions(
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the total session count for users for the past months."""
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     user_list, message = HistoryProcessor.session_count(
         collection, from_date, to_date
     )

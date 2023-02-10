@@ -9441,6 +9441,8 @@ class TestMongoProcessor:
             KeyVault.objects(key=key, bot=bot).get()
 
     def test_get_logs(self):
+        from_date = (datetime.utcnow() - timedelta(30)).date()
+        to_date = datetime.utcnow().date()
         bot = "test_get_logs"
         user = "testUser2"
         start_time = datetime.utcnow() - timedelta(days=1)
@@ -9477,8 +9479,8 @@ class TestMongoProcessor:
         DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
         log_four = processor.get_logs(bot, "data_importer", start_time, end_time)
         assert len(log_four) == 2
-        HistoryDeletionLogProcessor.add_log(bot, user, 1, status='Completed')
-        HistoryDeletionLogProcessor.add_log(bot, user, 1, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, from_date, to_date, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, from_date, to_date, status='Completed')
         log_five = processor.get_logs(bot, "history_deletion", start_time, end_time)
         assert len(log_five) == 2
         MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
