@@ -5,7 +5,8 @@ from kairon.shared.auth import Authentication
 from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
-    ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest
+    ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
+    RazorpayActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -358,4 +359,37 @@ async def update_two_stage_fallback_action(
     Updates the two stage fallback action config.
     """
     mongo_processor.edit_two_stage_fallback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message="Action updated!")
+
+
+@router.post("/razorpay", response_model=Response)
+async def add_razorpay_action(
+        request_data: RazorpayActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the razorpay action config.
+    """
+    mongo_processor.add_razorpay_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message="Action added!")
+
+
+@router.get("/razorpay", response_model=Response)
+async def get_razorpay_action(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns configuration for razorpay action.
+    """
+    config = list(mongo_processor.get_razorpay_action_config(bot=current_user.get_bot()))
+    return Response(data=config)
+
+
+@router.put("/razorpay", response_model=Response)
+async def update_razorpay_action(
+        request_data: RazorpayActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the razorpay action config.
+    """
+    mongo_processor.edit_razorpay_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")

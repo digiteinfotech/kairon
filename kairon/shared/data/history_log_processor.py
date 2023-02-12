@@ -1,3 +1,4 @@
+from datetime import date
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.data_objects import ConversationsHistoryDeleteLogs
@@ -10,7 +11,8 @@ class HistoryDeletionLogProcessor:
     """This Class contains logic for conversations history deletion log processor"""
 
     @staticmethod
-    def add_log(bot: str, user: str, month: int = None, status: str = None, exception: str = None, sender_id: str = None):
+    def add_log(bot: str, user: str, from_date: date = None, to_date: date = None, status: str = None,
+                exception: str = None, sender_id: str = None):
 
         try:
             doc = ConversationsHistoryDeleteLogs.objects(bot=bot).filter(
@@ -26,8 +28,10 @@ class HistoryDeletionLogProcessor:
         doc.status = status
         if exception:
             doc.exception = exception
-        if month:
-            doc.month = HistoryDeletionLogProcessor.get_datetime_previous_month(month)
+        if from_date:
+            doc.from_date = from_date
+        if to_date:
+            doc.to_date = to_date
         if status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
             doc.end_timestamp = datetime.utcnow()
         doc.save()
@@ -53,11 +57,6 @@ class HistoryDeletionLogProcessor:
         except DoesNotExist as e:
             logger.error(e)
         return in_progress
-
-    @staticmethod
-    def get_datetime_previous_month(month: int):
-        start_time = datetime.now() - timedelta(month * 30, seconds=0, minutes=0, hours=0)
-        return start_time
 
     @staticmethod
     def get_logs(bot: str, start_idx: int = 0, page_size: int = 10):

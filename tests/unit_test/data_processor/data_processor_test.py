@@ -60,7 +60,7 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
-    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction
+    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -6553,6 +6553,129 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             PipedriveLeadsAction.objects(name='pipedrive_leads', status=True, bot=bot).get()
 
+    def test_add_razorpay_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action_name = 'razorpay_action'
+        action = {
+            'name': action_name,
+            'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+            'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+            'username': {"parameter_type": "sender_id"},
+            'email': {"parameter_type": "sender_id"},
+            'contact': {"value": "contact", "parameter_type": "slot"},
+        }
+        assert processor.add_razorpay_action(action, bot, user)
+        assert Actions.objects(name=action_name, status=True, bot=bot).get()
+        assert RazorpayAction.objects(name=action_name, status=True, bot=bot).get()
+
+    def test_add_razorpay_action_required_fields_absent(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action_name = 'test_add_razorpay_action_required_fields_absent'
+        action = {
+            'name': action_name,
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+            'username': {"parameter_type": "sender_id"},
+            'email': {"parameter_type": "sender_id"},
+            'contact': {"value": "contact", "parameter_type": "slot"},
+        }
+        with pytest.raises(ValidationError):
+            processor.add_razorpay_action(action, bot, user)
+
+    def test_add_razorpay_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "razorpay_action", "type": "RAZORPAY_ACTION"},
+        ]
+        story_dict = {'name': "story with razorpay action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        assert processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with razorpay action", bot=bot,
+                                events__name='razorpay_action', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "story with razorpay action"]
+        assert story_with_form[0]['steps'] == [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "razorpay_action", "type": "RAZORPAY_ACTION"},
+        ]
+        processor.delete_complex_story('story with razorpay action', 'STORY', bot, user)
+
+    def test_add_razorpay_action_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action_name = 'razorpay_action'
+        action = {
+            'name': action_name,
+            'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+            'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+            'username': {"parameter_type": "sender_id"},
+            'email': {"parameter_type": "sender_id"},
+            'contact': {"value": "contact", "parameter_type": "slot"},
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_razorpay_action(action, bot, user)
+
+    def test_list_razorpay_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.get_razorpay_action_config(bot))
+        actions[0].pop("timestamp")
+        assert actions == [{'name': 'razorpay_action', 'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False, 'value': 'API_KEY', 'parameter_type': 'key_vault'}, 'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret', 'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'}, 'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False, 'value': 'amount', 'parameter_type': 'slot'}, 'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False, 'value': 'INR', 'parameter_type': 'value'}, 'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False, 'parameter_type': 'sender_id'}, 'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False, 'parameter_type': 'sender_id'}, 'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False, 'value': 'contact', 'parameter_type': 'slot'}}]
+
+    def test_edit_razorpay_action_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action_name = 'test_edit_razorpay_action_not_exists'
+        action = {
+            'name': action_name,
+            'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+            'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+            'username': {"parameter_type": "sender_id"},
+            'email': {"parameter_type": "sender_id"},
+            'contact': {"value": "contact", "parameter_type": "slot"},
+        }
+        with pytest.raises(AppException, match='Action with name "test_edit_razorpay_action_not_exists" not found'):
+            processor.edit_razorpay_action(action, bot, user)
+
+    def test_edit_razorpay_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action_name = 'razorpay_action'
+        action = {
+            'name': action_name,
+            'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+            'api_secret': {"value": "API_SECRET", "parameter_type": "kay_vault"},
+            'amount': {"value": "amount", "parameter_type": "slot"},
+            'currency': {"value": "INR", "parameter_type": "value"},
+        }
+        assert not processor.edit_razorpay_action(action, bot, user)
+
+    def test_delete_razorpay_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('razorpay_action', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='razorpay_action', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            RazorpayAction.objects(name='razorpay_action', status=True, bot=bot).get()
+
     def test_push_notifications_enabled_message_type_event(self):
         bot = "test"
         user = 'test'
@@ -7196,7 +7319,8 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
             'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
-            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': []
+            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
+            'razorpay_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -7218,7 +7342,9 @@ class TestMongoProcessor:
             'actions': ['action_check'], 'two_stage_fallback': [], 'kairon_bot_response': [],
             'http_action': [], 'jira_action': [], 'hubspot_forms_action': [],
             'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
-            'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': []}
+            'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
+            'razorpay_action': []
+        }
 
     def test_add_complex_story(self):
         processor = MongoProcessor()
@@ -7239,6 +7365,7 @@ class TestMongoProcessor:
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'kairon_bot_response': [],
+                           'razorpay_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -8083,7 +8210,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
-            'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
+            'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
                                                                              'utter_please_rephrase']}
 
@@ -8190,6 +8317,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
+            'razorpay_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
@@ -9441,6 +9569,8 @@ class TestMongoProcessor:
             KeyVault.objects(key=key, bot=bot).get()
 
     def test_get_logs(self):
+        from_date = (datetime.utcnow() - timedelta(30)).date()
+        to_date = datetime.utcnow().date()
         bot = "test_get_logs"
         user = "testUser2"
         start_time = datetime.utcnow() - timedelta(days=1)
@@ -9477,8 +9607,8 @@ class TestMongoProcessor:
         DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
         log_four = processor.get_logs(bot, "data_importer", start_time, end_time)
         assert len(log_four) == 2
-        HistoryDeletionLogProcessor.add_log(bot, user, 1, status='Completed')
-        HistoryDeletionLogProcessor.add_log(bot, user, 1, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, from_date, to_date, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, from_date, to_date, status='Completed')
         log_five = processor.get_logs(bot, "history_deletion", start_time, end_time)
         assert len(log_five) == 2
         MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")

@@ -39,6 +39,7 @@ class ActionType(str, Enum):
     hubspot_forms_action = "hubspot_forms_action"
     two_stage_fallback = "two_stage_fallback"
     kairon_bot_response = "kairon_bot_response"
+    razorpay_action = "razorpay_action"
 
 
 class HttpRequestContentType(str, Enum):

@@ -2004,9 +2004,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -2152,10 +2152,10 @@ def test_add_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', "
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-                        "'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
-                 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION',
+                 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
                  'TWO_STAGE_FALLBACK_ACTION']}
                  }]
     )
@@ -2201,9 +2201,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -2268,11 +2268,11 @@ def test_update_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', "
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
-                        "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                        "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
-                        'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']}
+                        'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']}
                  }]
     )
 
@@ -5245,7 +5245,7 @@ def test_list_actions():
     assert Utility.check_empty_string(actual["message"])
     assert actual['data'] == {
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
-        'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
+        'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
         'http_action': ['test_add_http_action_no_token',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
@@ -5924,9 +5924,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -5969,9 +5969,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -10759,7 +10759,7 @@ def test_add_pipedrive_action_invalid_parameter_types():
     action = {
         'name': 'pipedrive_leads_sender_id',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': {'value': '12345678', "parameter_type": "sender_id"},
+        'api_token': {'value': '12345678', "parameter_type": "intent"},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -10872,7 +10872,7 @@ def test_edit_pipedrive_action_invalid_parameter_type():
     action = {
         'name': 'pipedrive_leads_slot_key_vault',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': {'value': '12345678', "parameter_type": "sender_id"},
+        'api_token': {'value': '12345678', "parameter_type": "intent"},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -10932,6 +10932,198 @@ def test_edit_pipedrive_action_not_found():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "pipedrive_action" not found'
+
+
+def test_list_razorpay_actions_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+def test_add_razorpay_action():
+    action_name = 'razorpay_action'
+    action = {
+        'name': action_name,
+        'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+        'api_secret': {"value": "API_SECRET", "parameter_type": "key_vault"},
+        'amount': {"value": "amount", "parameter_type": "slot"},
+        'currency': {"value": "INR", "parameter_type": "value"},
+        'username': {"parameter_type": "sender_id"},
+        'email': {"parameter_type": "sender_id"},
+        'contact': {"value": "contact", "parameter_type": "slot"},
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+
+
+def test_add_razorpay_action_with_required_values_only():
+    action_name = 'razorpay_action_required_values_only'
+    action = {
+        'name': action_name,
+        'api_key': {"value": "API_KEY", "parameter_type": "value"},
+        'api_secret': {"value": "API_SECRET", "parameter_type": "value"},
+        'amount': {"value": "amount", "parameter_type": "value"},
+        'currency': {"value": "INR", "parameter_type": "slot"},
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+
+
+def test_add_razorpay_action_without_required_values():
+    action_name = 'razorpay_action_required_values_only'
+    action = {
+        'name': action_name,
+        'amount': {"value": "amount", "parameter_type": "value"},
+        'currency': {"value": "INR", "parameter_type": "slot"},
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'api_key'], 'msg': 'field required', 'type': 'value_error.missing'}, {'loc': ['body', 'api_secret'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_list_razorpay_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    [v.pop("timestamp") for v in actual["data"]]
+    assert actual["data"] == [{'name': 'razorpay_action',
+                        'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
+                                    'value': 'API_KEY', 'parameter_type': 'key_vault'},
+                        'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret', 'encrypt': False,
+                                       'value': 'API_SECRET', 'parameter_type': 'key_vault'},
+                        'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
+                                   'value': 'amount', 'parameter_type': 'slot'},
+                        'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
+                                     'value': 'INR', 'parameter_type': 'value'},
+                        'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False,
+                                     'parameter_type': 'sender_id'},
+                        'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
+                                  'parameter_type': 'sender_id'},
+                        'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
+                                    'value': 'contact', 'parameter_type': 'slot'}},
+                       {'name': 'razorpay_action_required_values_only',
+                        'api_key': {
+                            '_cls': 'CustomActionRequestParameters',
+                            'key': 'api_key', 'encrypt': False,
+                            'value': 'API_KEY', 'parameter_type': 'value'},
+                        'api_secret': {
+                            '_cls': 'CustomActionRequestParameters',
+                            'key': 'api_secret', 'encrypt': False,
+                            'value': 'API_SECRET',
+                            'parameter_type': 'value'},
+                        'amount': {'_cls': 'CustomActionRequestParameters',
+                                   'key': 'amount', 'encrypt': False,
+                                   'value': 'amount',
+                                   'parameter_type': 'value'},
+                        'currency': {
+                            '_cls': 'CustomActionRequestParameters',
+                            'key': 'currency', 'encrypt': False,
+                            'value': 'INR', 'parameter_type': 'slot'}}]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_edit_razorpay_action():
+    action_name = 'razorpay_action'
+    action = {
+        'name': action_name,
+        'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+        'api_secret': {"value": "API_SECRET", "parameter_type": "key_vault"},
+        'amount': {"value": "amount", "parameter_type": "value"},
+        'currency': {"value": "INR", "parameter_type": "slot"},
+        'email': {"parameter_type": "sender_id"},
+        'contact': {"value": "contact", "parameter_type": "value"},
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated!"
+
+
+def test_edit_razorpay_action_required_config_missing():
+    action_name = 'razorpay_action'
+    action = {
+        'name': action_name,
+        'email': {"parameter_type": "sender_id"},
+        'contact': {"value": "contact", "parameter_type": "value"},
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'api_key'], 'msg': 'field required', 'type': 'value_error.missing'}, {'loc': ['body', 'api_secret'], 'msg': 'field required', 'type': 'value_error.missing'}, {'loc': ['body', 'amount'], 'msg': 'field required', 'type': 'value_error.missing'}, {'loc': ['body', 'currency'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_razorpay_action_not_found():
+    action_name = 'new_razorpay_action'
+    action = {
+        'name': action_name,
+        'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+        'api_secret': {"value": "API_SECRET", "parameter_type": "key_vault"},
+        'amount': {"value": "amount", "parameter_type": "value"},
+        'currency': {"value": "INR", "parameter_type": "slot"},
+        'email': {"parameter_type": "sender_id"},
+        'contact': {"value": "contact", "parameter_type": "value"},
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "new_razorpay_action" not found'
+
+
+def test_delete_razorpay_action():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/razorpay_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
 
 
 def test_get_fields_for_integrated_actions():

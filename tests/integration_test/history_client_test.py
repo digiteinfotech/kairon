@@ -1,6 +1,6 @@
 import json
 import os
-import datetime
+from datetime import datetime, date, timedelta
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
@@ -162,15 +162,14 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_chat_history_users_kairon_client_user_endpoint(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/users",
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
         status=200,
         json={"data": {"users": history_users()[0]}},
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
     )
     response = client.get(
         f"/api/history/{pytest.bot}/users",
@@ -187,15 +186,15 @@ def test_chat_history_users_kairon_client_user_endpoint(mock_auth, mock_mongo_pr
 
 @responses.activate
 def test_chat_history_users_kairon_client_kairon_endpoint(mock_auth, mock_mongo_processor_endpoint_not_configured):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"{Utility.environment['history_server']['url']}/api/history/{pytest.bot}/conversations/users",
+        f"{Utility.environment['history_server']['url']}/api/history/{pytest.bot}/conversations/users"
+        f"?from_date={from_date}&to_date={to_date}",
         status=200,
         json={"data": {"users": history_users()[0]}},
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
     )
     response = client.get(
         f"/api/history/{pytest.bot}/users",
@@ -211,16 +210,91 @@ def test_chat_history_users_kairon_client_kairon_endpoint(mock_auth, mock_mongo_
 
 
 @responses.activate
-def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+def test_chat_history_users_with_from_date_and_to_date(mock_auth, mock_mongo_processor_endpoint_not_configured):
+    from_date = (datetime.utcnow() - timedelta(90)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd",
+        f"{Utility.environment['history_server']['url']}/api/history/{pytest.bot}/conversations/users"
+        f"?from_date={from_date}&to_date={to_date}",
+        status=200,
+        json={"data": {"users": history_users()[0]}},
+        match=[responses.json_params_matcher({})],
+    )
+    response = client.get(
+        f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert responses.calls[0].request.headers['Authorization'] == 'Bearer ' + Utility.environment['history_server']['token']
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["users"]) == 7
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_chat_history_users_with_from_date_less_than_six_months(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(300)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_chat_history_users_with_from_date_greater_than_today_date(mock_auth):
+    from_date = (datetime.utcnow() + timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_chat_history_users_with_to_date_less_than_six_months(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() - timedelta(300)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_chat_history_users_with_to_date_greater_than_today_date(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() + timedelta(30)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_chat_history_users_with_from_date_greater_than_to_date(mock_auth):
+    from_date = (datetime.utcnow()).date()
+    to_date = (datetime.utcnow() - timedelta(90)).date()
+    with pytest.raises(ValueError, match="from_date must be less than to_date"):
+        client.get(
+            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+@responses.activate
+def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd"
+        f"?from_date={from_date}&to_date={to_date}",
         status=200,
         json={"data": {"history": history_conversations()[0]}},
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
     )
 
     response = client.get(
@@ -236,17 +310,42 @@ def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
-def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_mongo_processor):
-    from urllib.parse import quote_plus
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+def test_chat_history_with_kairon_client_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(60)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f'https://localhost:8083/api/history/{pytest.bot}/conversations/users/LNLMC1/daIk=',
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd"
+        f"?from_date={from_date}&to_date={to_date}",
         status=200,
         json={"data": {"history": history_conversations()[0]}},
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/users/5e564fbcdcf0d5fad89e3acd?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["history"]) == 1759
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_mongo_processor):
+    from urllib.parse import quote_plus
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
+    responses.add(
+        responses.GET,
+        f'https://localhost:8083/api/history/{pytest.bot}/conversations/users/LNLMC1/daIk='
+        f'?from_date={from_date}&to_date={to_date}',
+        status=200,
+        json={"data": {"history": history_conversations()[0]}},
+        match=[responses.json_params_matcher({})],
     )
 
     response = client.get(
@@ -263,16 +362,14 @@ def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_
 
 @responses.activate
 def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback"
+        f"?from_date={from_date}&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=None",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'action_fallback': 'action_default_fallback',
-                                              'nlu_fallback': None})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'fallback_counts': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -289,18 +386,91 @@ def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_process
 
 
 @responses.activate
-def test_visitor_hit_fallback_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+def test_fallback_count_range_no_nlu_fallback_rule_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(60)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?"
+        f"from_date={from_date}&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=None",
+        status=200,
+        match=[responses.json_params_matcher({})],
+        json={"data": {'fallback_counts': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["fallback_counts"] == {'1': 25, '2': 24, '3': 28, '4': 26, '5': 20, '6': 25}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_fallback_count_range_with_from_date_less_than_six_months(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(300)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_fallback_count_range_with_from_date_greater_than_today_date(mock_auth):
+    from_date = (datetime.utcnow() + timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_fallback_count_range_with_to_date_less_than_six_months(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() - timedelta(300)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_fallback_count_range_with_to_date_greater_than_today_date(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() + timedelta(30)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_fallback_count_range_with_from_date_greater_than_to_date(mock_auth):
+    from_date = (datetime.utcnow()).date()
+    to_date = (datetime.utcnow() - timedelta(90)).date()
+    with pytest.raises(ValueError, match="from_date must be less than to_date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+@responses.activate
+def test_visitor_hit_fallback_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback?from_date={from_date}&to_date={to_date}"
+        f"&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
         status=200,
         json={"data": {'fallback_count': 10, 'total_count': 90}},
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'action_fallback': 'action_default_fallback',
-                                              'nlu_fallback': 'utter_please_rephrase'})],
+        match=[responses.json_params_matcher({})],
     )
 
     steps = [
@@ -325,14 +495,13 @@ def test_visitor_hit_fallback_with_kairon_client(mock_auth, mock_mongo_processor
 
 @responses.activate
 def test_conversation_steps_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/steps",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/steps?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": 100}
     )
 
@@ -349,15 +518,38 @@ def test_conversation_steps_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
-def test_conversation_time_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+def test_conversation_steps_with_kairon_client_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(60)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/time",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/steps?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
+        json={"data": 100}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/steps?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == 100
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_conversation_time_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+        status=200,
+        match=[responses.json_params_matcher({})],
         json={"data": 900.5}
     )
 
@@ -374,15 +566,88 @@ def test_conversation_time_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
-def test_user_with_metrics_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+def test_conversation_time_with_kairon_client_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(60)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
+        json={"data": 900.5}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == 900.5
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_conversation_time_with_from_date_less_than_six_months(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(300)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_conversation_time_with_from_date_greater_than_today_date(mock_auth):
+    from_date = (datetime.utcnow() + timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_conversation_time_with_to_date_less_than_six_months(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() - timedelta(300)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_conversation_time_with_to_date_greater_than_today_date(mock_auth):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() + timedelta(30)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+def test_conversation_time_with_from_date_greater_than_to_date(mock_auth):
+    from_date = (datetime.utcnow()).date()
+    to_date = (datetime.utcnow() - timedelta(90)).date()
+    with pytest.raises(ValueError, match="from_date must be less than to_date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+
+@responses.activate
+def test_user_with_metrics_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+        status=200,
+        match=[responses.json_params_matcher({})],
         json={"data": {'users': [{'sender_id': 'test@kairon.com', 'steps': 55, 'time': 15},
                                  {'sender_id': 'bot@kairon.com', 'steps': 20, 'time': 5}]}}
     )
@@ -401,15 +666,40 @@ def test_user_with_metrics_with_kairon_client(mock_auth, mock_mongo_processor):
 
 
 @responses.activate
-def test_engaged_users_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+def test_user_with_metrics_with_kairon_client_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(60)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged",
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'conversation_step_threshold': 10})],
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+        status=200,
+        match=[responses.json_params_matcher({})],
+        json={"data": {'users': [{'sender_id': 'test@kairon.com', 'steps': 55, 'time': 15},
+                                 {'sender_id': 'bot@kairon.com', 'steps': 20, 'time': 5}]}}
+    )
+
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["users"] == [{'sender_id': 'test@kairon.com', 'steps': 55, 'time': 15},
+                                       {'sender_id': 'bot@kairon.com', 'steps': 20, 'time': 5}]
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+@responses.activate
+def test_engaged_users_with_kairon_client(mock_auth, mock_mongo_processor):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
+    responses.add(
+        responses.GET,
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged"
+        f"?from_date={from_date}&to_date={to_date}&conversation_step_threshold=10",
+        match=[responses.json_params_matcher({})],
         status=200,
         json={"data": {'engaged_users': 50}}
     )
@@ -428,13 +718,12 @@ def test_engaged_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_new_users_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/new",
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/new?from_date={from_date}&to_date={to_date}",
+        match=[responses.json_params_matcher({})],
         status=200,
         json={"data": {'new_users': 50}}
     )
@@ -453,16 +742,14 @@ def test_new_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_successful_conversation_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/success",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/success?from_date={from_date}"
+        f"&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'action_fallback': 'action_default_fallback',
-                                              'nlu_fallback': 'utter_please_rephrase'})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'successful_conversations': 150}}
     )
 
@@ -480,13 +767,12 @@ def test_successful_conversation_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_user_retention_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/retention",
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/retention?from_date={from_date}&to_date={to_date}",
+        match=[responses.json_params_matcher({})],
         status=200,
         json={"data": {'user_retention': 25}}
     )
@@ -505,15 +791,14 @@ def test_user_retention_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}"
+        f"&conversation_step_threshold=10",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'conversation_step_threshold': 10})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'engaged_user_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -531,14 +816,13 @@ def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/new",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/new?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'new_user_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -556,16 +840,14 @@ def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/success",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/success?from_date={from_date}"
+        f"&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'action_fallback': 'action_default_fallback',
-                                              'nlu_fallback': 'utter_please_rephrase'})],
+        match=[responses.json_params_matcher({})],
         json={"data": {"successful_sessions": {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -583,14 +865,13 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_user_retention_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/retention",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/retention?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'retention_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -608,15 +889,14 @@ def test_user_retention_range_with_kairon_client(mock_auth, mock_mongo_processor
 
 @responses.activate
 def test_engaged_users_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged"
+        f"?from_date={from_date}&to_date={to_date}&conversation_step_threshold=11",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'conversation_step_threshold': 11})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'engaged_users': 60}}
     )
 
@@ -634,15 +914,14 @@ def test_engaged_users_with_value_with_kairon_client(mock_auth, mock_mongo_proce
 
 @responses.activate
 def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}"
+        f"&conversation_step_threshold=11",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'conversation_step_threshold': 11})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'engaged_user_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -660,16 +939,14 @@ def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
+        f"&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'action_fallback': 'action_default_fallback',
-                                              'nlu_fallback': 'utter_please_rephrase'})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'fallback_count_rate': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -687,14 +964,13 @@ def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor
 
 @responses.activate
 def test_flat_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/",
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'conversation_data': history_conversations()[0]}}
     )
 
@@ -721,15 +997,14 @@ def mock_list_bots(monkeypatch):
 
 @responses.activate
 def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     file = open('./tests/testing_data/history/conversations_history.json')
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         body=file.read(),
         content_type="text/plain",
         adding_headers={"Content-Disposition": "attachment; filename=conversations.csv"},
@@ -742,19 +1017,18 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, moc
     )
     assert response.status_code == 200
     assert response.content.decode('utf-8')
-    assert f"conversation_history_{pytest.bot}{datetime.date.today().strftime('_%d_%m_%y.csv')}" in str(response.headers)
+    assert f"conversation_history_{pytest.bot}{date.today().strftime('_%d_%m_%y.csv')}" in str(response.headers)
 
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client_access_denied1(mock_auth, mock_mongo_processor, mock_list_bots):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={'error_code': 422, 'message': "No data available!", 'success': False}
     )
 
@@ -770,14 +1044,13 @@ def test_download_conversation_with_error_with_kairon_client_access_denied1(mock
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client_access_denied2(mock_auth_designer, mock_mongo_processor, mock_list_bots):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={'error_code': 422, 'message': "No data available!", 'success': False}
     )
 
@@ -793,14 +1066,13 @@ def test_download_conversation_with_error_with_kairon_client_access_denied2(mock
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download",
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/download?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={'error_code': 422, 'message': "No data available!", 'success': False}
     )
 
@@ -816,14 +1088,13 @@ def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mo
 
 @responses.activate
 def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/total",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/total?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -841,14 +1112,13 @@ def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_proce
 
 @responses.activate
 def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/topmost",
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              "top_n": 10})],
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/topmost?from_date={from_date}"
+        f"&to_date={to_date}&top_n=10",
+        match=[responses.json_params_matcher({})],
         status=200,
         json={"data": [{'_id': 'action_google_search_kanban', 'count': 43}]}
     )
@@ -867,14 +1137,13 @@ def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/actions/topmost",
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              "top_n": 10})],
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/actions/topmost?from_date={from_date}"
+        f"&to_date={to_date}&top_n=10",
+        match=[responses.json_params_matcher({})],
         status=200,
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
     )
@@ -893,14 +1162,13 @@ def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/steps",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/steps?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'average_conversation_steps': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -918,15 +1186,14 @@ def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/wordcloud",
+        f"https://localhost:8083/api/history/{pytest.bot}/conversations/wordcloud?from_date={from_date}"
+        f"&to_date={to_date}&u_bound=1&l_bound=0&stopword_list=None",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'l_bound': 0, 'u_bound': 1, 'stopword_list': None})],
+        match=[responses.json_params_matcher({})],
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
     )
 
@@ -941,14 +1208,13 @@ def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/input",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/input?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": [{'_id': 'nlu_fallback', 'count': 32}]}
     )
 
@@ -966,14 +1232,13 @@ def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_time_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/time",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/time?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -991,16 +1256,14 @@ def test_conversation_time_range_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback/dropoff",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback/dropoff?from_date={from_date}"
+        f"&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'action_fallback': 'action_default_fallback',
-                                              'nlu_fallback': 'utter_please_rephrase'})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -1018,14 +1281,13 @@ def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/dropoff",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/dropoff?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
     )
 
@@ -1043,16 +1305,14 @@ def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor)
 
 @responses.activate
 def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/unsuccessful",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/unsuccessful?from_date={from_date}"
+        f"&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date),
-                                              'action_fallback': 'action_default_fallback',
-                                              'nlu_fallback': 'utter_please_rephrase'})],
+        match=[responses.json_params_matcher({})],
         json={"data": {'user_1': 25, 'user_2': 24}}
     )
 
@@ -1070,14 +1330,13 @@ def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_pro
 
 @responses.activate
 def test_total_sessions_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.datetime.utcnow() - datetime.timedelta(30)).date()
-    to_date = datetime.datetime.utcnow().date()
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/total",
+        f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
         status=200,
-        match=[responses.json_params_matcher({'from_date': Utility.convert_date_to_string(from_date),
-                                              'to_date': Utility.convert_date_to_string(to_date)})],
+        match=[responses.json_params_matcher({})],
         json={"data": {"user_1": 250, "user_2": 240}}
     )
 
@@ -1121,11 +1380,16 @@ def test_delete_user_history_unmanaged_history_server(mock_auth_admin, mock_mong
 
 @responses.activate
 def test_delete_user_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_not_configured, monkeypatch):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     event_url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.delete_history}"
     responses.add("POST",
                   event_url,
                   json={"success": True, "message": "Event triggered successfully!"},
-                  match=[responses.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com', 'month': "1", 'sender_id': '5e564fbcdcf0d5fad89e3acd'})],
+                  match=[responses.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com',
+                                                        'from_date': Utility.convert_date_to_string(from_date),
+                                                        'to_date': Utility.convert_date_to_string(to_date),
+                                                        'sender_id': '5e564fbcdcf0d5fad89e3acd'})],
                   status=200)
 
     response = client.delete(
@@ -1182,10 +1446,16 @@ def test_delete_bot_chat_history_unmanaged_history_server(mock_auth_admin, mock_
 
 @responses.activate
 def test_delete_bot_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_not_configured, monkeypatch):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = datetime.utcnow().date()
     event_url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.delete_history}"
     responses.add("POST",
                   event_url,
                   json={"success": True, "message": "Event triggered successfully!"},
+                  match=[responses.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com',
+                                                        'from_date': Utility.convert_date_to_string(from_date),
+                                                        'to_date': Utility.convert_date_to_string(to_date),
+                                                        'sender_id': None})],
                   status=200)
 
     response = client.delete(

@@ -16,7 +16,7 @@ class ActionSetSlot(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
         """
-        Initialize Email action.
+        Initialize Slot set action.
 
         @param bot: bot id
         @param name: action name
