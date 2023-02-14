@@ -167,10 +167,10 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        return Authentication.generate_login_tokens(user)
+        return Authentication.generate_login_tokens(user, True)
 
     @staticmethod
-    def generate_login_tokens(user: dict):
+    def generate_login_tokens(user: dict, is_login: bool):
         username = user["email"]
         access_token = Authentication.create_access_token(data={"sub": username})
         claims = Utility.decode_limited_access_token(access_token)
@@ -181,7 +181,11 @@ class Authentication:
         refresh_token = Authentication.__create_refresh_token(claims, access_token_iat, ttl, refresh_token_expire_minutes)
         refresh_token_expiry = access_token_iat + timedelta(minutes=refresh_token_expire_minutes)
         kwargs = {"username": username}
-        MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.login.value, account=user["account"], **kwargs)
+        if is_login:
+            metric_type = MetricType.login.value
+        else:
+            metric_type = MetricType.login_refresh_token.value
+        MeteringProcessor.add_metrics(bot=None, metric_type=metric_type, account=user["account"], **kwargs)
         return access_token, access_token_expiry.timestamp(), refresh_token, refresh_token_expiry.timestamp()
 
     @staticmethod
@@ -310,8 +314,8 @@ class Authentication:
                 status_code=422,
                 detail=f"Refresh only allowed for {TOKEN_TYPE.LOGIN.value} tokens!",
             )
-
-        return Authentication.generate_login_tokens(user)
+        tokens_and_expiry = Authentication.generate_login_tokens(user, False)
+        return tokens_and_expiry
 
     @staticmethod
     def update_integration_token(
