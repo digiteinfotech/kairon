@@ -6,8 +6,8 @@ from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations
-from kairon.shared.actions.models import ActionType
+    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction
+from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
@@ -3359,6 +3359,107 @@ class TestActionServer(AsyncHTTPTestCase):
                             {'text': 'lead created', 'buttons': [], 'elements': [], 'custom': {},
                              'template': None,
                              'response': None, 'image': None, 'attachment': None}]})
+
+    def test_process_razorpay_action_failure(self):
+        action_name = "test_process_razorpay_action_failure"
+        bot = "5f50fd0a56b698ca10d35d2e"
+
+        Actions(name=action_name, type=ActionType.razorpay_action.value, bot=bot, user='test_user').save()
+        RazorpayAction(
+            name=action_name,
+            api_key=CustomActionRequestParameters(value="API_KEY", parameter_type=ActionParameterType.key_vault),
+            api_secret=CustomActionRequestParameters(value="API_SECRET", parameter_type=ActionParameterType.key_vault),
+            amount=CustomActionRequestParameters(value="amount", parameter_type=ActionParameterType.slot),
+            currency=CustomActionRequestParameters(value="INR", parameter_type=ActionParameterType.value),
+            username=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
+            email=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
+            contact=CustomActionRequestParameters(value="contact", parameter_type=ActionParameterType.slot),
+            bot=bot, user="udit.pandey@digite.com"
+        ).save()
+        KeyVault(key="API_KEY", value="asdfghjkertyuio", bot=bot, user="user").save()
+        KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot=bot, user="user").save()
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["tracker"]["slots"]["amount"] = 11000
+        request_object["tracker"]["slots"]["contact"] = "987654320"
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = "udit.pandey"
+
+        response_object = json.load(open("tests/testing_data/actions/razorpay-failure.json"))
+        responses.add(
+            "POST",
+            "https://api.razorpay.com/v1/payment_links/",
+            json=response_object,
+            match=[responses.json_params_matcher({
+                "amount": 11000, "currency": "INR",
+                "customer": {"username": "udit.pandey", "email": "udit.pandey", "contact": "987654320"}
+            })]
+        )
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'name': 'kairon_action_response',
+                                                     'timestamp': None, 'value': "I have failed to process your request"}],
+                                         'responses': [{'attachment': None, 'buttons': [], 'custom': {},
+                                                        'elements': [], 'image': None, 'response': None,
+                                                        'template': None, 'text': "I have failed to process your request"}]})
+
+    def test_process_razorpay_action_not_exists(self):
+        action_name = "test_process_razorpay_action_not_exists"
+        bot = "5f50fd0a56b698ca10d35d2e"
+
+        Actions(name=action_name, type=ActionType.razorpay_action.value, bot=bot, user='test_user').save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json, {'events': [], 'responses': []})
+
+    def test_process_razorpay_action(self):
+        action_name = "test_process_razorpay_action"
+        bot = "5f50fd0a56b698ca10d35d2e"
+
+        Actions(name=action_name, type=ActionType.razorpay_action.value, bot=bot, user='test_user').save()
+        RazorpayAction(
+            name=action_name,
+            api_key=CustomActionRequestParameters(value="API_KEY", parameter_type=ActionParameterType.key_vault),
+            api_secret=CustomActionRequestParameters(value="API_SECRET", parameter_type=ActionParameterType.key_vault),
+            amount=CustomActionRequestParameters(value="amount", parameter_type=ActionParameterType.slot),
+            currency=CustomActionRequestParameters(value="INR", parameter_type=ActionParameterType.value),
+            username=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
+            email=CustomActionRequestParameters(parameter_type=ActionParameterType.sender_id),
+            contact=CustomActionRequestParameters(value="contact", parameter_type=ActionParameterType.slot),
+            bot=bot, user="udit.pandey@digite.com"
+        ).save()
+        KeyVault(key="API_KEY", value="asdfghjkertyuio", bot=bot, user="user").save()
+        KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot=bot, user="user").save()
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["tracker"]["slots"]["amount"] = 11000
+        request_object["tracker"]["slots"]["contact"] = "987654320"
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = "udit.pandey"
+
+        response_object = json.load(open("tests/testing_data/actions/razorpay-success.json"))
+        responses.add(
+            "POST",
+            "https://api.razorpay.com/v1/payment_links/",
+            json=response_object,
+            match=[responses.json_params_matcher({
+                "amount": 11000, "currency": "INR",
+                "customer": {"username": "udit.pandey", "email": "udit.pandey", "contact": "987654320"}
+            })]
+        )
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'name': 'kairon_action_response',
+                                                     'timestamp': None, 'value': 'https://rzp.io/i/nxrHnLJ'}],
+                                         'responses': [{'attachment': None,  'buttons': [], 'custom': {},
+                                                        'elements': [], 'image': None, 'response': None,
+                                                        'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]})
 
     def test_process_pipedrive_leads_action_failure(self):
         action_name = "test_process_pipedrive_leads_action_failure"

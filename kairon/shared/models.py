@@ -20,6 +20,7 @@ class StoryStepType(str, Enum):
     zendesk_action = "ZENDESK_ACTION"
     pipedrive_leads_action = "PIPEDRIVE_LEADS_ACTION"
     hubspot_forms_action = "HUBSPOT_FORMS_ACTION"
+    razorpay_action = "RAZORPAY_ACTION"
     two_stage_fallback_action = "TWO_STAGE_FALLBACK_ACTION"
 
 

@@ -1,4 +1,5 @@
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from datetime import datetime, date, timedelta
 from typing import List
 
 from loguru import logger
@@ -10,9 +11,11 @@ from kairon.events.definitions.history_delete import DeleteHistoryEvent
 def initiate_history_deletion_archival(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
-    logger.info("month: {}", args.month)
+    logger.info("from_date: {}", args.from_date)
+    logger.info("to_date: {}", args.to_date)
     logger.info("sender_id: {}", args.sender_id)
-    DeleteHistoryEvent(args.bot, args.user, month=args.month, sender_id=args.sender_id).execute()
+    DeleteHistoryEvent(args.bot, args.user, from_date=args.from_date, to_date=args.to_date,
+                       sender_id=args.sender_id).execute()
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
@@ -29,10 +32,14 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
     data_parser.add_argument('user',
                              type=str,
                              help="Kairon user who is initiating the command", action='store')
-    data_parser.add_argument('month',
-                             type=str,
-                             default="1",
-                             help="month upto which history to be deleted", action='store')
+    data_parser.add_argument('from_date',
+                             type=date,
+                             default=(datetime.utcnow() - timedelta(30)).date(),
+                             help="from which date history to be deleted", action='store')
+    data_parser.add_argument('to_date',
+                             type=date,
+                             default=datetime.utcnow().date(),
+                             help="upto which date history to be deleted", action='store')
     data_parser.add_argument('sender_id',
                              type=str,
                              default=None,

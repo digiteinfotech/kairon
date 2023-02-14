@@ -552,18 +552,24 @@ class Utility:
         Utility.email_conf = ConfigLoader(os.getenv("EMAIL_CONF", "./email.yaml")).get_config()
 
     @staticmethod
-    def get_timestamp_previous_month(month: int = 1):
-        start_time = datetime.now() - timedelta(month * 30, seconds=0, minutes=0, hours=0)
-        return start_time.timestamp()
-
-    @staticmethod
     def convert_date_to_string(date_obj: date = datetime.utcnow().date()):
-        return date_obj.strftime("%d-%m-%Y")
+        return date_obj.strftime("%Y-%m-%d")
 
     @staticmethod
     def get_timestamp_from_date(date_obj: date = datetime.utcnow().date()):
         date_time = datetime.now().replace(date_obj.year, date_obj.month, date_obj.day)
         return date_time.timestamp()
+
+    @staticmethod
+    def validate_from_date_and_to_date(from_date: date, to_date: date):
+        six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
+        today_date = datetime.utcnow().date()
+        if six_months_back_date > from_date or from_date > today_date:
+            raise ValueError("from_date should be within six months and today date")
+        elif six_months_back_date > to_date or to_date > today_date:
+            raise ValueError("to_date should be within six months and today date")
+        elif from_date >= to_date:
+            raise ValueError("from_date must be less than to_date")
 
     @staticmethod
     def get_local_db(url=None, db_name=None):
@@ -1129,7 +1135,7 @@ class Utility:
             elasticapm.label(**kwargs)
 
     @staticmethod
-    def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict, request_method: str = 'GET',
+    def trigger_history_server_request(bot: Text, endpoint: Text, request_body: dict = None, request_method: str = 'GET',
                                        return_json: bool = True):
         from kairon.shared.data.processor import MongoProcessor
 
@@ -1138,6 +1144,8 @@ class Utility:
         history_server = mongo_processor.get_history_server_endpoint(bot)
         if not Utility.check_empty_string(history_server.get('token')):
             headers = {'Authorization': f'Bearer {history_server["token"]}'}
+        if not request_body:
+            request_body = {}
         url = urljoin(history_server['url'], endpoint)
         try:
             logger.info(f"url : {url} {request_body}")

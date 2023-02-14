@@ -611,12 +611,12 @@ class SlotSetActionRequest(BaseModel):
 
 
 class CustomActionParameter(BaseModel):
-    value: str
+    value: str = None
     parameter_type: ActionParameterType = ActionParameterType.value
 
     @validator("parameter_type")
     def validate_parameter_type(cls, v, values, **kwargs):
-        allowed_values = {ActionParameterType.value, ActionParameterType.slot, ActionParameterType.key_vault}
+        allowed_values = {ActionParameterType.value, ActionParameterType.slot, ActionParameterType.key_vault, ActionParameterType.sender_id}
         if v not in allowed_values:
             raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
         return v
@@ -724,6 +724,17 @@ class TwoStageFallbackConfigRequest(BaseModel):
         if values.get('text_recommendations') and values['text_recommendations'].count < 0:
             raise ValueError("count cannot be negative")
         return values
+
+
+class RazorpayActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    api_key: CustomActionParameter
+    api_secret: CustomActionParameter
+    amount: CustomActionParameter
+    currency: CustomActionParameter
+    username: CustomActionParameter = None
+    email: CustomActionParameter = None
+    contact: CustomActionParameter = None
 
 
 class IntegrationRequest(BaseModel):

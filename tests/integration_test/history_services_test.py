@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import json
 import os
 from fastapi.testclient import TestClient
@@ -73,6 +74,73 @@ def test_chat_history_users(mock_mongo):
                                 'permissions-policy': "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=(), geolocation=(self 'spam.com'), vibrate=()"}
 
 
+def test_chat_history_users_with_from_date_less_than_six_months():
+    from_date = (datetime.utcnow() - timedelta(300)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_chat_history_users_with_from_date_greater_than_today_date():
+    from_date = (datetime.utcnow() + timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_chat_history_users_with_to_date_less_than_six_months():
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() - timedelta(300)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_chat_history_users_with_to_date_greater_than_today_date():
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() + timedelta(30)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_chat_history_users_with_from_date_greater_than_to_date():
+    from_date = (datetime.utcnow()).date()
+    to_date = (datetime.utcnow() - timedelta(90)).date()
+    with pytest.raises(ValueError, match="from_date must be less than to_date"):
+        client.get(
+            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_chat_history_users_with_valid_from_date_and_to_date(mock_mongo):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["users"]) == 0
+    assert actual["message"] is None
+    assert actual["success"]
+
+
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
 def test_chat_history(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
@@ -140,6 +208,73 @@ def test_user_with_metrics(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/users",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]["users"] == []
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_user_with_metrics_with_from_date_less_than_six_months():
+    from_date = (datetime.utcnow() - timedelta(300)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_user_with_metrics_with_from_date_greater_than_today_date():
+    from_date = (datetime.utcnow() + timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_user_with_metrics_with_to_date_less_than_six_months():
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() - timedelta(300)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_user_with_metrics_with_to_date_greater_than_today_date():
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() + timedelta(30)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_user_with_metrics_with_from_date_greater_than_to_date():
+    from_date = (datetime.utcnow()).date()
+    to_date = (datetime.utcnow() - timedelta(90)).date()
+    with pytest.raises(ValueError, match="from_date must be less than to_date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_user_with_metrics_with_valid_from_date_and_to_date(mock_mongo):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -248,6 +383,73 @@ def test_engaged_user_range(mock_mongo):
     mock_mongo.return_value = MongoClient("mongodb://locahost/test")
     response = client.get(
         f"/api/history/{pytest.bot}/trends/users/engaged",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]['engaged_user_range'] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_engaged_user_range_with_from_date_less_than_six_months():
+    from_date = (datetime.utcnow() - timedelta(300)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_engaged_user_range_with_from_date_greater_than_today_date():
+    from_date = (datetime.utcnow() + timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_engaged_user_range_with_to_date_less_than_six_months():
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() - timedelta(300)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_engaged_user_range_with_to_date_greater_than_today_date():
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() + timedelta(30)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_engaged_user_range_with_from_date_greater_than_to_date():
+    from_date = (datetime.utcnow()).date()
+    to_date = (datetime.utcnow() - timedelta(90)).date()
+    with pytest.raises(ValueError, match="from_date must be less than to_date"):
+        client.get(
+            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_engaged_user_range_with_valid_from_date_and_to_date(mock_mongo):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 
@@ -783,6 +985,73 @@ def test_total_sessions_with_request(mock_mongo):
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/sessions/total",
         json={'month': 4},
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"] == {}
+    assert actual["message"] is None
+    assert actual["success"]
+
+
+def test_total_session_with_from_date_less_than_six_months():
+    from_date = (datetime.utcnow() - timedelta(300)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_total_session_with_from_date_greater_than_today_date():
+    from_date = (datetime.utcnow() + timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_total_session_with_to_date_less_than_six_months():
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() - timedelta(300)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_total_session_with_to_date_greater_than_today_date():
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow() + timedelta(30)).date()
+    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+def test_total_session_with_from_date_greater_than_to_date():
+    from_date = (datetime.utcnow()).date()
+    to_date = (datetime.utcnow() - timedelta(90)).date()
+    with pytest.raises(ValueError, match="from_date must be less than to_date"):
+        client.get(
+            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+        )
+
+
+@mock.patch('kairon.history.processor.MongoClient', autospec=True)
+def test_total_session_with_valid_from_date_and_to_date(mock_mongo):
+    from_date = (datetime.utcnow() - timedelta(30)).date()
+    to_date = (datetime.utcnow()).date()
+    mock_mongo.return_value = MongoClient("mongodb://locahost/test")
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
     )
 

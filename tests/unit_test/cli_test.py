@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import pytest
 import os
 
@@ -207,7 +209,8 @@ class TestConversationsDeletionCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=initiate_history_deletion_archival, bot="test_cli", user="testUser",
-                                                sender_id=None, month=3))
+                                                sender_id=None, from_date=(datetime.utcnow() - timedelta(30)).date(),
+                                                to_date=datetime.utcnow().date()))
     def test_cli_history_deletion_with_defaults(self, monkeypatch):
         def mock_history_delete(*args, **kwargs):
             return None
@@ -217,7 +220,9 @@ class TestConversationsDeletionCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=initiate_history_deletion_archival, bot="test_cli", user="testUser",
-                                                sender_id='testSender', month=1))
+                                                sender_id='testSender',
+                                                from_date=(datetime.utcnow() - timedelta(30)).date(),
+                                                to_date=datetime.utcnow().date()))
     def test_cli_history_deletion_all_arguments(self, monkeypatch):
         def mock_history_delete(*args, **kwargs):
             return None

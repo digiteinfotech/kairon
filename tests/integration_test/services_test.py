@@ -1840,8 +1840,30 @@ def test_add_story():
     actual = response.json()
     assert actual["message"] == "Flow added successfully"
     assert actual["data"]["_id"]
+    pytest.story_id = actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
+
+
+def test_add_story_with_name_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "greet",
+            "type": "STORY",
+            "template_type": "Q&A",
+            "steps": [
+                {"name": "test_greet", "type": "INTENT"},
+                {"name": "utter_test_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Story with the name already exists"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
 
 
 def test_add_story_invalid_type():
@@ -2003,9 +2025,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -2043,8 +2065,45 @@ def test_add_multiflow_story():
     print(actual["message"])
     assert actual["message"] == "Story flow added successfully"
     assert actual["data"]["_id"]
+    pytest.multiflow_story_id = actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
+
+
+def test_add_multiflow_story_with_name_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": [{"name": "more_queries", "type": "INTENT"},
+                                {"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+            },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            }
+        ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Multiflow Story with the name already exists"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
 
 
 def test_add_multiflow_story_no_steps():
@@ -2150,10 +2209,10 @@ def test_add_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', "
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-                        "'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
-                 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION',
+                 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
                  'TWO_STAGE_FALLBACK_ACTION']}
                  }]
     )
@@ -2161,7 +2220,7 @@ def test_add_multiflow_story_invalid_event_type():
 
 def test_update_story():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "STORY",
@@ -2180,9 +2239,30 @@ def test_update_story():
     assert actual["error_code"] == 0
 
 
+def test_update_story_with_name_already_exists():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
+        json={
+            "name": "test_add_story_consecutive_actions",
+            "type": "STORY",
+            "template_type": "Q&A",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Story with the name already exists"
+    assert actual["data"] is None
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_update_story_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "STORY",
@@ -2199,16 +2279,16 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
 
 def test_update_multiflow_story():
     response = client.put(
-        f"/api/bot/{pytest.bot}/v2/stories",
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
         json={
             "name": "test_path",
             "steps": [
@@ -2243,9 +2323,79 @@ def test_update_multiflow_story():
     assert actual["error_code"] == 0
 
 
+def test_update_multiflow_story_with_name_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "another_test_path",
+            "steps": [
+                {"step": {"name": "greet", "type": "INTENT"},
+                 "connections": [{"name": "utter_greet", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_greet", "type": "BOT"},
+                 "connections": [{"name": "more_queries", "type": "INTENT"},
+                                 {"name": "goodbye", "type": "INTENT"}]
+                 },
+                {"step": {"name": "goodbye", "type": "INTENT"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_goodbye", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "utter_more_queries", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "more_queries", "type": "INTENT"},
+                 "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+                 }
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Story flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
+        json={
+            "name": "another_test_path",
+            "steps": [
+                {"step": {"name": "greeting", "type": "INTENT"},
+                 "connections": [{"name": "utter_greeting", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_greeting", "type": "BOT"},
+                 "connections": [{"name": "more_query", "type": "INTENT"},
+                                 {"name": "goodbye", "type": "INTENT"}]
+                 },
+                {"step": {"name": "goodbye", "type": "INTENT"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_goodbye", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "utter_more_query", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "more_query", "type": "INTENT"},
+                 "connections": [{"name": "utter_more_query", "type": "BOT"}]
+                 }
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Multiflow Story with the name already exists"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
 def test_update_multiflow_story_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/v2/stories",
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
         json={
             "name": "test_path",
             "steps": [
@@ -2266,11 +2416,11 @@ def test_update_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', "
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
-                        "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                        "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
-                        'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']}
+                        'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']}
                  }]
     )
 
@@ -2308,7 +2458,7 @@ def test_get_multiflow_stories():
 
 def test_delete_multiflow_story():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path/MULTIFLOW",
+        f"/api/bot/{pytest.bot}/stories/{pytest.multiflow_story_id}/MULTIFLOW",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2319,7 +2469,7 @@ def test_delete_multiflow_story():
 
 def test_delete_multiflow_non_existing_story():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path2/MULTIFLOW",
+        f"/api/bot/{pytest.bot}/stories/{pytest.multiflow_story_id}/MULTIFLOW",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2346,9 +2496,10 @@ def test_delete_story():
     assert actual["message"] == "Flow added successfully"
     assert actual["success"]
     assert actual["error_code"] == 0
+    pytest.story_id = actual['data']['_id']
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path1/STORY",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2359,7 +2510,7 @@ def test_delete_story():
 
 def test_delete_non_existing_story():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path2/STORY",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5243,7 +5394,7 @@ def test_list_actions():
     assert Utility.check_empty_string(actual["message"])
     assert actual['data'] == {
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
-        'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
+        'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
         'http_action': ['test_add_http_action_no_token',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
@@ -5764,6 +5915,27 @@ def test_add_rule():
     assert actual["error_code"] == 0
     assert actual["message"] == "Flow added successfully"
     assert actual["data"]["_id"]
+    pytest.story_id = actual["data"]["_id"]
+
+
+def test_add_rule_with_name_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "ask the user to rephrase whenever they send a message with low nlu confidence",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Rule with the name already exists"
 
 
 def test_add_rule_invalid_type():
@@ -5921,16 +6093,16 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
 
 def test_update_rule():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "RULE",
@@ -5948,9 +6120,29 @@ def test_update_rule():
     assert actual["data"]["_id"]
 
 
+def test_update_rule_with_name_already_exists():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
+        json={
+            "name": "test_add_rule_consecutive_actions",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Rule with the name already exists"
+    assert actual["data"] is None
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_update_rule_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "RULE",
@@ -5966,9 +6158,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -5990,9 +6182,10 @@ def test_delete_rule():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Flow added successfully"
+    pytest.story_id = actual['data']['_id']
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path1/RULE",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/RULE",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -6003,7 +6196,7 @@ def test_delete_rule():
 
 def test_delete_non_existing_rule():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path2/RULE",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/RULE",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -8449,6 +8642,7 @@ def test_add_story_case_insensitivity():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
+    pytest.story_id = actual["data"]["_id"]
 
     response = client.get(
         f"/api/bot/{pytest.bot}/stories",
@@ -8464,7 +8658,7 @@ def test_add_story_case_insensitivity():
     assert 'case_insensitive_story' in stories_added
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/case_insensitive_story/STORY",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10756,7 +10950,7 @@ def test_add_pipedrive_action_invalid_parameter_types():
     action = {
         'name': 'pipedrive_leads_sender_id',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': {'value': '12345678', "parameter_type": "sender_id"},
+        'api_token': {'value': '12345678', "parameter_type": "intent"},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -10869,7 +11063,7 @@ def test_edit_pipedrive_action_invalid_parameter_type():
     action = {
         'name': 'pipedrive_leads_slot_key_vault',
         'domain': 'https://digite751.pipedrive.com/',
-        'api_token': {'value': '12345678', "parameter_type": "sender_id"},
+        'api_token': {'value': '12345678', "parameter_type": "intent"},
         'title': 'new lead',
         'response': 'I have failed to create lead for you',
         'metadata': {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
@@ -10929,6 +11123,198 @@ def test_edit_pipedrive_action_not_found():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "pipedrive_action" not found'
+
+
+def test_list_razorpay_actions_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+def test_add_razorpay_action():
+    action_name = 'razorpay_action'
+    action = {
+        'name': action_name,
+        'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+        'api_secret': {"value": "API_SECRET", "parameter_type": "key_vault"},
+        'amount': {"value": "amount", "parameter_type": "slot"},
+        'currency': {"value": "INR", "parameter_type": "value"},
+        'username': {"parameter_type": "sender_id"},
+        'email': {"parameter_type": "sender_id"},
+        'contact': {"value": "contact", "parameter_type": "slot"},
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+
+
+def test_add_razorpay_action_with_required_values_only():
+    action_name = 'razorpay_action_required_values_only'
+    action = {
+        'name': action_name,
+        'api_key': {"value": "API_KEY", "parameter_type": "value"},
+        'api_secret': {"value": "API_SECRET", "parameter_type": "value"},
+        'amount': {"value": "amount", "parameter_type": "value"},
+        'currency': {"value": "INR", "parameter_type": "slot"},
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+
+
+def test_add_razorpay_action_without_required_values():
+    action_name = 'razorpay_action_required_values_only'
+    action = {
+        'name': action_name,
+        'amount': {"value": "amount", "parameter_type": "value"},
+        'currency': {"value": "INR", "parameter_type": "slot"},
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'api_key'], 'msg': 'field required', 'type': 'value_error.missing'}, {'loc': ['body', 'api_secret'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_list_razorpay_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    [v.pop("timestamp") for v in actual["data"]]
+    assert actual["data"] == [{'name': 'razorpay_action',
+                        'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
+                                    'value': 'API_KEY', 'parameter_type': 'key_vault'},
+                        'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret', 'encrypt': False,
+                                       'value': 'API_SECRET', 'parameter_type': 'key_vault'},
+                        'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
+                                   'value': 'amount', 'parameter_type': 'slot'},
+                        'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
+                                     'value': 'INR', 'parameter_type': 'value'},
+                        'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False,
+                                     'parameter_type': 'sender_id'},
+                        'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
+                                  'parameter_type': 'sender_id'},
+                        'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
+                                    'value': 'contact', 'parameter_type': 'slot'}},
+                       {'name': 'razorpay_action_required_values_only',
+                        'api_key': {
+                            '_cls': 'CustomActionRequestParameters',
+                            'key': 'api_key', 'encrypt': False,
+                            'value': 'API_KEY', 'parameter_type': 'value'},
+                        'api_secret': {
+                            '_cls': 'CustomActionRequestParameters',
+                            'key': 'api_secret', 'encrypt': False,
+                            'value': 'API_SECRET',
+                            'parameter_type': 'value'},
+                        'amount': {'_cls': 'CustomActionRequestParameters',
+                                   'key': 'amount', 'encrypt': False,
+                                   'value': 'amount',
+                                   'parameter_type': 'value'},
+                        'currency': {
+                            '_cls': 'CustomActionRequestParameters',
+                            'key': 'currency', 'encrypt': False,
+                            'value': 'INR', 'parameter_type': 'slot'}}]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_edit_razorpay_action():
+    action_name = 'razorpay_action'
+    action = {
+        'name': action_name,
+        'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+        'api_secret': {"value": "API_SECRET", "parameter_type": "key_vault"},
+        'amount': {"value": "amount", "parameter_type": "value"},
+        'currency': {"value": "INR", "parameter_type": "slot"},
+        'email': {"parameter_type": "sender_id"},
+        'contact': {"value": "contact", "parameter_type": "value"},
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated!"
+
+
+def test_edit_razorpay_action_required_config_missing():
+    action_name = 'razorpay_action'
+    action = {
+        'name': action_name,
+        'email': {"parameter_type": "sender_id"},
+        'contact': {"value": "contact", "parameter_type": "value"},
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'api_key'], 'msg': 'field required', 'type': 'value_error.missing'}, {'loc': ['body', 'api_secret'], 'msg': 'field required', 'type': 'value_error.missing'}, {'loc': ['body', 'amount'], 'msg': 'field required', 'type': 'value_error.missing'}, {'loc': ['body', 'currency'], 'msg': 'field required', 'type': 'value_error.missing'}]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_razorpay_action_not_found():
+    action_name = 'new_razorpay_action'
+    action = {
+        'name': action_name,
+        'api_key': {"value": "API_KEY", "parameter_type": "key_vault"},
+        'api_secret': {"value": "API_SECRET", "parameter_type": "key_vault"},
+        'amount': {"value": "amount", "parameter_type": "value"},
+        'currency': {"value": "INR", "parameter_type": "slot"},
+        'email': {"parameter_type": "sender_id"},
+        'contact': {"value": "contact", "parameter_type": "value"},
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/razorpay",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "new_razorpay_action" not found'
+
+
+def test_delete_razorpay_action():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/razorpay_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
 
 
 def test_get_fields_for_integrated_actions():
