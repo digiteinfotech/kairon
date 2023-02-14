@@ -167,10 +167,26 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        access_token = Authentication.create_access_token(data={"sub": user["email"]})
+        return Authentication.generate_login_tokens(user, True)
+
+    @staticmethod
+    def generate_login_tokens(user: dict, is_login: bool):
+        username = user["email"]
+        access_token = Authentication.create_access_token(data={"sub": username})
+        claims = Utility.decode_limited_access_token(access_token)
+        access_token_iat = datetime.fromtimestamp(claims['iat'])
+        access_token_expiry = datetime.fromtimestamp(claims['exp'])
+        refresh_token_expire_minutes = Utility.environment['security']["refresh_token_expire"]
+        ttl = Utility.environment['security']["token_expire"]
+        refresh_token = Authentication.__create_refresh_token(claims, access_token_iat, ttl, refresh_token_expire_minutes)
+        refresh_token_expiry = access_token_iat + timedelta(minutes=refresh_token_expire_minutes)
         kwargs = {"username": username}
-        MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.login.value, account=user["account"], **kwargs)
-        return access_token
+        if is_login:
+            metric_type = MetricType.login.value
+        else:
+            metric_type = MetricType.login_refresh_token.value
+        MeteringProcessor.add_metrics(bot=None, metric_type=metric_type, account=user["account"], **kwargs)
+        return access_token, access_token_expiry.timestamp(), refresh_token, refresh_token_expiry.timestamp()
 
     @staticmethod
     def validate_limited_access_token(request: Request, access_limit: list):
@@ -217,6 +233,9 @@ class Authentication:
     ):
         """ Generates an access token for secure integration of the bot
             with an external service/architecture """
+        from kairon.shared.data.processor import MongoProcessor
+
+        bot_settings = MongoProcessor.get_bot_settings(bot, user)
         if token_type == TOKEN_TYPE.LOGIN.value:
             raise NotImplementedError
         iat: datetime = datetime.now(tz=timezone.utc)
@@ -232,7 +251,8 @@ class Authentication:
             expiry = iat + timedelta(minutes=expiry)
             expiry = expiry.replace(microsecond=0)
             data.update({"exp": expiry})
-            refresh_token = Authentication.__create_refresh_token(data, bot, user, iat, ttl)
+            exp = bot_settings.refresh_token_expiry
+            refresh_token = Authentication.__create_refresh_token(data, iat, ttl, exp)
         else:
             expiry = None
             refresh_token = None
@@ -243,19 +263,19 @@ class Authentication:
         return access_token, refresh_token
 
     @staticmethod
-    def __create_refresh_token(claims: dict, bot: Text, user: Text, parent_token_iat: datetime, ttl: int):
-        from kairon.shared.data.processor import MongoProcessor
-
+    def __create_refresh_token(claims: dict, parent_token_iat: datetime, ttl: int, expiry: int):
         token_claims = claims.copy()
-        bot_settings = MongoProcessor().get_bot_settings(bot, user)
         token_claims["primary-token-type"] = claims['type']
-        token_claims["primary-token-role"] = claims['role']
-        token_claims["primary-token-access-limit"] = claims.get('access-limit')
+        if claims["type"] != TOKEN_TYPE.LOGIN.value:
+            token_claims["primary-token-role"] = claims['role']
+            token_claims["primary-token-access-limit"] = claims.get('access-limit')
+            token_claims["access-limit"] = ['/api/auth/.+/token/refresh']
+        else:
+            token_claims["access-limit"] = ['/api/auth/token/refresh']
         token_claims["role"] = ACCESS_ROLES.TESTER.value
         token_claims["type"] = TOKEN_TYPE.REFRESH.value
-        token_claims["access-limit"] = ['/api/auth/.+/token/refresh']
         token_claims["ttl"] = ttl
-        token_claims["exp"] = parent_token_iat + timedelta(minutes=bot_settings.refresh_token_expiry)
+        token_claims["exp"] = parent_token_iat + timedelta(minutes=expiry)
         refresh_token = Authentication.create_access_token(data=token_claims, token_type=TOKEN_TYPE.REFRESH.value)
         return refresh_token
 
@@ -280,6 +300,22 @@ class Authentication:
             name='from refresh token'
         )
         return access_token, new_refresh_token
+
+    @staticmethod
+    def generate_login_token_from_refresh_token(refresh_token: Text, user: dict):
+        claims = Utility.decode_limited_access_token(refresh_token)
+        if claims["type"] != TOKEN_TYPE.REFRESH.value:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Only refresh tokens can be used to generate new token!",
+            )
+        if claims["primary-token-type"] != TOKEN_TYPE.LOGIN.value:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Refresh only allowed for {TOKEN_TYPE.LOGIN.value} tokens!",
+            )
+        tokens_and_expiry = Authentication.generate_login_tokens(user, False)
+        return tokens_and_expiry
 
     @staticmethod
     def update_integration_token(

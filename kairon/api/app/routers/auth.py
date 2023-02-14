@@ -25,13 +25,15 @@ async def login_for_access_token(
     Authenticates the user and generates jwt token
     """
     Utility.validate_enable_sso_only()
-    access_token = Authentication.authenticate(form_data.username, form_data.password)
+    access_tkn, access_tkn_exp, refresh_tkn, refresh_tkn_exp = Authentication.authenticate(form_data.username, form_data.password)
     background_tasks.add_task(
         Authentication.validate_trusted_device, form_data.username, form_data.fingerprint, request
     )
     return {
-        "data": {"access_token": access_token, "token_type": "bearer"},
-        "message": "User Authenticated",
+        "data": {
+            "access_token": access_tkn, "access_token_expiry": access_tkn_exp, "token_type": "bearer",
+            "refresh_token": refresh_tkn, "refresh_token_expiry": refresh_tkn_exp
+        }, "message": "User Authenticated",
     }
 
 
@@ -46,6 +48,25 @@ async def refresh_token(
     access_token, new_refresh_token = Authentication.generate_token_from_refresh_token(token)
     return {
         "data": {"access_token": access_token, "token_type": "bearer", "refresh_token": new_refresh_token},
+        "message":
+            "This token will be shown only once. Please copy this somewhere safe."
+            "It is your responsibility to keep the token secret. If leaked, others may have access to your system."
+    }
+
+
+@router.get("/token/refresh", response_model=Response)
+async def refresh_login_token(
+        token: str = Depends(DataUtility.oauth2_scheme),
+        current_user: User = Security(Authentication.get_current_user)
+):
+    """
+    Generates an access token from refresh token supplied.
+    """
+    access_tkn, access_tkn_exp, refresh_tkn, refresh_tkn_exp = Authentication.generate_login_token_from_refresh_token(token, current_user.dict())
+    return {
+        "data": {"access_token": access_tkn, "access_token_expiry": access_tkn_exp,
+                 "token_type": "bearer", "refresh_token": refresh_tkn,
+                 "refresh_token_expiry": refresh_tkn_exp},
         "message":
             "This token will be shown only once. Please copy this somewhere safe."
             "It is your responsibility to keep the token secret. If leaked, others may have access to your system."

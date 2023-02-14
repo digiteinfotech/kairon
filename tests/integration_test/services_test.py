@@ -38,7 +38,6 @@ from kairon.shared.data.training_data_generation_processor import TrainingDataGe
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
-from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
@@ -52,6 +51,7 @@ from unittest.mock import patch
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
+refresh_token = None
 token_type = None
 
 
@@ -66,6 +66,7 @@ def setup():
 def pytest_configure():
     return {'token_type': None,
             'access_token': None,
+            'refresh_token': None,
             'username': None,
             'bot': None
             }
@@ -433,6 +434,50 @@ def test_api_login():
     )
     assert actual["success"]
     assert actual["error_code"] == 0
+
+    email = "integration@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'User Authenticated'
+    assert actual["data"]
+    assert actual['data']['token_type'] == "bearer"
+    assert actual["data"]["access_token"]
+    assert actual["data"]["refresh_token"]
+    assert actual['data']['access_token_expiry']
+    assert actual['data']['refresh_token_expiry']
+    refresh_token = actual['data']['refresh_token']
+    access_token = actual["data"]["access_token"]
+
+    response = client.get(
+        f"/api/auth/token/refresh", headers={"Authorization": pytest.token_type + " " + access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == 'Only refresh tokens can be used to generate new token!'
+
+    response = client.get(
+        f"/api/auth/token/refresh", headers={"Authorization": pytest.token_type + " " + refresh_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["access_token"]
+    assert actual["data"]["token_type"]
+    assert actual["data"]["refresh_token"]
+    assert actual["message"] == 'This token will be shown only once. Please copy this somewhere safe.' \
+                                'It is your responsibility to keep the token secret. ' \
+                                'If leaked, others may have access to your system.'
 
 
 @responses.activate
@@ -6801,6 +6846,8 @@ def test_refresh_token(monkeypatch):
         f"/api/auth/{pytest.bot}/token/refresh", headers={"Authorization": pytest.token_type + " " + refresh_token}
     )
     actual = response.json()
+    print(actual)
+    # assert 1 == 0
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]["access_token"]
