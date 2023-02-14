@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import pytest
@@ -391,11 +392,27 @@ class TestIDP:
         assert updated_idp_config["organization"] == "Test"
         assert updated_idp_config["tenant"] == "fa1b21ce-4ca5-4009_new"
 
-    def test_delete_idp_config(self):
-        realm_name = "IDPTEST"
-        IDPProcessor.delete_idp(realm_name=realm_name)
+    def test_delete_idp_config(self, monkeypatch, set_idp_props):
+        def _delete_realm(*args, **kwargs):
+            return None
 
-    def test_get_idp_config_after_delete(self):
+        monkeypatch.setattr(IDPHelper, 'delete_realm', _delete_realm)
+        user = get_user()
+        realm_name = "IDPTEST"
+        fetched_idp_config = IDPProcessor.get_idp_config(account=user.account)
+
+        assert fetched_idp_config["client_id"] == "new_95280cec-93ca-4a94-a852-c23aa10*****"
+        assert fetched_idp_config["client_id"] != "95280cec-93ca-4a94-a852-c23aa10*****"
+        assert fetched_idp_config["client_secret"] != "F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
+        assert fetched_idp_config["client_secret"] == "new_F1X8Q~JCqf3bNjoGUVcqPgRCAJQYL075ehe*****"
+        assert fetched_idp_config["organization"] == "Test"
+        assert fetched_idp_config["tenant"] == "fa1b21ce-4ca5-4009_new"
+
+        IDPProcessor.delete_idp(realm_name=realm_name)
+        fetched_idp_config = IDPProcessor.get_idp_config(account=user.account)
+        assert fetched_idp_config == {}
+
+    def test_get_idp_config_after_delete(self, monkeypatch, set_idp_props):
         user = get_user()
         fetched_idp_config = IDPProcessor.get_idp_config(account=user.account)
         assert fetched_idp_config == {}
@@ -434,3 +451,34 @@ class TestIDP:
     def test_idp_helper(self):
         idp_helper = IDPFactory.get_supported_idp("idp")
         assert idp_helper.__name__ == "IDPHelper"
+
+    def test_identify_user_and_create_access_token_new_user(self, monkeypatch, set_idp_props):
+        def _get_idp_token(*args, **kwargs):
+            return {"email": "new_idp_user@demo.in",
+                    "given_name": "test",
+                    "family_name": "user"}
+
+        monkeypatch.setattr(IDPProcessor, 'get_idp_token', _get_idp_token)
+
+        realm_name = "IDPTEST"
+        loop = asyncio.new_event_loop()
+        existing_user, user_details, access_token = loop.run_until_complete(IDPProcessor.identify_user_and_create_access_token(realm_name, "session_state", "code"))
+        assert user_details["email"] == "new_idp_user@demo.in"
+        assert existing_user == False
+        assert access_token is not None
+
+    def test_identify_user_and_create_access_token_existing_user(self, monkeypatch, set_idp_props):
+        def _get_idp_token(*args, **kwargs):
+            return {"email": "new_idp_user@demo.in",
+                    "given_name": "test",
+                    "family_name": "user"}
+
+        monkeypatch.setattr(IDPProcessor, 'get_idp_token', _get_idp_token)
+
+        realm_name = "IDPTEST"
+        loop = asyncio.new_event_loop()
+        existing_user, user_details, access_token = loop.run_until_complete(
+            IDPProcessor.identify_user_and_create_access_token(realm_name, "session_state", "code"))
+        assert user_details["email"] == "new_idp_user@demo.in"
+        assert existing_user == True
+        assert access_token is not None
