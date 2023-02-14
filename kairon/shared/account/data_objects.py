@@ -157,6 +157,8 @@ class TrustedDevice(DynamicDocument):
 class Organization(Document):
     name = StringField(required=True)
     user = StringField(required=True)
-    account = LongField(required=True)
+    account = ListField(required=True)
     tags = ListField()
     timestamp = DateTimeField(default=datetime.utcnow)
+    create_user = BooleanField(default=True)
+    sso_login = BooleanField(default=False)

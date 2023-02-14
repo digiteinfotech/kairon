@@ -3,14 +3,16 @@ from fastapi import Depends
 from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
+from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
-from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
+from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE, FeatureMappings
 from kairon.shared.models import User
 
 router = APIRouter()
@@ -24,6 +26,8 @@ async def login_for_access_token(
     """
     Authenticates the user and generates jwt token
     """
+    if OrgProcessor.get_user_org_mapping(user=form_data.username, feature=FeatureMappings.SSO_LOGIN.value) == "Y":
+        raise AppException("Please login with your SSO")
     Utility.validate_enable_sso_only()
     access_token = Authentication.authenticate(form_data.username, form_data.password)
     background_tasks.add_task(
@@ -164,5 +168,10 @@ async def idp_callback(session_state: str, code: str,
     """
     Identify user and create access token for user
     """
-    access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name, session_state, code)
+
+    OrgProcessor.validate_org_settings(realm_name, FeatureMappings.CREATE_USER.value)
+    existing_user, user_details, access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name, session_state, code)
+    if not existing_user:
+        OrgProcessor.upsert_user_org_mapping(user_details.get("email"), realm_name,
+                                             FeatureMappings.SSO_LOGIN.value, OrgProcessor.get_organization("realm_name").get(FeatureMappings.SSO_LOGIN.value))
     return Response(data={"access_token": access_token, "token_type": "bearer"}, message="User Authenticated")

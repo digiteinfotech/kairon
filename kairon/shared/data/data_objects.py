@@ -815,3 +815,13 @@ class EventConfig(Auditlog):
 
 signals.pre_save_post_validation.connect(EventConfig.pre_save_post_validation, sender=EventConfig)
 signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
+
+@auditlogger.log
+@push_notification.apply
+class UserOrgMappings(Document):
+    user = StringField(required=True)
+    organization = StringField(required=True)
+    feature_type = StringField(required=True)
+    value = StringField(default="N")
+    timestamp = DateTimeField(default=datetime.utcnow())
+
