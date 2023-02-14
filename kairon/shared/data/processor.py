@@ -2132,10 +2132,9 @@ class MongoProcessor:
             exception_message_name = "Rule"
         else:
             raise AppException("Invalid type")
-        data_obj = data_class.objects(bot=bot, status=True, block_name__iexact=name)
-        if data_obj:
-            raise AppException(f"{exception_message_name} with the name already exists")
-
+        Utility.is_exist(data_class,
+                         bot=bot, status=True, block_name__iexact=name,
+                         exp_message=f"{exception_message_name} with the name already exists")
         events = self.__complex_story_prepare_steps(steps, flowtype, bot, user)
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
@@ -2176,11 +2175,9 @@ class MongoProcessor:
 
         if not steps:
             raise AppException("steps are required")
-
-        story_object = MultiflowStories.objects(bot=bot, status=True, block_name__iexact=name)
-        if story_object:
-            raise AppException("Multiflow Story with the name already exists")
-
+        Utility.is_exist(MultiflowStories,
+                         bot=bot, status=True, block_name__iexact=name,
+                         exp_message="Multiflow Story with the name already exists")
         StoryValidator.validate_steps(steps)
         events = [MultiflowStoryEvents(**step) for step in steps]
         Utility.is_exist_query(MultiflowStories,
@@ -2232,11 +2229,9 @@ class MongoProcessor:
             exception_message_name = "Rule"
         else:
             raise AppException("Invalid type")
-
-        data_obj = data_class.objects(bot=bot, status=True, block_name__iexact=name)
-        if data_obj and data_obj.get().save().to_mongo().to_dict()["_id"].__str__() != story_id:
-            raise AppException(f"{exception_message_name} with the name already exists")
-
+        Utility.is_exist(data_class,
+                         bot=bot, status=True, block_name__iexact=name, id__ne=story_id,
+                         exp_message=f"{exception_message_name} with the name already exists")
         try:
             data_object = data_class.objects(bot=bot, status=True, id=story_id).get()
         except DoesNotExist:
@@ -2273,9 +2268,9 @@ class MongoProcessor:
         if not steps:
             raise AppException("steps are required")
         StoryValidator.validate_steps(steps)
-        story_object = MultiflowStories.objects(bot=bot, status=True, block_name__iexact=name)
-        if story_object and story_object.get().save().to_mongo().to_dict()["_id"].__str__() != story_id:
-            raise AppException(f"Multiflow Story with the name already exists")
+        Utility.is_exist(MultiflowStories,
+                         bot=bot, status=True, block_name__iexact=name, id__ne=story_id,
+                         exp_message="Multiflow Story with the name already exists")
         events = [MultiflowStoryEvents(**step) for step in steps]
         Utility.is_exist_query(MultiflowStories,
                                query=(Q(bot=bot) & Q(status=True) & Q(events=events)),
