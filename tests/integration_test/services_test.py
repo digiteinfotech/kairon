@@ -30,7 +30,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
-    KAIRON_TWO_STAGE_FALLBACK
+    KAIRON_TWO_STAGE_FALLBACK, FeatureMappings
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -41,6 +41,7 @@ from kairon.shared.metering.data_object import Metering
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
+from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
 from kairon.shared.multilingual.utils.translator import Translator
@@ -12883,3 +12884,17 @@ def test_allowed_origin(monkeypatch):
                                 'access-control-allow-credentials': 'true',
                                 'access-control-expose-headers': 'content-disposition',
                                 }
+
+def test_allow_only_sso_login(monkeypatch):
+    user = "test@demo.in"
+    organization = "new_test"
+    feature_type = FeatureMappings.SSO_LOGIN.value
+    value = "Y"
+    OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": user, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert actual["message"] == "Please login with your SSO"
