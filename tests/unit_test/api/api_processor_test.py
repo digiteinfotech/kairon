@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import logging
 import os
 import uuid
 from unittest.mock import patch
@@ -21,17 +20,13 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from kairon.api.app.routers.idp import get_idp_config
-from kairon.shared.actions.data_objects import Actions
-from kairon.shared.actions.models import ActionType
 from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
-    KAIRON_TWO_STAGE_FALLBACK
+from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.data.data_objects import Configs, Rules, Responses
 from kairon.shared.metering.data_object import Metering
-from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
@@ -1200,6 +1195,58 @@ class TestAccountProcessor:
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 15
 
+    def test_authenticate_method(self):
+        AccountProcessor.add_user(
+            email="nupur.khare@digite.com",
+            first_name="Nupur",
+            last_name="Khare",
+            password="Welcome@15",
+            account=pytest.account,
+            user="testAdmin",
+        )
+        username = "nupur.khare@digite.com"
+        password = "Welcome@15"
+        access_token, access_token_expiry, new_refresh_token, refresh_token_expiry = Authentication.authenticate(username, password)
+        refresh_token_expiry = datetime.datetime.fromtimestamp(refresh_token_expiry, tz=datetime.timezone.utc)
+
+        payload = Utility.decode_limited_access_token(access_token)
+        assert payload.get("sub") == username
+        assert payload.get("type") == TOKEN_TYPE.LOGIN.value
+        assert payload.get("iat")
+        assert payload.get("exp")
+        data = Utility.decode_limited_access_token(new_refresh_token)
+        print(data)
+        # assert 1 == 0
+        assert data.get("sub") == username
+        assert data.get("exp")
+        iat = datetime.datetime.fromtimestamp(data.get('iat'), tz=datetime.timezone.utc)
+        assert data.get("ttl")
+        assert data.get("type") == TOKEN_TYPE.REFRESH.value
+        assert data.get("primary-token-type") == TOKEN_TYPE.LOGIN.value
+        assert data.get("role") == ACCESS_ROLES.TESTER.value
+        assert data.get("access-limit") == ['/api/auth/token/refresh']
+        assert round((refresh_token_expiry - iat).total_seconds() / 60) == Utility.environment['security']["refresh_token_expire"]
+
+    def test_authenticate_incorrect_user(self):
+        AccountProcessor.add_user(
+            email="ABC@digite.com",
+            first_name="Abc",
+            last_name="efg",
+            password="Welcome5463",
+            account=pytest.account,
+            user="testAdmin",
+        )
+        username = "A"
+        password = "Welcome5463"
+        with pytest.raises(DoesNotExist, match="User does not exist!"):
+            Authentication.authenticate(username, password)
+
+    def test_authenticate_user_does_not_exist(self):
+        username = "abc@digite.com"
+        password = "WSbchfk465"
+        with pytest.raises(HTTPException):
+            Authentication.authenticate(username, password)
+
     def test_generate_integration_token_login_token(self):
         bot = 'test'
         user = 'test_user'
@@ -1218,6 +1265,8 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token, refresh_token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        print(payload)
+        # assert 1 == 0
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
@@ -1383,6 +1432,78 @@ class TestAccountProcessor:
                           'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
                           'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
                           'access-limit': ['/api/auth/.+/token/refresh']}
+
+    def test_generate_token_from_refresh_token_for_login_ex(self):
+        user = AccountProcessor.get_user("nupur.khare@digite.com")
+        assert pytest.refresh_token
+        with pytest.raises(HTTPException):
+            Authentication.generate_login_token_from_refresh_token(pytest.refresh_token, user)
+
+    def test_token_from_dynamic_token_for_login(self):
+        user = AccountProcessor.get_user("nupur.khare@digite.com")
+        assert pytest.dynamic_token
+        with pytest.raises(HTTPException):
+            Authentication.generate_login_token_from_refresh_token(pytest.dynamic_token, user)
+
+    def test_generate_login_token_from_refresh_token_test(self):
+        AccountProcessor.add_user(
+            email="nupurrkhare@digite.com",
+            first_name="Nup",
+            last_name="Urkhare",
+            password="Welcome@1526",
+            account=pytest.account,
+            user="testAdmin",
+        )
+        username = "nupurrkhare@digite.com"
+        password = "Welcome@1526"
+        user = AccountProcessor.get_user("nupurrkhare@digite.com")
+        access_token, access_token_exp, refresh_token, refresh_token_exp = Authentication.generate_login_tokens(
+            user, True)
+        access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token,
+                                                                                                          user)
+        data_stack = Utility.decode_limited_access_token(refresh)
+        print(data_stack)
+        value = list(Metering.objects(username="nupurrkhare@digite.com").order_by("-timestamp"))
+        print(value)
+        assert value[0]["metric_type"] == "login_refresh_token"
+        assert value[0]["username"] == "nupurrkhare@digite.com"
+        assert value[0]["timestamp"]
+
+    def test_generate_token_from_refresh_token_for_login(self):
+        user = AccountProcessor.get_user("nupur.khare@digite.com")
+        access_token, access_token_exp, refresh_token, refresh_token_exp = Authentication.generate_login_tokens(
+            user, True)
+        payload = Utility.decode_limited_access_token(refresh_token)
+        assert payload.get("sub") == user["email"]
+        assert payload.get("type") == TOKEN_TYPE.REFRESH.value
+        assert payload.get("primary-token-type") == TOKEN_TYPE.LOGIN.value
+        assert payload.get("iat")
+        assert payload.get("exp")
+        assert payload.get("access-limit") == ['/api/auth/token/refresh']
+        assert payload.get("role") == ACCESS_ROLES.TESTER.value
+        assert payload.get("ttl")
+        data = Utility.decode_limited_access_token(access_token)
+        assert data.get("sub") == user["email"]
+        assert data.get("exp")
+        assert data.get("iat")
+        assert data.get("type") == TOKEN_TYPE.LOGIN.value
+        refresh_token_expiry = datetime.datetime.fromtimestamp(refresh_token_exp, tz=datetime.timezone.utc)
+        iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
+        assert round((refresh_token_expiry - iat).total_seconds() / 60) == Utility.environment['security']["refresh_token_expire"]
+        metering = list(Metering.objects(username="nupur.khare@digite.com").order_by("-timestamp"))
+        print(metering)
+        assert metering[0]["metric_type"] == "login"
+        assert metering[0]["username"] == "nupur.khare@digite.com"
+        assert metering[0]["timestamp"]
+
+        access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token, user)
+        data_stack = Utility.decode_limited_access_token(refresh)
+        print(data_stack)
+        value = list(Metering.objects(username="nupur.khare@digite.com").order_by("-timestamp"))
+        print(value)
+        assert value[0]["metric_type"] == "login_refresh_token"
+        assert value[0]["username"] == "nupur.khare@digite.com"
+        assert value[0]["timestamp"]
 
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'
