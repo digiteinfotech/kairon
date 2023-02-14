@@ -1840,8 +1840,30 @@ def test_add_story():
     actual = response.json()
     assert actual["message"] == "Flow added successfully"
     assert actual["data"]["_id"]
+    pytest.story_id = actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
+
+
+def test_add_story_with_name_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "greet",
+            "type": "STORY",
+            "template_type": "Q&A",
+            "steps": [
+                {"name": "test_greet", "type": "INTENT"},
+                {"name": "utter_test_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Story with the name already exists"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
 
 
 def test_add_story_invalid_type():
@@ -2043,8 +2065,45 @@ def test_add_multiflow_story():
     print(actual["message"])
     assert actual["message"] == "Story flow added successfully"
     assert actual["data"]["_id"]
+    pytest.multiflow_story_id = actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
+
+
+def test_add_multiflow_story_with_name_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path",
+            "steps": [
+            {"step": {"name": "greet", "type": "INTENT"},
+                "connections": [{"name": "utter_greet", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+                "connections": [{"name": "more_queries", "type": "INTENT"},
+                                {"name": "goodbye", "type": "INTENT"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+                "connections": None
+            },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+            },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            }
+        ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Multiflow Story with the name already exists"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
 
 
 def test_add_multiflow_story_no_steps():
@@ -2161,7 +2220,7 @@ def test_add_multiflow_story_invalid_event_type():
 
 def test_update_story():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "STORY",
@@ -2180,9 +2239,30 @@ def test_update_story():
     assert actual["error_code"] == 0
 
 
+def test_update_story_with_name_already_exists():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
+        json={
+            "name": "test_add_story_consecutive_actions",
+            "type": "STORY",
+            "template_type": "Q&A",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Story with the name already exists"
+    assert actual["data"] is None
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_update_story_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "STORY",
@@ -2208,7 +2288,7 @@ def test_update_story_invalid_event_type():
 
 def test_update_multiflow_story():
     response = client.put(
-        f"/api/bot/{pytest.bot}/v2/stories",
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
         json={
             "name": "test_path",
             "steps": [
@@ -2243,9 +2323,79 @@ def test_update_multiflow_story():
     assert actual["error_code"] == 0
 
 
+def test_update_multiflow_story_with_name_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "another_test_path",
+            "steps": [
+                {"step": {"name": "greet", "type": "INTENT"},
+                 "connections": [{"name": "utter_greet", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_greet", "type": "BOT"},
+                 "connections": [{"name": "more_queries", "type": "INTENT"},
+                                 {"name": "goodbye", "type": "INTENT"}]
+                 },
+                {"step": {"name": "goodbye", "type": "INTENT"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_goodbye", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "utter_more_queries", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "more_queries", "type": "INTENT"},
+                 "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+                 }
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Story flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
+        json={
+            "name": "another_test_path",
+            "steps": [
+                {"step": {"name": "greeting", "type": "INTENT"},
+                 "connections": [{"name": "utter_greeting", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_greeting", "type": "BOT"},
+                 "connections": [{"name": "more_query", "type": "INTENT"},
+                                 {"name": "goodbye", "type": "INTENT"}]
+                 },
+                {"step": {"name": "goodbye", "type": "INTENT"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+                 },
+                {"step": {"name": "utter_goodbye", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "utter_more_query", "type": "BOT"},
+                 "connections": None
+                 },
+                {"step": {"name": "more_query", "type": "INTENT"},
+                 "connections": [{"name": "utter_more_query", "type": "BOT"}]
+                 }
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Multiflow Story with the name already exists"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
 def test_update_multiflow_story_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/v2/stories",
+        f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
         json={
             "name": "test_path",
             "steps": [
@@ -2308,7 +2458,7 @@ def test_get_multiflow_stories():
 
 def test_delete_multiflow_story():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path/MULTIFLOW",
+        f"/api/bot/{pytest.bot}/stories/{pytest.multiflow_story_id}/MULTIFLOW",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2319,7 +2469,7 @@ def test_delete_multiflow_story():
 
 def test_delete_multiflow_non_existing_story():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path2/MULTIFLOW",
+        f"/api/bot/{pytest.bot}/stories/{pytest.multiflow_story_id}/MULTIFLOW",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2346,9 +2496,10 @@ def test_delete_story():
     assert actual["message"] == "Flow added successfully"
     assert actual["success"]
     assert actual["error_code"] == 0
+    pytest.story_id = actual['data']['_id']
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path1/STORY",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2359,7 +2510,7 @@ def test_delete_story():
 
 def test_delete_non_existing_story():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path2/STORY",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5764,6 +5915,27 @@ def test_add_rule():
     assert actual["error_code"] == 0
     assert actual["message"] == "Flow added successfully"
     assert actual["data"]["_id"]
+    pytest.story_id = actual["data"]["_id"]
+
+
+def test_add_rule_with_name_already_exists():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/stories",
+        json={
+            "name": "ask the user to rephrase whenever they send a message with low nlu confidence",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_greet", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"] == "Rule with the name already exists"
 
 
 def test_add_rule_invalid_type():
@@ -5930,7 +6102,7 @@ def test_add_rule_invalid_event_type():
 
 def test_update_rule():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "RULE",
@@ -5948,9 +6120,29 @@ def test_update_rule():
     assert actual["data"]["_id"]
 
 
+def test_update_rule_with_name_already_exists():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
+        json={
+            "name": "test_add_rule_consecutive_actions",
+            "type": "RULE",
+            "steps": [
+                {"name": "greet", "type": "INTENT"},
+                {"name": "utter_nonsense", "type": "BOT"},
+            ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Rule with the name already exists"
+    assert actual["data"] is None
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_update_rule_invalid_event_type():
     response = client.put(
-        f"/api/bot/{pytest.bot}/stories",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}",
         json={
             "name": "test_path",
             "type": "RULE",
@@ -5990,9 +6182,10 @@ def test_delete_rule():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Flow added successfully"
+    pytest.story_id = actual['data']['_id']
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path1/RULE",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/RULE",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -6003,7 +6196,7 @@ def test_delete_rule():
 
 def test_delete_non_existing_rule():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/test_path2/RULE",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/RULE",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -8449,6 +8642,7 @@ def test_add_story_case_insensitivity():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
+    pytest.story_id = actual["data"]["_id"]
 
     response = client.get(
         f"/api/bot/{pytest.bot}/stories",
@@ -8464,7 +8658,7 @@ def test_add_story_case_insensitivity():
     assert 'case_insensitive_story' in stories_added
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/stories/case_insensitive_story/STORY",
+        f"/api/bot/{pytest.bot}/stories/{pytest.story_id}/STORY",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
