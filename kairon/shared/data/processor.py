@@ -2125,11 +2125,16 @@ class MongoProcessor:
         if flowtype == "STORY":
             data_class = Stories
             data_object = Stories()
+            exception_message_name = "Story"
         elif flowtype == 'RULE':
             data_class = Rules
             data_object = Rules()
+            exception_message_name = "Rule"
         else:
             raise AppException("Invalid type")
+        data_obj = data_class.objects(bot=bot, status=True, block_name__iexact=name)
+        if data_obj:
+            raise AppException(f"{exception_message_name} with the name already exists")
 
         events = self.__complex_story_prepare_steps(steps, flowtype, bot, user)
         Utility.is_exist_query(data_class,
@@ -2172,6 +2177,10 @@ class MongoProcessor:
         if not steps:
             raise AppException("steps are required")
 
+        story_object = MultiflowStories.objects(bot=bot, status=True, block_name__iexact=name)
+        if story_object:
+            raise AppException("Multiflow Story with the name already exists")
+
         StoryValidator.validate_steps(steps)
         events = [MultiflowStoryEvents(**step) for step in steps]
         Utility.is_exist_query(MultiflowStories,
@@ -2194,10 +2203,11 @@ class MongoProcessor:
 
         return id
 
-    def update_complex_story(self, story: Dict, bot: Text, user: Text):
+    def update_complex_story(self, story_id: Text, story: Dict, bot: Text, user: Text):
         """
         Updates story in mongodb
 
+        :param story_id: story id
         :param story: dict contains name, steps and type for either rules or story
         :param bot: bot id
         :param user: user id
@@ -2216,13 +2226,19 @@ class MongoProcessor:
 
         if flowtype == 'STORY':
             data_class = Stories
+            exception_message_name = "Story"
         elif flowtype == 'RULE':
             data_class = Rules
+            exception_message_name = "Rule"
         else:
             raise AppException("Invalid type")
 
+        data_obj = data_class.objects(bot=bot, status=True, block_name__iexact=name)
+        if data_obj and data_obj.get().save().to_mongo().to_dict()["_id"].__str__() != story_id:
+            raise AppException(f"{exception_message_name} with the name already exists")
+
         try:
-            data_object = data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
+            data_object = data_class.objects(bot=bot, status=True, id=story_id).get()
         except DoesNotExist:
             raise AppException("Flow does not exists")
 
@@ -2231,16 +2247,17 @@ class MongoProcessor:
         Utility.is_exist_query(data_class,
                                query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
                                exp_message="Flow already exists!")
-
+        data_object['block_name'] = name
         story_id = (
             data_object.save().to_mongo().to_dict()["_id"].__str__()
         )
         return story_id
 
-    def update_multiflow_story(self, story: Dict, bot: Text):
+    def update_multiflow_story(self, story_id: Text, story: Dict, bot: Text):
         """
         Updates story in mongodb
 
+        :param story_id: story id
         :param story: dict contains name, steps and type for either rules or story
         :param bot: bot id
         :param user: user id
@@ -2255,16 +2272,19 @@ class MongoProcessor:
 
         if not steps:
             raise AppException("steps are required")
-
         StoryValidator.validate_steps(steps)
+        story_object = MultiflowStories.objects(bot=bot, status=True, block_name__iexact=name)
+        if story_object and story_object.get().save().to_mongo().to_dict()["_id"].__str__() != story_id:
+            raise AppException(f"Multiflow Story with the name already exists")
         events = [MultiflowStoryEvents(**step) for step in steps]
         Utility.is_exist_query(MultiflowStories,
                                query=(Q(bot=bot) & Q(status=True) & Q(events=events)),
                                exp_message="Story flow already exists!")
 
         try:
-            story_obj = MultiflowStories.objects(bot=bot, status=True, block_name__iexact=name).get()
+            story_obj = MultiflowStories.objects(bot=bot, status=True, id=story_id).get()
             story_obj.events = events
+            story_obj.block_name = name
             story_id = (
                 story_obj.save().to_mongo().to_dict()["_id"].__str__()
             )
@@ -2272,10 +2292,10 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Flow does not exists")
 
-    def delete_complex_story(self, name: str, type: Text, bot: Text, user: Text):
+    def delete_complex_story(self, story_id: str, type: Text, bot: Text, user: Text):
         """
         Soft deletes complex story.
-        :param name: Flow name
+        :param story_id: Story id
         :param type: Flow Type
         :param user: user id
         :param bot: bot id
@@ -2291,11 +2311,11 @@ class MongoProcessor:
         else:
             raise AppException("Invalid type")
         try:
-            data_class.objects(bot=bot, status=True, block_name__iexact=name).get()
+            data_class.objects(bot=bot, status=True, id=story_id).get()
         except DoesNotExist:
             raise AppException("Flow does not exists")
         Utility.delete_document(
-            [data_class], bot=bot, user=user, block_name__iexact=name
+            [data_class], bot=bot, user=user, id=story_id
         )
 
     def get_all_stories(self, bot: Text):
