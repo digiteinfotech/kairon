@@ -458,7 +458,7 @@ class TestIDP:
 
     def test_identify_user_and_create_access_token_new_user(self, monkeypatch, set_idp_props):
         def _get_idp_token(*args, **kwargs):
-            return {"email": "new_idp_user@demo.in",
+            return {"email": "idp_sso_user@demo.in",
                     "given_name": "test",
                     "family_name": "user"}
 
@@ -467,13 +467,13 @@ class TestIDP:
         realm_name = "IDPTEST"
         loop = asyncio.new_event_loop()
         existing_user, user_details, access_token = loop.run_until_complete(IDPProcessor.identify_user_and_create_access_token(realm_name, "session_state", "code"))
-        assert user_details["email"] == "new_idp_user@demo.in"
+        assert user_details["email"] == "idp_sso_user@demo.in"
         assert existing_user == False
         assert access_token is not None
 
     def test_identify_user_and_create_access_token_existing_user(self, monkeypatch, set_idp_props):
         def _get_idp_token(*args, **kwargs):
-            return {"email": "new_idp_user@demo.in",
+            return {"email": "idp_sso_user@demo.in",
                     "given_name": "test",
                     "family_name": "user"}
 
@@ -483,7 +483,7 @@ class TestIDP:
         loop = asyncio.new_event_loop()
         existing_user, user_details, access_token = loop.run_until_complete(
             IDPProcessor.identify_user_and_create_access_token(realm_name, "session_state", "code"))
-        assert user_details["email"] == "new_idp_user@demo.in"
+        assert user_details["email"] == "idp_sso_user@demo.in"
         assert existing_user == True
         assert access_token is not None
 
