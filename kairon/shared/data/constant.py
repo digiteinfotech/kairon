@@ -174,6 +174,8 @@ DEFAULT_NLU_FALLBACK_UTTERANCE_NAME = 'utter_default'
 DEFAULT_ACTION_FALLBACK_RESPONSE = "Sorry I didn't get that. Can you rephrase?"
 REQUEST_TIMESTAMP_HEADER = "X-TimeStamp"
 KAIRON_TWO_STAGE_FALLBACK = "kairon_two_stage_fallback"
+FALLBACK_MESSAGE = "I could not understand you! Did you mean any of the suggestions below?" \
+                   " Or else please rephrase your question."
 
 
 class AuditlogActions(str, Enum):
