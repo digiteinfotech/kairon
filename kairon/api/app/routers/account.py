@@ -231,7 +231,7 @@ async def get_organization(current_user: User = Depends(Authentication.get_curre
 @router.delete("/organization/{org_name}", response_model=Response)
 async def delete_organization(org_name: str, current_user: User = Depends(Authentication.get_current_user)):
     """
-    Get organization.
+    Delete organization.
     """
-    data = OrgProcessor.delete_org(current_user.account, org_name)
-    return Response(data=data)
+    OrgProcessor.delete_org(current_user.account, org_name)
+    return Response(message="Organization deleted")

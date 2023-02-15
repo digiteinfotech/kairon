@@ -23,6 +23,7 @@ from slack.web.slack_response import SlackResponse
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
+from kairon.idp.processor import IDPProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
@@ -12594,6 +12595,26 @@ def test_get_organization_after_update():
     assert result['data']["name"] == "updated_sample"
     assert result['data']["user"] == "integration1234567890@demo.ai"
 
+@responses.activate
+def test_delete_organization(monkeypatch):
+    def _delete_idp(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(IDPProcessor, "delete_idp", _delete_idp)
+    email = "integration1234567890@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.delete(
+        f"/api/account/organization/updated_sample",
+        headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
+    )
+    result = response.json()
+    assert result['data'] is None
+    assert result['message'] == "Organization deleted"
+
 
 def test_get_model_testing_logs_accuracy():
     response = client.get(
@@ -12898,3 +12919,40 @@ def test_allow_only_sso_login(monkeypatch):
     )
     actual = response.json()
     assert actual["message"] == "Please login with your SSO"
+
+def test_idp_callback(monkeypatch):
+    def _validate_org_settings(*args, **kwargs):
+        return
+
+    def _get_idp_token(*args, **kwargs):
+        return {"email": "new_idp_user@demo.in",
+                "given_name": "test",
+                "family_name": "user"}
+    monkeypatch.setattr(IDPProcessor, 'get_idp_token', _get_idp_token)
+    monkeypatch.setattr(OrgProcessor, "validate_org_settings", _validate_org_settings)
+
+    realm_name = "test"
+    response = client.get(
+        f"/api/auth/login/idp/callback/{realm_name}?session_state=asikndhfnnin-jinsdn-sdnknsdn&code=kjaskjkajb-wkejhwejwe",
+    )
+    result = response.json()
+    assert result["data"]["access_token"] is not None
+    assert result["data"]["token_type"] == "bearer"
+    assert result["message"] == "User Authenticated"
+
+def test_api_login_with_SSO_only_flag():
+    user = "new_idp_user@demo.in"
+    organization = "new_test"
+    feature_type = FeatureMappings.SSO_LOGIN.value
+    value = "Y"
+    OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
+
+    email = "new_idp_user@demo.in"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert actual["message"] == "Please login with your SSO"
+    assert actual["error_code"] == 422
+    assert actual["success"] == False
