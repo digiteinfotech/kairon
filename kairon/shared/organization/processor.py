@@ -7,6 +7,7 @@ from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.data_objects import Organization
 from kairon.shared.data.constant import FeatureMappings
 from kairon.shared.data.data_objects import UserOrgMappings
+from kairon.shared.data.constant import ORG_SETTINGS_MESSAGES
 
 
 class OrgProcessor:
@@ -31,7 +32,8 @@ class OrgProcessor:
                 idp_config.save()
             except DoesNotExist:
                 pass
-            OrgProcessor.update_org_mapping(org_data.get("name"), FeatureMappings.SSO_LOGIN.value, str(org_data.get("sso_login")))
+            OrgProcessor.update_org_mapping(org_data.get("name"), FeatureMappings.SSO_LOGIN.value,
+                                            str(org_data.get("sso_login")))
         except DoesNotExist:
             try:
                 Organization.objects(name=org_data.get("name")).get()
@@ -68,19 +70,18 @@ class OrgProcessor:
 
     @staticmethod
     def validate_org_settings(organization, settings):
-        from kairon.shared.data.constant import OrgSettingsMessage
         org = Organization.objects(name=organization).get()
         data = org.to_mongo().to_dict()
         if not data.get(settings):
-            raise AppException(eval(f"OrgSettingsMessage.{settings}.value"))
+            raise AppException(ORG_SETTINGS_MESSAGES.get(settings))
 
     @staticmethod
     def upsert_user_org_mapping(user, org, feature, value):
         try:
             org_data = UserOrgMappings.objects(user=user,
-                                          organization=org,
-                                          feature_type=feature,
-                                          ).get()
+                                               organization=org,
+                                               feature_type=feature,
+                                               ).get()
             org_data.value = value
             org_data.save()
         except DoesNotExist:
@@ -96,13 +97,13 @@ class OrgProcessor:
         try:
             if org is None:
                 org_data = UserOrgMappings.objects(user=user,
-                                              feature_type=feature,
-                                              ).get()
+                                                   feature_type=feature,
+                                                   ).get()
             else:
                 org_data = UserOrgMappings.objects(user=user,
-                                              organization=org,
-                                              feature_type=feature,
-                                              ).get()
+                                                   organization=org,
+                                                   feature_type=feature,
+                                                   ).get()
 
             data = org_data.to_mongo().to_dict()
             return data.get("value")
