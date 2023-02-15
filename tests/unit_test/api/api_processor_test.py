@@ -26,7 +26,7 @@ from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, A
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
-    OrgSettingsMessage, FeatureMappings
+    ORG_SETTINGS_MESSAGES, FeatureMappings
 from kairon.shared.data.data_objects import Configs, Rules, Responses
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.organization.processor import OrgProcessor
@@ -2416,7 +2416,7 @@ class TestAccountProcessor:
             Organization.objects().get(name="test")
 
     def test_validate_org_settings(self):
-        with pytest.raises(AppException, match=OrgSettingsMessage.create_user.value):
+        with pytest.raises(AppException, match=ORG_SETTINGS_MESSAGES.get("create_user")):
             OrgProcessor.validate_org_settings(organization="new_test", settings=FeatureMappings.CREATE_USER.value)
 
     def test_upsert_organization_update_sso_login(self):
