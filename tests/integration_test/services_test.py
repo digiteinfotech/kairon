@@ -12948,13 +12948,13 @@ def test_idp_callback(monkeypatch):
     assert result["message"] == "User Authenticated"
 
 def test_api_login_with_SSO_only_flag():
-    user = "new_idp_user@demo.in"
+    user = "idp_user@demo.in"
     organization = "new_test"
     feature_type = FeatureMappings.SSO_LOGIN.value
     value = "Y"
     OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
 
-    email = "new_idp_user@demo.in"
+    email = "idp_user@demo.in"
     response = client.post(
         "/api/auth/login",
         data={"username": email, "password": "Welcome@1"},
