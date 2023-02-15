@@ -413,9 +413,13 @@ class TestIDP:
         assert fetched_idp_config == {}
 
     def test_get_idp_config_after_delete(self, monkeypatch, set_idp_props):
-        user = get_user()
-        fetched_idp_config = IDPProcessor.get_idp_config(account=user.account)
-        assert fetched_idp_config == {}
+        def _delete_realm(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(IDPHelper, 'delete_realm', _delete_realm)
+        realm_name = "IDPTEST"
+        with pytest.raises(AppException, match="IDP config not found"):
+            IDPProcessor.delete_idp(realm_name=realm_name)
 
 
     @responses.activate
@@ -482,3 +486,12 @@ class TestIDP:
         assert user_details["email"] == "new_idp_user@demo.in"
         assert existing_user == True
         assert access_token is not None
+
+    def test_get_supported_provider_list(self):
+        provider_list = IDPProcessor.get_supported_provider_list()
+        assert provider_list == {
+            "saml": "SAML v2.0",
+            "oidc": "OpenID Connect v1.0",
+            "azure-oidc": "OpenID Connect with Azure AD",
+            "keycloak-oidc": "Keycloak OpenID Connect",
+        }
