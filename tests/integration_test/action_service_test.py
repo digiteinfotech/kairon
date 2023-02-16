@@ -11,7 +11,7 @@ from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
@@ -3992,7 +3992,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['events'], [])
         self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
         self.assertEqual(set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
-
+        self.assertEqual(response_json['responses'][0]['text'], FALLBACK_MESSAGE)
         action.text_recommendations = TwoStageFallbackTextualRecommendations(**{"count": 3})
         action.save()
 
@@ -4121,6 +4121,7 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
+        self.assertEqual(response_json['responses'][0]['text'], FALLBACK_MESSAGE)
         self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
         self.assertEqual(response_json['responses'][0]['buttons'], [
             {'payload': '/set_context', 'text': 'Trigger'},

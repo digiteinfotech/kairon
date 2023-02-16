@@ -85,7 +85,7 @@ class ActionTwoStageFallback(ActionsBase):
                 btn['text'] = rule['text']
                 recommendations.append(btn)
         if recommendations:
-            dispatcher.utter_message(buttons=recommendations)
+            dispatcher.utter_message(buttons=recommendations, text=action_config.get('fallback_message'))
         else:
             dispatcher.utter_message(response=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME)
         ActionServerLogs(
