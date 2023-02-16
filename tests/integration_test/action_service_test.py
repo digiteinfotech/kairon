@@ -4121,6 +4121,7 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json['events'], [])
+        self.assertEqual(response_json['responses'][0]['text'], FALLBACK_MESSAGE)
         self.assertEqual(len(response_json['responses'][0]['buttons']), 3)
         self.assertEqual(response_json['responses'][0]['buttons'], [
             {'payload': '/set_context', 'text': 'Trigger'},
