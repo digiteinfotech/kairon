@@ -16,7 +16,7 @@ from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRe
     EvaluationType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 from validators import email
@@ -465,6 +465,7 @@ class KaironTwoStageFallbackAction(Auditlog):
     text_recommendations = EmbeddedDocumentField(TwoStageFallbackTextualRecommendations, default=None)
     trigger_rules = ListField(EmbeddedDocumentField(QuickReplies, default=None))
     bot = StringField(required=True)
+    fallback_message = StringField(default=FALLBACK_MESSAGE)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)

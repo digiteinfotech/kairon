@@ -5596,78 +5596,86 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
             processor.delete_action('action_custom', bot, user)
 
+    @responses.activate
     def test_push_notifications_enabled_create_type_event(self):
         Utility.environment['notifications']['enable'] = True
         bot = 'test_notifications'
         user = 'test'
-        server_endpoint = f"ws://localhost/events/"
-        Utility.environment['notifications']['server_endpoint'] = server_endpoint
+        url = f"http://localhost/events/{bot}"
+        Utility.environment['notifications']['server_endpoint'] = url
+        processor = MongoProcessor()
+        responses.add(
+            'POST',
+            url,
+            json={'message': 'Event added'}
+        )
+        processor.add_intent('greet', bot, user, False)
+        request_body = responses.calls[0].request
+        request_body = request_body.body.decode('utf8')
+        request_body = json.loads(request_body)
+        assert responses.calls[0].request.headers['Authorization']
+        assert request_body['event_type'] == "create"
+        assert request_body['event']['entity_type'] == "Intents"
+        assert request_body['event']['data']['name'] == 'greet'
+        assert request_body['event']['data']['bot'] == bot
+        assert request_body['event']['data']['user'] == user
+        assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
+        assert request_body['event']['data']['status']
+        assert not request_body['event']['data']['is_integration']
+        assert not request_body['event']['data']['use_entities']
 
-        def _mock_websocket_response(*args, **kwargs):
-            return None
-
-        with patch('kairon.shared.utils.Utility.websocket_request', autospec=True) as mock:
-            mock.side_effect = _mock_websocket_response
-            processor = MongoProcessor()
-            processor.add_intent('greet', bot, user, False)
-            assert mock.call_args.args[0] == 'ws://localhost/events/test_notifications'
-            request_body = json.loads(mock.call_args.args[1])
-            assert request_body['event_type'] == "create"
-            assert request_body['event']['entity_type'] == "Intents"
-            assert request_body['event']['data']['name'] == 'greet'
-            assert request_body['event']['data']['bot'] == bot
-            assert request_body['event']['data']['user'] == user
-            assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
-            assert request_body['event']['data']['status']
-            assert not request_body['event']['data']['is_integration']
-            assert not request_body['event']['data']['use_entities']
-
+    @responses.activate
     def test_push_notifications_enabled_update_type_event(self):
+        Utility.environment['notifications']['enable'] = True
         bot = "tests"
         user = 'testUser'
-        server_endpoint = f"ws://localhost/events/"
-        Utility.environment['notifications']['server_endpoint'] = server_endpoint
+        url = "http://localhost/events"
+        Utility.environment['notifications']['server_endpoint'] = url
+        processor = MongoProcessor()
 
-        def _mock_websocket_response(*args, **kwargs):
-            return None
+        responses.add(
+            'POST',
+            f'{url}/tests',
+            json={'message': 'Event updated'}
+        )
+        examples = list(processor.get_training_examples("greet", bot))
+        processor.edit_training_example(examples[0]["_id"], example="[Kanpur](location) India", intent="greet",
+                                        bot=bot, user=user)
+        request_body = responses.calls[0].request
+        request_body = request_body.body.decode('utf8')
+        request_body = json.loads(request_body)
+        assert responses.calls[0].request.headers['Authorization']
+        assert request_body['event_type'] == "update"
+        assert request_body['event']['entity_type'] == "TrainingExamples"
+        assert request_body['event']['data']['intent'] == 'greet'
+        assert not Utility.check_empty_string(request_body['event']['data']['text'])
+        assert request_body['event']['data']['bot'] == bot
+        assert request_body['event']['data']['user'] == user
+        assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
+        assert request_body['event']['data']['status']
 
-        with patch('kairon.shared.utils.Utility.websocket_request', autospec=True) as mock:
-            mock.side_effect = _mock_websocket_response
-            processor = MongoProcessor()
-            examples = list(processor.get_training_examples("greet", bot))
-            processor.edit_training_example(examples[0]["_id"], example="[Kanpur](location) India", intent="greet",
-                                            bot=bot, user=user)
-            assert mock.call_args.args[0] == 'ws://localhost/events/tests'
-            request_body = json.loads(mock.call_args.args[1])
-            assert request_body['event_type'] == "update"
-            assert request_body['event']['entity_type'] == "TrainingExamples"
-            assert request_body['event']['data']['intent'] == 'greet'
-            assert not Utility.check_empty_string(request_body['event']['data']['text'])
-            assert request_body['event']['data']['bot'] == bot
-            assert request_body['event']['data']['user'] == user
-            assert not Utility.check_empty_string(request_body['event']['data']['timestamp'])
-            assert request_body['event']['data']['status']
-
+    @responses.activate
     def test_push_notifications_enabled_delete_type_event(self):
+        Utility.environment['notifications']['enable'] = True
         bot = "test"
         user = 'test'
-        server_endpoint = f"ws://localhost/events/"
-        Utility.environment['notifications']['server_endpoint'] = server_endpoint
+        url = "http://localhost/events"
+        Utility.environment['notifications']['server_endpoint'] = url
+        processor = MongoProcessor()
 
-        def _mock_websocket_response(*args, **kwargs):
-            return None
-
-        with patch('kairon.shared.utils.Utility.websocket_request', autospec=True) as mock:
-            mock.side_effect = _mock_websocket_response
-            processor = MongoProcessor()
-            processor.delete_complex_story(pytest.slot_set_action_story_id, 'STORY', bot, user)
-            with pytest.raises(DoesNotExist):
-                Stories.objects(block_name="story with slot_set_action", bot=bot, status=True).get()
-            assert mock.call_args.args[0] == 'ws://localhost/events/test'
-            request_body = json.loads(mock.call_args.args[1])
-            assert request_body['event_type'] == "delete"
-            assert request_body['event']['entity_type'] == "Stories"
-            assert request_body['event']['data'][0]['_id']
+        responses.add(
+            'POST',
+            f'{url}/test',
+            json={'message': 'Event deleted'}
+        )
+        processor.delete_complex_story(pytest.slot_set_action_story_id, 'STORY', bot, user)
+        request_body = responses.calls[0].request
+        request_body = request_body.body.decode('utf8')
+        request_body = json.loads(request_body)
+        assert responses.calls[0].request.headers['Authorization']
+        assert request_body['event_type'] == "delete"
+        assert request_body['event']['entity_type'] == "Stories"
+        assert request_body['event']['data'][0]['_id']
 
     def test_push_notifications_enabled_update_type_event_connection_error(self):
         bot = "test"
@@ -6676,27 +6684,30 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             RazorpayAction.objects(name='razorpay_action', status=True, bot=bot).get()
 
+    @responses.activate
     def test_push_notifications_enabled_message_type_event(self):
+        Utility.environment['notifications']['enable'] = True
         bot = "test"
         user = 'test'
-        server_endpoint = f"ws://localhost/events/"
-        Utility.environment['notifications']['enable'] = True
-        Utility.environment['notifications']['server_endpoint'] = server_endpoint
+        url = "http://localhost/events"
+        Utility.environment['notifications']['server_endpoint'] = url
 
-        def _mock_websocket_response(*args, **kwargs):
-            return None
-
-        with patch('kairon.shared.utils.Utility.websocket_request', autospec=True) as mock:
-            mock.side_effect = _mock_websocket_response
-            ModelProcessor.set_training_status(bot, user, "Inprogress")
-            assert mock.call_args.args[0] == 'ws://localhost/events/test'
-            request_body = json.loads(mock.call_args.args[1])
-            assert request_body['event_type'] == "message"
-            assert request_body['event']['entity_type'] == "ModelTraining"
-            assert request_body['event']['data']['status'] == 'Inprogress'
-            assert request_body['event']['data']['bot'] == bot
-            assert request_body['event']['data']['user'] == user
-            assert not Utility.check_empty_string(request_body['event']['data']['start_timestamp'])
+        responses.add(
+            'POST'
+            f'{url}/test',
+            json={'message': 'Event in progress'}
+        )
+        ModelProcessor.set_training_status(bot, user, "Inprogress")
+        request_body = responses.calls[0].request
+        request_body = request_body.body.decode('utf8')
+        request_body = json.loads(request_body)
+        assert responses.calls[0].request.headers['Authorization']
+        assert request_body['event_type'] == "message"
+        assert request_body['event']['entity_type'] == "ModelTraining"
+        assert request_body['event']['data']['status'] == 'Inprogress'
+        assert request_body['event']['data']['bot'] == bot
+        assert request_body['event']['data']['user'] == user
+        assert not Utility.check_empty_string(request_body['event']['data']['start_timestamp'])
 
     def test_delete_valid_intent_only(self):
         processor = MongoProcessor()
@@ -9109,12 +9120,19 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": None, "text_recommendations": {"count": 3, "use_intent_ranking": True}}
+        request = {"fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                       " Or else please rephrase your question.",
+                   "trigger_rules": None,
+                   "text_recommendations": {"count": 3, "use_intent_ranking": True}}
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
-        assert config == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': []}]
+        print(config)
+        assert config == [{'name': 'kairon_two_stage_fallback',
+                           'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': [],
+                           "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                               " Or else please rephrase your question."}]
 
     def test_add_custom_2_stage_fallback_action_exists(self):
         processor = MongoProcessor()
@@ -9137,7 +9155,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "Mail me", "payload": "greet"},
+        request = {"fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                       " Or else please rephrase your question.",
+                   "trigger_rules": [{"text": "Mail me", "payload": "greet"},
                                      {"text": "Contact me", "payload": "call"}]}
         processor.add_intent("greet", bot, user, False)
         processor.add_intent("call", bot, user, False)
@@ -9147,13 +9167,17 @@ class TestMongoProcessor:
         config[0].pop("timestamp")
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'trigger_rules': [{'text': 'Mail me', 'payload': 'greet', 'is_dynamic_msg': False},
-                                             {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
+                                             {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}],
+                           "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                               " Or else please rephrase your question."}]
 
     def test_add_custom_2_stage_fallback_action_with_user_message(self):
         processor = MongoProcessor()
         bot = 'test_add_custom_2_stage_fallback_action_with_static_user_message'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "Mail me", "payload": "greet", "message": "my payload", "is_dynamic_msg": True},
+        request = {"fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                       " Or else please rephrase your question.",
+                   "trigger_rules": [{"text": "Mail me", "payload": "greet", "message": "my payload", "is_dynamic_msg": True},
                                      {"text": "Contact me", "payload": "call", "message": None, "is_dynamic_msg": False}]}
         processor.add_intent("greet", bot, user, False)
         processor.add_intent("call", bot, user, False)
@@ -9163,7 +9187,9 @@ class TestMongoProcessor:
         config[0].pop("timestamp")
         assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'greet', 'message': 'my payload', 'is_dynamic_msg': True},
-            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}]}]
+            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}],
+                           "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                               " Or else please rephrase your question."}]
 
     def test_edit_custom_2_stage_fallback_action_not_found(self):
         processor = MongoProcessor()
@@ -9182,18 +9208,26 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_custom_2_stage_fallback_action_rules_only'
         user = 'test_user'
-        request = {"trigger_rules": None, "text_recommendations": {"count": 3}}
+        request = {"fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                       " Or else please rephrase your question.", "trigger_rules": None,
+                   "text_recommendations": {"count": 3}}
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
-        assert config == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, "use_intent_ranking": False}, 'trigger_rules': []}]
+        assert config == [{'name': 'kairon_two_stage_fallback',
+                           'text_recommendations': {"count": 3, "use_intent_ranking": False},
+                           'trigger_rules': [],
+                           "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                               " Or else please rephrase your question."}]
 
     def test_edit_custom_2_stage_fallback_action_rules_only(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
-        request = {"trigger_rules": [{"text": "Mail me", "payload": "send_mail", 'message': 'my payload', 'is_dynamic_msg': False},
+        request = {"fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                       " Or else please rephrase your question.",
+                   "trigger_rules": [{"text": "Mail me", "payload": "send_mail", 'message': 'my payload', 'is_dynamic_msg': False},
                                      {"text": "Contact me", "payload": "call", "is_dynamic_msg": True}]}
         processor.add_intent("send_mail", bot, user, False)
         processor.add_intent("call", bot, user, False)
@@ -9203,7 +9237,9 @@ class TestMongoProcessor:
         config[0].pop("timestamp")
         assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'send_mail', 'message': 'my payload', 'is_dynamic_msg': False},
-            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': True}]}]
+            {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': True}],
+                           "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                               " Or else please rephrase your question."}]
 
     def test_edit_custom_2_stage_fallback_action_rules_not_found(self):
         processor = MongoProcessor()

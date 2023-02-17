@@ -1310,6 +1310,7 @@ class Utility:
     def push_notification(channel: Text, event_type: Text, collection: Text, metadata: dict):
         push_server_endpoint = Utility.environment['notifications']['server_endpoint']
         push_server_endpoint = urljoin(push_server_endpoint, channel)
+
         payload = {
             'event_type': event_type,
             'event': {
@@ -1317,9 +1318,13 @@ class Utility:
                 'data': metadata
             }
         }
-        payload = json.dumps(payload)
+        token = Utility.generate_token('push-server@digite.com', 1)
+        headers = {"Authorization": token}
         io_loop = asyncio.get_event_loop()
-        io_loop.run_until_complete(Utility.websocket_request(push_server_endpoint, payload))
+        io_loop.run_until_complete(
+            Utility.execute_http_request(request_method='POST', http_url=push_server_endpoint, request_body=payload,
+                                         headers=headers)
+        )
 
     @staticmethod
     def get_slack_team_info(token: Text):

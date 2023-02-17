@@ -9910,6 +9910,8 @@ def test_edit_kairon_two_stage_fallback_action_not_exists():
 
 def test_add_kairon_two_stage_fallback_action():
     action = {
+        "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                            " Or else please rephrase your question.",
         "text_recommendations": {"count": 0, "use_intent_ranking": True},
         "trigger_rules": [{"text": "Hi", "payload": "greet"}]
     }
@@ -9942,6 +9944,8 @@ def test_add_kairon_two_stage_fallback_action_exists():
 
 def test_edit_kairon_two_stage_fallback_action_action():
     action = {
+        "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                            " Or else please rephrase your question.",
         "text_recommendations": {"count": 4}
     }
     response = client.put(
@@ -9964,7 +9968,10 @@ def test_get_kairon_two_stage_fallback_action_1():
     assert actual["success"]
     assert actual["error_code"] == 0
     del actual['data'][0]['timestamp']
-    assert actual["data"] == [{'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 4, "use_intent_ranking": False}, 'trigger_rules': []}]
+    assert actual["data"] == [{'name': 'kairon_two_stage_fallback',
+                               'text_recommendations': {"count": 4, "use_intent_ranking": False}, 'trigger_rules': [],
+                               'fallback_message': "I could not understand you! Did you mean any of the suggestions"
+                                                   " below? Or else please rephrase your question."}]
 
 
 def test_delete_kairon_two_stage_fallback_action():

@@ -4563,6 +4563,7 @@ class MongoProcessor:
         action = KaironTwoStageFallbackAction.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         action.trigger_rules = [QuickReplies(**rule) for rule in request_data.get('trigger_rules') or []]
         action.text_recommendations = request_data.get('text_recommendations')
+        action.fallback_message = request_data.get('fallback_message')
         action.user = user
         action.save()
 

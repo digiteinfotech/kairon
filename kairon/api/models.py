@@ -4,7 +4,7 @@ from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
-    INTEGRATION_STATUS
+    INTEGRATION_STATUS, FALLBACK_MESSAGE
 from ..shared.actions.models import SlotValidationOperators, LogicalOperators, ActionParameterType, EvaluationType
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
@@ -714,6 +714,7 @@ class TwoStageFallbackTextualRecommendations(BaseModel):
 
 
 class TwoStageFallbackConfigRequest(BaseModel):
+    fallback_message: str = FALLBACK_MESSAGE
     text_recommendations: TwoStageFallbackTextualRecommendations = None
     trigger_rules: List[QuickReplies] = None
 

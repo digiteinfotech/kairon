@@ -2913,7 +2913,9 @@ class TestActions:
         config.pop('status')
         assert config == {'name': 'kairon_two_stage_fallback', 'text_recommendations': {"count": 3, 'use_intent_ranking': False},
                           'trigger_rules': [{'is_dynamic_msg': False, 'text': 'Trigger', 'payload': 'set_context'},
-                                            {'is_dynamic_msg': False, 'text': 'Mail me', 'payload': 'send_mail'}]}
+                                            {'is_dynamic_msg': False, 'text': 'Mail me', 'payload': 'send_mail'}],
+                          'fallback_message': "I could not understand you! Did you mean any of the suggestions below?"
+                                              " Or else please rephrase your question."}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
