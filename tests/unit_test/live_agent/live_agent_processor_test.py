@@ -10,6 +10,9 @@ from kairon.shared.account.data_objects import Bot
 from kairon.shared.live_agent.data_objects import LiveAgents
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
 from kairon.live_agent.live_agent import LiveAgent
+import json
+from kairon.live_agent.factory import LiveAgentFactory
+from datetime import datetime, timezone
 
 
 class TestLiveAgentProcessor:
@@ -574,3 +577,106 @@ class TestLiveAgentProcessor:
     def test_get_live_agent_exception(self):
         with pytest.raises(AppException, match="Live agent config not found!"):
             LiveAgent.from_bot("Chatbot")
+
+    @responses.activate
+    def test_chatwoot_getBusinesshours(selfs):
+        config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+                  "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+                  "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_true")
+        responses.add(responses.GET, 'https://app.chatwoot.com/api/v1/accounts/12/inboxes/25226',
+        json=output_json, status=200)
+        live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
+        businessdata = live_agent.getBusinesshours(config, "25226")
+        assert output_json == businessdata
+
+    @responses.activate
+    def test_chatwoot_getBusinesshours_working_enabled(selfs):
+        config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+                  "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+                  "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_true")
+        responses.add(responses.GET, 'https://app.chatwoot.com/api/v1/accounts/12/inboxes/25227',
+                      json=output_json, status=200)
+        live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
+        businessdata = live_agent.getBusinesshours(config, "25227")
+        assert output_json == businessdata
+        assert businessdata["working_hours_enabled"] == True
+
+    @responses.activate
+    def test_chatwoot_getBusinesshours_working_disabled(selfs):
+        import json
+        from kairon.live_agent.factory import LiveAgentFactory
+        config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+                  "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+                  "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_false")
+        responses.add(responses.GET, 'https://app.chatwoot.com/api/v1/accounts/12/inboxes/25226',
+                      json=output_json, status=200)
+        live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
+        businessdata = live_agent.getBusinesshours(config, "25226")
+        assert output_json == businessdata
+        assert businessdata["working_hours_enabled"] == False
+
+    @responses.activate
+    def test_chatwoot_getBusinesshours_underworkinghours_false(selfs):
+        config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+                  "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+                  "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_true")
+        responses.add(responses.GET, 'https://app.chatwoot.com/api/v1/accounts/12/inboxes/25226',
+                      json=output_json, status=200)
+        live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
+        businessdata = live_agent.getBusinesshours(config, "25226")
+        current_utcnow = datetime(2023, 2, 13, 3, 15, 00, tzinfo=timezone.utc)
+        workingstatus = live_agent.validate_businessworkinghours(businessdata, current_utcnow)
+        assert workingstatus == False
+
+    @responses.activate
+    def test_chatwoot_getBusinesshours_underworkinghours_true(selfs):
+        config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+                  "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+                  "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_true")
+        responses.add(responses.GET, 'https://app.chatwoot.com/api/v1/accounts/12/inboxes/25226',
+                      json=output_json, status=200)
+        live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
+        businessdata = live_agent.getBusinesshours(config, "25226")
+        current_utcnow = datetime(2023, 2, 13, 5, 15, 00, tzinfo=timezone.utc)
+        workingstatus = live_agent.validate_businessworkinghours(businessdata, current_utcnow)
+        assert workingstatus == True
+
+    @responses.activate
+    def test_chatwoot_getBusinesshours_alldayworking(selfs):
+        config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+                  "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+                  "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_all_day_working")
+        responses.add(responses.GET, 'https://app.chatwoot.com/api/v1/accounts/12/inboxes/25226',
+                      json=output_json, status=200)
+        live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
+        businessdata = live_agent.getBusinesshours(config, "25226")
+        current_utcnow = datetime(2023, 2, 13, 5, 15, 00, tzinfo=timezone.utc)
+        workingstatus = live_agent.validate_businessworkinghours(businessdata, current_utcnow)
+        assert workingstatus == True
+
+    @responses.activate
+    def test_chatwoot_getBusinesshours_alldayworking_false(selfs):
+        config = {"agent_type": "chatwoot", "config": {"account_id": "12", "api_access_token": "asdfghjklty67"},
+                  "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
+                  "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_all_day_working")
+        responses.add(responses.GET, 'https://app.chatwoot.com/api/v1/accounts/12/inboxes/25226',
+                      json=output_json, status=200)
+        live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
+        businessdata = live_agent.getBusinesshours(config, "25226")
+        current_utcnow = datetime(2023, 2, 14, 5, 15, 00, tzinfo=timezone.utc)
+        workingstatus = live_agent.validate_businessworkinghours(businessdata, current_utcnow)
+        assert workingstatus == False

@@ -4,7 +4,8 @@ from urllib.parse import urljoin
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.live_agent.live_agent import LiveAgent
-
+from kairon.shared.actions.utils import ActionUtility
+import datetime
 
 class ChatwootLiveAgent(LiveAgent):
 
@@ -94,7 +95,8 @@ class ChatwootLiveAgent(LiveAgent):
         conversation_info = self.create_conversation(contact_info["source_id"])
         return {
             "destination": conversation_info["id"], "pubsub_token": contact_info["pubsub_token"],
-            "websocket_url": Utility.system_metadata['live_agents']['chatwoot']['websocket_url']
+            "websocket_url": Utility.system_metadata['live_agents']['chatwoot']['websocket_url'],
+            "inbox_id":conversation_info["inbox_id"]
         }
 
     def send_message(self, message: Text, destination: Text, **kwargs):
@@ -227,3 +229,41 @@ class ChatwootLiveAgent(LiveAgent):
         return Utility.execute_http_request(
             "POST", url, headers=headers, validate_status=True, err_msg="Failed to create conversation: "
         )
+
+    def getBusinesshours(self, config, inbox_id):
+        accountid = config["config"]["account_id"]
+        access_token = config["config"]["api_access_token"]
+        request_url = "".join((self.inboxes_endpoint, "/{inbox}"))
+        request_url = request_url.format(account_id=accountid, inbox=inbox_id)
+        header = {"api_access_token":access_token}
+        response = ActionUtility.execute_http_request(request_url, "get", headers=header)
+        return response
+
+    @staticmethod
+    def validate_businessworkinghours(business_data, current_datetime):
+        datetime_zone = business_data["timezone"]
+        dateformat = '%Y-%m-%d %H:%M:%S'
+        utc_with_timezone = Utility.convert_utcdate_with_timezone(current_datetime, datetime_zone, dateformat)
+        workingday = utc_with_timezone.isoweekday() if utc_with_timezone.isoweekday()!=7 else 0
+        for workingdata in business_data["working_hours"]:
+            if workingdata["day_of_week"] == workingday:
+                openallday = workingdata["open_all_day"]
+                closeallday = workingdata["closed_all_day"]
+                if openallday or closeallday:
+                    break
+                openhours = workingdata["open_hour"]
+                openmin = workingdata["open_minutes"]
+                closinghours = workingdata["close_hour"]
+                closingmin = workingdata["close_minutes"]
+                break
+        if openallday:
+            return True
+        elif closeallday:
+            return False
+        utc_date = datetime.datetime.strptime(utc_with_timezone.date().strftime(dateformat),dateformat)
+        business_st = utc_date+datetime.timedelta(hours=openhours, minutes=openmin)
+        business_ends = utc_date+datetime.timedelta(hours=closinghours, minutes=closingmin)
+        if utc_with_timezone < business_st or utc_with_timezone > business_ends:
+            return False
+        else:
+            return True

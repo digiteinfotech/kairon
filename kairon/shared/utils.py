@@ -7,6 +7,8 @@ import shutil
 import string
 import tempfile
 from datetime import datetime, timedelta, date
+from dateutil import tz
+import pytz
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
@@ -1719,6 +1721,13 @@ class Utility:
         required_headers = {'questions', 'answer'}
         if not required_headers.issubset(columns):
             raise AppException(f"Required columns {required_headers} not present in file.")
+
+    @staticmethod
+    def convert_utcdate_with_timezone(utcdatetime, datetimezone, format):
+        zone = tz.gettz(datetimezone)
+        utc_locale = utcdatetime.replace(tzinfo=pytz.utc).astimezone(zone).strftime(format)
+        utc_locale_datetime = datetime.strptime(utc_locale, format)
+        return utc_locale_datetime
 
 
 class StoryValidator:
