@@ -1,3 +1,4 @@
+import datetime
 import json
 from typing import Text
 
@@ -44,6 +45,18 @@ class ChatUtils:
                     metadata["initiate"] = True
                     live_agent = LiveAgentFactory.get_agent(config["agent_type"], config["config"])
                     metadata["additional_properties"] = live_agent.initiate_handoff(bot, sender_id)
+                    businessdata = live_agent.getBusinesshours(config, metadata["additional_properties"]["inbox_id"])
+                    if businessdata is not None and businessdata.get("working_hours_enabled"):
+                        is_business_hours_enabled = businessdata.get("working_hours_enabled")
+                        if is_business_hours_enabled:
+                            current_utcnow = datetime.datetime.utcnow()
+                            workingstatus = live_agent.validate_businessworkinghours(businessdata, current_utcnow)
+                            if not workingstatus:
+                                metadata.update({"businessworking":businessdata["out_of_office_message"]})
+                                metadata["initiate"] = False
+                                bot_predictions["agent_handoff"] = metadata
+                                should_initiate_handoff = False
+                                return metadata
                     message_trail = ChatUtils.__retrieve_conversation(tracker, sender_id)
                     live_agent.send_conversation_log(message_trail, metadata["additional_properties"]["destination"])
         except Exception as e:
