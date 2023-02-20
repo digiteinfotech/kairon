@@ -5,12 +5,13 @@ from starlette.requests import Request
 
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
-from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
+from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE, FeatureMappings
 from kairon.shared.models import User
 
 router = APIRouter()
@@ -24,6 +25,8 @@ async def login_for_access_token(
     """
     Authenticates the user and generates jwt token
     """
+    OrgProcessor.validate_sso_only(form_data.username)
+
     Utility.validate_enable_sso_only()
     access_tkn, access_tkn_exp, refresh_tkn, refresh_tkn_exp = Authentication.authenticate(form_data.username, form_data.password)
     background_tasks.add_task(
@@ -185,5 +188,9 @@ async def idp_callback(session_state: str, code: str,
     """
     Identify user and create access token for user
     """
-    access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name, session_state, code)
+    OrgProcessor.validate_org_settings(realm_name, FeatureMappings.CREATE_USER.value)
+    existing_user, user_details, access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name,
+                                                                                                         session_state,
+                                                                                                         code)
+    OrgProcessor.update_sso_mappings(existing_user,user_details.get("email"), realm_name)
     return Response(data={"access_token": access_token, "token_type": "bearer"}, message="User Authenticated")

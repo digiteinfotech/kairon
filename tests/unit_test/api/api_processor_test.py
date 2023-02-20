@@ -20,13 +20,16 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from kairon.api.app.routers.idp import get_idp_config
+from kairon.idp.processor import IDPProcessor
 from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS
+from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
+    ORG_SETTINGS_MESSAGES, FeatureMappings
 from kairon.shared.data.data_objects import Configs, Rules, Responses
 from kairon.shared.metering.data_object import Metering
+from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility
@@ -2354,38 +2357,95 @@ class TestAccountProcessor:
         assert AccountProcessor.list_trusted_device_fingerprints("pandey.udit867@gmail.com") == []
 
     def test_upsert_organization_add(self):
-        org_name = {"name": "test"}
+        org_data = {"name": "test"}
         mail = "test@demo.in"
         account = "1234"
         user = User(account=account, email=mail)
-        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+        OrgProcessor.upsert_organization(user=user, org_data=org_data)
 
-        result = Organization.objects().get(account=account)
-        assert result.name == org_name.get("name")
+        result = Organization.objects().get(account__contains=user.account)
+        assert result.name == org_data.get("name")
 
     def test_upsert_organization_update(self):
-        org_name = {"name": "new_test"}
+        org_data = {"name": "new_test", "create_user": True, "only_sso_login": False}
         mail = "test@demo.in"
         account = "1234"
         user = User(account=account, email=mail)
-        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+        OrgProcessor.upsert_organization(user=user, org_data=org_data)
 
-        result = Organization.objects().get(account=account)
-        assert result.name == org_name.get("name")
+        result = Organization.objects().get(account__contains=user.account)
+        assert result.name == org_data.get("name")
 
         with pytest.raises(DoesNotExist):
             Organization.objects().get(name="test")
 
-    def test_get_organization_exists(self):
+    def test_upsert_organization_add_same_name_diff_account(self):
+        org_data = {"name": "new_test"}
+        mail = "test@demo.in"
+        account = "55555"
+        user = User(account=account, email=mail)
+
+        with pytest.raises(AppException, match="Name already exists"):
+            OrgProcessor.upsert_organization(user=user, org_data=org_data)
+
+    def test_upsert_organization_update_name(self):
+        org_data = {"name": "new_test", "create_user": True, "only_sso_login": False}
+        mail = "test@demo.in"
         account = "1234"
-        result = AccountProcessor.get_organization(account=account)
+        user = User(account=account, email=mail)
+        OrgProcessor.upsert_organization(user=user, org_data=org_data)
+
+        result = Organization.objects().get(account__contains=user.account)
+        assert result.name == org_data.get("name")
+
+        with pytest.raises(DoesNotExist):
+            Organization.objects().get(name="test")
+
+    def test_upsert_organization_update_create_user(self):
+        org_data = {"name": "new_test", "create_user": False, "only_sso_login": False}
+        mail = "test@demo.in"
+        account = "1234"
+        user = User(account=account, email=mail)
+        OrgProcessor.upsert_organization(user=user, org_data=org_data)
+
+        result = Organization.objects().get(account__contains=user.account)
+        assert result.name == org_data.get("name")
+        assert result.create_user == org_data.get("create_user")
+        assert result.only_sso_login == org_data.get("only_sso_login")
+        with pytest.raises(DoesNotExist):
+            Organization.objects().get(name="test")
+
+    def test_validate_org_settings(self):
+        with pytest.raises(AppException, match=ORG_SETTINGS_MESSAGES.get("create_user")):
+            OrgProcessor.validate_org_settings(organization="new_test", settings=FeatureMappings.CREATE_USER.value)
+
+    def test_upsert_organization_update_sso_login(self):
+        org_data = {"name": "new_test", "create_user": False, "only_sso_login": True}
+        mail = "test@demo.in"
+        account = "1234"
+        user = User(account=account, email=mail)
+        OrgProcessor.upsert_organization(user=user, org_data=org_data)
+
+        result = Organization.objects().get(account__contains=user.account)
+        assert result.name == org_data.get("name")
+        assert result.create_user == org_data.get("create_user")
+        assert result.only_sso_login == org_data.get("only_sso_login")
+        with pytest.raises(DoesNotExist):
+            Organization.objects().get(name="test")
+
+    def test_validate_org_settings_negative(self):
+        OrgProcessor.validate_org_settings(organization="new_test", settings=FeatureMappings.ONLY_SSO_LOGIN.value)
+        assert not None
+
+    def test_get_organization_exists(self):
+        account = 1234
+        result = OrgProcessor.get_organization_for_account(account=account)
         assert result.get("name") == "new_test"
 
     def test_get_organization_not_exists(self):
-        account = "12345"
-        result = AccountProcessor.get_organization(account=account)
-        assert result.get("name") is None
-        assert result == {}
+        account = 12345
+        with pytest.raises(AppException, match="Organization not found"):
+            OrgProcessor.get_organization_for_account(account=account)
 
     def test_invalid_account_number(self):
         with pytest.raises(DoesNotExist, match="Account does not exists"):
@@ -2408,7 +2468,7 @@ class TestAccountProcessor:
         Utility.email_conf["email"]["enable"] = False
 
     def test_upsert_organization(self):
-        org_name = {"name": "DEL"}
+        org_data = {"name": "DEL"}
         mail = "testing@demo.in"
         account = "123456"
         user = User(account=account, email=mail)
@@ -2416,8 +2476,8 @@ class TestAccountProcessor:
             "client_id": "90",
             "client_secret": "9099",
         }
-        idp_config = IdpConfig(user="${user}", account="123456", organization="DEL", config=config).save()
-        AccountProcessor.upsert_organization(user=user, org_name=org_name)
+        idp_config = IdpConfig(user="${user}", account=[user.account], organization="DEL", config=config).save()
+        OrgProcessor.upsert_organization(user=user, org_data=org_data)
         result = get_idp_config("123456")
         assert result is not None
 
@@ -2534,3 +2594,79 @@ class TestAccountProcessor:
         temp[3] = {'name': None, 'type': 'FORM_END'}
         assert result == temp
         assert all([i for i in temp if type(i) is dict])
+
+    def test_add_get_user_org_mapping(self):
+        user="test@demo.in"
+        organization="new_test"
+        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
+        value=True
+        OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
+
+        result = OrgProcessor.get_user_org_mapping(user=user, org=organization, feature=feature_type)
+
+        assert result == value
+
+    def test_add_get_user_org_mapping_another(self):
+        user="test_another@demo.in"
+        organization="new_test"
+        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
+        value=True
+        OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
+        assert not None
+
+    def test_validate_sso_only(self):
+        user="test@demo.in"
+        with pytest.raises(AppException, match="Login with your org SSO url, Login with username/password not allowed"):
+            OrgProcessor.validate_sso_only(user=user)
+
+    def test_update_user_specific_user_org_mapping(self):
+        user="test@demo.in"
+        organization="new_test"
+        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
+        value=False
+
+        result = OrgProcessor.get_user_org_mapping(user=user, org=organization, feature=feature_type)
+
+        assert result != value
+
+        OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
+
+        result = OrgProcessor.get_user_org_mapping(user=user, org=organization, feature=feature_type)
+
+        assert result == value
+
+    def test_update_user_org_mapping_org_specific(self):
+        organization="new_test"
+        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
+        value=False
+        OrgProcessor.update_org_mapping(org=organization, feature=feature_type, value=value)
+
+        result = OrgProcessor.get_user_org_mapping(user="test@demo.in", org=organization, feature=feature_type)
+
+        assert result == value
+
+        new_val = False
+        OrgProcessor.update_org_mapping(org=organization, feature=feature_type, value=new_val)
+
+        assert result == new_val
+
+    def test_delete_org_mapping(self):
+        organization="new_test"
+        result = OrgProcessor.delete_org_mapping(organization)
+        assert result == 2
+
+    def test_delete_org_mapping_not_exists(self):
+        organization="not_exists"
+        result = OrgProcessor.delete_org_mapping(organization)
+        assert result == 0
+
+    def test_delete_org(self, monkeypatch):
+        def _delete_idp(*args, **kwargs):
+            return None
+        monkeypatch.setattr(IDPProcessor, 'delete_idp', _delete_idp)
+
+        account = 1234
+        name = "new_test"
+        OrgProcessor.delete_org(account=account, org_id=name)
+        org = OrgProcessor.get_organization(org_name=name)
+        assert org == {}
