@@ -216,9 +216,8 @@ async def add_organization(request_data: DictData,
     """
     Add organization.
     """
-    OrgProcessor.upsert_organization(current_user, request_data.data)
-    return {"message": "organization added"}
-
+    org_id = OrgProcessor.upsert_organization(current_user, request_data.data)
+    return Response(data={"org_id": org_id}, message="organization added")
 
 @router.get("/organization", response_model=Response)
 async def get_organization(current_user: User = Depends(Authentication.get_current_user)):
@@ -228,10 +227,10 @@ async def get_organization(current_user: User = Depends(Authentication.get_curre
     data = OrgProcessor.get_organization_for_account(current_user.account)
     return Response(data=data)
 
-@router.delete("/organization/{org_name}", response_model=Response)
-async def delete_organization(org_name: str, current_user: User = Depends(Authentication.get_current_user)):
+@router.delete("/organization/{org_id}", response_model=Response)
+async def delete_organization(org_id: str, current_user: User = Depends(Authentication.get_current_user)):
     """
     Delete organization.
     """
-    OrgProcessor.delete_org(current_user.account, org_name)
+    OrgProcessor.delete_org(current_user.account, org_id)
     return Response(message="Organization deleted")

@@ -821,5 +821,5 @@ class UserOrgMappings(Document):
     user = StringField(required=True)
     organization = StringField(required=True)
     feature_type = StringField(required=True)
-    value = StringField(default="N")
+    value = DynamicField(default=False)
     timestamp = DateTimeField(default=datetime.utcnow())

@@ -3,7 +3,6 @@ from fastapi import Depends
 from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
-from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.organization.processor import OrgProcessor
@@ -26,8 +25,7 @@ async def login_for_access_token(
     """
     Authenticates the user and generates jwt token
     """
-    if OrgProcessor.get_user_org_mapping(user=form_data.username, feature=FeatureMappings.SSO_LOGIN.value) == "Y":
-        raise AppException("Please login with your SSO")
+    OrgProcessor.validate_sso_only(form_data.username)
 
     Utility.validate_enable_sso_only()
     access_tkn, access_tkn_exp, refresh_tkn, refresh_tkn_exp = Authentication.authenticate(form_data.username, form_data.password)
@@ -194,9 +192,5 @@ async def idp_callback(session_state: str, code: str,
     existing_user, user_details, access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name,
                                                                                                          session_state,
                                                                                                          code)
-    if not existing_user:
-        OrgProcessor.upsert_user_org_mapping(user_details.get("email"), realm_name,
-                                             FeatureMappings.SSO_LOGIN.value,
-                                             OrgProcessor.get_organization("realm_name").get(
-                                                 FeatureMappings.SSO_LOGIN.value))
+    OrgProcessor.update_sso_mappings(existing_user,user_details.get("email"), realm_name)
     return Response(data={"access_token": access_token, "token_type": "bearer"}, message="User Authenticated")

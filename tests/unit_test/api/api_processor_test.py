@@ -2367,7 +2367,7 @@ class TestAccountProcessor:
         assert result.name == org_data.get("name")
 
     def test_upsert_organization_update(self):
-        org_data = {"name": "new_test", "create_user": True, "sso_login": False}
+        org_data = {"name": "new_test", "create_user": True, "only_sso_login": False}
         mail = "test@demo.in"
         account = "1234"
         user = User(account=account, email=mail)
@@ -2389,7 +2389,7 @@ class TestAccountProcessor:
             OrgProcessor.upsert_organization(user=user, org_data=org_data)
 
     def test_upsert_organization_update_name(self):
-        org_data = {"name": "new_test", "create_user": True, "sso_login": False}
+        org_data = {"name": "new_test", "create_user": True, "only_sso_login": False}
         mail = "test@demo.in"
         account = "1234"
         user = User(account=account, email=mail)
@@ -2402,7 +2402,7 @@ class TestAccountProcessor:
             Organization.objects().get(name="test")
 
     def test_upsert_organization_update_create_user(self):
-        org_data = {"name": "new_test", "create_user": False, "sso_login": False}
+        org_data = {"name": "new_test", "create_user": False, "only_sso_login": False}
         mail = "test@demo.in"
         account = "1234"
         user = User(account=account, email=mail)
@@ -2411,7 +2411,7 @@ class TestAccountProcessor:
         result = Organization.objects().get(account__contains=user.account)
         assert result.name == org_data.get("name")
         assert result.create_user == org_data.get("create_user")
-        assert result.sso_login == org_data.get("sso_login")
+        assert result.only_sso_login == org_data.get("only_sso_login")
         with pytest.raises(DoesNotExist):
             Organization.objects().get(name="test")
 
@@ -2420,7 +2420,7 @@ class TestAccountProcessor:
             OrgProcessor.validate_org_settings(organization="new_test", settings=FeatureMappings.CREATE_USER.value)
 
     def test_upsert_organization_update_sso_login(self):
-        org_data = {"name": "new_test", "create_user": False, "sso_login": True}
+        org_data = {"name": "new_test", "create_user": False, "only_sso_login": True}
         mail = "test@demo.in"
         account = "1234"
         user = User(account=account, email=mail)
@@ -2429,12 +2429,12 @@ class TestAccountProcessor:
         result = Organization.objects().get(account__contains=user.account)
         assert result.name == org_data.get("name")
         assert result.create_user == org_data.get("create_user")
-        assert result.sso_login == org_data.get("sso_login")
+        assert result.only_sso_login == org_data.get("only_sso_login")
         with pytest.raises(DoesNotExist):
             Organization.objects().get(name="test")
 
     def test_validate_org_settings_negative(self):
-        OrgProcessor.validate_org_settings(organization="new_test", settings=FeatureMappings.SSO_LOGIN.value)
+        OrgProcessor.validate_org_settings(organization="new_test", settings=FeatureMappings.ONLY_SSO_LOGIN.value)
         assert not None
 
     def test_get_organization_exists(self):
@@ -2442,22 +2442,10 @@ class TestAccountProcessor:
         result = OrgProcessor.get_organization_for_account(account=account)
         assert result.get("name") == "new_test"
 
-    def test_delete_org(self, monkeypatch):
-        def _delete_idp(*args, **kwargs):
-            return None
-        monkeypatch.setattr(IDPProcessor, 'delete_idp', _delete_idp)
-
-        account = 1234
-        name = "new_test"
-        OrgProcessor.delete_org(account=account, org_name=name)
-        org = OrgProcessor.get_organization(org_name=name)
-        assert org == {}
-
     def test_get_organization_not_exists(self):
-        account = "12345"
-        result = OrgProcessor.get_organization_for_account(account=account)
-        assert result.get("name") is None
-        assert result == {}
+        account = 12345
+        with pytest.raises(AppException, match="Organization not found"):
+            OrgProcessor.get_organization_for_account(account=account)
 
     def test_invalid_account_number(self):
         with pytest.raises(DoesNotExist, match="Account does not exists"):
@@ -2610,8 +2598,8 @@ class TestAccountProcessor:
     def test_add_get_user_org_mapping(self):
         user="test@demo.in"
         organization="new_test"
-        feature_type=FeatureMappings.SSO_LOGIN.value
-        value="Y"
+        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
+        value=True
         OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
 
         result = OrgProcessor.get_user_org_mapping(user=user, org=organization, feature=feature_type)
@@ -2621,17 +2609,21 @@ class TestAccountProcessor:
     def test_add_get_user_org_mapping_another(self):
         user="test_another@demo.in"
         organization="new_test"
-        feature_type=FeatureMappings.SSO_LOGIN.value
-        value="Y"
+        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
+        value=True
         OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
-
         assert not None
+
+    def test_validate_sso_only(self):
+        user="test@demo.in"
+        with pytest.raises(AppException, match="Login with your org SSO url, Login with username/password not allowed"):
+            OrgProcessor.validate_sso_only(user=user)
 
     def test_update_user_specific_user_org_mapping(self):
         user="test@demo.in"
         organization="new_test"
-        feature_type=FeatureMappings.SSO_LOGIN.value
-        value="N"
+        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
+        value=False
 
         result = OrgProcessor.get_user_org_mapping(user=user, org=organization, feature=feature_type)
 
@@ -2645,15 +2637,37 @@ class TestAccountProcessor:
 
     def test_update_user_org_mapping_org_specific(self):
         organization="new_test"
-        feature_type=FeatureMappings.SSO_LOGIN.value
-        value="N"
+        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
+        value=False
         OrgProcessor.update_org_mapping(org=organization, feature=feature_type, value=value)
 
         result = OrgProcessor.get_user_org_mapping(user="test@demo.in", org=organization, feature=feature_type)
 
         assert result == value
 
-        new_val = "N"
+        new_val = False
         OrgProcessor.update_org_mapping(org=organization, feature=feature_type, value=new_val)
 
         assert result == new_val
+
+    def test_delete_org_mapping(self):
+        organization="new_test"
+        result = OrgProcessor.delete_org_mapping(organization)
+        assert result == 2
+
+    def test_delete_org_mapping_not_exists(self):
+        organization="not_exists"
+        result = OrgProcessor.delete_org_mapping(organization)
+        assert result == 0
+
+    def test_delete_org(self, monkeypatch):
+        def _delete_idp(*args, **kwargs):
+            return None
+        monkeypatch.setattr(IDPProcessor, 'delete_idp', _delete_idp)
+
+        account = 1234
+        name = "new_test"
+        OrgProcessor.delete_org(account=account, org_id=name)
+        org = OrgProcessor.get_organization(org_name=name)
+        assert org == {}
+

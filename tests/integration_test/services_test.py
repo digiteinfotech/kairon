@@ -12547,8 +12547,8 @@ def test_add_organization():
         headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
     )
     result = response.json()
+    assert result['data']['org_id'] is not None
     assert result['message'] == "organization added"
-
 
 @responses.activate
 def test_get_organization():
@@ -12916,8 +12916,8 @@ def test_allowed_origin(monkeypatch):
 def test_allow_only_sso_login(monkeypatch):
     user = "test@demo.in"
     organization = "new_test"
-    feature_type = FeatureMappings.SSO_LOGIN.value
-    value = "Y"
+    feature_type = FeatureMappings.ONLY_SSO_LOGIN.value
+    value = True
     OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
 
     response = client.post(
@@ -12925,7 +12925,7 @@ def test_allow_only_sso_login(monkeypatch):
         data={"username": user, "password": "Welcome@1"},
     )
     actual = response.json()
-    assert actual["message"] == "Please login with your SSO"
+    assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"
 
 def test_idp_callback(monkeypatch):
     def _validate_org_settings(*args, **kwargs):
@@ -12950,8 +12950,8 @@ def test_idp_callback(monkeypatch):
 def test_api_login_with_SSO_only_flag():
     user = "idp_user@demo.in"
     organization = "new_test"
-    feature_type = FeatureMappings.SSO_LOGIN.value
-    value = "Y"
+    feature_type = FeatureMappings.ONLY_SSO_LOGIN.value
+    value = True
     OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
 
     email = "idp_user@demo.in"
@@ -12960,6 +12960,6 @@ def test_api_login_with_SSO_only_flag():
         data={"username": email, "password": "Welcome@1"},
     )
     actual = response.json()
-    assert actual["message"] == "Please login with your SSO"
+    assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"
     assert actual["error_code"] == 422
     assert actual["success"] == False

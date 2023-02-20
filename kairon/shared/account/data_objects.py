@@ -161,4 +161,4 @@ class Organization(Document):
     tags = ListField()
     timestamp = DateTimeField(default=datetime.utcnow)
     create_user = BooleanField(default=True)
-    sso_login = BooleanField(default=False)
+    only_sso_login = BooleanField(default=False)

@@ -204,10 +204,10 @@ class TrainingDataSourceType(str, Enum):
     document = "document"
 
 class FeatureMappings(str, Enum):
-    SSO_LOGIN = "sso_login"
+    ONLY_SSO_LOGIN = "only_sso_login"
     CREATE_USER = "create_user"
 
 ORG_SETTINGS_MESSAGES = {
     "create_user": "User creation is blocked by your OrgAdmin from SSO",
-    "sso_login": "Login with your org SSO url, Login with username/password not allowed"
+    "only_sso_login": "Login with your org SSO url, Login with username/password not allowed"
 }
