@@ -1723,10 +1723,10 @@ class Utility:
             raise AppException(f"Required columns {required_headers} not present in file.")
 
     @staticmethod
-    def convert_utcdate_with_timezone(utcdatetime, datetimezone, format):
+    def convert_utcdate_with_timezone(utcdatetime, datetimezone, date_format):
         zone = tz.gettz(datetimezone)
-        utc_locale = utcdatetime.replace(tzinfo=pytz.utc).astimezone(zone).strftime(format)
-        utc_locale_datetime = datetime.strptime(utc_locale, format)
+        utc_locale = utcdatetime.replace(tzinfo=pytz.utc).astimezone(zone).strftime(date_format)
+        utc_locale_datetime = datetime.strptime(utc_locale, date_format)
         return utc_locale_datetime
 
 
