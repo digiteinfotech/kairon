@@ -630,12 +630,14 @@ class Utility:
     async def format_and_send_mail(mail_type: str, email: str, first_name: str, url: str = None, **kwargs):
         if mail_type == 'password_reset':
             body = Utility.email_conf['email']['templates']['password_reset']
+            body = body.replace('FIRST_NAME', first_name.capitalize())
             subject = Utility.email_conf['email']['templates']['password_reset_subject']
         elif mail_type == 'password_reset_confirmation':
             body = Utility.email_conf['email']['templates']['password_reset_confirmation']
             subject = Utility.email_conf['email']['templates']['password_changed_subject']
         elif mail_type == 'verification':
             body = Utility.email_conf['email']['templates']['verification']
+            body = body.replace('FIRST_NAME', first_name.capitalize())
             subject = Utility.email_conf['email']['templates']['confirmation_subject']
         elif mail_type == 'verification_confirmation':
             body = Utility.email_conf['email']['templates']['verification_confirmation']
@@ -662,7 +664,7 @@ class Utility:
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
             body = body.replace('STATUS', kwargs.get('status', ""))
-            body = body.replace('MODIFIER_NAME', kwargs.get('first_name', ""))
+            body = body.replace('MODIFIER_NAME', first_name)
             subject = Utility.email_conf['email']['templates']['update_role_subject']
             subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'update_role_owner_mail':
@@ -673,7 +675,7 @@ class Utility:
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
             body = body.replace('STATUS', kwargs.get('status', ""))
-            body = body.replace('MODIFIER_NAME', kwargs.get('first_name', ""))
+            body = body.replace('MODIFIER_NAME', first_name)
             subject = Utility.email_conf['email']['templates']['update_role_subject']
             subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'transfer_ownership_mail':
