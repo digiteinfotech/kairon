@@ -167,7 +167,7 @@ class TestChatwootLiveAgent:
         )
         metadata = ChatwootLiveAgent.from_config(config).initiate_handoff("test", "udit")
         assert metadata == {"destination": 2, "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
-                            'websocket_url': 'wss://app.chatwoot.com/cable'}
+                            'websocket_url': 'wss://app.chatwoot.com/cable', 'inbox_id': 14036}
 
     @responses.activate
     def test_initiate_handoff_contact_exists(self):
@@ -237,7 +237,7 @@ class TestChatwootLiveAgent:
         )
         metadata = ChatwootLiveAgent.from_config(config).initiate_handoff("test", "udit")
         assert metadata == {"destination": 3, "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
-                            'websocket_url': 'wss://app.chatwoot.com/cable'}
+                            'websocket_url': 'wss://app.chatwoot.com/cable', 'inbox_id': 14036}
 
     @responses.activate
     def test_send_message(self):

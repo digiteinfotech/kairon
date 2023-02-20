@@ -137,6 +137,22 @@ class TestChatServer(AsyncHTTPTestCase):
     def empty_store(self, *args, **kwargs):
         return None
 
+    def __mock_getbusinessdata_workingenabled(self,*args, **kwargs):
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_true")
+        return output_json
+
+    def __mock_getbusinessdata_workingdisabled(self,*args, **kwargs):
+        business_workingdata = json.load(open("tests/testing_data/live_agent/business_working_data.json"))
+        output_json = business_workingdata.get("working_enabled_false")
+        return output_json
+
+    def __mock_validate_businessworkinghours(self,*args, **kwargs):
+        return False
+
+    def __mock_validate_businessworkinghours_true(self,*args, **kwargs):
+        return True
+
     def mock_agent_response(self, *args, **kwargs):
         return {'nlu': {'text': '!@#$%^&*()', 'intent': {'name': 'nlu_fallback', 'confidence': 0.7}, 'entities': [],
                         'intent_ranking': [{'name': 'nlu_fallback', 'confidence': 0.7},
@@ -1096,7 +1112,9 @@ class TestChatServer(AsyncHTTPTestCase):
         LiveAgentsProcessor.save_config(config, bot_id, email)
         responses.stop()
 
-    def test_chat_with_chatwoot_agent_fallback(self):
+    @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
+    @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
+    def test_chat_with_chatwoot_agent_fallback(self, mock_validatebusinesshours, mock_getbusinesshrs):
         self.add_live_agent_config(bot, user["email"])
         responses.reset()
         responses.start()
@@ -1163,12 +1181,13 @@ class TestChatServer(AsyncHTTPTestCase):
                 }
             }
         )
-
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
             patch.dict(Utility.environment['action'], {"url": None})
             with patch.object(Agent, "handle_message") as mock_agent:
                 mock_agent.side_effect = self.mock_agent_response
+                mock_getbusinesshrs.side_effect = self.__mock_getbusinessdata_workingenabled
+                mock_validatebusinesshours.side_effect = self.__mock_validate_businessworkinghours_true
                 response = self.fetch(
                     f"/api/bot/{bot}/chat",
                     method="POST",
@@ -1196,7 +1215,8 @@ class TestChatServer(AsyncHTTPTestCase):
                                                            'additional_properties': {
                                                                'destination': 2,
                                                                'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
-                                                               'websocket_url': 'wss://app.chatwoot.com/cable'
+                                                               'websocket_url': 'wss://app.chatwoot.com/cable',
+                                                               'inbox_id':14036
                                                            }}
 
                 data = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
@@ -1204,12 +1224,14 @@ class TestChatServer(AsyncHTTPTestCase):
                 assert len(data["logs"]) == data["total"]
                 assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) > 0
 
-    def test_chat_with_chatwoot_agent_fallback_existing_contact(self):
+    @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
+    def test_chat_with_chatwoot_agent_fallback_existing_contact(self, mock_businesshours):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
             patch.dict(Utility.environment['action'], {"url": None})
             with patch.object(KaironAgent, "handle_message") as mock_agent:
                 mock_agent.side_effect = self.mock_agent_response
+                mock_businesshours.side_effect = self.__mock_getbusinessdata_workingdisabled
                 responses.reset()
                 responses.start()
                 responses.add(
@@ -1303,7 +1325,8 @@ class TestChatServer(AsyncHTTPTestCase):
                                                            'additional_properties': {
                                                                'destination': 3,
                                                                'pubsub_token': 'M31nmFCfo2wc5FonU3qGjonB',
-                                                               'websocket_url': 'wss://app.chatwoot.com/cable'
+                                                               'websocket_url': 'wss://app.chatwoot.com/cable',
+                                                               'inbox_id': 14036
                                                            }}
                 data = MeteringProcessor.get_logs(user["account"], bot=bot, metric_type="agent_handoff")
                 assert len(data["logs"]) > 0
@@ -1714,3 +1737,91 @@ class TestChatServer(AsyncHTTPTestCase):
             response = DataUtility.get_channel_endpoint(channel)
             last_urlpart = response.split("/", -1)[-1]
             assert last_urlpart == "testtoken"
+
+    @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
+    @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
+    def test_chat_with_chatwoot_agent_outof_workinghours(self, mock_validatebusiness, mock_getbusiness):
+        self.add_live_agent_config(bot, user["email"])
+        responses.reset()
+        responses.start()
+        responses.add(
+            "POST", 'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts',
+            json={
+                "source_id": "09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71",
+                "pubsub_token": "M31nmFCfo2wc5FonU3qGjonB",
+                "id": 16951464,
+                "name": 'test@chat.com',
+                "email": None
+            }
+        )
+        responses.add(
+            "POST",
+            'https://app.chatwoot.com/public/api/v1/inboxes/tSaxZWrxyFowmFHzWwhMwi5y/contacts/09c15b5f-c4a4-4d15-ba45-ce99bc7b1e71/conversations',
+            json={
+                "id": 2,
+                "inbox_id": 14036,
+                "contact_last_seen_at": 0,
+                "status": "open",
+                "agent_last_seen_at": 0,
+                "messages": [],
+                "contact": {
+                    "id": 16951464,
+                    "name": "test@chat.com",
+                    "email": None,
+                    "phone_number": None,
+                    "account_id": 69469,
+                    "created_at": "2022-05-04T15:40:58.190Z",
+                    "updated_at": "2022-05-04T15:40:58.190Z",
+                    "additional_attributes": {},
+                    "identifier": None,
+                    "custom_attributes": {},
+                    "last_activity_at": None,
+                    "label_list": []
+                }
+            }
+        )
+        responses.add(
+            "POST",
+            'https://app.chatwoot.com/api/v1/accounts/12/conversations/2/messages',
+            json={
+                "id": 7487848,
+                "content": "hello",
+                "inbox_id": 14036,
+                "conversation_id": 2,
+                "message_type": 0,
+                "content_type": "text",
+                "content_attributes": {},
+                "created_at": 1651679560,
+                "private": False,
+                "source_id": None,
+                "sender": {
+                    "additional_attributes": {},
+                    "custom_attributes": {},
+                    "email": None,
+                    "id": 16951464,
+                    "identifier": None,
+                    "name": "test@chat.com",
+                    "phone_number": None,
+                    "thumbnail": "",
+                    "type": "contact"
+                }
+            }
+        )
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+            with patch.object(Agent, "handle_message") as mock_agent:
+                mock_agent.side_effect = self.mock_agent_response
+                mock_getbusiness.side_effect = self.__mock_getbusinessdata_workingenabled
+                mock_validatebusiness.side_effect = self.__mock_validate_businessworkinghours
+                response = self.fetch(
+                    f"/api/bot/{bot}/chat",
+                    method="POST",
+                    body=json.dumps({"data": "!@#$%^&*()"}).encode('utf-8'),
+                    headers={"Authorization": token_type + " " + token},
+                    connect_timeout=0,
+                    request_timeout=0
+                )
+                responses.stop()
+                actual = json.loads(response.body.decode("utf8"))
+                assert actual["data"]["agent_handoff"]["businessworking"]=="We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 ."

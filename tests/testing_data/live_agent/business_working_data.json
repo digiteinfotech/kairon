@@ -1,0 +1,406 @@
+{
+
+  "working_enabled_true": {
+    "id": 25226,
+    "avatar_url": "",
+    "channel_id": 3465,
+    "name": "kairon-msteams-638dc98974f2c19e5cc6b52b",
+    "channel_type": "Channel::Api",
+    "greeting_enabled": false,
+    "greeting_message": null,
+    "working_hours_enabled": true,
+    "enable_email_collect": true,
+    "csat_survey_enabled": false,
+    "enable_auto_assignment": true,
+    "auto_assignment_config": {},
+    "out_of_office_message": "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 .",
+    "working_hours": [
+        {
+            "day_of_week": 0,
+            "closed_all_day": false,
+            "open_hour": 10,
+            "open_minutes": 30,
+            "close_hour": 13,
+            "close_minutes": 30,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 1,
+            "closed_all_day": false,
+            "open_hour": 10,
+            "open_minutes": 0,
+            "close_hour": 17,
+            "close_minutes": 0,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 2,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 3,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 16,
+            "close_minutes": 30,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 4,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 17,
+            "close_minutes": 0,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 5,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 6,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        }
+    ],
+    "timezone": "Asia/Kolkata",
+    "callback_webhook_url": null,
+    "allow_messages_after_resolved": true,
+    "lock_to_single_conversation": false,
+    "widget_color": null,
+    "website_url": null,
+    "hmac_mandatory": false,
+    "welcome_title": null,
+    "welcome_tagline": null,
+    "web_widget_script": null,
+    "website_token": null,
+    "selected_feature_flags": null,
+    "reply_time": null,
+    "messaging_service_sid": null,
+    "phone_number": null,
+    "hmac_token": "vrtdWQzFXFKkXLUgX8ik3UHi",
+    "webhook_url": null,
+    "inbox_identifier": "PW5Hkit6XZ8gzngbEidTxMZg",
+    "additional_attributes": {},
+    "provider": null
+},
+  "working_enabled_false": {
+    "id": 25226,
+    "avatar_url": "",
+    "channel_id": 3465,
+    "name": "kairon-msteams-638dc98974f2c19e5cc6b52b",
+    "channel_type": "Channel::Api",
+    "greeting_enabled": false,
+    "greeting_message": null,
+    "working_hours_enabled": false,
+    "enable_email_collect": true,
+    "csat_survey_enabled": false,
+    "enable_auto_assignment": true,
+    "auto_assignment_config": {},
+    "out_of_office_message": "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 .",
+    "working_hours": [
+        {
+            "day_of_week": 0,
+            "closed_all_day": false,
+            "open_hour": 10,
+            "open_minutes": 30,
+            "close_hour": 13,
+            "close_minutes": 30,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 1,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 17,
+            "close_minutes": 0,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 2,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 3,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 16,
+            "close_minutes": 30,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 4,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 17,
+            "close_minutes": 0,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 5,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 6,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        }
+    ],
+    "timezone": "Asia/Kolkata",
+    "callback_webhook_url": null,
+    "allow_messages_after_resolved": true,
+    "lock_to_single_conversation": false,
+    "widget_color": null,
+    "website_url": null,
+    "hmac_mandatory": false,
+    "welcome_title": null,
+    "welcome_tagline": null,
+    "web_widget_script": null,
+    "website_token": null,
+    "selected_feature_flags": null,
+    "reply_time": null,
+    "messaging_service_sid": null,
+    "phone_number": null,
+    "hmac_token": "vrtdWQzFXFKkXLUgX8ik3UHi",
+    "webhook_url": null,
+    "inbox_identifier": "PW5Hkit6XZ8gzngbEidTxMZg",
+    "additional_attributes": {},
+    "provider": null
+},
+  "working_enabled_all_day_working": {
+    "id": 25226,
+    "avatar_url": "",
+    "channel_id": 3465,
+    "name": "kairon-msteams-638dc98974f2c19e5cc6b52b",
+    "channel_type": "Channel::Api",
+    "greeting_enabled": false,
+    "greeting_message": null,
+    "working_hours_enabled": true,
+    "enable_email_collect": true,
+    "csat_survey_enabled": false,
+    "enable_auto_assignment": true,
+    "auto_assignment_config": {},
+    "out_of_office_message": "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 .",
+    "working_hours": [
+        {
+            "day_of_week": 0,
+            "closed_all_day": false,
+            "open_hour": 10,
+            "open_minutes": 30,
+            "close_hour": 13,
+            "close_minutes": 30,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 1,
+            "closed_all_day": false,
+            "open_hour": 10,
+            "open_minutes": 0,
+            "close_hour": 17,
+            "close_minutes": 0,
+            "open_all_day": true
+        },
+        {
+            "day_of_week": 2,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 3,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 16,
+            "close_minutes": 30,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 4,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 17,
+            "close_minutes": 0,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 5,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 6,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        }
+    ],
+    "timezone": "Asia/Kolkata",
+    "callback_webhook_url": null,
+    "allow_messages_after_resolved": true,
+    "lock_to_single_conversation": false,
+    "widget_color": null,
+    "website_url": null,
+    "hmac_mandatory": false,
+    "welcome_title": null,
+    "welcome_tagline": null,
+    "web_widget_script": null,
+    "website_token": null,
+    "selected_feature_flags": null,
+    "reply_time": null,
+    "messaging_service_sid": null,
+    "phone_number": null,
+    "hmac_token": "vrtdWQzFXFKkXLUgX8ik3UHi",
+    "webhook_url": null,
+    "inbox_identifier": "PW5Hkit6XZ8gzngbEidTxMZg",
+    "additional_attributes": {},
+    "provider": null
+},
+  "working_enabled_exception": {
+    "id": 25226,
+    "avatar_url": "",
+    "channel_id": 3465,
+    "name": "kairon-msteams-638dc98974f2c19e5cc6b52b",
+    "channel_type": "Channel::Api",
+    "greeting_enabled": false,
+    "greeting_message": null,
+    "enable_email_collect": true,
+    "csat_survey_enabled": false,
+    "enable_auto_assignment": true,
+    "auto_assignment_config": {},
+    "out_of_office_message": "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 .",
+    "working_hours": [
+        {
+            "day_of_week": 0,
+            "closed_all_day": false,
+            "open_hour": 10,
+            "open_minutes": 30,
+            "close_hour": 13,
+            "close_minutes": 30,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 1,
+            "closed_all_day": false,
+            "open_hour": 10,
+            "open_minutes": 0,
+            "close_hour": 17,
+            "close_minutes": 0,
+            "open_all_day": true
+        },
+        {
+            "day_of_week": 2,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 3,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 16,
+            "close_minutes": 30,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 4,
+            "closed_all_day": false,
+            "open_hour": 9,
+            "open_minutes": 0,
+            "close_hour": 17,
+            "close_minutes": 0,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 5,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        },
+        {
+            "day_of_week": 6,
+            "closed_all_day": true,
+            "open_hour": null,
+            "open_minutes": null,
+            "close_hour": null,
+            "close_minutes": null,
+            "open_all_day": false
+        }
+    ],
+    "timezone": "Asia/Kolkata",
+    "callback_webhook_url": null,
+    "allow_messages_after_resolved": true,
+    "lock_to_single_conversation": false,
+    "widget_color": null,
+    "website_url": null,
+    "hmac_mandatory": false,
+    "welcome_title": null,
+    "welcome_tagline": null,
+    "web_widget_script": null,
+    "website_token": null,
+    "selected_feature_flags": null,
+    "reply_time": null,
+    "messaging_service_sid": null,
+    "phone_number": null,
+    "hmac_token": "vrtdWQzFXFKkXLUgX8ik3UHi",
+    "webhook_url": null,
+    "inbox_identifier": "PW5Hkit6XZ8gzngbEidTxMZg",
+    "additional_attributes": {},
+    "provider": null
+}
+
+
+
+
+}

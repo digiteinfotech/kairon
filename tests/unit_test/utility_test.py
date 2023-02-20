@@ -1783,3 +1783,10 @@ class TestUtility:
         monkeypatch.setitem(Utility.system_metadata, "channels", [])
         channels = Utility.get_channels()
         assert channels == expected_channels
+
+    def test_convertdatetime_with_timezone(self):
+        from datetime import datetime, timezone
+        dateformat = '%Y-%m-%d %H:%M:%S'
+        current_utcnow = datetime(2023, 2, 12, 8, 00, 00, tzinfo=timezone.utc)
+        result = Utility.convert_utcdate_with_timezone(current_utcnow, "Asia/Kolkata",dateformat)
+        assert result == datetime(2023, 2, 12, 13, 30)
