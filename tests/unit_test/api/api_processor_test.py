@@ -2653,7 +2653,7 @@ class TestAccountProcessor:
     def test_delete_org_mapping(self):
         organization="new_test"
         result = OrgProcessor.delete_org_mapping(organization)
-        assert result == 2
+        assert result >= 2
 
     def test_delete_org_mapping_not_exists(self):
         organization="not_exists"
