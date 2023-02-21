@@ -216,7 +216,6 @@ async def add_organization(request_data: DictData,
     """
     Add organization.
     """
-    AccountProcessor.upsert_organization(current_user, request_data.data)
     org_id = OrgProcessor.upsert_organization(current_user, request_data.data)
     return Response(data={"org_id": org_id}, message="organization added")
 
