@@ -2239,9 +2239,11 @@ class MongoProcessor:
 
         events = self.__complex_story_prepare_steps(steps, flowtype, bot, user)
         data_object['events'] = events
-        Utility.is_exist_query(data_class,
-                               query=(Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
-                               exp_message="Flow already exists!")
+        Utility.is_exist_query(
+            data_class,
+            query=(Q(id__ne=story_id) & Q(bot=bot) & Q(status=True) & Q(events=data_object['events'])),
+            exp_message="Flow already exists!"
+        )
         data_object['block_name'] = name
         story_id = (
             data_object.save().to_mongo().to_dict()["_id"].__str__()
