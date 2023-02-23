@@ -2275,7 +2275,7 @@ class MongoProcessor:
                          exp_message="Multiflow Story with the name already exists")
         events = [MultiflowStoryEvents(**step) for step in steps]
         Utility.is_exist_query(MultiflowStories,
-                               query=(Q(bot=bot) & Q(status=True) & Q(events=events)),
+                               query=(Q(id__ne=story_id) & Q(bot=bot) & Q(status=True) & Q(events=events)),
                                exp_message="Story flow already exists!")
 
         try:
