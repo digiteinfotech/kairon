@@ -7875,6 +7875,33 @@ class TestMongoProcessor:
         ]
 
         story_dict = {'name': "story update with same flow events", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
+
+    def test_update_multiflow_story_with_same_events_with_different_story_id(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT"},
+             "connections": [{"name": "utter_greet", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT"},
+             "connections": [{"name": "more_queries", "type": "INTENT"},
+                             {"name": "goodbye", "type": "INTENT"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+             }
+        ]
+        story_dict = {'name': "story update with same flow events different story id",
+                      'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Story flow already exists!"):
             processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
 
