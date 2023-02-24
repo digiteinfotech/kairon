@@ -2000,7 +2000,7 @@ class TestAccountProcessor:
             "method": "GET",
             "scheme": "http",
             "path": "/",
-            'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
+            'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none&client_secret=qwertyuiopasdf&client_id=asdfghjklzxcvb',
             "headers": Headers({
                 'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
                 'host': 'www.example.org',
@@ -2013,6 +2013,8 @@ class TestAccountProcessor:
 
         request = Request(scope=scope)
         request._url = URL(scope=scope)
+        assert request.query_params['client_secret'] == Utility.environment['sso']['linkedin']['client_secret']
+        assert request.query_params['client_id'] == Utility.environment['sso']['linkedin']['client_id']
         with pytest.raises(AppException, match='User was not verified with linkedin'):
             await Authentication.verify_and_process(request, "linkedin")
 
@@ -2039,7 +2041,7 @@ class TestAccountProcessor:
             "method": "GET",
             "scheme": "https",
             "path": "/",
-            'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
+            'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none&client_secret=qwertyuiopasdf&client_id=asdfghjklzxcvb',
             "headers": Headers({
                 'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
                 'host': 'www.example.org',
@@ -2064,6 +2066,8 @@ class TestAccountProcessor:
         assert user['last_name'] == 'reddy'
         assert Utility.check_empty_string(user.get('password'))
         assert existing_user
+        assert request.query_params['client_secret'] == Utility.environment['sso']['linkedin']['client_secret']
+        assert request.query_params['client_id'] == Utility.environment['sso']['linkedin']['client_id']
 
     @pytest.mark.asyncio
     async def test_sso_linkedin_login_new_user(self, httpx_mock: HTTPXMock, monkeypatch):
@@ -2088,7 +2092,7 @@ class TestAccountProcessor:
             "method": "GET",
             "scheme": "https",
             "path": "/",
-            'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
+            'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none&client_secret=qwertyuiopasdf&client_id=asdfghjklzxcvb',
             "headers": Headers({
                 'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
                 'host': 'www.example.org',
@@ -2108,6 +2112,8 @@ class TestAccountProcessor:
         assert user['last_name'] == 'reddy'
         assert not Utility.check_empty_string(user.get('password').get_secret_value())
         assert not existing_user
+        assert request.query_params['client_secret'] == Utility.environment['sso']['linkedin']['client_secret']
+        assert request.query_params['client_id'] == Utility.environment['sso']['linkedin']['client_id']
         user = AccountProcessor.get_user_details('monisha.ks@digite.com')
         assert all(
             user[key] is False if key == "is_integration_user" else user[key]
