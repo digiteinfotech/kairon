@@ -21,7 +21,7 @@ class IDPProcessor:
             raise AppException("SSO is not enabled")
         config_data = data["config"]
         try:
-            idp_config = IdpConfig.objects(account=user.account).get()
+            idp_config = IdpConfig.objects(account__contains=user.account).get()
 
             helper.upsert_identity_provider(realm_name=config_data.get("realm_name"),
                                             operation="update",
@@ -63,7 +63,7 @@ class IDPProcessor:
 
             idp_config = IdpConfig(
                 user=user.email,
-                account=user.account,
+                account=[user.account],
                 realm_name=config_data.get("realm_name"),
                 organization=data.get("organization"),
                 idp_client_id=config_data.get("realm_name"),
@@ -80,7 +80,7 @@ class IDPProcessor:
     @staticmethod
     def get_idp_config(account):
         try:
-            idp_config_data = IdpConfig.objects(account=account, status=True).get()
+            idp_config_data = IdpConfig.objects(account__contains=account, status=True).get()
             idp_config = idp_config_data.to_mongo().to_dict()
             result = idp_config.pop("config")
             result["client_id"] = Utility.decrypt_message(result["client_id"])[:-5] + "*****"
@@ -114,10 +114,7 @@ class IDPProcessor:
 
     @staticmethod
     async def identify_user_and_create_access_token(realm_name, session_state, code):
-        helper = IDPFactory.get_supported_idp(Utility.environment["idp"]["type"])
-        idp = helper.get_fastapi_idp_object(realm_name)
-        idp_token = idp._decode_token(
-            idp.exchange_authorization_code(session_state=session_state, code=code).access_token)
+        idp_token = IDPProcessor.get_idp_token(realm_name, session_state, code)
 
         try:
             AccountProcessor.get_user(idp_token['email'])
@@ -136,7 +133,15 @@ class IDPProcessor:
             await AccountProcessor.confirm_email(tmp_token)
 
         access_token = Authentication.create_access_token(data={"sub": idp_token["email"]})
-        return access_token
+        return existing_user, idp_token, access_token
+
+    @staticmethod
+    def get_idp_token(realm_name, session_state, code):
+        helper = IDPFactory.get_supported_idp(Utility.environment["idp"]["type"])
+        idp = helper.get_fastapi_idp_object(realm_name)
+        idp_token = idp._decode_token(
+            idp.exchange_authorization_code(session_state=session_state, code=code).access_token)
+        return idp_token
 
     @staticmethod
     def get_supported_provider_list():
@@ -145,8 +150,9 @@ class IDPProcessor:
     @staticmethod
     def delete_idp(realm_name):
         try:
+            helper = IDPFactory.get_supported_idp(Utility.environment["idp"]["type"])
+            helper.delete_realm(realm_name)
             idp_config_data = IdpConfig.objects(realm_name=realm_name, status=True).get()
-            idp_config_data.status = False
-            idp_config_data.save()
+            idp_config_data.delete()
         except DoesNotExist:
             raise AppException("IDP config not found")

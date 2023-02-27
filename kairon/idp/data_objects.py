@@ -5,7 +5,7 @@ from mongoengine import (
     signals,
     StringField,
     BooleanField,
-    LongField, DateTimeField, DictField
+    ListField, DateTimeField, DictField
 )
 
 from kairon.idp.constants import IDPConfigType
@@ -16,7 +16,7 @@ from kairon.shared.utils import Utility
 @auditlogger.log
 class IdpConfig(Document):
     user = StringField(required=True)
-    account = LongField(required=True)
+    account = ListField(required=True)
     organization = StringField(required=True)
     status = BooleanField(default=True)
     timestamp = DateTimeField(default=datetime.utcnow)

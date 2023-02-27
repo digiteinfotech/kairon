@@ -8,6 +8,7 @@ from kairon.api.models import Response, RegisterAccount, TextData, Password, Fee
 from kairon.shared.constants import OWNER_ACCESS
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.utils import Utility
 
 router = APIRouter()
@@ -215,14 +216,21 @@ async def add_organization(request_data: DictData,
     """
     Add organization.
     """
-    AccountProcessor.upsert_organization(current_user, request_data.data)
-    return {"message": "organization added"}
-
+    org_id = OrgProcessor.upsert_organization(current_user, request_data.data)
+    return Response(data={"org_id": org_id}, message="organization added")
 
 @router.get("/organization", response_model=Response)
 async def get_organization(current_user: User = Depends(Authentication.get_current_user)):
     """
     Get organization.
     """
-    data = AccountProcessor.get_organization(current_user.account)
+    data = OrgProcessor.get_organization_for_account(current_user.account)
     return Response(data=data)
+
+@router.delete("/organization/{org_id}", response_model=Response)
+async def delete_organization(org_id: str, current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Delete organization.
+    """
+    OrgProcessor.delete_org(current_user.account, org_id)
+    return Response(message="Organization deleted")

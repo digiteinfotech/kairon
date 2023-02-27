@@ -261,3 +261,14 @@ class IDPHelper:
             return Utility.execute_http_request("GET", http_url=url, headers=headers)
         except AppException:
             raise AppException("Could not get clients")
+
+    @staticmethod
+    def delete_realm(realm_name):
+        url = Utility.environment["idp"]["server_url"] + IDPURLConstants.ADD_REALM_URL.value + f"/{realm_name}"
+        headers = {
+            "Authorization": "Bearer " + IDPHelper.get_admin_access_token()
+        }
+        try:
+            return Utility.execute_http_request("DELETE", http_url=url,  headers=headers, return_json=False)
+        except AppException:
+            raise AppException("Exception occure while deleting realm")
