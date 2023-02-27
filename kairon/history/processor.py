@@ -1501,8 +1501,7 @@ class HistoryProcessor:
     @staticmethod
     def delete_user_history(
             collection: Text, sender_id: Text,
-            from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-            to_date: date = datetime.utcnow().date()
+            till_date: date = datetime.utcnow().date()
     ):
 
         """
@@ -1510,31 +1509,26 @@ class HistoryProcessor:
 
         Archives conversations based on month to conversations_archive DB
 
-        :param from_date: default is last month date
-        :param to_date: default is current month today date
+        :param till_date: default is current month today date
         :param collection: collection to connect to
         :param sender_id: user id
         :return: string message
         """
-        from_date_timestamp = Utility.get_timestamp_from_date(from_date)
-        to_date_timestamp = Utility.get_timestamp_from_date(to_date)
+        till_date_timestamp = Utility.get_timestamp_from_date(till_date)
         HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id,
-                                              from_date_timestamp=from_date_timestamp,
-                                              to_date_timestamp=to_date_timestamp)
+                                              till_date_timestamp=till_date_timestamp)
         HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
-                                                   from_date_timestamp=from_date_timestamp,
-                                                   to_date_timestamp=to_date_timestamp)
+                                                   till_date_timestamp=till_date_timestamp)
 
     @staticmethod
-    def archive_user_history(collection: Text, sender_id: Text, from_date_timestamp: float, to_date_timestamp: float):
+    def archive_user_history(collection: Text, sender_id: Text, till_date_timestamp: float):
 
         """
         Archives conversations based on month to conversations_archive DB
 
         :param collection: collection to connect to
         :param sender_id: user id
-        :param from_date_timestamp: the timestamp based on from_date
-        :param to_date_timestamp: the timestamp based on to_date
+        :param till_date_timestamp: the timestamp based on till_date
         :return: none
         """
         try:
@@ -1546,8 +1540,7 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 conversations.aggregate([{"$match": {"sender_id": sender_id}},
-                                         {"$match": {"event.timestamp": {
-                                             "$lte": to_date_timestamp, "$gte": from_date_timestamp}}},
+                                         {"$match": {"event.timestamp": {"$lte": till_date_timestamp}}},
                                          {"$project": {"_id":0}},
                                          {"$merge": {"into": {"db": archive_db, "coll": archive_collection},
                                                      "on": "_id",
@@ -1559,16 +1552,14 @@ class HistoryProcessor:
             raise AppException(e)
 
     @staticmethod
-    def delete_user_conversations(collection: Text, sender_id: Text,
-                                  from_date_timestamp: float, to_date_timestamp: float):
+    def delete_user_conversations(collection: Text, sender_id: Text, till_date_timestamp: float):
 
         """
         Removes archived conversations events from existing collection
 
         :param collection: collection to connect to
         :param sender_id: user id
-        :param from_date_timestamp: the timestamp based on from_date
-        :param to_date_timestamp: the timestamp based on to_date
+        :param till_date_timestamp: the timestamp based on till_date
         :return: none
         """
         try:
@@ -1579,14 +1570,14 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
 
                 # Remove Archived Events
-                conversations.delete_many(filter={'sender_id': sender_id, "event.timestamp": {'$lte': to_date_timestamp,
-                                                                                              '$gte': from_date_timestamp}})
+                conversations.delete_many(filter={'sender_id': sender_id,
+                                                  "event.timestamp": {'$lte': till_date_timestamp}})
         except Exception as e:
             logger.error(e)
             raise AppException(e)
 
     @staticmethod
-    def fetch_chat_users_for_delete(collection: Text, from_date_timestamp: float, to_date_timestamp: float):
+    def fetch_chat_users_for_delete(collection: Text, till_date_timestamp: float):
 
         """
         Fetch users.
@@ -1594,8 +1585,7 @@ class HistoryProcessor:
         Fetches user list who has conversation with the agent before specified month
 
         :param collection: collection to connect to
-        :param from_date_timestamp: the timestamp based on from_date
-        :param to_date_timestamp: the timestamp based on to_date
+        :param till_date_timestamp: the timestamp based on till_date
         :return: list of user id
         """
         try:
@@ -1604,8 +1594,7 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                values = list(conversations.distinct("sender_id", {"event.timestamp": {"$lte": to_date_timestamp,
-                                                                                       "$gte": from_date_timestamp}}))
+                values = list(conversations.distinct("sender_id", {"event.timestamp": {"$lte": till_date_timestamp}}))
                 return values
         except Exception as e:
             logger.error(e)
@@ -1614,8 +1603,7 @@ class HistoryProcessor:
     @staticmethod
     def delete_bot_history(
             collection: Text,
-            from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-            to_date: date = datetime.utcnow().date()
+            till_date: date = datetime.utcnow().date()
     ):
 
         """
@@ -1623,26 +1611,22 @@ class HistoryProcessor:
 
         Archives conversations based on month to conversations_archive DB
 
-        :param from_date: default is last month date
-        :param to_date: default is current month today date
+        :param till_date: default is current month today date
         :param collection: collection to connect to
         :return: string message
         """
-        from_date_timestamp = Utility.get_timestamp_from_date(from_date)
-        to_date_timestamp = Utility.get_timestamp_from_date(to_date)
+        till_date_timestamp = Utility.get_timestamp_from_date(till_date)
         try:
             users = HistoryProcessor.fetch_chat_users_for_delete(
-                collection=collection, from_date_timestamp=from_date_timestamp, to_date_timestamp=to_date_timestamp
+                collection=collection, till_date_timestamp=till_date_timestamp
             )
 
             for sender_id in users:
                 HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id,
-                                                      from_date_timestamp=from_date_timestamp,
-                                                      to_date_timestamp=to_date_timestamp)
+                                                      till_date_timestamp=till_date_timestamp)
 
                 HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
-                                                           from_date_timestamp=from_date_timestamp,
-                                                           to_date_timestamp=to_date_timestamp)
+                                                           till_date_timestamp=till_date_timestamp)
             return "Deleting User history!"
         except Exception as e:
             logger.error(e)
