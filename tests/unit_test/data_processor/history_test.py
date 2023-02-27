@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import mock
 import mongomock
@@ -45,32 +45,36 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_history', autospec=True)
     def test_delete_user_history(self, mock_history):
-        from_date = (datetime.utcnow() - timedelta(30)).date()
-        to_date = datetime.utcnow().date()
+        till_date = datetime.utcnow().date()
         collection = '5ebc195d5b04bcbaa45c70cc'
         sender_id = 'fshaikh@digite.com'
-        HistoryProcessor.delete_user_history(collection=collection, sender_id=sender_id,
-                                             from_date=from_date, to_date=to_date)
+        HistoryProcessor.delete_user_history(collection=collection, sender_id=sender_id, till_date=till_date)
+        assert True
+
+    @mock.patch('kairon.history.processor.HistoryProcessor.archive_user_history', autospec=True)
+    @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
+    def test_delete_user_history_with_mock_functions(self, mock_delete_history, mock_archive_user_history):
+        till_date = datetime.utcnow().date()
+        collection = '5ebc195d5b04bcbaa45c70cc'
+        sender_id = 'fshaikh@digite.com'
+        HistoryProcessor.delete_user_history(collection=collection, sender_id=sender_id, till_date=till_date)
         assert True
 
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
     def test_delete_user_conversations(self, mock_history):
-        from_date_timestamp = Utility.get_timestamp_from_date((datetime.utcnow() - timedelta(30)).date())
-        to_date_timestamp = Utility.get_timestamp_from_date(datetime.utcnow().date())
+        till_date_timestamp = Utility.get_timestamp_from_date(datetime.utcnow().date())
         collection = '5ebc195d5b04bcbaa45c70cc'
         sender_id = 'fshaikh@digite.com'
         HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
-                                                   from_date_timestamp=from_date_timestamp,
-                                                   to_date_timestamp=to_date_timestamp)
+                                                   till_date_timestamp=till_date_timestamp)
         assert True
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_delete_bot_history(self, mock_client):
-        from_date = (datetime.utcnow() - timedelta(30)).date()
-        to_date = datetime.utcnow().date()
+        till_date = datetime.utcnow().date()
         mock_client.return_value = mongoclient
         collection = '5f1928bda7c0280ca4869da3'
-        msg = HistoryProcessor.delete_bot_history(collection=collection, from_date=from_date, to_date=to_date)
+        msg = HistoryProcessor.delete_bot_history(collection=collection, till_date=till_date)
 
         assert msg == "Deleting User history!"
 
@@ -78,10 +82,9 @@ class TestHistory:
         assert not HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3')
 
     def test_is_event_in_progress_failure(self, get_connection_delete_history):
-        from_date = (datetime.utcnow() - timedelta(30)).date()
-        to_date = datetime.utcnow().date()
+        till_date = datetime.utcnow().date()
         HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',
-                                            from_date, to_date, status='In progress')
+                                            till_date, status='In progress')
         assert HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)
 
         with pytest.raises(AppException, match='Event already in progress! Check logs.'):

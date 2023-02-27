@@ -11,10 +11,9 @@ from kairon.events.definitions.history_delete import DeleteHistoryEvent
 def initiate_history_deletion_archival(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
-    logger.info("from_date: {}", args.from_date)
-    logger.info("to_date: {}", args.to_date)
+    logger.info("till_date: {}", args.till_date)
     logger.info("sender_id: {}", args.sender_id)
-    DeleteHistoryEvent(args.bot, args.user, from_date=args.from_date, to_date=args.to_date,
+    DeleteHistoryEvent(args.bot, args.user, till_date=args.till_date,
                        sender_id=args.sender_id).execute()
 
 
@@ -32,11 +31,7 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
     data_parser.add_argument('user',
                              type=str,
                              help="Kairon user who is initiating the command", action='store')
-    data_parser.add_argument('from_date',
-                             type=date,
-                             default=(datetime.utcnow() - timedelta(30)).date(),
-                             help="from which date history to be deleted", action='store')
-    data_parser.add_argument('to_date',
+    data_parser.add_argument('till_date',
                              type=date,
                              default=datetime.utcnow().date(),
                              help="upto which date history to be deleted", action='store')

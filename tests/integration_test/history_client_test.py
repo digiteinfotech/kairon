@@ -237,51 +237,71 @@ def test_chat_history_users_with_from_date_and_to_date(mock_auth, mock_mongo_pro
 def test_chat_history_users_with_from_date_less_than_six_months(mock_auth):
     from_date = (datetime.utcnow() - timedelta(300)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_chat_history_users_with_from_date_greater_than_today_date(mock_auth):
     from_date = (datetime.utcnow() + timedelta(30)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_chat_history_users_with_to_date_less_than_six_months(mock_auth):
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() - timedelta(300)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_chat_history_users_with_to_date_greater_than_today_date(mock_auth):
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() + timedelta(30)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_chat_history_users_with_from_date_greater_than_to_date(mock_auth):
     from_date = (datetime.utcnow()).date()
     to_date = (datetime.utcnow() - timedelta(90)).date()
-    with pytest.raises(ValueError, match="from_date must be less than to_date"):
-        client.get(
-            f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date must be less than to_date')
+    assert not actual["success"]
 
 
 @responses.activate
@@ -413,51 +433,71 @@ def test_fallback_count_range_no_nlu_fallback_rule_with_from_date_and_to_date(mo
 def test_fallback_count_range_with_from_date_less_than_six_months(mock_auth):
     from_date = (datetime.utcnow() - timedelta(300)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_fallback_count_range_with_from_date_greater_than_today_date(mock_auth):
     from_date = (datetime.utcnow() + timedelta(30)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_fallback_count_range_with_to_date_less_than_six_months(mock_auth):
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() - timedelta(300)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_fallback_count_range_with_to_date_greater_than_today_date(mock_auth):
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() + timedelta(30)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_fallback_count_range_with_from_date_greater_than_to_date(mock_auth):
     from_date = (datetime.utcnow()).date()
     to_date = (datetime.utcnow() - timedelta(90)).date()
-    with pytest.raises(ValueError, match="from_date must be less than to_date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date must be less than to_date')
+    assert not actual["success"]
 
 
 @responses.activate
@@ -592,51 +632,71 @@ def test_conversation_time_with_kairon_client_with_from_date_and_to_date(mock_au
 def test_conversation_time_with_from_date_less_than_six_months(mock_auth):
     from_date = (datetime.utcnow() - timedelta(300)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_conversation_time_with_from_date_greater_than_today_date(mock_auth):
     from_date = (datetime.utcnow() + timedelta(30)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_conversation_time_with_to_date_less_than_six_months(mock_auth):
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() - timedelta(300)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_conversation_time_with_to_date_greater_than_today_date(mock_auth):
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() + timedelta(30)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_conversation_time_with_from_date_greater_than_to_date(mock_auth):
     from_date = (datetime.utcnow()).date()
     to_date = (datetime.utcnow() - timedelta(90)).date()
-    with pytest.raises(ValueError, match="from_date must be less than to_date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date must be less than to_date')
+    assert not actual["success"]
 
 
 @responses.activate
@@ -1355,7 +1415,7 @@ def test_total_sessions_with_kairon_client(mock_auth, mock_mongo_processor):
 def test_delete_user_chat_history_connection_failure(mock_auth_admin, mock_mongo_processor_endpoint_not_configured,
                                                                 monkeypatch):
     response = client.delete(
-        f"/api/history/{pytest.bot}/delete/5e564fbcdcf0d5fad89e3acd?month=3",
+        f"/api/history/{pytest.bot}/delete/5e564fbcdcf0d5fad89e3acd",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1380,15 +1440,13 @@ def test_delete_user_history_unmanaged_history_server(mock_auth_admin, mock_mong
 
 @responses.activate
 def test_delete_user_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_not_configured, monkeypatch):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    till_date = datetime.utcnow().date()
     event_url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.delete_history}"
     responses.add("POST",
                   event_url,
                   json={"success": True, "message": "Event triggered successfully!"},
                   match=[responses.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com',
-                                                        'from_date': Utility.convert_date_to_string(from_date),
-                                                        'to_date': Utility.convert_date_to_string(to_date),
+                                                        'till_date': Utility.convert_date_to_string(till_date),
                                                         'sender_id': '5e564fbcdcf0d5fad89e3acd'})],
                   status=200)
 
@@ -1406,7 +1464,7 @@ def test_delete_user_chat_history(mock_auth_admin, mock_mongo_processor_endpoint
 def test_delete_user_chat_history_event_already_runnning(mock_auth_admin, mock_mongo_processor_endpoint_not_configured,
                                                                 monkeypatch):
     response = client.delete(
-        f"/api/history/{pytest.bot}/delete/5e564fbcdcf0d5fad89e3acd?month=3",
+        f"/api/history/{pytest.bot}/delete/5e564fbcdcf0d5fad89e3acd",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1421,7 +1479,7 @@ def test_delete_user_chat_history_event_already_runnning(mock_auth_admin, mock_m
 
 def test_delete_bot_chat_history_failed_to_connect_event_server(mock_auth_admin, mock_mongo_processor_endpoint_not_configured):
     response = client.delete(
-        f"/api/history/{pytest.bot}/bot/delete?month=3",
+        f"/api/history/{pytest.bot}/bot/delete",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -1446,15 +1504,13 @@ def test_delete_bot_chat_history_unmanaged_history_server(mock_auth_admin, mock_
 
 @responses.activate
 def test_delete_bot_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_not_configured, monkeypatch):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    till_date = datetime.utcnow().date()
     event_url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.delete_history}"
     responses.add("POST",
                   event_url,
                   json={"success": True, "message": "Event triggered successfully!"},
                   match=[responses.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com',
-                                                        'from_date': Utility.convert_date_to_string(from_date),
-                                                        'to_date': Utility.convert_date_to_string(to_date),
+                                                        'till_date': Utility.convert_date_to_string(till_date),
                                                         'sender_id': None})],
                   status=200)
 

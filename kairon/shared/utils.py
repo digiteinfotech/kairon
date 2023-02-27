@@ -567,11 +567,11 @@ class Utility:
         six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
         today_date = datetime.utcnow().date()
         if six_months_back_date > from_date or from_date > today_date:
-            raise ValueError("from_date should be within six months and today date")
+            raise AppException("from_date should be within six months and today date")
         elif six_months_back_date > to_date or to_date > today_date:
-            raise ValueError("to_date should be within six months and today date")
+            raise AppException("to_date should be within six months and today date")
         elif from_date >= to_date:
-            raise ValueError("from_date must be less than to_date")
+            raise AppException("from_date must be less than to_date")
 
     @staticmethod
     def get_local_db(url=None, db_name=None):

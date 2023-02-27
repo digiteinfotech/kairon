@@ -77,51 +77,71 @@ def test_chat_history_users(mock_mongo):
 def test_chat_history_users_with_from_date_less_than_six_months():
     from_date = (datetime.utcnow() - timedelta(300)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_chat_history_users_with_from_date_greater_than_today_date():
     from_date = (datetime.utcnow() + timedelta(30)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_chat_history_users_with_to_date_less_than_six_months():
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() - timedelta(300)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_chat_history_users_with_to_date_greater_than_today_date():
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() + timedelta(30)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_chat_history_users_with_from_date_greater_than_to_date():
     from_date = (datetime.utcnow()).date()
     to_date = (datetime.utcnow() - timedelta(90)).date()
-    with pytest.raises(ValueError, match="from_date must be less than to_date"):
-        client.get(
-            f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date must be less than to_date')
+    assert not actual["success"]
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
@@ -221,51 +241,71 @@ def test_user_with_metrics(mock_mongo):
 def test_user_with_metrics_with_from_date_less_than_six_months():
     from_date = (datetime.utcnow() - timedelta(300)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_user_with_metrics_with_from_date_greater_than_today_date():
     from_date = (datetime.utcnow() + timedelta(30)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_user_with_metrics_with_to_date_less_than_six_months():
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() - timedelta(300)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_user_with_metrics_with_to_date_greater_than_today_date():
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() + timedelta(30)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_user_with_metrics_with_from_date_greater_than_to_date():
     from_date = (datetime.utcnow()).date()
     to_date = (datetime.utcnow() - timedelta(90)).date()
-    with pytest.raises(ValueError, match="from_date must be less than to_date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date must be less than to_date')
+    assert not actual["success"]
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
@@ -396,51 +436,71 @@ def test_engaged_user_range(mock_mongo):
 def test_engaged_user_range_with_from_date_less_than_six_months():
     from_date = (datetime.utcnow() - timedelta(300)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_engaged_user_range_with_from_date_greater_than_today_date():
     from_date = (datetime.utcnow() + timedelta(30)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_engaged_user_range_with_to_date_less_than_six_months():
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() - timedelta(300)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_engaged_user_range_with_to_date_greater_than_today_date():
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() + timedelta(30)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_engaged_user_range_with_from_date_greater_than_to_date():
     from_date = (datetime.utcnow()).date()
     to_date = (datetime.utcnow() - timedelta(90)).date()
-    with pytest.raises(ValueError, match="from_date must be less than to_date"):
-        client.get(
-            f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date must be less than to_date')
+    assert not actual["success"]
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)
@@ -998,51 +1058,71 @@ def test_total_sessions_with_request(mock_mongo):
 def test_total_session_with_from_date_less_than_six_months():
     from_date = (datetime.utcnow() - timedelta(300)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_total_session_with_from_date_greater_than_today_date():
     from_date = (datetime.utcnow() + timedelta(30)).date()
     to_date = (datetime.utcnow()).date()
-    with pytest.raises(ValueError, match="from_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_total_session_with_to_date_less_than_six_months():
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() - timedelta(300)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_total_session_with_to_date_greater_than_today_date():
     from_date = (datetime.utcnow() - timedelta(30)).date()
     to_date = (datetime.utcnow() + timedelta(30)).date()
-    with pytest.raises(ValueError, match="to_date should be within six months and today date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('to_date should be within six months and today date')
+    assert not actual["success"]
 
 
 def test_total_session_with_from_date_greater_than_to_date():
     from_date = (datetime.utcnow()).date()
     to_date = (datetime.utcnow() - timedelta(90)).date()
-    with pytest.raises(ValueError, match="from_date must be less than to_date"):
-        client.get(
-            f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
-            headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
-        )
+    response = client.get(
+        f"/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": 'Bearer ' + Utility.environment['tracker']['authentication']['token']},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+    assert actual["message"].__contains__('from_date must be less than to_date')
+    assert not actual["success"]
 
 
 @mock.patch('kairon.history.processor.MongoClient', autospec=True)

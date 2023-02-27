@@ -1058,8 +1058,7 @@ class TestEventExecution:
         from datetime import datetime, timedelta
         bot = 'test_events_bot'
         user = 'test_user'
-        from_date = (datetime.utcnow() - timedelta(30)).date()
-        to_date = datetime.utcnow().date()
+        till_date = datetime.utcnow().date()
         sender_id = None
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.delete_history}")
         responses.reset()
@@ -1069,11 +1068,11 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'from_date': Utility.convert_date_to_string(from_date),
-                               'to_date': Utility.convert_date_to_string(to_date), 'sender_id': sender_id})],
+                              {'bot': bot, 'user': user, 'till_date': Utility.convert_date_to_string(till_date),
+                               'sender_id': sender_id})],
                       )
         responses.start()
-        event = DeleteHistoryEvent(bot, user, from_date=from_date, to_date=to_date, sender_id=None)
+        event = DeleteHistoryEvent(bot, user, till_date=till_date, sender_id=None)
         event.validate()
         event.enqueue()
         responses.stop()
