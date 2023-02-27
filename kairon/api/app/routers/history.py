@@ -495,16 +495,14 @@ async def total_sessions(
 @router.delete("/delete/{sender}", response_model=Response)
 async def delete_user_chat_history(
         sender: Text,
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        till_date: date = Query(default=datetime.utcnow().date()),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
     Deletes user chat history up to certain months  min 3 month max 6 months
     """
-    Utility.validate_from_date_and_to_date(from_date, to_date)
     event = DeleteHistoryEvent(
-        current_user.get_bot(), current_user.get_user(), from_date=from_date, to_date=to_date, sender_id=sender
+        current_user.get_bot(), current_user.get_user(), till_date=till_date, sender_id=sender
     )
     event.validate()
     event.enqueue()
@@ -513,15 +511,13 @@ async def delete_user_chat_history(
 
 @router.delete("/bot/delete", response_model=Response)
 async def delete_bot_conversations_history(
-        from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
-        to_date: date = Query(default=datetime.utcnow().date()),
+        till_date: date = Query(default=datetime.utcnow().date()),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
     Deletes bot chat history for all users up to certain months  min 1 month max 6 months
     """
-    Utility.validate_from_date_and_to_date(from_date, to_date)
-    event = DeleteHistoryEvent(current_user.get_bot(), current_user.get_user(), from_date=from_date, to_date=to_date)
+    event = DeleteHistoryEvent(current_user.get_bot(), current_user.get_user(), till_date=till_date)
     event.validate()
     event.enqueue()
     return {"message": "Delete chat history initiated. It may take a while. Check logs!"}

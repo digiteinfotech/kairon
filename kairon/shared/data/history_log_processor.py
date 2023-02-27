@@ -11,7 +11,7 @@ class HistoryDeletionLogProcessor:
     """This Class contains logic for conversations history deletion log processor"""
 
     @staticmethod
-    def add_log(bot: str, user: str, from_date: date = None, to_date: date = None, status: str = None,
+    def add_log(bot: str, user: str, till_date: date = None, status: str = None,
                 exception: str = None, sender_id: str = None):
 
         try:
@@ -28,10 +28,8 @@ class HistoryDeletionLogProcessor:
         doc.status = status
         if exception:
             doc.exception = exception
-        if from_date:
-            doc.from_date = from_date
-        if to_date:
-            doc.to_date = to_date
+        if till_date:
+            doc.till_date = till_date
         if status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
             doc.end_timestamp = datetime.utcnow()
         doc.save()
