@@ -84,6 +84,7 @@ class LinkedinSSO(KaironSSO):
 
         auth = httpx.BasicAuth(self.client_id, self.client_secret)
         async with httpx.AsyncClient() as session:
+            body = body + f"&client_secret={self.client_secret}"
             logging.debug(f'redirect_uri: {current_path}')
             logging.debug(f'request_body: {body}')
             response = await session.post(token_url, headers=headers, content=body, auth=auth)
