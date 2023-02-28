@@ -2170,6 +2170,7 @@ class MongoProcessor:
 
         name = story['name']
         steps = story['steps']
+
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
 
