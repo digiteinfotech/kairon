@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 from typing import Text
 from loguru import logger
 from kairon import Utility
@@ -23,7 +23,7 @@ class DeleteHistoryEvent(EventsBase):
         self.user = user
         self.till_date = kwargs.get('till_date', datetime.utcnow().date())
         if not isinstance(self.till_date, date):
-            self.from_date = datetime.strptime(self.till_date, "%Y-%m-%d").date()
+            self.till_date = datetime.strptime(self.till_date, "%Y-%m-%d").date()
         self.sender_id = kwargs.get('sender_id')
 
     def validate(self):

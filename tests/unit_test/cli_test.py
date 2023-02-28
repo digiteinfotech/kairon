@@ -227,6 +227,17 @@ class TestConversationsDeletionCli:
         monkeypatch.setattr(DeleteHistoryEvent, "execute", mock_history_delete)
         cli()
 
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=initiate_history_deletion_archival, bot="test_cli",
+                                                user="testUser",
+                                                sender_id='testSender', till_date="2022-02-14"))
+    def test_cli_history_deletion_with_string_date(self, monkeypatch):
+        def mock_history_delete(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(DeleteHistoryEvent, "execute", mock_history_delete)
+        cli()
+
 
 class TestMultilingualTranslatorCli:
 
