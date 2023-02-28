@@ -7893,27 +7893,38 @@ class TestMongoProcessor:
     def test_update_multiflow_story_with_same_events_with_different_story_id(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT"},
-             "connections": [{"name": "utter_greet", "type": "BOT"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "633M8rEkTpNuJy2QUOFINpWB",
+                      "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "633vlwkIwEiAvNuIWZ6WhVHk",
+                              "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT"},
-             "connections": [{"name": "more_queries", "type": "INTENT"},
-                             {"name": "goodbye", "type": "INTENT"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "63pmXkrKZlssnMCCF5t9zQOM",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "63pmXkrKZlssnMCCF5t9zQOM",
+                              "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "63cFWKeNDnbX44HbPMf686Qr",
+                              "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63DmL9rA9KMYGQkjhi8oHAUG",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63OVepqW0uJaqlt0JwKLCvn4",
+                              "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63dQaLXeiysWjOeWM7lWZIcE",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "633xnjCuP4iNZfEq5D7jyI9A",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "63qKb0LraTjsGErh1re7m3d4",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "63NQw4mn0rX74o0ms7KlbqXz",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
              }
         ]
-        story_dict = {'name': "story update with same flow events different story id",
+        story_dict = {'name': "story with same flow events",
                       'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Story flow already exists!"):
             processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
