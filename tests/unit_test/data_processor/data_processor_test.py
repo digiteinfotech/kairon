@@ -1596,24 +1596,23 @@ class TestMongoProcessor:
         story_dict = {"name": "a different story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, "tester", "TesterUser")
         stories = list(processor.get_multiflow_stories("tester"))
-        print(stories)
+        # print(stories)
         assert stories.__len__() == 1
         assert stories[0]['name'] == 'a different story'
         assert stories[0]['type'] == 'MULTIFLOW'
-        assert stories[0]['steps'] == [{'type': 'MULTIFLOW', '_id': '63fcd4f7bbfd461f18851096', 'name': 'a different story',
-                                        'steps': [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': '63Ye7StHCD6zZ1uyNv9mFtUk', 'component_id': '63bLGgJEl8dz0axb9FvrWvHq'},
-                                                   'connections': [{'name': 'utter_hiii', 'type': 'BOT', 'node_id': '63IbxaaXH5ZeUXkFMg2ysCMs', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'}]},
-                                                  {'step': {'name': 'utter_hiii', 'type': 'BOT', 'node_id': '63GSHRxMAJaUdhrMwEtAD2HW', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'},
-                                                   'connections': [{'name': 'record', 'type': 'INTENT', 'node_id': '63k4ridZuaJ56GEMM0rcWpX7', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
-                                                                   {'name': 'id', 'type': 'INTENT', 'node_id': '63PcEiJRj2SLBOcT9sKRN2xB', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'}]},
-                                                  {'step': {'name': 'id', 'type': 'INTENT', 'node_id': '63fq0UL4lleHtYGggvZqcyid', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'},
-                                                   'connections': [{'name': 'utter_id', 'type': 'BOT', 'node_id': '63Wsh0SNYEizzzcPNVKrmlGd', 'component_id': '637d13it2UNSslxVSbWZjBqO'}]},
-                                                  {'step': {'name': 'utter_id', 'type': 'BOT', 'node_id': '630atoKRo6ZhpTYtFK5sDd65', 'component_id': '637d13it2UNSslxVSbWZjBqO'},
-                                                   'connections': []},
-                                                  {'step': {'name': 'utter_record', 'type': 'BOT', 'node_id': '63tHz0IsdW3hKc9c7jwn5T8X', 'component_id': '63e63sU5PHRQnnINYPZitORt'},
-                                                   'connections': []},
-                                                  {'step': {'name': 'record', 'type': 'INTENT', 'node_id': '63Gt35RsRRWEbw0dBxvIcRE5', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
-                                                   'connections': [{'name': 'utter_record', 'type': 'BOT', 'node_id': '637FwbxVcpxAxFQRJleeOM0n', 'component_id': '63e63sU5PHRQnnINYPZitORt'}]}]}]
+        print(stories[0]['steps'])
+        assert stories[0]['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': '63Ye7StHCD6zZ1uyNv9mFtUk', 'component_id': '63bLGgJEl8dz0axb9FvrWvHq'},
+                                        'connections': [{'name': 'utter_hiii', 'type': 'BOT', 'node_id': '63IbxaaXH5ZeUXkFMg2ysCMs', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'}]},
+                                       {'step': {'name': 'utter_hiii', 'type': 'BOT', 'node_id': '63GSHRxMAJaUdhrMwEtAD2HW', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'},
+                                        'connections': [{'name': 'record', 'type': 'INTENT', 'node_id': '63k4ridZuaJ56GEMM0rcWpX7', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
+                                                        {'name': 'id', 'type': 'INTENT', 'node_id': '63PcEiJRj2SLBOcT9sKRN2xB', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'}]},
+                                       {'step': {'name': 'id', 'type': 'INTENT', 'node_id': '63fq0UL4lleHtYGggvZqcyid', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'},
+                                        'connections': [{'name': 'utter_id', 'type': 'BOT', 'node_id': '63Wsh0SNYEizzzcPNVKrmlGd', 'component_id': '637d13it2UNSslxVSbWZjBqO'}]},
+                                       {'step': {'name': 'utter_id', 'type': 'BOT', 'node_id': '630atoKRo6ZhpTYtFK5sDd65', 'component_id': '637d13it2UNSslxVSbWZjBqO'},
+                                        'connections': []}, {'step': {'name': 'utter_record', 'type': 'BOT', 'node_id': '63tHz0IsdW3hKc9c7jwn5T8X', 'component_id': '63e63sU5PHRQnnINYPZitORt'},
+                                                             'connections': []},
+                                       {'step': {'name': 'record', 'type': 'INTENT', 'node_id': '63Gt35RsRRWEbw0dBxvIcRE5', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
+                                        'connections': [{'name': 'utter_record', 'type': 'BOT', 'node_id': '637FwbxVcpxAxFQRJleeOM0n', 'component_id': '63e63sU5PHRQnnINYPZitORt'}]}]
 
 
     def test_edit_training_example_duplicate(self):
