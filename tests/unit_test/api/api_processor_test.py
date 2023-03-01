@@ -1462,6 +1462,15 @@ class TestAccountProcessor:
         user = AccountProcessor.get_user("nupurrkhare@digite.com")
         access_token, access_token_exp, refresh_token, refresh_token_exp = Authentication.generate_login_tokens(
             user, True)
+        payload = Utility.decode_limited_access_token(refresh_token)
+        assert payload.get("sub") == user["email"]
+        assert payload.get("type") == TOKEN_TYPE.REFRESH.value
+        assert payload.get("primary-token-type") == TOKEN_TYPE.LOGIN.value
+        assert payload.get("iat")
+        assert payload.get("exp")
+        assert payload.get("access-limit") == ['/api/auth/token/refresh']
+        assert payload.get("role") == ACCESS_ROLES.TESTER.value
+        assert payload.get("ttl")
         access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token,
                                                                                                           user)
         data_stack = Utility.decode_limited_access_token(refresh)

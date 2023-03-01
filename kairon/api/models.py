@@ -359,9 +359,14 @@ class StoryStepRequest(BaseModel):
     type: StoryStepType
 
 
+class MultiStoryStepRequest(StoryStepRequest):
+    node_id: str
+    component_id: str
+
+
 class StoryStepData(BaseModel):
-    step: StoryStepRequest
-    connections: List[StoryStepRequest] = None
+    step: MultiStoryStepRequest
+    connections: List[MultiStoryStepRequest] = None
 
 
 class MultiFlowStoryRequest(BaseModel):
