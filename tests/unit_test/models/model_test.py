@@ -147,24 +147,24 @@ class TestBotModels:
 
     def test_multiflow_story_events_stepname_empty(self):
         steps = [
-            {"step": {"name": "", "type": "INTENT"},
-             "connections": [{"name": "utter_greet", "type": "BOT"}]
+            {"step": {"name": "", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT"},
-             "connections": [{"name": "more_queries", "type": "INTENT"},
-                             {"name": "goodbye", "type": "INTENT"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"}]
              }
         ]
 
@@ -180,24 +180,24 @@ class TestBotModels:
 
     def test_multiflow_story_events_storyname_empty(self):
         steps = [
-            {"step": {"name": "greet", "type": "INTENT"},
-             "connections": [{"name": "utter_greet", "type": "BOT"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT"},
-             "connections": [{"name": "more_queries", "type": "INTENT"},
-                             {"name": "goodbye", "type": "INTENT"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "MyhhQSAdhs", "component_id": "Mnvehd"}]
              }
         ]
 

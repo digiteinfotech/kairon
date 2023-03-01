@@ -489,6 +489,8 @@ class StoryEvents(EmbeddedDocument):
 class StepFlowEvent(EmbeddedDocument):
     name = StringField(required=True)
     type = StringField(required=True, choices=[step_type.value for step_type in StoryStepType])
+    node_id = StringField(required=True)
+    component_id = StringField(required=True)
 
     def validate(self, clean=True):
         if clean:
