@@ -5498,8 +5498,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = processor.list_slot_set_actions(bot)
         print(actions)
-        for action in actions:
-            action.pop('_id')
+        [action.pop('_id') for action in actions]
         assert actions == [{'name': 'action_set_slot', 'set_slots': [{'name': 'name', 'type': 'from_value'}]},
                            {'name': 'action_set_name_slot',
                             'set_slots': [{'name': 'name', 'type': 'from_value', 'value': '5'}]},
@@ -6089,7 +6088,6 @@ class TestMongoProcessor:
              'response': 'We have logged a ticket'}]
 
         jira_actions = list(processor.list_jira_actions(bot, False))
-        jira_actions[0].pop("_id")
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -6186,7 +6184,6 @@ class TestMongoProcessor:
         ]
 
         jira_actions = list(processor.list_jira_actions(bot, False))
-        jira_actions[0].pop("_id")
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -6393,7 +6390,6 @@ class TestMongoProcessor:
         bot = 'test'
         processor = MongoProcessor()
         zendesk_actions = list(processor.list_zendesk_actions(bot, False))
-        zendesk_actions[0].pop("_id")
         assert zendesk_actions == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,

@@ -2943,15 +2943,18 @@ class MongoProcessor:
         action.timestamp = datetime.utcnow()
         action.save()
 
-    def list_google_search_actions(self, bot: Text, mask_characters: bool = True):
+    def list_google_search_actions(self, bot: Text, with_doc_id: bool = True):
         """
         List google search actions
         :param bot: bot id
-        :param mask_characters: masks last 3 characters of api_key if True
+        :param with_doc_id: return document id along with action configuration if True
         """
         for action in GoogleSearchAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('user')
             action.pop('bot')
             action.pop('timestamp')
@@ -4164,15 +4167,18 @@ class MongoProcessor:
         email_action.timestamp = datetime.utcnow()
         email_action.save()
 
-    def list_email_action(self, bot: Text, mask_characters: bool = True):
+    def list_email_action(self, bot: Text, with_doc_id: bool = True):
         """
         List Email Action
         :param bot: bot id
-        :param mask_characters: masks last 3 characters of the password if True
+        :param with_doc_id: return document id along with action configuration if True
         """
         for action in EmailActionConfig.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('user')
             action.pop('bot')
             action.pop('timestamp')
@@ -4229,15 +4235,18 @@ class MongoProcessor:
             action.pop('status')
             yield action
 
-    def list_jira_actions(self, bot: Text, mask_characters: bool = True):
+    def list_jira_actions(self, bot: Text, with_doc_id: bool = True):
         """
         List Email Action
         :param bot: bot id
-        :param mask_characters: masks last 3 characters of the password if True
+        :param with_doc_id: return document id along with action configuration if True
         """
         for action in JiraAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('user')
             action.pop('bot')
             action.pop('status')
@@ -4281,15 +4290,18 @@ class MongoProcessor:
         zendesk_action.timestamp = datetime.utcnow()
         zendesk_action.save()
 
-    def list_zendesk_actions(self, bot: Text, mask_characters: bool = True):
+    def list_zendesk_actions(self, bot: Text, with_doc_id: bool = True):
         """
         List Zendesk Action
         :param bot: bot id
-        :param mask_characters: masks last 3 characters of the password if True
+        :param with_doc_id: return document id along with action configuration if True
         """
         for action in ZendeskAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('user')
             action.pop('bot')
             action.pop('status')
@@ -4333,15 +4345,18 @@ class MongoProcessor:
         pipedrive_action.timestamp = datetime.utcnow()
         pipedrive_action.save()
 
-    def list_pipedrive_actions(self, bot: Text, mask_characters: bool = True):
+    def list_pipedrive_actions(self, bot: Text, with_doc_id: bool = True):
         """
         List Pipedrive Action
         :param bot: bot id
-        :param mask_characters: masks last 3 characters of the password if True
+        :param with_doc_id: return document id along with action configuration if True
         """
         for action in PipedriveLeadsAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('user')
             action.pop('bot')
             action.pop('status')
