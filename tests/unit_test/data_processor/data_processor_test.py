@@ -5498,6 +5498,8 @@ class TestMongoProcessor:
         bot = 'test'
         actions = processor.list_slot_set_actions(bot)
         print(actions)
+        for action in actions:
+            action.pop('_id')
         assert actions == [{'name': 'action_set_slot', 'set_slots': [{'name': 'name', 'type': 'from_value'}]},
                            {'name': 'action_set_name_slot',
                             'set_slots': [{'name': 'name', 'type': 'from_value', 'value': '5'}]},
@@ -6078,6 +6080,7 @@ class TestMongoProcessor:
         bot = 'test'
         processor = MongoProcessor()
         jira_actions = list(processor.list_jira_actions(bot))
+        jira_actions[0].pop("_id")
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -6086,6 +6089,7 @@ class TestMongoProcessor:
              'response': 'We have logged a ticket'}]
 
         jira_actions = list(processor.list_jira_actions(bot, False))
+        jira_actions[0].pop("_id")
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -6172,6 +6176,7 @@ class TestMongoProcessor:
         bot = 'test'
         processor = MongoProcessor()
         jira_actions = list(processor.list_jira_actions(bot))
+        jira_actions[0].pop("_id")
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -6181,6 +6186,7 @@ class TestMongoProcessor:
         ]
 
         jira_actions = list(processor.list_jira_actions(bot, False))
+        jira_actions[0].pop("_id")
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -6372,7 +6378,9 @@ class TestMongoProcessor:
     def test_list_zendesk_actions(self):
         bot = 'test'
         processor = MongoProcessor()
-        assert list(processor.list_zendesk_actions(bot)) == [
+        zendesk_actions = list(processor.list_zendesk_actions(bot))
+        zendesk_actions[0].pop("_id")
+        assert zendesk_actions == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
                            'value': '123456789999', 'parameter_type': 'value'}, 'subject': 'new ticket',
@@ -6384,7 +6392,9 @@ class TestMongoProcessor:
     def test_list_zendesk_actions_unmasked(self):
         bot = 'test'
         processor = MongoProcessor()
-        assert list(processor.list_zendesk_actions(bot, False)) == [
+        zendesk_actions = list(processor.list_zendesk_actions(bot, False))
+        zendesk_actions[0].pop("_id")
+        assert zendesk_actions == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
                            'value': '123456789999', 'parameter_type': 'value'}, 'subject': 'new ticket', 'response': 'ticket filed here'}]
@@ -6653,6 +6663,7 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.get_razorpay_action_config(bot))
         actions[0].pop("timestamp")
+        actions[0].pop("_id")
         assert actions == [{'name': 'razorpay_action', 'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False, 'value': 'API_KEY', 'parameter_type': 'key_vault'}, 'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret', 'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'}, 'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False, 'value': 'amount', 'parameter_type': 'slot'}, 'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False, 'value': 'INR', 'parameter_type': 'value'}, 'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False, 'parameter_type': 'sender_id'}, 'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False, 'parameter_type': 'sender_id'}, 'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False, 'value': 'contact', 'parameter_type': 'slot'}}]
 
     def test_edit_razorpay_action_not_exists(self):
@@ -9206,6 +9217,7 @@ class TestMongoProcessor:
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
+        config[0].pop("_id")
         print(config)
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': [],
@@ -9243,6 +9255,7 @@ class TestMongoProcessor:
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
+        config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'trigger_rules': [{'text': 'Mail me', 'payload': 'greet', 'is_dynamic_msg': False},
                                              {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}],
@@ -9263,6 +9276,7 @@ class TestMongoProcessor:
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
+        config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'greet', 'message': 'my payload', 'is_dynamic_msg': True},
             {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': False}],
@@ -9293,6 +9307,7 @@ class TestMongoProcessor:
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
+        config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'text_recommendations': {"count": 3, "use_intent_ranking": False},
                            'trigger_rules': [],
@@ -9313,6 +9328,7 @@ class TestMongoProcessor:
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         config[0].pop("timestamp")
+        config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'send_mail', 'message': 'my payload', 'is_dynamic_msg': False},
             {'text': 'Contact me', 'payload': 'call', 'is_dynamic_msg': True}],
