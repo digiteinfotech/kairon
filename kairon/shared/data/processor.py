@@ -60,7 +60,8 @@ from .constant import (
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
-    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType
+    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType, GPT_LLM_FAQ,
+    DEFAULT_LLM_FALLBACK_RULE
 )
 from .data_objects import (
     Responses,
@@ -84,7 +85,7 @@ from .data_objects import (
     ModelDeployment,
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
-    MultiflowStories, MultiflowStoryEvents
+    MultiflowStories, MultiflowStoryEvents, BotContent
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
@@ -3616,6 +3617,23 @@ class MongoProcessor:
             settings = BotSettings(bot=bot, user=user).save()
         return settings
 
+    def add_rule_for_kairon_faq_action(self, bot: Text, user: Text):
+        search_event = StoryEvents(name='nlu_fallback', type="user")
+        events = [
+            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
+            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
+            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
+        ]
+        try:
+            rule = Rules.objects(bot=bot, status=True, events__match=search_event).first()
+            if not rule:
+                raise DoesNotExist('Rule with nlu_fallback event not found')
+            rule.events = events
+            rule.save()
+        except DoesNotExist as e:
+            logging.exception(e)
+            Rules(block_name=DEFAULT_LLM_FALLBACK_RULE, bot=bot, user=user, start_checkpoints=[STORY_START], events=events).save()
+
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
         from kairon.shared.account.processor import AccountProcessor
 
@@ -4861,3 +4879,57 @@ class MongoProcessor:
             action.pop('user')
 
             yield action
+
+    def save_content(self, content: Text, user: Text, bot: Text):
+        if len(content.split()) < 10:
+            raise AppException("Content should contain atleast 10 words.")
+
+        content_obj = BotContent()
+        content_obj.data = content
+        content_obj.user = user
+        content_obj.bot = bot
+        id = (
+            content_obj.save().to_mongo().to_dict()["_id"].__str__()
+        )
+        self.add_action(GPT_LLM_FAQ, bot, user, False, ActionType.kairon_faq_action.value)
+        return id
+
+    def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
+        if len(content.split()) < 10:
+            raise AppException("Content should contain atleast 10 words.")
+
+        Utility.is_exist(BotContent, bot=bot, id__ne=content_id, data=content,
+                                exp_message="Text already exists!")
+
+        try:
+            content_obj = BotContent.objects(bot=bot, user=user, id=content_id).get()
+            content_obj.data = content
+            content_obj.user = user
+            content_obj.timestamp = datetime.utcnow()
+            content_obj.save()
+        except DoesNotExist:
+            raise AppException("Content with given id not found!")
+
+    def delete_content(self, content_id: str, user: Text, bot: Text):
+        try:
+            content = BotContent.objects(bot=bot, id=content_id).get()
+            content.delete()
+            if self.get_row_count(BotContent, bot) <= 0:
+                self.delete_action(GPT_LLM_FAQ, bot, user)
+        except DoesNotExist:
+            raise AppException("Text does not exists!")
+
+    def get_content(self, bot: Text):
+        """
+        fetches content
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        for value in BotContent.objects(bot=bot):
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            data = item.pop("data")
+            final_data["_id"] = item["_id"].__str__()
+            final_data['content'] = data
+            yield final_data
