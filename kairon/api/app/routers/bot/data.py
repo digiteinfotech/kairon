@@ -112,6 +112,6 @@ def get_text(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Fetches content
+    Fetches text content of the bot
     """
     return {"data": list(processor.get_content(current_user.get_bot()))}

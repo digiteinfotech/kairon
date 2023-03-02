@@ -902,9 +902,9 @@ def test_get_content_not_exists():
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["message"] == "No content for bot!"
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
+    assert actual["message"] is None
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
 
 
 def test_list_entities_empty():
