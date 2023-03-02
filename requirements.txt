@@ -64,3 +64,4 @@ fastapi-keycloak
 pyjwt==2.6.0
 openpyxl
 uuid6
+qdrant-client

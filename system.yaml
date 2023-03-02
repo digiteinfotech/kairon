@@ -157,3 +157,10 @@ idp:
 
 cors:
   origin: ${ALLOWED_ORIGIN:["*"]}
+
+llm:
+  faq_type: ${LLM_FAQ_TYPE:GPT3_FAQ_EMBED}
+
+vector:
+  db: ${VECTOR_DB:http://localhost:6333}
+  key: ${VECTOR_DB_KEY}

@@ -38,6 +38,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install tensorflow-cpu==2.6.5
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install pandas
+RUN python -m pip install qdrant-client
 
 COPY kairon/ /app/kairon/
 COPY metadata /app/metadata
