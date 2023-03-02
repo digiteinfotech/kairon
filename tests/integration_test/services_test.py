@@ -901,7 +901,7 @@ def test_get_content_not_exists():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    assert not actual["success"]
+    assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
     assert actual["data"] == []
@@ -5613,7 +5613,7 @@ def test_list_actions():
                         'test_update_http_action',
                         'test_update_http_action_6',
                         'test_update_http_action_non_existing',
-                        'new_http_action4'],
+                        'new_http_action4'], 'kairon_faq_action': [],
         'slot_set_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
         'utterances': ['utter_greet',
                        'utter_cheer_up',
