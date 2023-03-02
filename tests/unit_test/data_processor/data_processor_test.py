@@ -9969,6 +9969,12 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Text does not exists!"):
             processor.delete_content("507f191e810c19729de860ea", user, bot)
 
+    def test_get_content_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        with pytest.raises(AppException, match="No content for bot!"):
+            list(processor.get_content(bot))
+
     def test_get_content(self):
         processor = MongoProcessor()
         bot = 'test'

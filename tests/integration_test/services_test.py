@@ -895,6 +895,18 @@ def test_delete_content_does_not_exist():
     assert actual["error_code"] == 422
 
 
+def test_get_content_not_exists():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "No content for bot!"
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+
+
 def test_list_entities_empty():
     response = client.get(
         f"/api/bot/{pytest.bot}/entities",

@@ -4906,10 +4906,13 @@ class MongoProcessor:
         :return: yield dict
         """
         content = list(BotContent.objects(bot=bot))
-        for value in content:
-            final_data = {}
-            item = value.to_mongo().to_dict()
-            data = item.pop("data")
-            final_data["_id"] = item["_id"].__str__()
-            final_data['content'] = data
-            yield final_data
+        if content:
+            for value in content:
+                final_data = {}
+                item = value.to_mongo().to_dict()
+                data = item.pop("data")
+                final_data["_id"] = item["_id"].__str__()
+                final_data['content'] = data
+                yield final_data
+        else:
+            raise AppException("No content for bot!")
