@@ -84,7 +84,7 @@ from .data_objects import (
     ModelDeployment,
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
-    MultiflowStories, MultiflowStoryEvents
+    MultiflowStories, MultiflowStoryEvents, BotContent
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
@@ -4861,3 +4861,55 @@ class MongoProcessor:
             action.pop('user')
 
             yield action
+
+    def save_content(self, content: Text, user: Text, bot: Text):
+        if len(content.split()) < 10:
+            raise AppException("Content should contain atleast 10 words.")
+
+        content_obj = BotContent()
+        content_obj.data = content
+        content_obj.user = user
+        content_obj.bot = bot
+        id = (
+            content_obj.save().to_mongo().to_dict()["_id"].__str__()
+        )
+        return id
+
+    def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
+        if len(content.split()) < 10:
+            raise AppException("Content should contain atleast 10 words.")
+
+        Utility.is_exist(BotContent, bot=bot, id__ne=content_id, data=content,
+                                exp_message="Text already exists!")
+
+        try:
+            content_obj = BotContent.objects(bot=bot, user=user, id=content_id).get()
+            content_obj.data = content
+            content_obj.user = user
+            content_obj.timestamp = datetime.utcnow()
+            content_obj.save()
+        except DoesNotExist:
+            raise AppException("Content with given id not found!")
+
+    def delete_content(self, content_id: str, user: Text, bot: Text):
+        try:
+            content = BotContent.objects(user=user, bot=bot, id=content_id).get()
+            content.delete()
+        except DoesNotExist:
+            raise AppException("Text does not exists!")
+
+    def get_content(self, bot: Text):
+        """
+        fetches content
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        content = list(BotContent.objects(bot=bot))
+        for value in content:
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            data = item.pop("data")
+            final_data["_id"] = item["_id"].__str__()
+            final_data['content'] = data
+            yield final_data

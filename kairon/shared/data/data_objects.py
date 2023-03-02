@@ -606,6 +606,17 @@ class Rules(Auditlog):
 
 @auditlogger.log
 @push_notification.apply
+class BotContent(Auditlog):
+    data = StringField(required=True)
+    user = StringField(required=True)
+    bot = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
+
+@auditlogger.log
+@push_notification.apply
 class Configs(Auditlog):
     language = StringField(required=True, default="en")
     pipeline = DynamicField(required=True)

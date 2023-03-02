@@ -9903,6 +9903,84 @@ class TestMongoProcessor:
         assert Utility.is_exist(Utterances, raise_error=False, name='utter_ask', bot='test')
         assert Utility.is_exist(Responses, raise_error=False, name='utter_ask', bot='test')
 
+    def test_save_content(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
+                  'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
+                  ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
+                  'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
+                  'physical machines.'
+        pytest.content_id = processor.save_content(content, user, bot)
+        content_id = '5349b4ddd2791d08c09890f3'
+        with pytest.raises(AppException, match="Text already exists!"):
+            processor.update_content(content_id, content, user, bot)
+
+    def test_save_content_invalid(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'A bot, short for robot, is a program.'
+        with pytest.raises(AppException, match="Content should contain atleast 10 words."):
+            processor.save_content(content, user, bot)
+
+    def test_update_content(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'Bots are commonly used in various industries, such as e-commerce, customer service, gaming, ' \
+                  'and social media. Some bots are designed to interact with humans in a conversational manner and are ' \
+                  'called chatbots or virtual assistants.'
+        # pytest.content_id = processor.save_content(content, user, bot)
+        processor.update_content(pytest.content_id, content, user, bot)
+
+    def test_update_content_invalid(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'Bots are commonly used in various industries.'
+        with pytest.raises(AppException, match="Content should contain atleast 10 words."):
+            content_id = processor.save_content(content, user, bot)
+            processor.update_content(content_id, content, user, bot)
+
+    def test_update_content_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content_id = '5349b4ddd2781d08c09890f3'
+        content = 'MongoDB is a source-available cross-platform document-oriented database program. ' \
+                  'Classified as a NoSQL database program, MongoDB uses JSON-like documents with optional schemas. ' \
+                  'MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License which is ' \
+                  'deemed non-free by several distributions.'
+        with pytest.raises(AppException, match="Content with given id not found!"):
+            processor.update_content(content_id, content, user, bot)
+
+    def test_delete_content(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        processor.delete_content(pytest.content_id, user, bot)
+        
+    def test_delete_content_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        with pytest.raises(AppException, match="Text does not exists!"):
+            processor.delete_content("507f191e810c19729de860ea", user, bot)
+
+    def test_get_content(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
+                  'application are tested in isolation to ensure that each unit functions as expected. '
+        processor.save_content(content, user, bot)
+        data = list(processor.get_content(bot))
+        assert data[0]['content'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                                    'software application are tested in isolation to ensure that each unit functions as expected. '
+        assert data[0]['_id']
+
 
 class TestTrainingDataProcessor:
 
