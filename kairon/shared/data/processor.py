@@ -2951,6 +2951,7 @@ class MongoProcessor:
         """
         for action in GoogleSearchAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
             action.pop('user')
             action.pop('bot')
             action.pop('timestamp')
@@ -4171,6 +4172,7 @@ class MongoProcessor:
         """
         for action in EmailActionConfig.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
             action.pop('user')
             action.pop('bot')
             action.pop('timestamp')
@@ -4235,6 +4237,7 @@ class MongoProcessor:
         """
         for action in JiraAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
             action.pop('user')
             action.pop('bot')
             action.pop('status')
@@ -4286,6 +4289,7 @@ class MongoProcessor:
         """
         for action in ZendeskAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
             action.pop('user')
             action.pop('bot')
             action.pop('status')
@@ -4337,6 +4341,7 @@ class MongoProcessor:
         """
         for action in PipedriveLeadsAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
             action.pop('user')
             action.pop('bot')
             action.pop('status')
@@ -4386,6 +4391,7 @@ class MongoProcessor:
         """
         for action in HubspotFormsAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
             action.pop('user')
             action.pop('bot')
             action.pop('status')
@@ -4573,6 +4579,7 @@ class MongoProcessor:
         """
         for action in KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True):
             action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
             action.pop('status')
             action.pop('bot')
             action.pop('user')
@@ -4848,6 +4855,7 @@ class MongoProcessor:
         """
         for action in RazorpayAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
             action.pop('status')
             action.pop('bot')
             action.pop('user')
