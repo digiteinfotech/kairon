@@ -70,7 +70,8 @@ def pytest_configure():
             'access_token': None,
             'refresh_token': None,
             'username': None,
-            'bot': None
+            'bot': None,
+            'content_id': None
             }
 
 
@@ -741,6 +742,169 @@ def test_list_bots():
     assert response['data']['account_owned'][1]['name'] == 'covid-bot'
     assert response['data']['account_owned'][1]['_id']
     assert response['data']['shared'] == []
+
+
+def test_content_upload_api():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        json={
+            "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
+                       "used to inform decision-making. Data can take many forms, including text, numbers, images, "
+                       "audio, and video."
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.content_id = actual["data"]["_id"]
+    assert actual["message"] == "Text saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+
+def test_content_upload_api_invalid():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        json={
+            "data": "Data"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert actual["message"] == "Content should contain atleast 10 words."
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_content_upated_api():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
+        json={
+            "text_id": pytest.content_id,
+            "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
+                       "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
+                       "you can focus on developing and deploying your applications rather than managing the infrastructure."
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["message"] == "Text updated!"
+    assert actual["error_code"] == 0
+
+
+def test_content_update_api_invalid():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
+        json={
+            "text_id": pytest.content_id,
+            "data": "Data"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Content should contain atleast 10 words."
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_content_update_api_already_exist():
+    content_id = '6009cb85e65f6dce28fb3e51'
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{content_id}",
+        json={
+            "text_id": content_id,
+            "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
+                       "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
+                       "you can focus on developing and deploying your applications rather than managing the infrastructure."
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Text already exists!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_content_update_api_id_not_found():
+    content_id = '594ced02ed345b2b049222c5'
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{content_id}",
+        json={
+            "text_id": content_id,
+            "data": "Artificial intelligence (AI) involves using computers to do things that traditionally require human "
+                    "intelligence. AI can process large amounts of data in ways that humans cannot. The goal for AI is "
+                    "to be able to do things like recognize patterns, make decisions, and judge like humans."
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Content with given id not found!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_get_content():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+
+def test_delete_content():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
+        json={
+            "text_id": pytest.content_id,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Text deleted!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
+
+
+def test_delete_content_does_not_exist():
+    content_id = '635981f6e40f61599e000064'
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{content_id}",
+        json={
+            "text_id": content_id,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Text does not exists!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_get_content_not_exists():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] is None
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
 
 
 def test_list_entities_empty():
@@ -5449,7 +5613,7 @@ def test_list_actions():
                         'test_update_http_action',
                         'test_update_http_action_6',
                         'test_update_http_action_non_existing',
-                        'new_http_action4'],
+                        'new_http_action4'], 'kairon_faq_action': [],
         'slot_set_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
         'utterances': ['utter_greet',
                        'utter_cheer_up',

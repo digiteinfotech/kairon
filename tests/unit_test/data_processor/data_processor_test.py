@@ -11,6 +11,7 @@ from typing import List
 
 import pandas as pd
 from pydantic import SecretStr
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from starlette.datastructures import Headers, URL
 from starlette.requests import Request
 
@@ -41,7 +42,8 @@ from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
-    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE
+    DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
+    DEFAULT_LLM_FALLBACK_RULE
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -143,6 +145,30 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
+
+    def test_add_rule_for_kairon_faq_action(self):
+        processor = MongoProcessor()
+        bot = 'test_faq_action'
+        user = 'test_faq_action'
+        processor.add_rule_for_kairon_faq_action(bot, user)
+        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE).get()
+        assert rule.events == [
+            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
+            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
+            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
+        ]
+
+    def test_add_rule_for_kairon_faq_action_already_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_faq_action'
+        user = 'test_faq_action'
+        processor.add_rule_for_kairon_faq_action(bot, user)
+        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE).get()
+        assert rule.events == [
+            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
+            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
+            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
+        ]
 
     def test_add_or_overwrite_config_no_existing_config(self):
         bot = 'test_config'
@@ -3852,6 +3878,7 @@ class TestMongoProcessor:
         assert settings.timestamp
         assert settings.user
         assert settings.bot
+        assert not settings.enable_gpt_llm_faq
 
     def test_get_bot_settings(self):
         processor = MongoProcessor()
@@ -3866,6 +3893,7 @@ class TestMongoProcessor:
         assert fresh_settings.timestamp
         assert fresh_settings.user
         assert fresh_settings.bot
+        assert not settings.enable_gpt_llm_faq
 
     def test_save_bot_settings_error(self):
         with pytest.raises(ValidationError, match="refresh_token_expiry must be greater than chat_token_expiry!"):
@@ -7340,11 +7368,12 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
+        print(actions)
         assert actions == {
-            'actions': [], 'http_action': [], 'slot_set_action': [], 'utterances': [], 'jira_action': [],
-            'email_action': [], 'form_validation_action': [], 'google_search_action': [], 'zendesk_action': [],
-            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
-            'razorpay_action': []
+            'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
+            'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
+            'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
+            'kairon_bot_response': [], 'razorpay_action': [], 'kairon_faq_action': [], 'actions': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -7362,12 +7391,12 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="test_with_action").get()
         assert len(story.events) == 6
         actions = processor.list_actions("test_with_action")
+        print(actions)
         assert actions == {
-            'actions': ['action_check'], 'two_stage_fallback': [], 'kairon_bot_response': [],
-            'http_action': [], 'jira_action': [], 'hubspot_forms_action': [],
-            'slot_set_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
-            'utterances': [], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
-            'razorpay_action': []
+            'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
+            'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
+            'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
+            'kairon_bot_response': [], 'razorpay_action': [], 'kairon_faq_action': []
         }
 
     def test_add_complex_story(self):
@@ -7385,10 +7414,11 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
+        print(actions)
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'kairon_bot_response': [],
-                           'razorpay_action': [],
+                           'razorpay_action': [], 'kairon_faq_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -8295,12 +8325,13 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
+        print(actions)
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
-            'email_action': [], 'form_validation_action': [], 'utterances': ['utter_offer_help', 'utter_default',
-                                                                             'utter_please_rephrase']}
+            'email_action': [], 'form_validation_action': [], 'kairon_faq_action': [],
+            'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase']}
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -8402,10 +8433,11 @@ class TestMongoProcessor:
         assert story.events[0].name == "..."
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
+        print(actions)
         assert actions == {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
-            'razorpay_action': [],
+            'razorpay_action': [], 'kairon_faq_action': [],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
@@ -9903,6 +9935,97 @@ class TestMongoProcessor:
         assert Utility.is_exist(Utterances, raise_error=False, name='utter_ask', bot='test')
         assert Utility.is_exist(Responses, raise_error=False, name='utter_ask', bot='test')
 
+    def test_save_content(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
+                  'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
+                  ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
+                  'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
+                  'physical machines.'
+        pytest.content_id = processor.save_content(content, user, bot)
+        content_id = '5349b4ddd2791d08c09890f3'
+        with pytest.raises(AppException, match="Text already exists!"):
+            processor.update_content(content_id, content, user, bot)
+        assert Actions.objects(name=GPT_LLM_FAQ, bot=bot, type=ActionType.kairon_faq_action.value).get()
+
+    def test_save_content_invalid(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'A bot, short for robot, is a program.'
+        with pytest.raises(AppException, match="Content should contain atleast 10 words."):
+            processor.save_content(content, user, bot)
+
+    def test_update_content(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'Bots are commonly used in various industries, such as e-commerce, customer service, gaming, ' \
+                  'and social media. Some bots are designed to interact with humans in a conversational manner and are ' \
+                  'called chatbots or virtual assistants.'
+        # pytest.content_id = processor.save_content(content, user, bot)
+        processor.update_content(pytest.content_id, content, user, bot)
+
+    def test_update_content_invalid(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'Bots are commonly used in various industries.'
+        with pytest.raises(AppException, match="Content should contain atleast 10 words."):
+            content_id = processor.save_content(content, user, bot)
+            processor.update_content(content_id, content, user, bot)
+
+    def test_update_content_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content_id = '5349b4ddd2781d08c09890f3'
+        content = 'MongoDB is a source-available cross-platform document-oriented database program. ' \
+                  'Classified as a NoSQL database program, MongoDB uses JSON-like documents with optional schemas. ' \
+                  'MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License which is ' \
+                  'deemed non-free by several distributions.'
+        with pytest.raises(AppException, match="Content with given id not found!"):
+            processor.update_content(content_id, content, user, bot)
+
+    def test_delete_content(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        processor.delete_content(pytest.content_id, user, bot)
+        
+    def test_delete_content_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        with pytest.raises(AppException, match="Text does not exists!"):
+            processor.delete_content("507f191e810c19729de860ea", user, bot)
+
+    def test_get_content_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        assert list(processor.get_content(bot)) == []
+
+    def test_get_content(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
+                  'application are tested in isolation to ensure that each unit functions as expected. '
+        pytest.content_id = processor.save_content(content, user, bot)
+        data = list(processor.get_content(bot))
+        assert data[0]['content'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                                    'software application are tested in isolation to ensure that each unit functions as expected. '
+        assert data[0]['_id']
+
+    def test_delete_content_for_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        processor.delete_content(pytest.content_id, user, bot)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(bot=bot, type=ActionType.kairon_faq_action.value, status=True).get()
 
 class TestTrainingDataProcessor:
 
