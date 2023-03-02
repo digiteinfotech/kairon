@@ -39,6 +39,7 @@ RUN python -m pip install tensorflow-cpu==2.6.5
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install pandas
 RUN python -m pip install qdrant-client
+RUN pytython -m pip install openai==0.27.0
 
 COPY kairon/ /app/kairon/
 COPY metadata /app/metadata
@@ -52,6 +53,7 @@ COPY kairon/shared/constants.py /app/kairon/shared/
 COPY kairon/shared/data/constant.py /app/kairon/shared/data/constant.py
 COPY kairon/shared/data/data_objects.py /app/kairon/shared/data/data_objects.py
 COPY kairon/shared/data/signals.py /app/kairon/shared/data/signals.py
+COPY kairon/shared/llm /app/kairon/shared/llm
 COPY kairon/exceptions.py /app/kairon/exceptions.py
 COPY system.yaml /app/
 COPY email.yaml /app/

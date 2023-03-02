@@ -604,8 +604,8 @@ class Rules(Auditlog):
         DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
-@auditlogger.log
-@push_notification.apply
+#@auditlogger.log
+#@push_notification.apply
 class BotContent(Auditlog):
     data = StringField(required=True)
     user = StringField(required=True)

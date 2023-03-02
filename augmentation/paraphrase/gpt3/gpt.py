@@ -38,8 +38,8 @@ class GPT:
     A user can add examples and set parameters of the API request.
     """
     def __init__(self,
-                 engine='davinci',
-                 temperature=0.5,
+                 engine='text-davinci-003',
+                 temperature=0.7,
                  max_tokens=100,
                  input_prefix="input: ",
                  input_suffix="\n",
