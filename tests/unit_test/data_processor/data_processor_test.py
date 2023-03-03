@@ -5505,6 +5505,18 @@ class TestMongoProcessor:
                            {'name': 'action_set_location_slot',
                             'set_slots': [{'name': 'location', 'type': 'reset_slot'}]}]
 
+    def test_list_slot_set_actions_with_false(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = processor.list_slot_set_actions(bot, False)
+        for action in actions:
+            assert action.get('_id') is None
+        assert actions == [{'name': 'action_set_slot', 'set_slots': [{'name': 'name', 'type': 'from_value'}]},
+                           {'name': 'action_set_name_slot',
+                            'set_slots': [{'name': 'name', 'type': 'from_value', 'value': '5'}]},
+                           {'name': 'action_set_location_slot',
+                            'set_slots': [{'name': 'location', 'type': 'reset_slot'}]}]
+
     def test_list_slot_set_actions_not_present(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -6390,6 +6402,7 @@ class TestMongoProcessor:
         bot = 'test'
         processor = MongoProcessor()
         zendesk_actions = list(processor.list_zendesk_actions(bot, False))
+        assert zendesk_actions[0].get('_id') is None
         assert zendesk_actions == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -6660,6 +6673,14 @@ class TestMongoProcessor:
         actions = list(processor.get_razorpay_action_config(bot))
         actions[0].pop("timestamp")
         actions[0].pop("_id")
+        assert actions == [{'name': 'razorpay_action', 'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False, 'value': 'API_KEY', 'parameter_type': 'key_vault'}, 'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret', 'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'}, 'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False, 'value': 'amount', 'parameter_type': 'slot'}, 'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False, 'value': 'INR', 'parameter_type': 'value'}, 'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False, 'parameter_type': 'sender_id'}, 'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False, 'parameter_type': 'sender_id'}, 'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False, 'value': 'contact', 'parameter_type': 'slot'}}]
+
+    def test_list_razorpay_action_with_false(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.get_razorpay_action_config(bot, False))
+        actions[0].pop("timestamp")
+        assert actions[0].get("_id") is None
         assert actions == [{'name': 'razorpay_action', 'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False, 'value': 'API_KEY', 'parameter_type': 'key_vault'}, 'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret', 'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'}, 'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False, 'value': 'amount', 'parameter_type': 'slot'}, 'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False, 'value': 'INR', 'parameter_type': 'value'}, 'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False, 'parameter_type': 'sender_id'}, 'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False, 'parameter_type': 'sender_id'}, 'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False, 'value': 'contact', 'parameter_type': 'slot'}}]
 
     def test_edit_razorpay_action_not_exists(self):
@@ -8921,6 +8942,22 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         assert len(list(processor.list_email_action("TEST"))) == 1
 
+    def test_list_email_actions_with_default_value(self):
+        processor = MongoProcessor()
+        email_actions = list(processor.list_email_action("TEST"))
+        email_actions[0].pop('_id')
+        assert email_actions[0]['action_name'] == 'email_config'
+        assert email_actions[0]['smtp_url'] == 'test.test.com'
+        assert email_actions[0]['smtp_port'] == 25
+
+    def test_list_email_actions_with_false(self):
+        processor = MongoProcessor()
+        email_actions = list(processor.list_email_action("TEST", False))
+        assert email_actions[0].get('_id') is None
+        assert email_actions[0]['action_name'] == 'email_config'
+        assert email_actions[0]['smtp_url'] == 'test.test.com'
+        assert email_actions[0]['smtp_port'] == 25
+
     def test_add_google_search_action(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -8989,6 +9026,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         actions = list(processor.list_google_search_actions(bot))
+        actions[0].pop('_id')
         assert actions[0]['name'] == 'google_custom_search'
         assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['search_engine_id'] == 'asdfg:123456'
@@ -9028,6 +9066,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         actions = list(processor.list_google_search_actions(bot, False))
+        assert actions[0].get('_id') is None
         assert actions[0]['name'] == 'google_custom_search'
         assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '1234567889'}
         assert actions[0]['search_engine_id'] == 'asdfg:12345689'
@@ -9167,6 +9206,20 @@ class TestMongoProcessor:
                                         {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
         assert actions[0]['response'] == 'Hubspot Form submitted'
 
+    def test_list_hubspot_forms_action_with_false(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_hubspot_forms_actions(bot, False))
+        assert actions[0].get('_id') is None
+        assert actions[0]['name'] == 'action_hubspot_forms'
+        assert actions[0]['portal_id'] == '123456785787'
+        assert actions[0]['form_guid'] == 'asdfg:12345678787'
+        assert actions[0]['fields'] == [{'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
+                                        {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
+        assert actions[0]['response'] == 'Hubspot Form submitted'
+
     def test_delete_hubspot_forms_action(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -9215,6 +9268,18 @@ class TestMongoProcessor:
         config[0].pop("timestamp")
         config[0].pop("_id")
         print(config)
+        assert config == [{'name': 'kairon_two_stage_fallback',
+                           'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': [],
+                           "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
+                                               " Or else please rephrase your question."}]
+
+    def test_add_custom_2_stage_fallback_action_with_false(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
+        config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK, False))
+        config[0].pop("timestamp")
+        assert config[0].get("_id") is None
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': [],
                            "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"

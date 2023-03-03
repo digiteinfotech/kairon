@@ -4064,9 +4064,13 @@ class MongoProcessor:
         self.add_action(action["name"], bot, user, action_type=ActionType.slot_set_action.value)
 
     @staticmethod
-    def list_slot_set_actions(bot: Text):
-        actions = SlotSetAction.objects(bot=bot, status=True).exclude('bot', 'user', 'timestamp',
-                                                                      'status').to_json()
+    def list_slot_set_actions(bot: Text, with_doc_id: bool = True):
+        if with_doc_id:
+            actions = SlotSetAction.objects(bot=bot, status=True).exclude('bot', 'user', 'timestamp',
+                                                                          'status').to_json()
+        else:
+            actions = SlotSetAction.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp',
+                                                                          'status').to_json()
         return json.loads(actions)
 
     @staticmethod
@@ -4399,14 +4403,18 @@ class MongoProcessor:
         hubspot_forms_action.timestamp = datetime.utcnow()
         hubspot_forms_action.save()
 
-    def list_hubspot_forms_actions(self, bot: Text):
+    def list_hubspot_forms_actions(self, bot: Text, with_doc_id: bool = True):
         """
         List Hubspot forms Action
         :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
         """
         for action in HubspotFormsAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('user')
             action.pop('bot')
             action.pop('status')
@@ -4585,16 +4593,21 @@ class MongoProcessor:
         action.user = user
         action.save()
 
-    def get_two_stage_fallback_action_config(self, bot: Text, name: Text = KAIRON_TWO_STAGE_FALLBACK):
+    def get_two_stage_fallback_action_config(self, bot: Text, name: Text = KAIRON_TWO_STAGE_FALLBACK,
+                                             with_doc_id: bool = True):
         """
         Retrieve 2 stage fallback config.
 
         :param bot: bot id
         :param name: action name
+        :param with_doc_id: return document id along with action configuration if True
         """
         for action in KaironTwoStageFallbackAction.objects(name=name, bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('status')
             action.pop('bot')
             action.pop('user')
@@ -4862,15 +4875,19 @@ class MongoProcessor:
         action.user = user
         action.save()
 
-    def get_razorpay_action_config(self, bot: Text):
+    def get_razorpay_action_config(self, bot: Text, with_doc_id: bool = True):
         """
         Retrieve razorpay config.
 
         :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
         """
         for action in RazorpayAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('status')
             action.pop('bot')
             action.pop('user')
