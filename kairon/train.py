@@ -157,12 +157,16 @@ def start_training(bot: str, user: str, token: str = None):
     model_file = None
     training_status = None
     apm_client = None
+    processor = MongoProcessor()
     try:
         apm_client = Utility.initiate_fastapi_apm_client()
         if apm_client:
             elasticapm.instrument()
             apm_client.begin_transaction(transaction_type="script")
         ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
+        settings = processor.get_bot_settings(bot, user)
+        if settings['enable_gpt_llm_faq']:
+            processor.add_rule_for_kairon_faq_action(bot, user)
         model_file = train_model_for_bot(bot)
         training_status = EVENT_STATUS.DONE.value
         agent_url = Utility.environment['model']['agent'].get('url')

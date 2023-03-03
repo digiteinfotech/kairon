@@ -606,6 +606,17 @@ class Rules(Auditlog):
 
 @auditlogger.log
 @push_notification.apply
+class BotContent(Auditlog):
+    data = StringField(required=True)
+    user = StringField(required=True)
+    bot = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
+
+@auditlogger.log
+@push_notification.apply
 class Configs(Auditlog):
     language = StringField(required=True, default="en")
     pipeline = DynamicField(required=True)
@@ -720,6 +731,7 @@ class BotSettings(Auditlog):
     force_import = BooleanField(default=False)
     rephrase_response = BooleanField(default=False)
     website_data_generator_depth_search_limit = IntField(default=2)
+    enable_gpt_llm_faq = BooleanField(default=False)
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
     bot = StringField(required=True)

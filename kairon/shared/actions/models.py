@@ -40,6 +40,7 @@ class ActionType(str, Enum):
     two_stage_fallback = "two_stage_fallback"
     kairon_bot_response = "kairon_bot_response"
     razorpay_action = "razorpay_action"
+    kairon_faq_action = "kairon_faq_action"
 
 
 class HttpRequestContentType(str, Enum):
