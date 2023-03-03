@@ -53,13 +53,13 @@ RUN python -m pip install keybert
 RUN python -m pip install bs4
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
+RUN python -m pip install qdrant-client
 RUN python -m pip install protobuf==3.20.2
 RUN python -m pip install torch==1.11.0
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install openpyxl
 RUN python -m pip install uuid6
 RUN python -m pip install openai==0.27.0
-RUN python -m pip install qdrant-client
 
 RUN mkdir data_generator
 RUN mkdir training_data

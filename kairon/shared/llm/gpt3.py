@@ -33,7 +33,7 @@ class GPT3FAQEmbedding(LLMBase):
                 collection_name=self.bot + self.suffix,
                 vectors_config=self.vector_config
             )
-        points = [PointStruct(id=id.__str__(),
+        points = [PointStruct(id=content.id.__str__(),
                               vector=self.__get_embedding(content.data),
                               payload={"content": content.data}) for content in BotContent.objects(bot=self.bot)]
         if points:
@@ -50,7 +50,8 @@ class GPT3FAQEmbedding(LLMBase):
             collection_name=self.bot + self.suffix,
             query_vector=query_embedding,
             with_payload=True,
-            limit=10
+            limit=10,
+            score_threshold=0.7
         )
         context = "\n".join([score_point.payload['content'] for score_point in search_result])
         return {"content": self.__get_answer(query, context)}

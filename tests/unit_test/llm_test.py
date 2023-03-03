@@ -8,7 +8,6 @@ from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.data.data_objects import BotContent
 import numpy as np
 from qdrant_client.models import ScoredPoint
-from uuid6 import uuid7
 from openai.util import convert_to_openai_object
 from openai.openai_response import OpenAIResponse
 
@@ -73,6 +72,7 @@ class TestLLM:
             assert name == '().upsert'
             assert kwargs['collection_name'] == test_content.bot + gpt3.suffix
             point = kwargs['points'][0]
+            assert point.id == test_content.id.__str__()
             assert point.vector == embedding
             assert point.payload['content'] == test_content.data
 
@@ -107,6 +107,7 @@ class TestLLM:
 
             assert mock_upsert.call_args.kwargs['collection_name'] == test_content.bot + gpt3.suffix
             point = mock_upsert.call_args.kwargs['points'][0]
+            assert point.id == test_content.id.__str__()
             assert point.vector == embedding
             assert point.payload['content'] == test_content.data
 
@@ -132,7 +133,7 @@ class TestLLM:
 
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'text': generated_text}]}, {}))
-        mock_search.return_value = [ScoredPoint(id=uuid7().__str__(), score=0.80, version=1, payload={'content': test_content.data})]
+        mock_search.return_value = [ScoredPoint(id=test_content.id.__str__(), score=0.80, version=1, payload={'content': test_content.data})]
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
 

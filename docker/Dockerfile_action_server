@@ -32,6 +32,7 @@ RUN python -m pip install jira
 RUN python -m pip install zenpy
 RUN python -m pip install pipedrive-python-lib
 RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install qdrant-client
 RUN python -m pip install protobuf==3.20.2
 RUN python -m pip install mongoengine==0.23.1
 RUN python -m pip install pymongo==3.12.0
