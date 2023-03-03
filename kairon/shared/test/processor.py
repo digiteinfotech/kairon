@@ -163,36 +163,64 @@ class ModelTestingLogProcessor:
         @return: list of logs.
         """
         logs = []
-        filtered_data = ModelTestingLogs.objects(reference_id=reference_id, bot=bot, type=log_type)
+        filter_log_type = 'stories' if log_type == 'stories' else 'nlu'
+        filtered_data = ModelTestingLogs.objects(reference_id=reference_id, bot=bot, type=filter_log_type)
         if log_type == 'stories' and filtered_data:
             filtered_data = filtered_data.get()
             logs = filtered_data.data.get('failed_stories', [])[start_idx:start_idx+page_size]
             fail_cnt = filtered_data.data.get('conversation_accuracy', {}).get('failure_count', 0)
-            logs = {'errors': logs, 'total': fail_cnt}
+            success_cnt = filtered_data.data.get('conversation_accuracy', {}).get('success_count', 0)
+            total_cnt = filtered_data.data.get('conversation_accuracy', {}).get('total_count', 0)
+            logs = {'errors': logs, 'failure_count': fail_cnt, 'success_count': success_cnt, 'total_count': total_cnt}
             if fail_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         elif log_type == 'nlu' and filtered_data:
-            intent_failures, entity_failures, response_selection_failures = [], [], []
-            intent_failure_cnt, entity_failure_cnt, response_selection_failure_cnt = 0, 0, 0
+            intent_failures = []
+            intent_failure_cnt, intent_success_cnt, intent_total_cnt = 0, 0, 0
             filtered_data = filtered_data.get()
             if filtered_data.data.get('intent_evaluation') and filtered_data.data['intent_evaluation'].get('errors'):
                 intent_failures = filtered_data.data['intent_evaluation']['errors'][start_idx:start_idx+page_size]
                 intent_failure_cnt = filtered_data.data['intent_evaluation'].get('failure_count') or 0
+                intent_success_cnt = filtered_data.data['intent_evaluation'].get('success_count') or 0
+                intent_total_cnt = filtered_data.data['intent_evaluation'].get('total_count') or 0
+            logs = {
+                "intent_evaluation": {'errors': intent_failures, 'failure_count': intent_failure_cnt,
+                                      'success_count': intent_success_cnt, 'total_count': intent_total_cnt}
+            }
+            if intent_failure_cnt:
+                logs = json.dumps(logs)
+                logs = json.loads(logs)
+        elif log_type == 'entity_evaluation' and filtered_data:
+            entity_failures = []
+            entity_failure_cnt, entity_success_cnt, entity_total_cnt = 0, 0, 0
+            filtered_data = filtered_data.get()
             if filtered_data.data.get('entity_evaluation') and filtered_data.data['entity_evaluation'].get('errors'):
                 entity_failures = filtered_data.data['entity_evaluation']['errors'][start_idx:start_idx+page_size]
                 entity_failure_cnt = filtered_data.data['entity_evaluation']['failure_count'] or 0
+                entity_success_cnt = filtered_data.data['entity_evaluation']['success_count'] or 0
+                entity_total_cnt = filtered_data.data['entity_evaluation']['total_count'] or 0
+            logs = {"entity_evaluation": {'errors': entity_failures, 'failure_count': entity_failure_cnt,
+                                          'success_count': entity_success_cnt, 'total_count': entity_total_cnt}}
+            if entity_failure_cnt:
+                logs = json.dumps(logs)
+                logs = json.loads(logs)
+        elif log_type == 'response_selection_evaluation' and filtered_data:
+            response_selection_failures = []
+            response_selection_failure_cnt, response_selection_success_cnt, response_selection_total_cnt = 0, 0, 0
+            filtered_data = filtered_data.get()
             if filtered_data.data.get('response_selection_evaluation') and filtered_data.data['response_selection_evaluation'].get('errors'):
                 response_selection_failures = filtered_data.data['response_selection_evaluation']['errors'][start_idx:start_idx+page_size]
                 response_selection_failure_cnt = filtered_data.data['response_selection_evaluation']['failure_count'] or 0
+                response_selection_success_cnt = filtered_data.data['response_selection_evaluation']['success_count'] or 0
+                response_selection_total_cnt = filtered_data.data['response_selection_evaluation']['total_count'] or 0
             logs = {
-                "intent_evaluation": {'errors': intent_failures, 'total': intent_failure_cnt},
-                "entity_evaluation": {'errors': entity_failures, 'total': entity_failure_cnt},
                 "response_selection_evaluation": {
-                    'errors': response_selection_failures, 'total': response_selection_failure_cnt
+                    'errors': response_selection_failures, 'failure_count': response_selection_failure_cnt,
+                    'success_count': response_selection_success_cnt, 'total_count': response_selection_total_cnt
                 }
             }
-            if intent_failure_cnt or entity_failure_cnt or response_selection_failure_cnt:
+            if response_selection_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         return logs
