@@ -172,7 +172,7 @@ class ModelTestingLogProcessor:
             success_cnt = filtered_data.data.get('conversation_accuracy', {}).get('success_count', 0)
             total_cnt = filtered_data.data.get('conversation_accuracy', {}).get('total_count', 0)
             logs = {'errors': logs, 'failure_count': fail_cnt, 'success_count': success_cnt, 'total_count': total_cnt}
-            if fail_cnt:
+            if total_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         elif log_type == 'nlu' and filtered_data:
@@ -188,21 +188,24 @@ class ModelTestingLogProcessor:
                 "intent_evaluation": {'errors': intent_failures, 'failure_count': intent_failure_cnt,
                                       'success_count': intent_success_cnt, 'total_count': intent_total_cnt}
             }
-            if intent_failure_cnt:
+            if intent_total_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         elif log_type == 'entity_evaluation' and filtered_data:
             entity_failures = []
             entity_failure_cnt, entity_success_cnt, entity_total_cnt = 0, 0, 0
             filtered_data = filtered_data.get()
-            if filtered_data.data.get('entity_evaluation') and filtered_data.data['entity_evaluation'].get('errors'):
-                entity_failures = filtered_data.data['entity_evaluation']['errors'][start_idx:start_idx+page_size]
-                entity_failure_cnt = filtered_data.data['entity_evaluation']['failure_count'] or 0
-                entity_success_cnt = filtered_data.data['entity_evaluation']['success_count'] or 0
-                entity_total_cnt = filtered_data.data['entity_evaluation']['total_count'] or 0
+            if filtered_data.data.get('entity_evaluation') and \
+                    filtered_data.data['entity_evaluation'].get('DIETClassifier') and \
+                    filtered_data.data['entity_evaluation']['DIETClassifier'].get('errors'):
+                entity_failures = \
+                    filtered_data.data['entity_evaluation']['DIETClassifier']['errors'][start_idx:start_idx+page_size]
+                entity_failure_cnt = filtered_data.data['entity_evaluation']['DIETClassifier']['failure_count'] or 0
+                entity_success_cnt = filtered_data.data['entity_evaluation']['DIETClassifier']['success_count'] or 0
+                entity_total_cnt = filtered_data.data['entity_evaluation']['DIETClassifier']['total_count'] or 0
             logs = {"entity_evaluation": {'errors': entity_failures, 'failure_count': entity_failure_cnt,
                                           'success_count': entity_success_cnt, 'total_count': entity_total_cnt}}
-            if entity_failure_cnt:
+            if entity_total_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         elif log_type == 'response_selection_evaluation' and filtered_data:
@@ -220,7 +223,7 @@ class ModelTestingLogProcessor:
                     'success_count': response_selection_success_cnt, 'total_count': response_selection_total_cnt
                 }
             }
-            if response_selection_failure_cnt:
+            if response_selection_total_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         return logs
