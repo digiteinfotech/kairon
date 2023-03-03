@@ -3266,7 +3266,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: dict
         """
-        return {ActionType.slot_set_action.value: list(self.list_slot_set_actions(bot))}
+        return {ActionType.slot_set_action.value: list(self.list_slot_set_actions(bot, False))}
 
     def load_pipedrive_leads_action(self, bot: Text):
         """
