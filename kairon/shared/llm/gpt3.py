@@ -2,9 +2,8 @@ from kairon.shared.llm.base import LLMBase
 from typing import Text, Dict, List
 from kairon.shared.utils import Utility
 import openai
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
 from kairon.shared.data.data_objects import BotContent
+from urllib.parse import urljoin
 
 
 class GPT3FAQEmbedding(LLMBase):
@@ -19,41 +18,28 @@ class GPT3FAQEmbedding(LLMBase):
 
     def __init__(self, bot: Text):
         super().__init__(bot)
-        self.db_client = QdrantClient(
-            **{'url': Utility.environment['vector']['db'], 'api_key': Utility.environment['vector']['key']})
+        self.db_url = Utility.environment['vector']['db']
+        self.headers = {}
+        if Utility.environment['vector']['key']:
+            self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
-        self.vector_config = VectorParams(size=1536, distance=Distance.COSINE)
+        self.vector_config = {'size':1536, 'distance': 'cosine'}
         self.api_key = Utility.environment['llm']['api_key']
 
     def train(self, *args, **kwargs) -> Dict:
-        try:
-            self.db_client.get_collection(collection_name=self.bot + self.suffix)
-        except:
-            self.db_client.recreate_collection(
-                collection_name=self.bot + self.suffix,
-                vectors_config=self.vector_config
-            )
-        points = [PointStruct(id=content.id.__str__(),
-                              vector=self.__get_embedding(content.data),
-                              payload={"content": content.data}) for content in BotContent.objects(bot=self.bot)]
+        self.__create_collection__(self.bot + self.suffix)
+        points = [{'id': content.id.__str__(),
+                   'vector': self.__get_embedding(content.data),
+                   'payload': {"content": content.data}} for content in BotContent.objects(bot=self.bot)]
         if points:
-            self.db_client.upsert(
-                collection_name=self.bot + self.suffix,
-                points=points
-            )
+            self.__collection_upsert__(self.bot + self.suffix, points)
         return {"faq": points.__len__()}
 
     def predict(self, query: Text, *args, **kwargs) -> Dict:
         query_embedding = self.__get_embedding(query)
 
-        search_result = self.db_client.search(
-            collection_name=self.bot + self.suffix,
-            query_vector=query_embedding,
-            with_payload=True,
-            limit=10,
-            score_threshold=0.7
-        )
-        context = "\n".join([score_point.payload['content'] for score_point in search_result])
+        search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding)
+        context = "\n".join([item['payload']['content'] for item in search_result['result']])
         return {"content": self.__get_answer(query, context)}
 
     def __get_embedding(self, text: Text) -> List[float]:
@@ -68,7 +54,34 @@ class GPT3FAQEmbedding(LLMBase):
         completion = openai.Completion.create(
             api_key=self.api_key,
             prompt=f"{self.__answer_command__} \n\nContext:\n{context}\n\n Q: {query}\n A:",
-                     **self.__answer_params__
+            **self.__answer_params__
         )
         response = ' '.join([choice['text'] for choice in completion.to_dict_recursive()['choices']])
+        return response
+
+    def __create_collection__(self, collection_name: Text):
+        col_info = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                                                request_method="GET",
+                                                headers=self.headers,
+                                                return_json=True)
+        if not col_info.get('result'):
+            Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                                         request_method="PUT",
+                                         headers=self.headers,
+                                         request_body={'name': collection_name, 'vectors': self.vector_config.dict()},
+                                         return_json=True)
+
+    def __collection_upsert__(self, collection_name: Text, data: List[Dict]):
+        Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points"),
+                                     request_method="PUT",
+                                     headers=self.headers,
+                                     request_body=data,
+                                     return_json=True)
+
+    def __collection_search__(self, collection_name: Text, vector: List):
+        response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/search"),
+                                     request_method="POST",
+                                     headers=self.headers,
+                                     request_body={'vector': vector, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70},
+                                     return_json=True)
         return response

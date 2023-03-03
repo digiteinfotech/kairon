@@ -1420,7 +1420,7 @@ class Utility:
 
     @staticmethod
     def execute_http_request(
-            request_method: str, http_url: str, request_body: dict = None, headers: dict = None,
+            request_method: str, http_url: str, request_body: Union[dict, list] = None, headers: dict = None,
             return_json: bool = True, **kwargs
     ):
         """

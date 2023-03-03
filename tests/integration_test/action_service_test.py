@@ -5097,12 +5097,11 @@ class TestActionServer(AsyncHTTPTestCase):
 
     @patch("kairon.shared.llm.gpt3.openai.Completion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
-    @patch("kairon.shared.llm.gpt3.QdrantClient.search", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
-        from qdrant_client.models import ScoredPoint
         from uuid6 import uuid7
 
         action_name = GPT_LLM_FAQ
@@ -5114,7 +5113,7 @@ class TestActionServer(AsyncHTTPTestCase):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'text': generated_text}]}, {}))
-        mock_search.return_value = [ScoredPoint(id=uuid7().__str__(), score=0.80, version=1, payload={'content': bot_content})]
+        mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score':0.80, 'payload':{'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
 
@@ -5136,7 +5135,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
     @patch("kairon.shared.llm.gpt3.openai.Completion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
-    @patch("kairon.shared.llm.gpt3.QdrantClient.search", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_failure(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object

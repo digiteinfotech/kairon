@@ -1345,13 +1345,11 @@ class TestMongoProcessor:
         assert model_training.first().exception in str("Training data does not exists!")
 
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
-    @patch("kairon.shared.llm.gpt3.QdrantClient.upsert", autospec=True)
-    @patch("kairon.shared.llm.gpt3.QdrantClient.recreate_collection", autospec=True)
-    @patch("kairon.shared.llm.gpt3.QdrantClient.get_collection", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
     def test_start_training_with_llm_faq(
-            self, mock_train, mock_bot, mock_get_collection, mock_recreate_collection, mock_upsert, mock_openai
+            self, mock_train, mock_bot, mock_vec_client, mock_openai
     ):
         bot = "tests"
         user = "testUser"
@@ -1367,7 +1365,6 @@ class TestMongoProcessor:
         settings.save()
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_openai.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_get_collection.side_effect = Exception()
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)
