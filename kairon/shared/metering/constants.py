@@ -11,3 +11,4 @@ class MetricType(str, Enum):
     login = "login"
     conversation_feedback = "conversation_feedback"
     login_refresh_token = "login_refresh_token"
+    faq_training = "faq_training"

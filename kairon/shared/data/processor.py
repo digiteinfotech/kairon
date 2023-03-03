@@ -19,8 +19,8 @@ from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from mongoengine.queryset.visitor import Q
-from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX
-from rasa.shared.core.domain import InvalidDomain
+from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX, \
+    DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.events import SlotSet
@@ -1359,8 +1359,8 @@ class MongoProcessor:
             story_name = "path_" + data.intent
             utterance = "utter_" + data.intent
             events = [
-                {"name": data.intent, "type": "INTENT"},
-                {"name": utterance, "type": "BOT"}]
+                {"name": data.intent, "type": StoryStepType.intent.value},
+                {"name": utterance, "type": StoryStepType.bot.value}]
             try:
                 doc_id = self.add_complex_story(
                     story={'name': story_name, 'steps': events, 'type': 'STORY',
@@ -3441,7 +3441,7 @@ class MongoProcessor:
     @staticmethod
     def fetch_nlu_fallback_action(bot: Text):
         action = None
-        event = StoryEvents(name='nlu_fallback', type="user")
+        event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
         try:
             rule = Rules.objects(bot=bot, status=True, events__match=event).get()
             for event in rule.events:
@@ -3458,9 +3458,9 @@ class MongoProcessor:
                                     name__iexact='utter_please_rephrase'):
                 self.add_text_response(DEFAULT_NLU_FALLBACK_RESPONSE, 'utter_please_rephrase', bot, user)
             steps = [
-                {"name": "...", "type": "BOT"},
-                {"name": "nlu_fallback", "type": "INTENT"},
-                {"name": "utter_please_rephrase", "type": "BOT"}
+                {"name": RULE_SNIPPET_ACTION_NAME, "type": StoryStepType.bot.value},
+                {"name": DEFAULT_NLU_FALLBACK_INTENT_NAME, "type": StoryStepType.intent.value},
+                {"name": "utter_please_rephrase", "type": StoryStepType.bot.value}
             ]
             rule = {'name': DEFAULT_NLU_FALLBACK_RULE, 'steps': steps, 'type': 'RULE'}
             try:
@@ -3618,10 +3618,10 @@ class MongoProcessor:
         return settings
 
     def add_rule_for_kairon_faq_action(self, bot: Text, user: Text):
-        search_event = StoryEvents(name='nlu_fallback', type="user")
+        search_event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
         events = [
             StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
-            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
+            StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name),
             StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
         ]
         try:
@@ -4745,9 +4745,9 @@ class MongoProcessor:
             component_count['training_examples'] = component_count['training_examples'] + len(examples)
             action = f"utter_{intent}"
             steps = [
-                {"name": "...", "type": "BOT"},
-                {"name": intent, "type": "INTENT"},
-                {"name": action, "type": "BOT"}
+                {"name": RULE_SNIPPET_ACTION_NAME, "type": StoryStepType.bot.value},
+                {"name": intent, "type": StoryStepType.intent.value},
+                {"name": action, "type": StoryStepType.bot.value}
             ]
             rule = {'name': intent, 'steps': steps, 'type': 'RULE', 'template_type': TemplateType.QNA.value}
             try:

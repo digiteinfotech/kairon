@@ -12,11 +12,15 @@ from rasa.model_training import _train_async_internal, handle_domain_if_not_exis
 from rasa.api import train
 from rasa.utils.common import TempDirectoryPath
 
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.importer import MongoDataImporter
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
+from kairon.shared.llm.factory import LLMFactory
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 import elasticapm
 
@@ -167,6 +171,10 @@ def start_training(bot: str, user: str, token: str = None):
         settings = processor.get_bot_settings(bot, user)
         if settings['enable_gpt_llm_faq']:
             processor.add_rule_for_kairon_faq_action(bot, user)
+            llm = LLMFactory.get_instance(bot, "faq")
+            faqs = llm.train()
+            account = AccountProcessor.get_bot(bot)['account']
+            MeteringProcessor.add_metrics(bot=bot, metric_type=MetricType.faq_training.value, account=account, **faqs)
         model_file = train_model_for_bot(bot)
         training_status = EVENT_STATUS.DONE.value
         agent_url = Utility.environment['model']['agent'].get('url')

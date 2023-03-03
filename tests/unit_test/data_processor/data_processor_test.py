@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
 
+import numpy as np
 import pandas as pd
 from pydantic import SecretStr
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
@@ -25,12 +26,17 @@ from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
 from rasa.core.agent import Agent
-from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
+from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH, \
+    DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Checkpoint
 from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
+
+from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.data_object import Metering
 from kairon.shared.test.data_objects import ModelTestingLogs
 
 from kairon.api import models
@@ -53,7 +59,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
                                              TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
-                                             SlotMapping, KeyVault, MultiflowStories
+                                             SlotMapping, KeyVault, MultiflowStories, BotContent
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -73,7 +79,8 @@ from kairon.train import train_model_for_bot, start_training, train_model_from_m
 from kairon.shared.utils import Utility
 from kairon.shared.data.constant import ENDPOINT_TYPE
 from unittest.mock import patch
-
+from openai.util import convert_to_openai_object
+from openai.openai_response import OpenAIResponse
 from kairon.shared.data.utils import DataUtility
 
 
@@ -151,7 +158,7 @@ class TestMongoProcessor:
         bot = 'test_faq_action'
         user = 'test_faq_action'
         processor.add_rule_for_kairon_faq_action(bot, user)
-        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE).get()
+        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE, status=True, bot=bot).get()
         assert rule.events == [
             StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
             StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
@@ -163,7 +170,7 @@ class TestMongoProcessor:
         bot = 'test_faq_action'
         user = 'test_faq_action'
         processor.add_rule_for_kairon_faq_action(bot, user)
-        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE).get()
+        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE, status=True, bot=bot).get()
         assert rule.events == [
             StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
             StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
@@ -1336,6 +1343,46 @@ class TestMongoProcessor:
         model_training = ModelTraining.objects(bot="test", status="Fail")
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
+
+    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.QdrantClient.upsert", autospec=True)
+    @patch("kairon.shared.llm.gpt3.QdrantClient.recreate_collection", autospec=True)
+    @patch("kairon.shared.llm.gpt3.QdrantClient.get_collection", autospec=True)
+    @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
+    @patch("kairon.train.train_model_for_bot", autospec=True)
+    def test_start_training_with_llm_faq(
+            self, mock_train, mock_bot, mock_get_collection, mock_recreate_collection, mock_upsert, mock_openai
+    ):
+        bot = "tests"
+        user = "testUser"
+        BotContent(
+            data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
+            bot=bot, user=user).save()
+        BotContent(
+            data="Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.",
+            bot=bot, user=user).save()
+        MongoProcessor().add_action(GPT_LLM_FAQ, bot, user, False, ActionType.kairon_faq_action.value)
+        settings = BotSettings.objects(bot=bot).get()
+        settings.enable_gpt_llm_faq = True
+        settings.save()
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_openai.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_get_collection.side_effect = Exception()
+        mock_bot.return_value = {"account": 1}
+        mock_train.return_value = f"/models/{bot}"
+        start_training(bot, user)
+        settings = BotSettings.objects(bot=bot).get()
+        settings.enable_gpt_llm_faq = False
+        settings.save()
+        log = Metering.objects(bot=bot, metric_type=MetricType.faq_training.value).get()
+        assert log["faq"] == 2
+        search_event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
+        rule = Rules.objects(bot=bot, events__match=search_event, status=True).get()
+        assert rule.events == [
+            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
+            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
+            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
+        ]
 
     def test_add_endpoints(self):
         processor = MongoProcessor()
@@ -7418,7 +7465,7 @@ class TestMongoProcessor:
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'kairon_bot_response': [],
-                           'razorpay_action': [], 'kairon_faq_action': [],
+                           'razorpay_action': [], 'kairon_faq_action': ['gpt_llm_faq'],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -8437,7 +8484,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
-            'razorpay_action': [], 'kairon_faq_action': [],
+            'razorpay_action': [], 'kairon_faq_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
@@ -9380,7 +9427,7 @@ class TestMongoProcessor:
         key_value = KeyVault.objects().get(id=id)
         assert key_value.key == key
         assert value == Utility.decrypt_message(key_value.value)
-    
+
     def test_add_secret_already_exists(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -9389,7 +9436,7 @@ class TestMongoProcessor:
         value = "123456789-0dfghjk"
         with pytest.raises(AppException, match="Key exists!"):
             processor.add_secret(key, value, bot, user)
-    
+
     def test_add_secret_empty_value(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -9645,7 +9692,7 @@ class TestMongoProcessor:
         processor.delete_secret(key, bot)
         with pytest.raises(DoesNotExist):
             KeyVault.objects(key=key, bot=bot).get()
-            
+
     def test_delete_secret_attached_to_pipedrivelead_action(self):
         processor = MongoProcessor()
         key = 'NKKEY'
@@ -9994,7 +10041,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'testUser'
         processor.delete_content(pytest.content_id, user, bot)
-        
+
     def test_delete_content_does_not_exists(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -10243,7 +10290,7 @@ class TestModelProcessor:
         model_training = ModelTraining.objects(bot="tests", status="Done")
         ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
         index = ids.index(training_status_inprogress_id)
-        assert model_training.count() == 4
+        assert model_training.count() == 5
         assert training_status_inprogress_id in ids
         assert model_training[index].bot == "tests"
         assert model_training[index].user == "testUser"
@@ -10295,7 +10342,7 @@ class TestModelProcessor:
         assert str(exp.value) == "Previous model training in progress."
 
     def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 7)
+        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 8)
         actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
         assert actual_response is False
 
