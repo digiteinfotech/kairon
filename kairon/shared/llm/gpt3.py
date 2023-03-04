@@ -23,7 +23,7 @@ class GPT3FAQEmbedding(LLMBase):
         if Utility.environment['vector']['key']:
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
-        self.vector_config = {'size':1536, 'distance': 'cosine'}
+        self.vector_config = {'size': 1536, 'distance': 'Cosine'}
         self.api_key = Utility.environment['llm']['api_key']
 
     def train(self, *args, **kwargs) -> Dict:
