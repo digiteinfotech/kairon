@@ -60,16 +60,16 @@ class GPT3FAQEmbedding(LLMBase):
         return response
 
     def __create_collection__(self, collection_name: Text):
-        col_info = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
-                                                request_method="GET",
+        Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                                                request_method="DELETE",
                                                 headers=self.headers,
                                                 return_json=True)
-        if not col_info.get('result'):
-            Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
-                                         request_method="PUT",
-                                         headers=self.headers,
-                                         request_body={'name': collection_name, 'vectors': self.vector_config},
-                                         return_json=True)
+
+        Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                                     request_method="PUT",
+                                     headers=self.headers,
+                                     request_body={'name': collection_name, 'vectors': self.vector_config},
+                                     return_json=True)
 
     def __collection_upsert__(self, collection_name: Text, data: Union[List, Dict]):
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points"),
