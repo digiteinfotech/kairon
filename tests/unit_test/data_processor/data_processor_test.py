@@ -7442,6 +7442,27 @@ class TestMongoProcessor:
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'kairon_faq_action': []
         }
+        
+    def test_add_complex_story_with_kairon_faq_action(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+            {"name": "mood_great", "type": "INTENT"},
+            {"name": "gpt_llm_faq", "type": "KAIRON_FAQ_ACTION"},
+        ]
+        story_dict = {'name': "story with faq", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, "test_with_faq", "testUser")
+        story = Stories.objects(block_name="story with action", bot="test_with_faq").get()
+        assert len(story.events) == 5
+        actions = processor.list_actions("test_with_faq")
+        assert actions == {
+            'actions': [], 'utterances': [], 'http_action': [], 'slot_set_action': [],
+            'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
+            'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
+            'kairon_bot_response': [], 'razorpay_action': [], 'kairon_faq_action': ["gpt_llm_faq"]
+        }
 
     def test_add_complex_story(self):
         processor = MongoProcessor()
@@ -8468,6 +8489,39 @@ class TestMongoProcessor:
         steps = [
             {"name": "greet", "type": "INTENT"},
             {"name": "utter_greet", "type": "BOT"},
+            {"name": "utter_cheer_up", "type": "BOT"},
+        ]
+        rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
+        pytest.story_id = processor.add_complex_story(rule_dict, "tests", "testUser")
+        story = Rules.objects(block_name="rule with action", bot="tests").get()
+        assert len(story.events) == 4
+        assert story.events[0].name == "..."
+        assert story.events[0].type == "action"
+        actions = processor.list_actions("tests")
+        print(actions)
+        assert actions == {
+            'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
+            'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
+            'razorpay_action': [], 'kairon_faq_action': ['gpt_llm_faq'],
+            'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
+            'utterances': ['utter_greet',
+                           'utter_cheer_up',
+                           'utter_did_that_help',
+                           'utter_happy',
+                           'utter_goodbye',
+                           'utter_iamabot',
+                           'utter_feedback',
+                           'utter_good_feedback',
+                           'utter_bad_feedback',
+                           'utter_default',
+                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}
+
+
+    def test_add_rule(self):
+        processor = MongoProcessor()
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "kairon", "type": "BOT"},
             {"name": "utter_cheer_up", "type": "BOT"},
         ]
         rule_dict = {'name': "rule with action", 'steps': steps, 'type': 'RULE', 'template_type': 'RULE'}
