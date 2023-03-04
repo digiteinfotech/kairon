@@ -1,5 +1,5 @@
 from kairon.shared.llm.base import LLMBase
-from typing import Text, Dict, List
+from typing import Text, Dict, List, Union
 from kairon.shared.utils import Utility
 import openai
 from kairon.shared.data.data_objects import BotContent
@@ -32,7 +32,7 @@ class GPT3FAQEmbedding(LLMBase):
                    'vector': self.__get_embedding(content.data),
                    'payload': {"content": content.data}} for content in BotContent.objects(bot=self.bot)]
         if points:
-            self.__collection_upsert__(self.bot + self.suffix, points)
+            self.__collection_upsert__(self.bot + self.suffix, {'points': points})
         return {"faq": points.__len__()}
 
     def predict(self, query: Text, *args, **kwargs) -> Dict:
@@ -71,7 +71,7 @@ class GPT3FAQEmbedding(LLMBase):
                                          request_body={'name': collection_name, 'vectors': self.vector_config},
                                          return_json=True)
 
-    def __collection_upsert__(self, collection_name: Text, data: List[Dict]):
+    def __collection_upsert__(self, collection_name: Text, data: Union[List, Dict]):
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points"),
                                      request_method="PUT",
                                      headers=self.headers,
