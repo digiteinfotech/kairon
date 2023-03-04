@@ -16,7 +16,8 @@ from mongoengine import (
     DictField,
     DynamicField,
     IntField,
-    FloatField
+    FloatField,
+    SequenceField
 )
 from rasa.shared.core.slots import (
     CategoricalSlot,
@@ -32,6 +33,7 @@ from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType, StoryStepType
 from validators import domain
+
 
 
 class Entity(EmbeddedDocument):
@@ -604,9 +606,10 @@ class Rules(Auditlog):
         DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
-#@auditlogger.log
-#@push_notification.apply
+@auditlogger.log
+@push_notification.apply
 class BotContent(Auditlog):
+    vector_id = SequenceField(required=True)
     data = StringField(required=True)
     user = StringField(required=True)
     bot = StringField(required=True)

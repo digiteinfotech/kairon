@@ -28,7 +28,7 @@ class GPT3FAQEmbedding(LLMBase):
 
     def train(self, *args, **kwargs) -> Dict:
         self.__create_collection__(self.bot + self.suffix)
-        points = [{'id': content.id.__str__(),
+        points = [{'id': content.vector_id,
                    'vector': self.__get_embedding(content.data),
                    'payload': {"content": content.data}} for content in BotContent.objects(bot=self.bot)]
         if points:
