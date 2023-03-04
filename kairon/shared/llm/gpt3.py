@@ -4,6 +4,8 @@ from kairon.shared.utils import Utility
 import openai
 from kairon.shared.data.data_objects import BotContent
 from urllib.parse import urljoin
+from kairon.exceptions import AppException
+from loguru import logger as logging
 
 
 class GPT3FAQEmbedding(LLMBase):
@@ -63,20 +65,24 @@ class GPT3FAQEmbedding(LLMBase):
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                                 request_method="DELETE",
                                                 headers=self.headers,
-                                                return_json=True)
+                                                return_json=False)
 
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                      request_method="PUT",
                                      headers=self.headers,
                                      request_body={'name': collection_name, 'vectors': self.vector_config},
-                                     return_json=True)
+                                     return_json=False)
 
     def __collection_upsert__(self, collection_name: Text, data: Union[List, Dict]):
-        Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points"),
+        response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points"),
                                      request_method="PUT",
                                      headers=self.headers,
                                      request_body=data,
                                      return_json=True)
+        if not response.get('result'):
+            if "status" in response:
+                logging.exception(response['status'].get('error'))
+                raise AppException("Unable to train faq! contact support")
 
     def __collection_search__(self, collection_name: Text, vector: List):
         response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/search"),
