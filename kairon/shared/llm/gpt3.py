@@ -31,6 +31,7 @@ class GPT3FAQEmbedding(LLMBase):
         points = [{'id': content.id.__str__(),
                    'vector': self.__get_embedding(content.data),
                    'payload': {"content": content.data}} for content in BotContent.objects(bot=self.bot)]
+        print(points)
         if points:
             self.__collection_upsert__(self.bot + self.suffix, points)
         return {"faq": points.__len__()}
