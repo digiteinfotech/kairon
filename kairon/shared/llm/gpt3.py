@@ -68,7 +68,7 @@ class GPT3FAQEmbedding(LLMBase):
             Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                          request_method="PUT",
                                          headers=self.headers,
-                                         request_body={'name': collection_name, 'vectors': self.vector_config.dict()},
+                                         request_body={'name': collection_name, 'vectors': self.vector_config},
                                          return_json=True)
 
     def __collection_upsert__(self, collection_name: Text, data: List[Dict]):
