@@ -145,11 +145,18 @@ class TestModelTesting:
         assert logs['intent_evaluation']['failure_count'] == 23
         assert logs['intent_evaluation']['success_count'] == 29
         assert logs['intent_evaluation']['total_count'] == 52
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation', logs1[0]['reference_id'])
+        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
+                                                 logs1[0]['reference_id'])
         assert len(logs['entity_evaluation']['errors']) == 2
         assert logs['entity_evaluation']['failure_count'] == 2
         assert logs['entity_evaluation']['success_count'] == 2
         assert logs['entity_evaluation']['total_count'] == 4
+        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
+                                                 logs1[0]['reference_id'])
+        assert len(logs['entity_evaluation']['errors']) == 0
+        assert logs['entity_evaluation']['failure_count'] == 0
+        assert logs['entity_evaluation']['success_count'] == 0
+        assert logs['entity_evaluation']['total_count'] == 0
         logs = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation', logs1[0]['reference_id'])
         assert len(logs['response_selection_evaluation']['errors']) == 5
         assert logs['response_selection_evaluation']['failure_count'] == 5
@@ -160,11 +167,18 @@ class TestModelTesting:
         assert logs['intent_evaluation']['failure_count'] == 23
         assert logs['intent_evaluation']['success_count'] == 29
         assert logs['intent_evaluation']['total_count'] == 52
-        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation', logs1[0]['reference_id'], 10, 15)
+        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
+                                                 logs1[0]['reference_id'], 10, 15)
         assert len(logs['entity_evaluation']['errors']) == 0
         assert logs['entity_evaluation']['failure_count'] == 2
         assert logs['entity_evaluation']['success_count'] == 2
         assert logs['entity_evaluation']['total_count'] == 4
+        logs = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
+                                                 logs1[0]['reference_id'], 10, 15)
+        assert len(logs['entity_evaluation']['errors']) == 0
+        assert logs['entity_evaluation']['failure_count'] == 0
+        assert logs['entity_evaluation']['success_count'] == 0
+        assert logs['entity_evaluation']['total_count'] == 0
         logs = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation',
                                                  logs1[0]['reference_id'], 10, 15)
         assert len(logs['response_selection_evaluation']['errors']) == 0
@@ -184,7 +198,11 @@ class TestModelTesting:
         assert logs2['intent_evaluation']['failure_count'] == 23
         assert logs2['intent_evaluation']['success_count'] == 29
         assert logs2['intent_evaluation']['total_count'] == 52
-        logs2 = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation', logs[0]['reference_id'])
+        logs2 = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_diet_classifier',
+                                                  logs[0]['reference_id'])
+        assert logs2['entity_evaluation'] == {'errors': [], 'failure_count': 0, 'success_count': 0, 'total_count': 0}
+        logs2 = ModelTestingLogProcessor.get_logs('test_bot', 'entity_evaluation_with_regex_entity_extractor',
+                                                  logs[0]['reference_id'])
         assert logs2['entity_evaluation'] == {'errors': [], 'failure_count': 0, 'success_count': 0, 'total_count': 0}
         logs2 = ModelTestingLogProcessor.get_logs('test_bot', 'response_selection_evaluation', logs[0]['reference_id'])
         assert logs2['response_selection_evaluation'] == {'errors': [], 'failure_count': 0,

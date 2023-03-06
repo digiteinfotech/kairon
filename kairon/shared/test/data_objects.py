@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, DictField
+from mongoengine import Document, StringField, DateTimeField, DictField, BooleanField
 from kairon.shared.data.signals import push_notification
 
 
@@ -14,3 +14,4 @@ class ModelTestingLogs(Document):
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
     event_status = StringField(default=None)
+    is_augmented = BooleanField(default=False)
