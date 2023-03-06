@@ -177,7 +177,7 @@ class ModelTestingLogProcessor:
             success_cnt = filtered_data.data.get('conversation_accuracy', {}).get('success_count', 0)
             total_cnt = filtered_data.data.get('conversation_accuracy', {}).get('total_count', 0)
             logs = {'errors': logs, 'failure_count': fail_cnt, 'success_count': success_cnt, 'total_count': total_cnt}
-            if total_cnt:
+            if fail_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         elif log_type == LOG_TYPE.nlu.value and filtered_data:
@@ -193,7 +193,7 @@ class ModelTestingLogProcessor:
                 "intent_evaluation": {'errors': intent_failures, 'failure_count': intent_failure_cnt,
                                       'success_count': intent_success_cnt, 'total_count': intent_total_cnt}
             }
-            if intent_total_cnt:
+            if intent_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         elif log_type in {LOG_TYPE.entity_evaluation_with_diet_classifier.value,
@@ -212,7 +212,7 @@ class ModelTestingLogProcessor:
                 entity_total_cnt = filtered_data.data['entity_evaluation'][key]['total_count'] or 0
             logs = {"entity_evaluation": {'errors': entity_failures, 'failure_count': entity_failure_cnt,
                                           'success_count': entity_success_cnt, 'total_count': entity_total_cnt}}
-            if entity_total_cnt:
+            if entity_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         elif log_type == LOG_TYPE.response_selection_evaluation.value and filtered_data:
@@ -232,7 +232,7 @@ class ModelTestingLogProcessor:
                     'success_count': response_selection_success_cnt, 'total_count': response_selection_total_cnt
                 }
             }
-            if response_selection_total_cnt:
+            if response_selection_failure_cnt:
                 logs = json.dumps(logs)
                 logs = json.loads(logs)
         return logs
