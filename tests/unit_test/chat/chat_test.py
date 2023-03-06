@@ -15,6 +15,7 @@ from kairon.chat.utils import ChatUtils
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 import mock
 from pymongo.errors import ServerSelectionTimeoutError
@@ -452,3 +453,163 @@ class TestChat:
         history, message = ChatUtils.get_last_session_conversation(bot, "fshaikh@digite.com")
         assert len(history) == 2
         assert message is None
+
+    @responses.activate
+    def test_get_partner_auth_token(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment["waba_partner"], "base_url_hub", 'https://hub.360dialog.io')
+        monkeypatch.setitem(Utility.environment["waba_partner"], "partner_username", 'testuser')
+        monkeypatch.setitem(Utility.environment["waba_partner"], "partner_password", 'testpassword')
+
+        url = "https://hub.360dialog.io/api/v2/token"
+        responses.add("POST",
+                      json={
+                          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9",
+                          "expires_in": 86400,
+                          "refresh_token": "6QjXkcExVF3nWHARkeSL3RrX3Y5JHBnxVPpwFLgWJsKkT",
+                          "token_type": "Bearer"
+                      }, url=url)
+
+        token = ChatUtils.get_partners_auth_token()
+
+        assert token == "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+    @responses.activate
+    def test_generate_waba_key(self, monkeypatch):
+        def _get_partners_auth_token(*args, **kwargs):
+            return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+        monkeypatch.setattr(ChatUtils, 'get_partners_auth_token', _get_partners_auth_token)
+        monkeypatch.setitem(Utility.environment["waba_partner"], "base_url_hub", 'https://hub.360dialog.io')
+        monkeypatch.setitem(Utility.environment["waba_partner"], "partner_id", 'f167CmPA')
+
+        url = "https://hub.360dialog.io/api/v2/partners/f167CmPA/channels/skds23Ga/api_keys"
+        responses.add("POST",
+                      json={
+                          "address": "https://waba.360dialog.io",
+                          "api_key": "kHCwksdsdsMVYVx0doabaDyRLUQJUAK",
+                          "app_id": "104148",
+                          "id": "201126"
+                      }, url=url)
+
+        api_key = ChatUtils.generate_waba_key("skds23Ga")
+
+        assert api_key == "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
+
+    @responses.activate
+    def test_get_waba_account_id(self, monkeypatch):
+        import urllib.parse
+        def _get_partners_auth_token(*args, **kwargs):
+            return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+        monkeypatch.setattr(ChatUtils, 'get_partners_auth_token', _get_partners_auth_token)
+        monkeypatch.setitem(Utility.environment["waba_partner"], "base_url_hub", 'https://hub.360dialog.io')
+        monkeypatch.setitem(Utility.environment["waba_partner"], "partner_id", 'f167CmPA')
+
+        url = "https://hub.360dialog.io/api/v2/partners/f167CmPA/channels?filters=%7B'id':'skds23Ga'%7D"
+        responses.add("GET",
+                      json={
+                          "count": 1,
+                          "filters": {
+                              "id": "GrgAbBCH"
+                          },
+                          "limit": 1000,
+                          "offset": 0,
+                          "partner_channels": [
+                              {
+                                  "account_mode": "",
+                                  "client": {
+                                      "contact_info": {
+                                          "email": "kairon_fb@digite.com"
+                                      },
+                                      "id": "jno40M5NCL",
+                                      "name": "Kairon Main",
+                                  },
+                                  "client_id": "jno40M5NCL",
+                                  "created_at": "2023-02-27T06:44:47Z",
+                                  "current_quality_rating": "High",
+                                  "hub_status": "done",
+                                  "id": "GrgAbBCH",
+                                  "integration": {
+                                      "app_id": "104148",
+                                      "enabled": True,
+                                      "state": "running"
+                                  },
+                                  "is_oba": False,
+                                  "setup_info": {
+                                      "phone_name": "Kairon",
+                                      "phone_number": "918657046070"
+                                  },
+                                  "status": "permission_granted",
+                                  "waba_account": {
+                                      "fb_account_status": "verified",
+                                      "id": "Cyih7GWA",
+                                      "on_behalf_of_business_info": {
+                                          "id": "544249464318733",
+                                          "name": "Kairon",
+                                          "status": "approved",
+                                          "type": "SELF"
+                                      }
+                                  }
+                              }
+                          ],
+                          "sort": [
+                              "id"
+                          ],
+                          "total": 1
+                      }, url=url)
+
+        account_id = ChatUtils.get_waba_account_id("skds23Ga")
+
+        assert account_id == "Cyih7GWA"
+
+
+    @responses.activate
+    def test_set_webhook_url(self, monkeypatch):
+        def _get_partners_auth_token(*args, **kwargs):
+            return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
+
+        monkeypatch.setattr(ChatUtils, 'get_partners_auth_token', _get_partners_auth_token)
+        monkeypatch.setitem(Utility.environment["waba_partner"], "base_url_waba", 'https://waba.360dialog.io')
+
+        webhook_url = "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
+        api_key = "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
+        url = "https://waba.360dialog.io/v1/configs/webhook"
+        responses.add("POST",
+                      json={
+                          "url": "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY",
+                      }, url=url)
+
+        webhook_url = ChatUtils.set_webhook_url(api_key, webhook_url)
+
+        assert webhook_url == "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
+
+    def test_post_process(self, monkeypatch):
+        def _generate_waba_key(*args, **kwargs):
+            return "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
+        def _get_waba_account_id(*args, **kwargs):
+            return "Cyih7GWA"
+
+        def _get_channel_endpoint(*args, **kwargs):
+            return "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
+
+        def _set_webhook_url(*args, **kwargs):
+            return "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
+
+        monkeypatch.setattr(ChatUtils, 'generate_waba_key', _generate_waba_key)
+        monkeypatch.setattr(ChatUtils, 'get_waba_account_id', _get_waba_account_id)
+        monkeypatch.setattr(DataUtility, 'get_channel_endpoint', _get_channel_endpoint)
+        monkeypatch.setattr(ChatUtils, 'set_webhook_url', _set_webhook_url)
+
+        config = {
+            "connector_type": "waba_partner",
+            "config": {
+                "client_name": "kAIron",
+                "client_id": "jno40M5NCL",
+                "channel_id": "skds23Ga",
+                "partner_id": "f167CmPA",
+            }
+        }
+        ChatDataProcessor.save_channel_config(config, "62bc24b493a0d6b7a46328f5", "test@demo.in")
+
+        webhook_url = ChatUtils.post_process("62bc24b493a0d6b7a46328f5", "test@demo.in")
+        assert webhook_url == "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"

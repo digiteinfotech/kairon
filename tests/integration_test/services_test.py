@@ -25,6 +25,7 @@ from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
 from kairon.shared.account.processor import AccountProcessor
@@ -12632,6 +12633,36 @@ def test_get_model_testing_logs_accuracy():
     assert response["data"] is not None
     assert response["success"] is True
     assert response["error_code"] == 0
+
+def test_onboarding(monkeypatch):
+    def _get_channel_endpoint(*args, **kwargs):
+        return f"https://kaironlocalchat.digite.com/api/bot/waba_partner/{pytest.bot}/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
+
+    monkeypatch.setattr(DataUtility, 'get_channel_endpoint', _get_channel_endpoint)
+    monkeypatch.setitem(Utility.environment['waba_partner'], 'partner_id', 'f167CmPA')
+
+    config = {
+        "connector_type": "waba_partner",
+        "config": {
+            "client_name": "kAIron",
+        }
+    }
+    email = "integration1234567890@demo.ai"
+    bot = "integration"
+    ChatDataProcessor.save_channel_config(config, pytest.bot, pytest.username)
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    login = response.json()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/waba/onboarding?clientId=kAIron&client=jno40M5NCL&channel=skds23Ga",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    result = response.json()
+    assert result["message"] == "success"
+    assert result["data"]["redirect_url"] == f"https://kaironlocalchat.digite.com/api/bot/waba_partner/{pytest.bot}/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
 
 
 def test_delete_account():

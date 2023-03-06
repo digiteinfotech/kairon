@@ -157,3 +157,10 @@ idp:
 
 cors:
   origin: ${ALLOWED_ORIGIN:["*"]}
+
+waba_partner:
+  base_url_hub: ${WABA_WEB_URL_HUB:"https://hub.360dialog.io"}
+  base_url_waba: ${WABA_WEB_URL_WABA:"https://waba.360dialog.io"}
+  partner_id: ${WABA_PARTNER_ID:"9Mg0AiPA"}
+  partner_username: ${PARTNER_USERNAME:"ashwin.swarup@digite.com"}
+  partner_password: ${PARTNER_PASSWORD:"ashwin@123"}

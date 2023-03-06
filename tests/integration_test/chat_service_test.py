@@ -1825,3 +1825,32 @@ class TestChatServer(AsyncHTTPTestCase):
                 responses.stop()
                 actual = json.loads(response.body.decode("utf8"))
                 assert actual["data"]["agent_handoff"]["businessworking"]=="We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 ."
+
+    def test_waba_message_event(self):
+        response = self.fetch(
+            f"/api/bot/waba_partner/{bot}/{token}",
+            method="POST",
+            body=json.dumps({
+                "contacts": [
+                    {
+                        "profile": {
+                            "name": "kAIron"
+                        },
+                        "wa_id": "919999900000"
+                    }
+                ],
+                "messages": [
+                    {
+                        "from": "919657055022",
+                        "id": "ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
+                        "text": {
+                            "body": "hi Postman"
+                        },
+                        "timestamp": "1677604539",
+                        "type": "text"
+                    }
+                ]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'Message received'

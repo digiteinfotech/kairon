@@ -8,9 +8,12 @@ from rasa.core.channels import UserMessage
 from rasa.core.tracker_store import TrackerStore
 
 from .agent_processor import AgentProcessor
+from .constants import WABA_GENERATE_KEY, WABA_AUTH_TOKEN, WABA_SET_WEBHOOK, API_HEADER_KEY, GET_WABA_TEMPLATE, \
+    GET_WABA_ACCOUNT
 from .. import Utility
 from ..live_agent.factory import LiveAgentFactory
 from ..shared.actions.utils import ActionUtility
+from ..shared.chat.processor import ChatDataProcessor
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
@@ -138,3 +141,99 @@ class ChatUtils:
             {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
         ]))
         return last_session[0] if last_session else None
+
+    @staticmethod
+    def get_partners_auth_token():
+        base_url_hub = Utility.environment["waba_partner"]["base_url_hub"]
+        partner_username = Utility.environment["waba_partner"]["partner_username"]
+        partner_password = Utility.environment["waba_partner"]["partner_password"]
+
+        token_url = base_url_hub + WABA_AUTH_TOKEN
+        request_body = {
+            "username": partner_username,
+            "password": partner_password
+        }
+        resp = Utility.execute_http_request(request_method="POST", http_url=token_url, request_body=request_body)
+        return resp.get("token_type") + " " + resp.get("access_token")
+
+    @staticmethod
+    def generate_waba_key(channel_id: Text):
+        base_url_hub = Utility.environment["waba_partner"]["base_url_hub"]
+        partner_id = Utility.environment["waba_partner"]["partner_id"]
+        url = base_url_hub + WABA_GENERATE_KEY.format(partner_id=partner_id, channel_id=channel_id)
+
+        headers = {"Authorization": ChatUtils.get_partners_auth_token()}
+        resp = Utility.execute_http_request(request_method="POST", http_url=url, headers=headers)
+
+        api_key = resp.get("api_key")
+        return api_key
+
+    @staticmethod
+    def get_waba_account_id(channel_id: Text):
+        base_url_hub = Utility.environment["waba_partner"]["base_url_hub"]
+        partner_id = Utility.environment["waba_partner"]["partner_id"]
+
+        url = base_url_hub + GET_WABA_ACCOUNT.format(partner_id=partner_id, channel_id=channel_id)
+
+        headers = {"Authorization": ChatUtils.get_partners_auth_token()}
+        resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers)
+
+        return resp.get("partner_channels", {})[0].get("waba_account", {}).get("id")
+
+    @staticmethod
+    def set_webhook_url(api_key: Text, webhook_url: Text):
+        base_url_waba = Utility.environment["waba_partner"]["base_url_waba"]
+
+        waba_webhook_url = base_url_waba + WABA_SET_WEBHOOK
+        headers = {API_HEADER_KEY: api_key}
+        request_body = {"url": webhook_url}
+        resp = Utility.execute_http_request(request_method="POST", http_url=waba_webhook_url,
+                                            request_body=request_body, headers=headers)
+        return resp.get("url")
+
+    @staticmethod
+    def post_process(bot, user):
+
+        config = ChatDataProcessor.get_channel_config("waba_partner", bot, mask_characters=False)
+        channel_id = config.get("config", {}).get("channel_id")
+
+        api_key = ChatUtils.generate_waba_key(channel_id)
+        waba_account_id = ChatUtils.get_waba_account_id(channel_id)
+        payload = {"api_key": api_key, "waba_account_id": waba_account_id}
+
+        webhook_url = ChatUtils.update_waba_channel_config(config, payload, bot, user)
+
+        return ChatUtils.set_webhook_url(api_key, webhook_url)
+
+    @staticmethod
+    def update_waba_channel_config(config, payload, bot, user):
+        conf = config["config"]
+        conf.update(payload)
+        config["config"] = conf
+        return ChatDataProcessor.save_channel_config(config, bot, user)
+
+    @staticmethod
+    def get_waba_template(bot, template_id):
+        config = ChatDataProcessor.get_channel_config("waba_partner", bot, mask_characters=False)
+        waba_account_id = config.get("config").get("waba_account_id")
+        base_url_hub = Utility.environment["waba_partner"]["base_url_hub"]
+        partner_id = config.get("partner_id", Utility.environment["waba_partner"]["partner_id"])
+        template_url = GET_WABA_TEMPLATE.format(partner_id=partner_id, template_id=template_id,
+                                                waba_account_id=waba_account_id)
+
+        headers = {"Authorization": ChatUtils.get_partners_auth_token()}
+        url = base_url_hub + template_url
+        resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers)
+        templace_data = resp.get("waba_templates")[0]
+
+        template = {"namespace": templace_data.get("namespace"), "name": templace_data.get("name"),
+                    "language": {"policy": "deterministic", "code": templace_data.get("language"), }}
+
+        components = list()
+        for component in templace_data.get("components", {}):
+            comp = {"type": component.get("type").lower()}
+            param_list = []
+            for param in component.get("example", {}).get("body_text"):
+                param_list.append({})
+            comp["parameters"] : []
+        return template

@@ -6,6 +6,7 @@ from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
+from kairon.chat.utils import ChatUtils
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
@@ -1562,3 +1563,23 @@ async def get_qna_flattened(
 
 router.include_router(v2, prefix="/v2")
 
+
+@router.get("/waba/post_process", response_model=Response)
+async def post_process(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Generate API key for 360 and set webhook url
+    """
+    api_key, channel_endpoint = ChatUtils.post_process(current_user.get_bot(), current_user.get_user())
+    resp = {"api_key": api_key, "redirect_url": channel_endpoint}
+    return Response(message='API key generated', data=resp)
+
+@router.get("/waba/onboarding", response_model=Response)
+async def onboarding(clientId: str, client:str, channel:str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    save the waba details
+    """
+    channel_endpoint = ChatDataProcessor.save_waba_config(current_user, clientId, client, channel)
+    resp = {"redirect_url": channel_endpoint}
+    return Response(message='success', data=resp)

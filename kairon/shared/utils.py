@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import html
 import json
 import os
 import re
@@ -1728,6 +1729,12 @@ class Utility:
         utc_locale = utcdatetime.replace(tzinfo=pytz.utc).astimezone(zone).strftime(date_format)
         utc_locale_datetime = datetime.strptime(utc_locale, date_format)
         return utc_locale_datetime
+
+    @staticmethod
+    def sanitise_data(value: Text):
+        if Utility.check_empty_string(value):
+            raise AppException("Value can not be empty")
+        return html.escape(value)
 
 
 class StoryValidator:

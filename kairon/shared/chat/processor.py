@@ -114,3 +114,14 @@ class ChatDataProcessor:
         except DoesNotExist:
             raise AppException('Channel not configured')
 
+    @staticmethod
+    def save_waba_config(user, client_name, client_id, channel_id, partner_id=None):
+        if partner_id is None:
+            partner_id = Utility.environment["waba_partner"]["partner_id"]
+        conf = {"config": {
+            "client_name": Utility.sanitise_data(client_name),
+            "client_id": Utility.sanitise_data(client_id),
+            "channel_id": Utility.sanitise_data(channel_id),
+            "partner_id": Utility.sanitise_data(partner_id)
+        }, "connector_type": "waba_partner"}
+        return ChatDataProcessor.save_channel_config(conf, user.get_bot(), user.get_user())

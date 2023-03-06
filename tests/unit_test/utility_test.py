@@ -1774,7 +1774,7 @@ class TestUtility:
         assert str(error.value) == "file not found"
 
     def test_get_channels(self):
-        expected_channels = ['msteams', 'slack', 'telegram', 'hangouts', 'messenger', 'instagram', 'whatsapp']
+        expected_channels = ['msteams', 'slack', 'telegram', 'hangouts', 'messenger', 'instagram', 'whatsapp', 'waba_partner']
         channels = Utility.get_channels()
         assert channels == expected_channels
 
@@ -1790,3 +1790,8 @@ class TestUtility:
         current_utcnow = datetime(2023, 2, 12, 8, 00, 00, tzinfo=timezone.utc)
         result = Utility.convert_utcdate_with_timezone(current_utcnow, "Asia/Kolkata",dateformat)
         assert result == datetime(2023, 2, 12, 13, 30)
+
+    def test_sanitise_data(self):
+        data = "?val=<script>sample.script</script>"
+        sanitized_data = Utility.sanitise_data(data)
+        assert sanitized_data == "?val=&lt;script&gt;sample.script&lt;/script&gt;"

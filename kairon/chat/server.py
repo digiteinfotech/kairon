@@ -2,6 +2,7 @@ from tornado.ioloop import IOLoop
 from tornado.web import Application
 from tornado.options import parse_command_line
 
+from kairon.chat.handlers.channels.waba import WABAHandler
 from kairon.chat.handlers.channels.whatsapp import WhatsappHandler
 from kairon.chat.handlers.channels.msteams import MSTeamsHandler
 from kairon.shared.tornado.handlers.index import IndexHandler
@@ -30,6 +31,7 @@ def make_app():
         (r"/api/bot/instagram/([^/]+)/([^/]+)", InstagramHandler),
         (r"/api/bot/whatsapp/([^/]+)/([^/]+)", WhatsappHandler),
         (r"/api/bot/msteams/([^/]+)/([^/]+)", MSTeamsHandler),
+        (r"/api/bot/waba_partner/([^/]+)/([^/]+)", WABAHandler),
     ], compress_response=True, debug=False)
 
 
