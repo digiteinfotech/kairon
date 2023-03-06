@@ -8652,6 +8652,7 @@ def test_list_slot_set_actions():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
+    actual["data"][0].pop("_id")
     assert actual["data"][0] == {'name': 'action_set_name_slot', 'set_slots': [
         {'name': 'name', 'type': 'from_value', 'value': 5}, {'name': 'age', 'type': 'reset_slot'}]}
 
@@ -9057,6 +9058,7 @@ def test_add_slot_set_action_case_insensitivity():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
+    actual["data"][0].pop("_id")
     assert actual["data"][0] == {'name': 'case_insensitive_slot_set_action', 'set_slots': [{'name': 'name', 'type': 'from_value',
                                  'value': 5}]}
 
@@ -9475,6 +9477,7 @@ def test_list_email_actions():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 3
+    [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [{'action_name': 'email_config', 'smtp_url': 'test.test.com', 'smtp_port': 25,
                                'smtp_password': {'_cls': 'CustomActionRequestParameters', 'key': 'smtp_password',
                                                  'encrypt': False, 'value': 'test', 'parameter_type': 'value'},
@@ -9829,6 +9832,7 @@ def test_list_google_search_action():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 3
     print(actual["data"])
+    actual["data"][0].pop("_id")
     assert actual["data"][0]['name'] == 'google_custom_search'
     assert actual["data"][0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
     assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
@@ -9994,6 +9998,7 @@ def test_list_hubspot_forms_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
+    actual["data"][0].pop("_id")
     assert actual["data"][0]['name'] == 'action_hubspot_forms'
     assert actual["data"][0]['portal_id'] == '123456785787'
     assert actual["data"][0]['form_guid'] == 'asdfg:12345678787'
@@ -10133,6 +10138,7 @@ def test_get_kairon_two_stage_fallback_action_1():
     assert actual["success"]
     assert actual["error_code"] == 0
     del actual['data'][0]['timestamp']
+    actual['data'][0].pop('_id')
     assert actual["data"] == [{'name': 'kairon_two_stage_fallback',
                                'text_recommendations': {"count": 4, "use_intent_ranking": False}, 'trigger_rules': [],
                                'fallback_message': "I could not understand you! Did you mean any of the suggestions"
@@ -10661,6 +10667,7 @@ def test_list_jira_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     print(actual["data"])
+    [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [
         {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
          'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -10939,6 +10946,7 @@ def test_list_zendesk_action():
     assert actual["success"]
     assert actual["error_code"] == 0
     print(actual["data"])
+    [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [
         {'name': 'zendesk_action', 'subdomain': 'digite751', 'user_name': 'udit.pandey@digite.com',
          'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
@@ -11193,6 +11201,7 @@ def test_list_pipedrive_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
+    [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [{'name': 'pipedrive_leads', 'domain': 'https://digite751.pipedrive.com/',
                                'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token',
                                              'encrypt': False, 'value': '12345678', 'parameter_type': 'value'},
@@ -11423,6 +11432,7 @@ def test_list_razorpay_actions():
     )
     actual = response.json()
     [v.pop("timestamp") for v in actual["data"]]
+    [action.pop("_id") for action in actual["data"]]
     assert actual["data"] == [{'name': 'razorpay_action',
                         'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
                                     'value': 'API_KEY', 'parameter_type': 'key_vault'},
