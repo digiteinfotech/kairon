@@ -8,7 +8,6 @@ import pytest
 import responses
 from fastapi import UploadFile
 from mongoengine import connect
-from mongomock.mongo_client import MongoClient
 
 from augmentation.utils import WebsiteParser
 from kairon import Utility
@@ -19,7 +18,6 @@ from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
-from kairon.history.processor import HistoryProcessor
 from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
@@ -461,6 +459,7 @@ class TestEventDefinitions:
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
+        assert logs[0]['is_augmented'] is True
 
     def test_model_testing_presteps_event_in_progress(self, monkeypatch):
         bot = 'test_definitions'

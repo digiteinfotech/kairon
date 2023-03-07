@@ -1027,6 +1027,7 @@ class TestEventExecution:
         assert not logs[0].get('end_timestamp')
         assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
+        assert logs[0]['is_augmented']
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
     @responses.activate
@@ -1052,6 +1053,7 @@ class TestEventExecution:
         assert not logs[0].get('end_timestamp')
         assert not logs[0].get('status')
         assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
+        assert not logs[0]['is_augmented']
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
     def test_trigger_history_deletion_for_bot(self):

@@ -98,6 +98,14 @@ class EVENT_STATUS(str, Enum):
     FAIL = "Fail"
 
 
+class ModelTestingLogType(str, Enum):
+    stories = "stories"
+    nlu = "nlu"
+    entity_evaluation_with_diet_classifier = "entity_evaluation_with_diet_classifier"
+    entity_evaluation_with_regex_entity_extractor = "entity_evaluation_with_regex_entity_extractor"
+    response_selection_evaluation = "response_selection_evaluation"
+
+
 class ENDPOINT_TYPE(str, Enum):
     BOT_ENDPOINT = "bot_endpoint"
     ACTION_ENDPOINT = "action_endpoint"

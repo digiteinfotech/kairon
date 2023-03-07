@@ -39,7 +39,8 @@ class ModelTestingEvent(EventsBase):
         try:
             augment_data = '--augment' if self.augment_data else ''
             payload = {'bot': self.bot, 'user': self.user, "augment_data": augment_data}
-            ModelTestingLogProcessor.log_test_result(self.bot, self.user, event_status=EVENT_STATUS.ENQUEUED.value)
+            ModelTestingLogProcessor.log_test_result(self.bot, self.user, self.augment_data,
+                                                     event_status=EVENT_STATUS.ENQUEUED.value)
             Utility.request_event_server(EventClass.model_testing, payload)
         except Exception as e:
             ModelTestingLogProcessor.delete_enqueued_event_log(self.bot)
