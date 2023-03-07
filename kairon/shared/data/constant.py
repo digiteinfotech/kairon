@@ -98,7 +98,7 @@ class EVENT_STATUS(str, Enum):
     FAIL = "Fail"
 
 
-class LOG_TYPE(str, Enum):
+class ModelTestingLogType(str, Enum):
     stories = "stories"
     nlu = "nlu"
     entity_evaluation_with_diet_classifier = "entity_evaluation_with_diet_classifier"
