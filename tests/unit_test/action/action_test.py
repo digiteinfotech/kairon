@@ -145,36 +145,85 @@ class TestActions:
         assert 'Authorization' not in responses.calls[0].request.headers
 
     def test_prepare_url_with_path_params_and_query_params(self):
-        http_url = 'http://localhost:8080/mock/$SENDER_ID/$INTENT/$USER_MESSAGE/$email?sender_id=$SENDER_ID&userid=1011&intent=$INTENT&msg=$USER_MESSAGE&email=$email'
+        http_url = 'http://localhost:8080/mock/$SENDER_ID/$INTENT/$USER_MESSAGE/$$KEY_VAULT/$$AWS/$email?sender_id=$SENDER_ID&userid=1011&intent=$INTENT&msg=$USER_MESSAGE&key=$$KEY_VAULT&aws=$$AWS&email=$email'
         tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
-                        'sender_id': "987654321", "intent": "greet", "user_message": "hello"}
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello",
+                        'key_vault': {'EMAIL': 'nkhare@digite.com', 'KEY_VAULT': '123456789-0lmgxzxdfghj', 'AWS': '435fdr'}}
         updated_url = ActionUtility.prepare_url(http_url, tracker_data)
-        assert updated_url == 'http://localhost:8080/mock/987654321/greet/hello/udit.pandey@digite.com?sender_id=987654321&userid=1011&intent=greet&msg=hello&email=udit.pandey@digite.com'
+        assert updated_url == 'http://localhost:8080/mock/987654321/greet/hello/123456789-0lmgxzxdfghj/435fdr/udit.pandey@digite.com?sender_id=987654321&userid=1011&intent=greet&msg=hello&key=123456789-0lmgxzxdfghj&aws=435fdr&email=udit.pandey@digite.com'
 
         tracker_data['user_message'] = '/custom_action{"kairon_user_msg": "what is digite?"}'
         tracker_data[KAIRON_USER_MSG_ENTITY] = "what is digite?"
         updated_url = ActionUtility.prepare_url(http_url, tracker_data)
-        assert updated_url == 'http://localhost:8080/mock/987654321/greet/what is digite?/udit.pandey@digite.com?sender_id=987654321&userid=1011&intent=greet&msg=what is digite?&email=udit.pandey@digite.com'
+        assert updated_url == 'http://localhost:8080/mock/987654321/greet/what is digite?/123456789-0lmgxzxdfghj/435fdr/udit.pandey@digite.com?sender_id=987654321&userid=1011&intent=greet&msg=what is digite?&key=123456789-0lmgxzxdfghj&aws=435fdr&email=udit.pandey@digite.com'
 
     def test_prepare_url_without_params(self):
         http_url = 'http://localhost:8080/mock'
         tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
-                        'sender_id': "987654321", "intent": "greet", "user_message": "hello"}
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello",
+                        'key_vault': {'EMAIL': 'nkhare@digite.com', 'KEY_VAULT': '123456789-0lmgxzxdfghj'}}
         updated_url = ActionUtility.prepare_url(http_url, tracker_data)
         assert updated_url == http_url
 
     def test_prepare_url_with_multiple_placeholders(self):
-        http_url = 'http://localhost:8080/mock?sender_id1=$SENDER_ID&intent1=$INTENT&msg1=$USER_MESSAGE&email1=$email&sender_id=$SENDER_ID&intent=$INTENT&msg=$USER_MESSAGE&email=$email/'
+        http_url = 'http://localhost:8080/mock?sender_id1=$SENDER_ID&intent1=$INTENT&msg1=$USER_MESSAGE&key1=$$KEY_VAULT&email1=$email&sender_id=$SENDER_ID&intent=$INTENT&msg=$USER_MESSAGE&key=$$KEY_VAULT&email=$email/'
         tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
-                        'sender_id': "987654321", "intent": "greet", "user_message": "hello"}
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello",
+                        'key_vault': {'EMAIL': 'nkhare@digite.com', 'KEY_VAULT': '123456789-0lmgxzxdfghj'}}
         updated_url = ActionUtility.prepare_url(http_url, tracker_data)
-        assert updated_url == 'http://localhost:8080/mock?sender_id1=987654321&intent1=greet&msg1=hello&email1=udit.pandey@digite.com&sender_id=987654321&intent=greet&msg=hello&email=udit.pandey@digite.com/'
+        assert updated_url == 'http://localhost:8080/mock?sender_id1=987654321&intent1=greet&msg1=hello&key1=123456789-0lmgxzxdfghj&email1=udit.pandey@digite.com&sender_id=987654321&intent=greet&msg=hello&key=123456789-0lmgxzxdfghj&email=udit.pandey@digite.com/'
 
     def test_prepare_url_with_expression_failed_evaluation(self):
         http_url = 'http://localhost:8080/mock?sender_id=$SENDER_ID&intent=$INTENT&msg=$USER_MESSAGE&email=$email/'
         tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"}}
         updated_url = ActionUtility.prepare_url(http_url, tracker_data)
         assert updated_url == 'http://localhost:8080/mock?sender_id=&intent=&msg=&email=udit.pandey@digite.com/'
+
+    def test_prepare_url_with_expression_failed_evaluation_with_keyvault(self):
+        http_url = 'http://localhost:8080/mock?sender_id=$SENDER_ID&intent=$INTENT&msg=$USER_MESSAGE&key=$$KEY_VAULT&email=$email/'
+        tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"}}
+        updated_url = ActionUtility.prepare_url(http_url, tracker_data)
+        assert updated_url == 'http://localhost:8080/mock?sender_id=&intent=&msg=&key=&email=udit.pandey@digite.com/'
+
+    def test_build_context_with_keyvault_flag_True(self):
+        KeyVault(key="EMAIL", value="nkhare@digite.com", bot="5j59kk1a76b698ca10d35d2e", user="user").save()
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com", "firstname": "nupur"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        tracker_data = ActionUtility.build_context(tracker, True)
+        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents',
+                                'slot': {'bot': '5j59kk1a76b698ca10d35d2e', 'param2': 'param2value',
+                                         'email': 'nkhare@digite.com', 'firstname': 'nupur'}, 'intent': 'http_action',
+                                'chat_log': [], 'key_vault': {'EMAIL': 'nkhare@digite.com'}, 'kairon_user_msg': None,
+                                'session_started': None}
+
+    def test_build_context_with_keyvault_flag_False(self):
+        KeyVault(key="EMAIL", value="nkhare@digite.com", bot="5j59kk1a76b698ca10d35d2e", user="user").save()
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com", "firstname": "nupur"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        tracker_data = ActionUtility.build_context(tracker, False)
+        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents',
+                                'slot': {'bot': '5j59kk1a76b698ca10d35d2e', 'param2': 'param2value',
+                                         'email': 'nkhare@digite.com', 'firstname': 'nupur'}, 'intent': 'http_action',
+                                'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}
+
+    def test_build_context_no_keyvault(self):
+        slots = {"bot": "5z11mk1a76b698ca10d15d2e", "param2": "param2value", "email": "nupur@digite.com", "firstname": "nkhare"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'http_action'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        tracker_data = ActionUtility.build_context(tracker, True)
+        assert tracker_data == {'sender_id': 'sender1', 'user_message': 'get intents',
+                                'slot': {'bot': '5z11mk1a76b698ca10d15d2e', 'param2': 'param2value',
+                                         'email': 'nupur@digite.com', 'firstname': 'nkhare'}, 'intent': 'http_action',
+                                'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None,
+                                'session_started': None}
 
     def test_execute_http_request_invalid_method_type(self):
         http_url = 'http://localhost:8080/mock'
