@@ -134,7 +134,7 @@ class ActionUtility:
         return value
 
     @staticmethod
-    def build_context(tracker: Tracker):
+    def build_context(tracker: Tracker, extract_keyvault: bool = False):
         """
         Creates a dict of tracker object that contains contextual information
         required for filling parameter values based on its type or using it to
@@ -144,12 +144,17 @@ class ActionUtility:
         :return: dict of required parameters.
         """
         iat, msg_trail = ActionUtility.prepare_message_trail(tracker.events)
+        key_vault = {}
+        if extract_keyvault:
+            bot = tracker.get_slot('bot')
+            key_vault = ActionUtility.get_all_secrets_from_keyvault(bot)
         return {
             ActionParameterType.sender_id.value: tracker.sender_id,
             ActionParameterType.user_message.value: tracker.latest_message.get('text'),
             ActionParameterType.slot.value: tracker.current_slot_values(),
             ActionParameterType.intent.value: tracker.get_intent_of_latest_message(),
             ActionParameterType.chat_log.value: msg_trail,
+            ActionParameterType.key_vault.value: key_vault,
             KAIRON_USER_MSG_ENTITY: next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None),
             "session_started": iat
         }
@@ -173,6 +178,23 @@ class ActionUtility:
         if not Utility.check_empty_string(value):
             value = Utility.decrypt_message(value)
         return value
+
+    @staticmethod
+    def get_all_secrets_from_keyvault(bot: Text):
+        """
+        Get secret value for key from key vault.
+
+        :param key: key to be added
+        :param raise_err: raise error if key does not exists
+        :param bot: bot id
+        """
+        secrets = {}
+        for keyvault in KeyVault.objects(bot=bot):
+            value = keyvault.value
+            if not Utility.check_empty_string(value):
+                value = Utility.decrypt_message(value)
+            secrets.update({keyvault.key: value})
+        return secrets
 
     @staticmethod
     def prepare_message_trail(tracker_events):
@@ -212,7 +234,7 @@ class ActionUtility:
     def prepare_url(http_url: str, tracker_data: dict):
         """
         Forms URL by replacing placeholders in it with values from tracker.
-        Supports substitution of sender_id, intent, user message and slot in the URL.
+        Supports substitution of sender_id, intent, user message, key_vault and slot in the URL.
 
         @param http_url: HTTP Url
         @param tracker_data: tracker containing contextual info.
@@ -226,9 +248,20 @@ class ActionUtility:
         http_url = http_url.replace("$SENDER_ID", tracker_data.get(ActionParameterType.sender_id.value, ""))
         http_url = http_url.replace("$INTENT", tracker_data.get(ActionParameterType.intent.value, ""))
         http_url = http_url.replace("$USER_MESSAGE", user_msg)
-        for slot, value in tracker_data.get(ActionParameterType.slot.value, {}).items():
-            value = str(value) if value else ""
-            http_url = http_url.replace(f"${slot}", value)
+
+        pattern_keyvault = r'\$\$\w+'
+        key_vault_params = re.findall(pattern_keyvault, http_url)
+        for param in key_vault_params:
+            name = param.replace("$$", "")
+            value = tracker_data.get(ActionParameterType.key_vault.value, {}).get(name, "")
+            http_url = http_url.replace(param, value)
+
+        pattern_slot = r'\$\w+'
+        slot_params = re.findall(pattern_slot, http_url)
+        for param in slot_params:
+            name = param.replace("$", "")
+            value = tracker_data.get(ActionParameterType.slot.value, {}).get(name, "")
+            http_url = http_url.replace(param, value)
         return http_url
 
     @staticmethod
