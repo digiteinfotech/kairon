@@ -864,6 +864,7 @@ class AccountProcessor:
                 set__status=ACTIVITY_STATUS.DELETED.value)
             user.status = False
             user.save()
+            UserEmailConfirmation.objects(email=user.email).delete()
             UserActivityLogger.add_log(account=account_id, email=user.email, a_type=UserActivityType.delete_user.value)
 
         account_obj.status = False
