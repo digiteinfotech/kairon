@@ -14,7 +14,11 @@ from slack.web.slack_response import SlackResponse
 from kairon.chat.utils import ChatUtils
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.auth import Authentication
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
+from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 import mock
 from pymongo.errors import ServerSelectionTimeoutError
@@ -452,3 +456,79 @@ class TestChat:
         history, message = ChatUtils.get_last_session_conversation(bot, "fshaikh@digite.com")
         assert len(history) == 2
         assert message is None
+
+    def test_save_channel_config_msteams(self, monkeypatch):
+        bot = '5e564fbcdcf0d5fad89e3acd'
+
+        def _get_integration_token(*args, **kwargs):
+            return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
+
+        monkeypatch.setattr(Authentication, "generate_integration_token", _get_integration_token)
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "msteams", "config": {
+                "app_id": "app123",
+                "app_secret": "appsecret123"
+            }}, bot, "test@chat.com")
+        msteams = ChatDataProcessor.get_channel_endpoint("msteams", bot)
+        hashcode = channel_url.split("/", -1)[-1]
+        dbhashcode = msteams.split("/", -1)[-1]
+        assert hashcode == dbhashcode
+
+    def test_get_channel_end_point_msteams(self, monkeypatch):
+        bot = '5e564fbcdcf0d5fad89e3acd'
+
+        def _get_integration_token(*args, **kwargs):
+            return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
+
+        monkeypatch.setattr(Authentication, "generate_integration_token", _get_integration_token)
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "msteams", "config": {
+                "app_id": "app123",
+                "app_secret": "appsecret123"
+            }}, bot, "test@chat.com")
+        channel = Channels.objects(bot=bot, connector_type="msteams").get()
+        response = DataUtility.get_channel_endpoint(channel)
+        second_hashcode = response.split("/", -1)[-1]
+        scnd_msteams = ChatDataProcessor.get_channel_config("msteams", bot, mask_characters=False)
+        dbcode = scnd_msteams["meta_config"]["secrethash"]
+        assert second_hashcode == dbcode
+
+    def test_save_channel_meta_msteams(self, monkeypatch):
+        bot = '5e564fbcdcf0d5fad89e3acd'
+
+        def _get_integration_token(*args, **kwargs):
+            return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
+
+        monkeypatch.setattr(Authentication, "generate_integration_token", _get_integration_token)
+
+        channel_url = ChatDataProcessor.save_channel_config({
+            "connector_type": "msteams", "config": {
+                "app_id": "app123",
+                "app_secret": "appsecret123"
+            }}, bot, "test@chat.com")
+        token, _ = Authentication.generate_integration_token(
+            bot, "test@chat.com", role=ACCESS_ROLES.CHAT.value,
+            access_limit=[f"/api/bot/msteams/{bot}/.+"],
+            token_type=TOKEN_TYPE.CHANNEL.value)
+        channel = Channels.objects(bot=bot, connector_type="msteams").get()
+        hashcode = DataUtility.save_channel_metadata(config=channel, token=token)
+        channel_config = ChatDataProcessor.get_channel_config("msteams", bot, mask_characters=False)
+        dbhashcode = channel_config["meta_config"]["secrethash"]
+        assert hashcode == dbhashcode
+
+    def test_get_channel_end_point_whatsapp(self, monkeypatch):
+        bot = '5e564fbcdcf0d5fad89e3acd'
+
+        def _mock_generate_integration_token(*arge, **kwargs):
+            return "testtoken", "ignore"
+
+        with patch.object(Authentication, "generate_integration_token", _mock_generate_integration_token):
+            channel_url = ChatDataProcessor.save_channel_config({
+                "connector_type": "whatsapp", "config": {
+                    "app_secret": "app123",
+                    "access_token": "appsecret123", "verify_token": "integrate_1"
+                }}, bot, "test@chat.com")
+            channel = Channels.objects(bot=bot, connector_type="whatsapp").get()
+            response = DataUtility.get_channel_endpoint(channel)
+            last_urlpart = response.split("/", -1)[-1]
+            assert last_urlpart == "testtoken"

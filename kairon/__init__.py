@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from mongoengine import connect
 from kairon.shared.utils import Utility
+from loguru import logger
 
 """
 CLI to train or import(and validate) data into kairon.
@@ -64,4 +65,5 @@ def cli():
     arguments = parser.parse_args()
     Utility.load_environment()
     connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+    logger.debug(arguments)
     arguments.func(arguments)

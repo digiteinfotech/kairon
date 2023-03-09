@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class CHANNEL_TYPES(str, Enum):
     HANGOUT = "hangout"
     MESSENGER = "messenger"
@@ -7,6 +8,7 @@ class CHANNEL_TYPES(str, Enum):
     TELEGRAM = "telegram"
     WHATSAPP = "whatsapp"
     MSTEAMS = "msteams"
+
 
 class ELEMENT_TYPE(str, Enum):
     LINK = "link"

@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import html
 import json
 import os
 import re
@@ -59,6 +60,7 @@ from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK
 from .data.dto import KaironStoryStep
 from .models import StoryStepType
+from ..chat.converters.channels.constants import CHANNEL_TYPES
 from ..exceptions import AppException
 
 
@@ -1344,17 +1346,38 @@ class Utility:
             raise AppException(e)
 
     @staticmethod
+    def validate_channel(channel, config, error, encrypt=True):
+        if channel == CHANNEL_TYPES.WHATSAPP.value and config.get('bsp_type'):
+            Utility.validate_whatsapp_bsp(channel, config, error, encrypt)
+        else:
+            Utility.validate_channel_config(channel, config, error, encrypt)
+
+    @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
         if channel in list(Utility.system_metadata['channels'].keys()):
             for required_field in Utility.system_metadata['channels'][channel]['required_fields']:
+                err_msg = f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config"
                 if required_field not in config:
-                    raise error(
-                        f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config")
+                    raise error(err_msg)
                 else:
                     if encrypt:
                         config[required_field] = Utility.encrypt_message(config[required_field])
         else:
             raise error(f"Invalid channel type {channel}")
+
+    @staticmethod
+    def validate_whatsapp_bsp(channel, config, error, encrypt=True):
+        bsp_type = config.get('bsp_type')
+        if bsp_type and bsp_type in Utility.system_metadata['channels']["whatsapp"]["business_providers"].keys():
+            for required_field in Utility.system_metadata['channels']["whatsapp"]["business_providers"][bsp_type]['required_fields']:
+                err_msg = f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config"
+                if required_field not in config:
+                    raise error(err_msg)
+                else:
+                    if encrypt:
+                        config[required_field] = Utility.encrypt_message(config[required_field])
+        else:
+            raise error(f"Invalid business service provider type {channel}")
 
     @staticmethod
     def get_channels():
@@ -1729,6 +1752,12 @@ class Utility:
         utc_locale = utcdatetime.replace(tzinfo=pytz.utc).astimezone(zone).strftime(date_format)
         utc_locale_datetime = datetime.strptime(utc_locale, date_format)
         return utc_locale_datetime
+
+    @staticmethod
+    def sanitise_data(value: Text):
+        if Utility.check_empty_string(value):
+            raise AppException("Value can not be empty")
+        return html.escape(value)
 
 
 class StoryValidator:

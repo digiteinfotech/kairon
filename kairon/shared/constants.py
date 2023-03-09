@@ -80,3 +80,7 @@ class PluginTypes(str, Enum):
 class ChannelTypes(str, Enum):
     MSTEAMS = "msteams"
     WHATSAPP = "whatsapp"
+
+
+class WhatsappBSPTypes(str, Enum):
+    bsp_360dialog = "360dialog"

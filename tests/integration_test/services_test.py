@@ -32,7 +32,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
     KAIRON_TWO_STAGE_FALLBACK, FeatureMappings
-from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig
+from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig, BotSettings
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
@@ -10368,7 +10368,7 @@ def test_add_channel_config_error():
                 "client_secret": "cf92180a7634d90bf42a217408376878"
             }}
     response = client.post(
-        f"/api/bot/{pytest.bot}/channels",
+        f"/api/bot/{pytest.bot}/channels/add",
         json=data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -10383,7 +10383,7 @@ def test_add_channel_config_error():
                 "slack_signing_secret": "79f036b9894eef17c064213b90d1042b"}}
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/channels",
+        f"/api/bot/{pytest.bot}/channels/add",
         json=data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -10398,7 +10398,7 @@ def test_add_channel_config_error():
             "config": {
                 "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K"}}
     response = client.post(
-        f"/api/bot/{pytest.bot}/channels",
+        f"/api/bot/{pytest.bot}/channels/add",
         json=data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -10417,7 +10417,7 @@ def test_add_channel_config_error():
                 "client_secret": "cf92180a7634d90bf42a217408376878", "is_primary": False
             }}
     response = client.post(
-        f"/api/bot/{pytest.bot}/channels",
+        f"/api/bot/{pytest.bot}/channels/add",
         json=data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -10456,7 +10456,7 @@ def test_add_channel_config(monkeypatch):
             use_sync_aiohttp=False,
         ).validate()
         response = client.post(
-            f"/api/bot/{pytest.bot}/channels",
+            f"/api/bot/{pytest.bot}/channels/add",
             json=data,
             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         )
@@ -10465,6 +10465,84 @@ def test_add_channel_config(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["message"] == "Channel added"
     assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
+
+
+def test_initiate_bsp_onboarding_failure(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(whatsapp_bsp="360dialog", bot=pytest.bot, user="test_user")
+
+    monkeypatch.setitem(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"].startswith("Failed to get partner auth token: BAD REQUEST")
+    assert actual["data"] is None
+
+
+def test_initiate_bsp_onboarding_disabled(monkeypatch):
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Feature disabled for this account. Please contact support!"
+    assert actual["data"] is None
+
+
+def test_initiate_bsp_onboarding(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(whatsapp_bsp="360dialog", bot=pytest.bot, user="test_user")
+
+    monkeypatch.setitem(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
+
+    with patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account") as mock_get_account:
+        mock_get_account.return_value = "dfghj5678"
+        with patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key") as mock_generate_waba_key:
+            mock_generate_waba_key.return_value = "dfghjk5678"
+            response = client.post(
+                f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+                headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Channel added"
+    assert actual["data"].startswith(f"http://kairon-api.digite.com/api/bot/whatsapp/{pytest.bot}/e")
+
+
+def test_post_process(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(whatsapp_bsp="360dialog", bot=pytest.bot, user="test_user")
+
+    monkeypatch.setitem(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
+
+    with patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account") as mock_get_account:
+        mock_get_account.return_value = "dfghj5678"
+        with patch(
+                "kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key") as mock_generate_waba_key:
+            mock_generate_waba_key.return_value = "dfghjk5678"
+            response = client.post(
+                f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+                headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Credentials refreshed!'
+    assert actual["data"].startswith(f"http://kairon-api.digite.com/api/bot/whatsapp/{pytest.bot}/e")
 
 
 def test_get_channel_endpoint(monkeypatch):
@@ -10481,15 +10559,48 @@ def test_get_channel_endpoint(monkeypatch):
 
 def test_get_channels_config():
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels",
+        f"/api/bot/{pytest.bot}/channels/list",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] is None
-    assert len(actual['data']) == 1
+    assert len(actual['data']) == 2
     pytest.slack_channel_id = actual['data'][0]['_id']
+    actual["data"][0].pop("_id")
+    actual["data"][1].pop("_id")
+    assert actual["data"] == [
+        {'bot': pytest.bot, 'connector_type': 'slack',
+         'config': {'bot_user_oAuth_token': 'xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vamm*****',
+                    'slack_signing_secret': '79f036b9894eef17c064213b90d*****',
+                    'client_id': '3396830255712.33968616548768*****',
+                    'client_secret': 'cf92180a7634d90bf42a2174083*****', 'is_primary': True,
+                    'team': {'id': 'T03BNQE7HLX', 'name': 'helicopter'}}, 'meta_config': {}},
+        {'bot': pytest.bot, 'connector_type': 'whatsapp',
+         'config': {'client_name': 'k*****', 'client_id': 'sdfgh5678', 'channel_id': 'sdfghjk678',
+                    'partner_id': 'f167CmPA', 'waba_account_id': 'dfghj5678', 'api_key': 'dfghjk5678',
+                    'bsp_type': '360dialog'}, 'meta_config': {}}]
+
+
+def test_get_bot_settings():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    actual["data"].pop("bot")
+    actual["data"].pop("user")
+    actual["data"].pop("timestamp")
+    actual["data"].pop("status")
+    assert actual['data'] == {
+        "ignore_utterances": False, "force_import": False, "rephrase_response": False,
+        "website_data_generator_depth_search_limit": 2, "chat_token_expiry": 30,
+        "refresh_token_expiry": 60, 'enable_gpt_llm_faq': False, 'whatsapp': 'meta'
+    }
 
 
 def test_delete_channels_config():

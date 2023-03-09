@@ -1,5 +1,8 @@
 from mongoengine import Document, StringField, DictField, DateTimeField, ValidationError
 from datetime import datetime
+
+from kairon.chat.converters.channels.constants import CHANNEL_TYPES
+from kairon.shared.constants import WhatsappBSPTypes
 from kairon.shared.data.signals import push_notification
 from kairon.shared.utils import Utility
 
@@ -15,8 +18,15 @@ class Channels(Document):
 
     def validate(self, clean=True):
         from kairon.shared.data.utils import DataUtility
+        from kairon.shared.data.processor import MongoProcessor
 
-        Utility.validate_channel_config(self.connector_type, self.config, ValidationError)
+        bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
+        bot_settings = bot_settings.to_mongo().to_dict()
+        bsp_type = self.config.get('bsp_type', "meta")
+        if self.connector_type == CHANNEL_TYPES.WHATSAPP.value and bot_settings["whatsapp"] != bsp_type:
+            raise ValidationError("Feature disabled for this account. Please contact support!")
+
+        Utility.validate_channel(self.connector_type, self.config, ValidationError)
         if self.connector_type == "telegram":
             webhook_url = DataUtility.get_channel_endpoint({
                 'bot': self.bot, 'user': self.user, 'connector_type': self.connector_type

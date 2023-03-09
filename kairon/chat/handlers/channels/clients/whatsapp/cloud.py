@@ -4,13 +4,16 @@ import logging
 
 import requests
 
+from kairon import Utility
+from kairon.exceptions import AppException
+
 logger = logging.getLogger(__name__)
 
 
 DEFAULT_API_VERSION = 13.0
 
 
-class WhatsappClient(object):
+class WhatsappCloud(object):
 
     # https://developers.facebook.com/docs/whatsapp/cloud-api/guides
     MESSAGING_TYPES = {
@@ -22,7 +25,7 @@ class WhatsappClient(object):
         'template'
     }
 
-    def __init__(self, access_token, from_phone_number_id, **kwargs):
+    def __init__(self, access_token, **kwargs):
         """
             @required:
                 access_token
@@ -33,10 +36,12 @@ class WhatsappClient(object):
         """
 
         self.access_token = access_token
-        self.from_phone_number_id = from_phone_number_id
+        self.from_phone_number_id = kwargs.get('from_phone_number_id')
+        if Utility.check_empty_string(self.from_phone_number_id):
+            raise AppException("missing parameter 'from_phone_number_id'")
         self.session = kwargs.get('session', requests.Session())
         self.api_version = kwargs.get('api_version', DEFAULT_API_VERSION)
-        self.graph_url = 'https://graph.facebook.com/v{api_version}'.format(api_version=self.api_version)
+        self.app = 'https://graph.facebook.com/v{api_version}'.format(api_version=self.api_version)
         self.app_secret = kwargs.get('app_secret')
 
     @property
@@ -106,9 +111,7 @@ class WhatsappClient(object):
             @outputs: response json
         """
         r = self.session.post(
-            '{graph_url}/{from_phone_number_id}/messages'.format(
-                graph_url=self.graph_url, from_phone_number_id=self.from_phone_number_id
-            ),
+            '{app}/{from_phone_number_id}/messages'.format(app=self.app, from_phone_number_id=self.from_phone_number_id),
             params=self.auth_args,
             json=payload,
             timeout=timeout
@@ -124,13 +127,15 @@ class WhatsappClient(object):
             @outputs: response json
         """
         r = self.session.get(
-            '{graph_url}/{attachment_id}'.format(
-                graph_url=self.graph_url, attachment_id=attachment_id
-            ),
+            '{app}/{attachment_id}'.format(app=self.app, attachment_id=attachment_id),
             params=self.auth_args,
             timeout=timeout
         )
         return r.json()
+
+    def mark_as_read(self, msg_id, timeout=None):
+        payload = {"messaging_product": "whatsapp", "status": "read", "message_id": msg_id}
+        return self.send_action(payload)
 
     def generate_appsecret_proof(self):
         """

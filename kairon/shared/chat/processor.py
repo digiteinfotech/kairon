@@ -6,6 +6,7 @@ from .data_objects import Channels
 from datetime import datetime
 from kairon.shared.utils import Utility
 from ..data.utils import DataUtility
+from ...chat.converters.channels.constants import CHANNEL_TYPES
 from ...exceptions import AppException
 
 
@@ -71,11 +72,7 @@ class ChatDataProcessor:
             data = channel.to_mongo().to_dict()
             data['_id'] = data['_id'].__str__()
             data.pop("timestamp")
-            channel_params = Utility.system_metadata['channels'][data['connector_type']]
-            for require_field in channel_params['required_fields']:
-                data['config'][require_field] = Utility.decrypt_message(data['config'][require_field])
-                if mask_characters:
-                    data['config'][require_field] = data['config'][require_field][:-5] + '*****'
+            ChatDataProcessor.__prepare_config(data, mask_characters)
             yield data
 
     @staticmethod
@@ -91,13 +88,27 @@ class ChatDataProcessor:
         config = Channels.objects(**kwargs).exclude("user").get().to_mongo().to_dict()
         logger.debug(config)
         config.pop("timestamp")
-        channel_params = Utility.system_metadata['channels'][config['connector_type']]
-        for require_field in channel_params['required_fields']:
-            config['config'][require_field] = Utility.decrypt_message(config['config'][require_field])
-            if mask_characters:
-                config['config'][require_field] = config['config'][require_field][:-5] + '*****'
-
+        ChatDataProcessor.__prepare_config(config, mask_characters)
         return config
+
+    @staticmethod
+    def __prepare_config(config: dict, mask_characters: bool):
+        connector_type = config['connector_type']
+        if connector_type == CHANNEL_TYPES.WHATSAPP.value and config['config'].get('bsp_type'):
+            bsp_type = config['config']['bsp_type']
+            channel_params = Utility.system_metadata['channels'][connector_type]["business_providers"][bsp_type]
+            ChatDataProcessor.__prepare_required_fields(config, channel_params, mask_characters)
+        else:
+            channel_params = Utility.system_metadata['channels'][connector_type]
+            ChatDataProcessor.__prepare_required_fields(config, channel_params, mask_characters)
+        return config
+
+    @staticmethod
+    def __prepare_required_fields(data: dict, channel_params, mask_characters: bool):
+        for require_field in channel_params['required_fields']:
+            data['config'][require_field] = Utility.decrypt_message(data['config'][require_field])
+            if mask_characters:
+                data['config'][require_field] = data['config'][require_field][:-5] + '*****'
 
     @staticmethod
     def get_channel_endpoint(connector_type: Text, bot: Text):

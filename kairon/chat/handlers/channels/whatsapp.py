@@ -1,9 +1,12 @@
 from typing import Optional, Dict, Text, Any, List, Union
 
 from rasa.core.channels import OutputChannel, UserMessage
+from tornado.ioloop import IOLoop
 
 from kairon.chat.agent_processor import AgentProcessor
-from kairon.chat.handlers.channels.clients.whatsapp import WhatsappClient
+from kairon.chat.converters.channels.constants import CHANNEL_TYPES
+from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 from kairon.chat.handlers.channels.messenger import MessengerHandler
 import json
 import logging
@@ -13,6 +16,7 @@ from tornado.escape import json_decode
 
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
+from kairon.shared.constants import WhatsappBSPTypes
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +24,15 @@ logger = logging.getLogger(__name__)
 class Whatsapp:
     """Whatsapp input channel to parse incoming webhooks and send msgs."""
 
-    def __init__(self, page_access_token: Text) -> None:
+    def __init__(self, config: dict) -> None:
         """Init whatsapp input channel."""
-        self.page_access_token = page_access_token
+        self.config = config
+        self.page_access_token = config.get('api_key')
         self.last_message: Dict[Text, Any] = {}
 
     @classmethod
     def name(cls) -> Text:
-        return "whatsapp"
+        return CHANNEL_TYPES.WHATSAPP.value
 
     async def message(
             self, message: Dict[Text, Any], metadata: Optional[Dict[Text, Any]], bot: str
@@ -36,7 +41,7 @@ class Whatsapp:
 
         # quick reply and user message both share 'text' attribute
         # so quick reply should be checked first
-        if message.get("type") == "interactive" and message.get("interactive").get("type")=="button_reply":
+        if message.get("type") == "interactive" and message.get("interactive").get("type") == "button_reply":
             text = message["interactive"]["button_reply"]["id"]
         elif message.get("type") == "text":
             text = message["text"]['body']
@@ -51,19 +56,50 @@ class Whatsapp:
         message.update(metadata)
         await self._handle_user_message(text, message["from"], message, bot)
 
-    async def handle(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
+    async def __handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
         for entry in payload["entry"]:
             for changes in entry["changes"]:
                 self.last_message = changes
-                self.client = WhatsappClient(self.page_access_token, self.get_business_phone_number_id())
+                client = WhatsappFactory.get_client("meta")
+                self.client = client(self.page_access_token, from_phone_number_id=self.get_business_phone_number_id())
                 msg_metadata = changes.get("value", {}).get("metadata", {})
                 metadata.update(msg_metadata)
                 messages = changes.get("value", {}).get("messages")
                 for message in messages:
-                    return await self.message(message, metadata, bot)
+                    await self.message(message, metadata, bot)
+
+    async def handle_meta_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
+        msg = "success"
+        payload = json_decode(request.body)
+        app_secret = self.config["app_secret"]
+        signature = request.headers.get("X-Hub-Signature") or ""
+        if not MessengerHandler.validate_hub_signature(app_secret, request.body, signature):
+            logger.warning("Wrong app secret secret! Make sure this matches the secret in your whatsapp app settings.")
+            msg = "not validated"
+            return msg
+
+        await self.__handle_meta_payload(payload, metadata, bot)
+        return msg
+
+    async def handle_360dialog_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
+        payload = json_decode(request.body)
+        if payload.get("messages"):
+            IOLoop.current().spawn_callback(self.__handle_360dialog_payload, payload, metadata, bot)
+        return "success"
+
+    async def __handle_360dialog_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
+        for msg in payload.get("messages", {}):
+            self.last_message = msg
+            client = WhatsappFactory.get_client(WhatsappBSPTypes.bsp_360dialog.value)
+            self.client = client(self.page_access_token, config=self.config, from_phone_number_id=self.get_business_phone_number_id())
+            metadata.update(msg)
+            await self.message(msg, metadata, bot)
 
     def get_business_phone_number_id(self) -> Text:
-        return self.last_message.get("value", {}).get("metadata", {}).get("phone_number_id", "")
+        if WhatsappBSPTypes.bsp_360dialog.value == self.config.get('bsp_type'):
+            return self.last_message.get("from")
+        else:
+            return self.last_message.get("value", {}).get("metadata", {}).get("phone_number_id", "")
 
     async def _handle_user_message(
             self, text: Text, sender_id: Text, metadata: Optional[Dict[Text, Any]], bot: str
@@ -76,8 +112,9 @@ class Whatsapp:
         )
         try:
             await self.process_message(bot, user_msg)
-        except Exception:
+        except Exception as e:
             logger.exception("Exception when trying to handle webhook for whatsapp message.")
+            logger.exception(e)
 
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
@@ -89,9 +126,9 @@ class WhatsappBot(OutputChannel):
 
     @classmethod
     def name(cls) -> Text:
-        return "whatsapp"
+        return CHANNEL_TYPES.WHATSAPP.value
 
-    def __init__(self, whatsapp_client: WhatsappClient) -> None:
+    def __init__(self, whatsapp_client: WhatsappCloud) -> None:
         """Init whatsapp output channel."""
         self.whatsapp_client = whatsapp_client
         super().__init__()
@@ -123,7 +160,7 @@ class WhatsappBot(OutputChannel):
         Args:
             msg_id: message id
         """
-        self.whatsapp_client.send_action({"messaging_product": "whatsapp", "status": "read", "message_id": msg_id})
+        self.whatsapp_client.mark_as_read(msg_id)
 
     async def send_custom_json(
             self,
@@ -136,7 +173,7 @@ class WhatsappBot(OutputChannel):
         type_list = Utility.system_metadata.get("type_list")
         message = json_message.get("data")
         messagetype = json_message.get("type")
-        content_type = {"link":"text","video":"text","image":"image","button":"interactive"}
+        content_type = {"link": "text", "video": "text", "image": "image", "button": "interactive"}
         if messagetype is not None and messagetype in type_list:
             messaging_type = content_type.get(messagetype)
             from kairon.chat.converters.channels.response_factory import ConverterFactory
@@ -153,7 +190,7 @@ class WhatsappHandler(MessengerHandler):
     async def get(self, bot: str, token: str):
         super().authenticate_channel(token, bot, self.request)
         self.set_status(HTTPStatus.OK)
-        messenger_conf = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
+        messenger_conf = ChatDataProcessor.get_channel_config(CHANNEL_TYPES.WHATSAPP.value, bot, mask_characters=False)
 
         verify_token = messenger_conf["config"]["verify_token"]
 
@@ -168,21 +205,19 @@ class WhatsappHandler(MessengerHandler):
 
     async def post(self, bot: str, token: str):
         user = super().authenticate_channel(token, bot, self.request)
-        messenger_conf = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
-
-        app_secret = messenger_conf["config"]["app_secret"]
-        access_token = messenger_conf["config"]["access_token"]
-
-        signature = self.request.headers.get("X-Hub-Signature") or ""
-        if not self.validate_hub_signature(app_secret, self.request.body, signature):
-            logger.warning("Wrong app secret secret! Make sure this matches the secret in your whatsapp app settings.")
-            self.write("not validated")
-            return
-
-        messenger = Whatsapp(access_token)
-
+        channel_conf = ChatDataProcessor.get_channel_config(CHANNEL_TYPES.WHATSAPP.value, bot, mask_characters=False)
+        whatsapp_channel = Whatsapp(channel_conf["config"])
+        client = channel_conf["config"].get("bsp_type", "meta")
         metadata = self.get_metadata(self.request) or {}
-        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "whatsapp"})
-        await messenger.handle(json_decode(self.request.body), metadata, bot)
-        self.write("success")
+        metadata.update({
+            "is_integration_user": True, "bot": bot, "account": user.account,
+            "channel_type": CHANNEL_TYPES.WHATSAPP.value, "bsp_type": client
+        })
+        client_handlers = {
+            "meta": whatsapp_channel.handle_meta_payload,
+            WhatsappBSPTypes.bsp_360dialog.value: whatsapp_channel.handle_360dialog_payload
+        }
+        msg = await client_handlers[client](self.request, metadata, bot)
+        self.set_status(HTTPStatus.OK)
+        self.write(msg)
         return

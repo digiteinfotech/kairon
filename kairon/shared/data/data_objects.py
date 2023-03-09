@@ -34,6 +34,8 @@ from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType, StoryStepType
 from validators import domain
 
+from ..constants import WhatsappBSPTypes
+
 
 
 class Entity(EmbeddedDocument):
@@ -737,6 +739,7 @@ class BotSettings(Auditlog):
     enable_gpt_llm_faq = BooleanField(default=False)
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
+    whatsapp = StringField(default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value])
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

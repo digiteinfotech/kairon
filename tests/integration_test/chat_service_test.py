@@ -16,9 +16,8 @@ from kairon.chat.handlers.channels.messenger import MessengerHandler
 from kairon.chat.server import make_app
 from kairon.chat.utils import ChatUtils
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.auth import Authentication
-from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.data.constant import TOKEN_TYPE, INTEGRATION_STATUS
+from kairon.shared.data.constant import INTEGRATION_STATUS
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
 from kairon.shared.metering.constants import MetricType
@@ -29,9 +28,7 @@ import responses
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.auth import Authentication
-from kairon.shared.data.utils import DataUtility
-from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
-from kairon.shared.chat.data_objects import Channels
+from kairon.shared.data.constant import TOKEN_TYPE
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
@@ -93,6 +90,17 @@ ChatDataProcessor.save_channel_config({
     "connector_type": "whatsapp",
     "config": {"app_secret": "jagbd34567890", "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ", "verify_token": "valid"}},
     bot, user="test@chat.com"
+)
+settings = BotSettings.objects(bot=bot2, status=True).get()
+settings.whatsapp = "360dialog"
+settings.save()
+
+ChatDataProcessor.save_channel_config({
+    "connector_type": "whatsapp",
+    "config": {
+        'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl', 'partner_id': 'test_partner',
+        'bsp_type': '360dialog', 'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'
+    }}, bot2, user="test@chat.com"
 )
 responses.start()
 encoded_url = urlencode({'url': f"https://test@test.com/api/bot/telegram/{bot}/test"}, quote_via=quote_plus)
@@ -804,11 +812,11 @@ class TestChatServer(AsyncHTTPTestCase):
 
     def test_whatsapp_channel_not_configured(self):
         access_token, _ = Authentication.generate_integration_token(
-            bot2, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/chat'], name="whatsapp integration"
+            bot3, "test@chat.com", expiry=5, access_limit=['/api/bot/.+/chat'], name="whatsapp integration"
         )
 
         response = self.fetch(
-            f"/api/bot/whatsapp/{bot2}/{access_token}",
+            f"/api/bot/whatsapp/{bot3}/{access_token}",
             headers={"hub.verify_token": "valid"},
             method="POST",
             body=json.dumps({
@@ -1089,6 +1097,112 @@ class TestChatServer(AsyncHTTPTestCase):
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
+
+    @responses.activate
+    def test_whatsapp_bsp_valid_text_message_request(self):
+        responses.add(
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
+        )
+        responses.add(
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+        )
+        response = self.fetch(
+            f"/api/bot/whatsapp/{bot2}/{token}",
+            method="POST",
+            body=json.dumps({
+                "contacts": [
+                    {
+                        "profile": {
+                            "name": "kAIron"
+                        },
+                        "wa_id": "919999900000"
+                    }
+                ],
+                "messages": [
+                    {
+                        "from": "919657055022",
+                        "id": "ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
+                        "text": {
+                            "body": "hi Postman"
+                        },
+                        "timestamp": "1677604539",
+                        "type": "text"
+                    }
+                ]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+        responses.reset()
+
+    @responses.activate
+    def test_whatsapp_bsp_valid_button_message_request(self):
+        responses.add(
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
+        )
+        responses.add(
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+        )
+        response = self.fetch(
+            f"/api/bot/whatsapp/{bot2}/{token}",
+            method="POST",
+            body=json.dumps({
+                "contacts": [{
+                    "profile": {
+                        "name": "udit"
+                    },
+                    "wa_id": "wa-123456789"
+                }],
+                "messages": [{
+                    "from": "910123456789",
+                    "id": "wappmsg.ID",
+                    "timestamp": "21-09-2022 12:05:00",
+                    "button": {
+                        "text": "buy now",
+                        "payload": "buy kairon for 1 billion"
+                    },
+                    "type": "button"
+                }]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+        responses.reset()
+
+    @responses.activate
+    def test_whatsapp_bsp_valid_attachment_message_request(self):
+        responses.add(
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
+        )
+        responses.add(
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+        )
+
+        response = self.fetch(
+            f"/api/bot/whatsapp/{bot2}/{token}",
+            headers={"hub.verify_token": "valid"},
+            method="POST",
+            body=json.dumps({
+                "contacts": [{
+                    "profile": {
+                        "name": "udit"
+                    },
+                    "wa_id": "wa-123456789"
+                }],
+                "messages": [{
+                    "from": "910123456789",
+                    "id": "wappmsg.ID",
+                    "timestamp": "21-09-2022 12:05:00",
+                    "text": {
+                        "id": "sdfghj567"
+                    },
+                    "type": "doument"
+                }]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+        responses.reset()
 
     @staticmethod
     def add_live_agent_config(bot_id, email):
@@ -1682,61 +1796,6 @@ class TestChatServer(AsyncHTTPTestCase):
         error_code = reload_actual.get("error_code")
         assert error_code == 401
         assert message == "Session expired. Please login again."
-
-    def test_save_channel_config_msteams(self):
-        channel_url = ChatDataProcessor.save_channel_config({
-            "connector_type": "msteams", "config": {
-                "app_id": "app123",
-                "app_secret": "appsecret123"
-            }}, bot, "test@chat.com")
-        msteams = ChatDataProcessor.get_channel_endpoint("msteams", bot)
-        hashcode = channel_url.split("/", -1)[-1]
-        dbhashcode = msteams.split("/", -1)[-1]
-        assert hashcode == dbhashcode
-
-    def test_get_channel_end_point_msteams(self):
-        channel_url = ChatDataProcessor.save_channel_config({
-            "connector_type": "msteams", "config": {
-                "app_id": "app123",
-                "app_secret": "appsecret123"
-            }}, bot, "test@chat.com")
-        channel = Channels.objects(bot=bot, connector_type="msteams").get()
-        response = DataUtility.get_channel_endpoint(channel)
-        second_hashcode = response.split("/", -1)[-1]
-        scnd_msteams = ChatDataProcessor.get_channel_config("msteams", bot, mask_characters=False)
-        dbcode = scnd_msteams["meta_config"]["secrethash"]
-        assert second_hashcode == dbcode
-
-    def test_save_channel_meta_msteams(self):
-        channel_url = ChatDataProcessor.save_channel_config({
-            "connector_type": "msteams", "config": {
-                "app_id": "app123",
-                "app_secret": "appsecret123"
-            }}, bot, "test@chat.com")
-        token, _ = Authentication.generate_integration_token(
-            bot, "test@chat.com", role=ACCESS_ROLES.CHAT.value,
-            access_limit=[f"/api/bot/msteams/{bot}/.+"],
-            token_type=TOKEN_TYPE.CHANNEL.value)
-        channel = Channels.objects(bot=bot, connector_type="msteams").get()
-        hashcode = DataUtility.save_channel_metadata(config=channel, token=token)
-        channel_config = ChatDataProcessor.get_channel_config("msteams", bot, mask_characters=False)
-        dbhashcode = channel_config["meta_config"]["secrethash"]
-        assert hashcode == dbhashcode
-
-    def test_get_channel_end_point_whatsapp(self):
-        def _mock_generate_integration_token(*arge, **kwargs):
-            return "testtoken", "ignore"
-
-        with patch.object(Authentication, "generate_integration_token", _mock_generate_integration_token):
-            channel_url = ChatDataProcessor.save_channel_config({
-                "connector_type": "whatsapp", "config": {
-                    "app_secret": "app123",
-                    "access_token": "appsecret123", "verify_token": "integrate_1"
-                }}, bot, "test@chat.com")
-            channel = Channels.objects(bot=bot, connector_type="whatsapp").get()
-            response = DataUtility.get_channel_endpoint(channel)
-            last_urlpart = response.split("/", -1)[-1]
-            assert last_urlpart == "testtoken"
 
     @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
     @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")

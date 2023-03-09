@@ -41,8 +41,6 @@ from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.test.processor import ModelTestingLogProcessor
-from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.chat.models import ChannelRequest
 
 router = APIRouter()
 v2 = APIRouter()
@@ -1404,60 +1402,6 @@ async def list_entities(current_user: User = Security(Authentication.get_current
     return Response(data=mongo_processor.get_entities(current_user.get_bot()))
 
 
-@router.post("/channels", response_model=Response)
-async def add_channel_config(
-        request_data: ChannelRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Stores the channel config.
-    """
-    channel_endpoint = ChatDataProcessor.save_channel_config(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
-    )
-    return Response(message='Channel added', data=channel_endpoint)
-
-
-@router.get("/channels/params", response_model=Response)
-async def channels_params(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    """
-    Stores the channel config.
-    """
-    return Response(data=Utility.system_metadata['channels'])
-
-
-@router.get("/channels", response_model=Response)
-async def list_channel_config(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    """
-    Returns list of channels for bot.
-    """
-    config = list(ChatDataProcessor.list_channel_config(current_user.get_bot()))
-    return Response(data=config)
-
-
-@router.get("/channels/{name}/endpoint", response_model=Response)
-async def get_channel_endpoint(
-        name: str = Path(default=None, description="channel name", example="slack"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    """
-    Retrieve channel endpoint.
-    """
-    return Response(data=ChatDataProcessor.get_channel_endpoint(name, current_user.get_bot()))
-
-
-@router.delete("/channels/{channel_id}", response_model=Response)
-async def delete_channel_config(
-        channel_id: str = Path(default=None, description="channel id", example="698705012345"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
-    """
-    Deletes the channel config.
-    """
-    ChatDataProcessor.delete_channel_config(current_user.get_bot(), id=channel_id)
-    return Response(message='Channel deleted')
-
-
 @router.put("/assets/{asset_type}", response_model=Response)
 async def upload_bot_assets(
         asset_type: str, asset: UploadFile = File(...),
@@ -1562,3 +1506,13 @@ async def get_qna_flattened(
 
 router.include_router(v2, prefix="/v2")
 
+
+@router.get("/settings", response_model=Response)
+async def get_bot_settings(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+):
+    """Retrieves bot settings"""
+    bot_settings = MongoProcessor.get_bot_settings(current_user.get_bot(), current_user.get_user())
+    bot_settings = bot_settings.to_mongo().to_dict()
+    bot_settings.pop("_id")
+    return Response(data=bot_settings)

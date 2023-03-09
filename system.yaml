@@ -158,6 +158,12 @@ idp:
 cors:
   origin: ${ALLOWED_ORIGIN:["*"]}
 
+channels:
+  360dialog:
+    partner_id: ${360_DIALOG_PARTNER_ID}
+    partner_username: ${360_DIALOG_PARTNER_USERNAME}
+    partner_password: ${360DIALOG_PARTNER_PASSWORD}
+
 llm:
   faq: ${LLM_FAQ_TYPE:GPT3_FAQ_EMBED}
   api_key: ${LLM_API_KEY}
