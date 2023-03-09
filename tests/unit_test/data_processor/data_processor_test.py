@@ -5526,6 +5526,8 @@ class TestMongoProcessor:
         bot = 'test'
         actions = processor.list_slot_set_actions(bot)
         print(actions)
+        for action in actions:
+            assert type(action['_id']) is str
         [action.pop('_id') for action in actions]
         assert actions == [{'name': 'action_set_slot', 'set_slots': [{'name': 'name', 'type': 'from_value'}]},
                            {'name': 'action_set_name_slot',
