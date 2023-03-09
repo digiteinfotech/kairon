@@ -4086,10 +4086,13 @@ class MongoProcessor:
         if with_doc_id:
             actions = SlotSetAction.objects(bot=bot, status=True).exclude('bot', 'user', 'timestamp',
                                                                           'status').to_json()
+            actions = json.loads(actions)
+            slot_set_actions = [{**action, '_id': action['_id']['$oid'].__str__()} for action in actions]
         else:
             actions = SlotSetAction.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp',
                                                                           'status').to_json()
-        return json.loads(actions)
+            slot_set_actions = json.loads(actions)
+        return slot_set_actions
 
     @staticmethod
     def edit_slot_set_action(action: dict, bot: Text, user: Text):

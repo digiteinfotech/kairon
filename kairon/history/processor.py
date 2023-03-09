@@ -834,6 +834,7 @@ class HistoryProcessor:
                                               ]
                                     }
                           },
+                         {"$sort": {"event.timestamp": 1}},
                          {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
                                      "allevents": {"$push": "$event"}}},
                          {"$unwind": "$events"},
