@@ -26,6 +26,7 @@ class TestBusinessServiceProvider:
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        responses.reset()
 
     @responses.activate
     def test_get_auth_token(self, monkeypatch):
@@ -45,6 +46,7 @@ class TestBusinessServiceProvider:
         assert actual == api_resp.get("token_type") + " " + api_resp.get("access_token")
 
     def test_get_auth_token_error(self):
+        responses.reset()
         with pytest.raises(AppException, match=r"Failed to get partner auth token: *"):
             BSP360Dialog.get_partner_auth_token()
 
@@ -92,6 +94,7 @@ class TestBusinessServiceProvider:
         assert actual == api_resp["partner_channels"][0]["waba_account"]["id"]
 
     def test_get_account_failure(self, monkeypatch):
+        responses.reset()
         channel_id = "skds23Ga"
         partner_id = "jhgajfdk"
 
@@ -103,7 +106,8 @@ class TestBusinessServiceProvider:
         with pytest.raises(AppException, match=r"Failed to retrieve account info: *"):
             BSP360Dialog("test", "test").get_account(channel_id)
 
-    def test_get_account_auth_failure(self, monkeypatch):
+    def test_get_account_auth_failure(self):
+        responses.reset()
         channel_id = "skds23Ga"
         with pytest.raises(AppException, match=r"Failed to get partner auth token: *"):
             BSP360Dialog("test", "test").get_account(channel_id)
@@ -125,7 +129,8 @@ class TestBusinessServiceProvider:
         webhook_url = BSP360Dialog.set_webhook_url(api_key, webhook_url)
         assert webhook_url == "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
 
-    def test_set_webhook_url_failure(self, monkeypatch):
+    def test_set_webhook_url_failure(self):
+        responses.reset()
         webhook_url = "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
         api_key = "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
         with pytest.raises(AppException, match=r"Failed to set webhook url: *"):
@@ -152,6 +157,7 @@ class TestBusinessServiceProvider:
         assert api_key == "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
 
     def test_generate_waba_key_failure(self, monkeypatch):
+        responses.reset()
         with pytest.raises(AppException, match=r"Failed to get partner auth token: *"):
             BSP360Dialog.generate_waba_key("skds23Ga")
 
@@ -318,6 +324,7 @@ class TestBusinessServiceProvider:
         }
 
     def test_get_template_failure(self, monkeypatch):
+        responses.reset()
         bot = "62bc24b493a0d6b7a46328ff"
         template_id = "test_id"
 
@@ -398,6 +405,7 @@ class TestBusinessServiceProvider:
             BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process()
 
     def test_post_process_error(self):
+        responses.reset()
         with pytest.raises(AppException, match=r'Failed to get partner auth token: *'):
             BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process()
 
