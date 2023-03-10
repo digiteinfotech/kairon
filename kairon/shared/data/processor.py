@@ -1086,9 +1086,9 @@ class MongoProcessor:
                 for path in nx.all_simple_paths(events, root, leaf):
                     paths.append(path)
         for path in paths:
+            story_events = []
             for event in path:
                 if event.step_type == StoryStepType.intent.value:
-
                     intent = {
                         STORY_EVENT.NAME.value: event.name,
                         STORY_EVENT.CONFIDENCE.value: 1.0,
@@ -1099,15 +1099,16 @@ class MongoProcessor:
                         "intent_ranking": [intent],
                         "entities": [],
                     }
-                    yield UserUttered(
+                    story_events.append(UserUttered(
                         text=event.name,
                         intent=intent,
                         parse_data=parse_data,
                         timestamp=timestamp,
                         entities=[],
-                    )
+                    ))
                 else:
-                    yield ActionExecuted(action_name=event.name, timestamp=timestamp)
+                    story_events.append(ActionExecuted(action_name=event.name, timestamp=timestamp))
+            yield story_events
 
     def fetch_stories(self, bot: Text, status=True):
         """
@@ -1142,23 +1143,24 @@ class MongoProcessor:
     def __prepare_training_multiflow_story_step(self, bot: Text):
         for story in MultiflowStories.objects(bot=bot, status=True):
             events = story.to_mongo().to_dict()['events']
-            story_events = list(
+            stories = list(
                 self.__prepare_training_multiflow_story_events(
                     events, datetime.now().timestamp()
                 )
             )
-            yield StoryStep(
-                block_name=story.block_name,
-                events=story_events,
-                start_checkpoints=[
-                    Checkpoint(start_checkpoint)
-                    for start_checkpoint in story.start_checkpoints
-                ],
-                end_checkpoints=[
-                    Checkpoint(end_checkpoints)
-                    for end_checkpoints in story.end_checkpoints
-                ],
-            )
+            for story_events in stories:
+                yield StoryStep(
+                    block_name=story.block_name,
+                    events=story_events,
+                    start_checkpoints=[
+                        Checkpoint(start_checkpoint)
+                        for start_checkpoint in story.start_checkpoints
+                    ],
+                    end_checkpoints=[
+                        Checkpoint(end_checkpoints)
+                        for end_checkpoints in story.end_checkpoints
+                    ],
+                )
 
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
