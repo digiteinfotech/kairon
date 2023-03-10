@@ -22,7 +22,8 @@ from starlette.responses import RedirectResponse
 from kairon.api.app.routers.idp import get_idp_config
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.auth import Authentication, LoginSSOFactory
-from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
+from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice, \
+    UserEmailConfirmation
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
@@ -472,6 +473,8 @@ class TestAccountProcessor:
 
         assert len(account_bots_before_delete) == 3
         AccountProcessor.delete_account(pytest.deleted_account)
+        with pytest.raises(DoesNotExist):
+            UserEmailConfirmation.objects(email='ritika@digite.com').get()
 
         for bot in account_bots_before_delete:
             with pytest.raises(DoesNotExist):
@@ -502,6 +505,9 @@ class TestAccountProcessor:
         assert accessors_before_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
         assert accessors_before_delete[1]['accessor_email'] == 'ritika@digite.com'
         AccountProcessor.delete_account(pytest.deleted_account)
+        with pytest.raises(DoesNotExist):
+            UserEmailConfirmation.objects(email='ritika@digite.com').get()
+
         accessors_after_delete = list(AccountProcessor.list_bot_accessors(bot_id))
         assert len(accessors_after_delete) == 1
         assert accessors_after_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
@@ -558,6 +564,8 @@ class TestAccountProcessor:
         assert User.objects(email__iexact="ritika.G@digite.com", status=True).get()
 
         AccountProcessor.delete_account(pytest.deleted_account)
+        with pytest.raises(DoesNotExist):
+            UserEmailConfirmation.objects(email='ritika.G@digite.com').get()
 
         assert User.objects(email__iexact="ritika@digite.com", status=False)
         assert User.objects(email__iexact="ritika.G@digite.com", status=False)
