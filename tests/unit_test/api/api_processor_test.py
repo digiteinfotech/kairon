@@ -507,6 +507,7 @@ class TestAccountProcessor:
         AccountProcessor.delete_account(pytest.deleted_account)
         with pytest.raises(DoesNotExist):
             UserEmailConfirmation.objects(email='ritika@digite.com').get()
+
         accessors_after_delete = list(AccountProcessor.list_bot_accessors(bot_id))
         assert len(accessors_after_delete) == 1
         assert accessors_after_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
