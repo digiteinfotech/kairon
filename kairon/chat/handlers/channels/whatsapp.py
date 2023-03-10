@@ -4,7 +4,6 @@ from rasa.core.channels import OutputChannel, UserMessage
 from tornado.ioloop import IOLoop
 
 from kairon.chat.agent_processor import AgentProcessor
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 from kairon.chat.handlers.channels.messenger import MessengerHandler
@@ -16,7 +15,7 @@ from tornado.escape import json_decode
 
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
-from kairon.shared.constants import WhatsappBSPTypes
+from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class Whatsapp:
 
     @classmethod
     def name(cls) -> Text:
-        return CHANNEL_TYPES.WHATSAPP.value
+        return ChannelTypes.WHATSAPP.value
 
     async def message(
             self, message: Dict[Text, Any], metadata: Optional[Dict[Text, Any]], bot: str
@@ -91,7 +90,8 @@ class Whatsapp:
         for msg in payload.get("messages", {}):
             self.last_message = msg
             client = WhatsappFactory.get_client(WhatsappBSPTypes.bsp_360dialog.value)
-            self.client = client(self.page_access_token, config=self.config, from_phone_number_id=self.get_business_phone_number_id())
+            self.client = client(self.page_access_token, config=self.config,
+                                 from_phone_number_id=self.get_business_phone_number_id())
             metadata.update(msg)
             await self.message(msg, metadata, bot)
 
@@ -126,7 +126,7 @@ class WhatsappBot(OutputChannel):
 
     @classmethod
     def name(cls) -> Text:
-        return CHANNEL_TYPES.WHATSAPP.value
+        return ChannelTypes.WHATSAPP.value
 
     def __init__(self, whatsapp_client: WhatsappCloud) -> None:
         """Init whatsapp output channel."""
@@ -169,7 +169,6 @@ class WhatsappBot(OutputChannel):
             **kwargs: Any,
     ) -> None:
         """Sends custom json data to the output."""
-        from kairon.chat.converters.channels.constants import CHANNEL_TYPES, ELEMENT_TYPE
         type_list = Utility.system_metadata.get("type_list")
         message = json_message.get("data")
         messagetype = json_message.get("type")
@@ -177,7 +176,7 @@ class WhatsappBot(OutputChannel):
         if messagetype is not None and messagetype in type_list:
             messaging_type = content_type.get(messagetype)
             from kairon.chat.converters.channels.response_factory import ConverterFactory
-            converter_instance = ConverterFactory.getConcreteInstance(messagetype, CHANNEL_TYPES.WHATSAPP.value)
+            converter_instance = ConverterFactory.getConcreteInstance(messagetype, ChannelTypes.WHATSAPP.value)
             response = await converter_instance.messageConverter(message)
             self.whatsapp_client.send(response, recipient_id, messaging_type)
         else:
@@ -190,7 +189,7 @@ class WhatsappHandler(MessengerHandler):
     async def get(self, bot: str, token: str):
         super().authenticate_channel(token, bot, self.request)
         self.set_status(HTTPStatus.OK)
-        messenger_conf = ChatDataProcessor.get_channel_config(CHANNEL_TYPES.WHATSAPP.value, bot, mask_characters=False)
+        messenger_conf = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
 
         verify_token = messenger_conf["config"]["verify_token"]
 
@@ -205,13 +204,13 @@ class WhatsappHandler(MessengerHandler):
 
     async def post(self, bot: str, token: str):
         user = super().authenticate_channel(token, bot, self.request)
-        channel_conf = ChatDataProcessor.get_channel_config(CHANNEL_TYPES.WHATSAPP.value, bot, mask_characters=False)
+        channel_conf = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
         whatsapp_channel = Whatsapp(channel_conf["config"])
         client = channel_conf["config"].get("bsp_type", "meta")
         metadata = self.get_metadata(self.request) or {}
         metadata.update({
             "is_integration_user": True, "bot": bot, "account": user.account,
-            "channel_type": CHANNEL_TYPES.WHATSAPP.value, "bsp_type": client
+            "channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": client
         })
         client_handlers = {
             "meta": whatsapp_channel.handle_meta_payload,

@@ -1,5 +1,6 @@
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
-from kairon.chat.converters.channels.constants import ELEMENT_TYPE
+from kairon.shared.constants import ElementTypes
+
 
 class SlackMessageConverter(ElementTransformerOps):
 
@@ -10,11 +11,11 @@ class SlackMessageConverter(ElementTransformerOps):
 
     async def messageConverter(self, message):
         try:
-            if self.message_type == ELEMENT_TYPE.IMAGE.value:
+            if self.message_type == ElementTypes.IMAGE.value:
                 return super().image_transformer(message)
-            elif self.message_type == ELEMENT_TYPE.LINK.value:
+            elif self.message_type == ElementTypes.LINK.value:
                 return super().link_transformer(message)
-            elif self.message_type == ELEMENT_TYPE.VIDEO.value:
+            elif self.message_type == ElementTypes.VIDEO.value:
                 return super().video_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in SlackMessageConverter::messageConverter {str(ex)}")

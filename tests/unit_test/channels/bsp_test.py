@@ -3,14 +3,13 @@ import pytest
 import responses
 from mongoengine import connect, ValidationError
 
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.constants import WhatsappBSPTypes
+from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
@@ -390,7 +389,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
 
         config = {
-            "connector_type": CHANNEL_TYPES.WHATSAPP.value,
+            "connector_type": ChannelTypes.WHATSAPP.value,
             "config": {
                 "bsp_type": WhatsappBSPTypes.bsp_360dialog.value,
                 "client_name": "kAIron",

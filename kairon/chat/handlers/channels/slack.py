@@ -17,10 +17,10 @@ from tornado.httputil import HTTPServerRequest
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.constants import ChannelTypes
 from kairon.shared.tornado.handlers.base import BaseHandler
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ class SlackBot(OutputChannel):
             type_list = Utility.system_metadata.get("type_list")
 
             if message_type is not None and message_type in type_list:
-                converter_instance = ConverterFactory.getConcreteInstance(message_type, CHANNEL_TYPES.SLACK.value)
+                converter_instance = ConverterFactory.getConcreteInstance(message_type, ChannelTypes.SLACK.value)
                 response = await converter_instance.messageConverter(message)
                 channel = json_message.get("channel", self.slack_channel or recipient_id)
                 json_message.setdefault("as_user", True)

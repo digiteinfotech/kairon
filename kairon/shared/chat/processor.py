@@ -5,8 +5,8 @@ from loguru import logger
 from .data_objects import Channels
 from datetime import datetime
 from kairon.shared.utils import Utility
+from ..constants import ChannelTypes
 from ..data.utils import DataUtility
-from ...chat.converters.channels.constants import CHANNEL_TYPES
 from ...exceptions import AppException
 
 
@@ -94,7 +94,7 @@ class ChatDataProcessor:
     @staticmethod
     def __prepare_config(config: dict, mask_characters: bool):
         connector_type = config['connector_type']
-        if connector_type == CHANNEL_TYPES.WHATSAPP.value and config['config'].get('bsp_type'):
+        if connector_type == ChannelTypes.WHATSAPP.value and config['config'].get('bsp_type'):
             bsp_type = config['config']['bsp_type']
             channel_params = Utility.system_metadata['channels'][connector_type]["business_providers"][bsp_type]
             ChatDataProcessor.__prepare_required_fields(config, channel_params, mask_characters)

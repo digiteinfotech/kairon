@@ -1,6 +1,5 @@
 from pydantic import BaseModel, root_validator
 
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 

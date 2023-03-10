@@ -1,8 +1,7 @@
 from mongoengine import Document, StringField, DictField, DateTimeField, ValidationError
 from datetime import datetime
 
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
-from kairon.shared.constants import WhatsappBSPTypes
+from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.signals import push_notification
 from kairon.shared.utils import Utility
 
@@ -23,7 +22,7 @@ class Channels(Document):
         bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
         bot_settings = bot_settings.to_mongo().to_dict()
         bsp_type = self.config.get('bsp_type', "meta")
-        if self.connector_type == CHANNEL_TYPES.WHATSAPP.value and bot_settings["whatsapp"] != bsp_type:
+        if self.connector_type == ChannelTypes.WHATSAPP.value and bot_settings["whatsapp"] != bsp_type:
             raise ValidationError("Feature disabled for this account. Please contact support!")
 
         Utility.validate_channel(self.connector_type, self.config, ValidationError)

@@ -3,11 +3,10 @@ from loguru import logger
 from mongoengine import DoesNotExist
 
 from kairon import Utility
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 from kairon.exceptions import AppException
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.constants import WhatsappBSPTypes
+from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 
 
 class BSP360Dialog(WhatsappBusinessServiceProviderBase):
@@ -35,7 +34,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
     def post_process(self):
         try:
             config = ChatDataProcessor.get_channel_config(
-                CHANNEL_TYPES.WHATSAPP.value, self.bot, mask_characters=False, config__bsp_type=WhatsappBSPTypes.bsp_360dialog.value
+                ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False, config__bsp_type=WhatsappBSPTypes.bsp_360dialog.value
             )
             channel_id = config.get("config", {}).get("channel_id")
             api_key = BSP360Dialog.generate_waba_key(channel_id)
@@ -71,13 +70,13 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
                 "waba_account_id": self.get_account(channel_id),
                 "api_key": BSP360Dialog.generate_waba_key(channel_id),
                 "bsp_type": WhatsappBSPTypes.bsp_360dialog.value
-            }, "connector_type": CHANNEL_TYPES.WHATSAPP.value
+            }, "connector_type": ChannelTypes.WHATSAPP.value
         }
         return ChatDataProcessor.save_channel_config(conf, self.bot, self.user)
 
     def get_template(self, template_id: Text):
         try:
-            config = ChatDataProcessor.get_channel_config(CHANNEL_TYPES.WHATSAPP.value, self.bot, mask_characters=False)
+            config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             account_id = config.get("config", {}).get("waba_account_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
             partner_id = config.get("config", {}).get("partner_id", Utility.environment["channels"]["360dialog"]["partner_id"])

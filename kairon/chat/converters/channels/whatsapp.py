@@ -1,6 +1,8 @@
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
-from kairon.chat.converters.channels.constants import ELEMENT_TYPE
 import json
+
+from kairon.shared.constants import ElementTypes
+
 
 class WhatsappResponseConverter(ElementTransformerOps):
 
@@ -11,14 +13,14 @@ class WhatsappResponseConverter(ElementTransformerOps):
 
     def message_extractor(self, json_message, message_type):
         try:
-            if message_type == ELEMENT_TYPE.IMAGE.value:
+            if message_type == ElementTypes.IMAGE.value:
                 return super().message_extractor(json_message, message_type)
-            if message_type == ELEMENT_TYPE.LINK.value:
+            if message_type == ElementTypes.LINK.value:
                 jsoniterator = ElementTransformerOps.json_generator(json_message)
                 stringbuilder = ElementTransformerOps.convertjson_to_link_format(jsoniterator, bind_display_str=False)
                 body = {"data": stringbuilder}
                 return body
-            if message_type == ELEMENT_TYPE.VIDEO.value:
+            if message_type == ElementTypes.VIDEO.value:
                 return super().message_extractor(json_message, message_type)
         except Exception as ex:
             raise Exception(f" Error in WhatsappResponseConverter::message_extractor {str(ex)}")
@@ -42,7 +44,7 @@ class WhatsappResponseConverter(ElementTransformerOps):
             body_default = ElementTransformerOps.getChannelConfig(self.channel, "body_message")
             body_msg = {"text":body_default}
             for item in jsoniterator:
-                if item.get("type") == ELEMENT_TYPE.BUTTON.value:
+                if item.get("type") == ElementTypes.BUTTON.value:
                     title = ElementTransformerOps.json_generator(item.get("children"))
                     for titletext in title:
                         button_text = titletext.get("text")
@@ -58,13 +60,13 @@ class WhatsappResponseConverter(ElementTransformerOps):
 
     async def messageConverter(self, message):
         try:
-            if self.message_type == ELEMENT_TYPE.IMAGE.value:
+            if self.message_type == ElementTypes.IMAGE.value:
                 return super().image_transformer(message)
-            elif self.message_type == ELEMENT_TYPE.LINK.value:
+            elif self.message_type == ElementTypes.LINK.value:
                 return self.link_transformer(message)
-            elif self.message_type == ELEMENT_TYPE.VIDEO.value:
+            elif self.message_type == ElementTypes.VIDEO.value:
                 return super().video_transformer(message)
-            elif self.message_type == ELEMENT_TYPE.BUTTON.value:
+            elif self.message_type == ElementTypes.BUTTON.value:
                 return self.button_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in WhatsappResponseConverter::messageConverter {str(ex)}")

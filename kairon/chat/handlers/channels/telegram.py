@@ -19,11 +19,11 @@ from telebot.types import (
 from tornado.escape import json_decode, json_encode
 
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.constants import ChannelTypes
 from kairon.shared.tornado.handlers.base import BaseHandler
 from kairon.chat.agent_processor import AgentProcessor
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +144,7 @@ class TelegramOutput(TeleBot, OutputChannel):
             message_type = json_message.get("type")
             type_list = Utility.system_metadata.get("type_list")
             if message_type is not None and message_type in type_list:
-                converter_instance = ConverterFactory.getConcreteInstance(message_type, CHANNEL_TYPES.TELEGRAM.value)
+                converter_instance = ConverterFactory.getConcreteInstance(message_type, ChannelTypes.TELEGRAM.value)
                 ops_type = json_message.get("type")
                 response = await converter_instance.messageConverter(message)
                 response_list = []

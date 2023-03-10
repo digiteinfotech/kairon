@@ -14,6 +14,7 @@ from ..shared.utils import Utility
 from loguru import logger
 from mongoengine import connect
 Utility.load_environment()
+Utility.load_system_metadata()
 
 
 def make_app():

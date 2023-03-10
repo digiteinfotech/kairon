@@ -1,7 +1,8 @@
 import json
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.chat.converters.channels.constants import ELEMENT_TYPE
+from kairon.shared.constants import ElementTypes
+
 
 class ElementTransformerOps():
     def __init__(self, message_type, channel):
@@ -56,24 +57,24 @@ class ElementTransformerOps():
 
     def message_extractor(self, json_message, message_type):
         try:
-            if message_type == ELEMENT_TYPE.IMAGE.value:
+            if message_type == ElementTypes.IMAGE.value:
                 image_json = ElementTransformerOps.json_generator(json_message)
                 body = {}
                 for item in image_json:
-                    if item.get("type") == ELEMENT_TYPE.IMAGE.value:
+                    if item.get("type") == ElementTypes.IMAGE.value:
                         body.update({"type": item.get("type"), "URL": item.get("src"),
                                      "caption": item.get("alt")})
                         return  body
-            elif message_type == ELEMENT_TYPE.LINK.value:
+            elif message_type == ElementTypes.LINK.value:
                 jsoniterator = ElementTransformerOps.json_generator(json_message)
                 stringbuilder = ElementTransformerOps.convertjson_to_link_format(jsoniterator)
                 body = {"data":stringbuilder}
                 return body
-            elif message_type == ELEMENT_TYPE.VIDEO.value:
+            elif message_type == ElementTypes.VIDEO.value:
                 jsoniterator = ElementTransformerOps.json_generator(json_message)
                 body = {}
                 for item in jsoniterator:
-                    if item.get("type") == ELEMENT_TYPE.VIDEO.value:
+                    if item.get("type") == ElementTypes.VIDEO.value:
                         body.update({"data": item.get("url")})
                         return body
                 return body
@@ -114,7 +115,7 @@ class ElementTransformerOps():
                 if items.get("type") is None and items.get("text") is not None \
                         and str(items.get("text")).strip().__len__() > 0:
                     stringbuilder = " ".join([stringbuilder, str(items.get("text"))]).strip()
-                elif items.get("type") is not None and items.get("type") == ELEMENT_TYPE.LINK.value:
+                elif items.get("type") is not None and items.get("type") == ElementTypes.LINK.value:
                     link = items.get("href")
                     if bind_display_str:
                         displaydata = items.get("children")

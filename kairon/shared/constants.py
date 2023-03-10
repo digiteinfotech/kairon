@@ -80,6 +80,17 @@ class PluginTypes(str, Enum):
 class ChannelTypes(str, Enum):
     MSTEAMS = "msteams"
     WHATSAPP = "whatsapp"
+    HANGOUT = "hangout"
+    MESSENGER = "messenger"
+    SLACK = "slack"
+    TELEGRAM = "telegram"
+
+
+class ElementTypes(str, Enum):
+    LINK = "link"
+    IMAGE = "image"
+    VIDEO = "video"
+    BUTTON = "button"
 
 
 class WhatsappBSPTypes(str, Enum):

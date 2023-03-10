@@ -54,13 +54,12 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES
+from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes
 from .constants import EventClass
 from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK
 from .data.dto import KaironStoryStep
 from .models import StoryStepType
-from ..chat.converters.channels.constants import CHANNEL_TYPES
 from ..exceptions import AppException
 
 
@@ -1347,7 +1346,7 @@ class Utility:
 
     @staticmethod
     def validate_channel(channel, config, error, encrypt=True):
-        if channel == CHANNEL_TYPES.WHATSAPP.value and config.get('bsp_type'):
+        if channel == ChannelTypes.WHATSAPP.value and config.get('bsp_type'):
             Utility.validate_whatsapp_bsp(channel, config, error, encrypt)
         else:
             Utility.validate_channel_config(channel, config, error, encrypt)

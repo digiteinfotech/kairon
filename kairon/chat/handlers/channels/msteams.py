@@ -16,12 +16,11 @@ from tornado.escape import json_encode
 
 from kairon import Utility
 from kairon.chat.agent_processor import AgentProcessor
-from kairon.chat.converters.channels.constants import CHANNEL_TYPES
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.constants import ChannelTypes
 from kairon.shared.tornado.handlers.base import BaseHandler
-
 
 
 class MSTeamBot(OutputChannel):
@@ -173,7 +172,7 @@ class MSTeamBot(OutputChannel):
             message_type = json_message.get("type")
             type_list = Utility.system_metadata.get("type_list")
             if message_type is not None and message_type in type_list:
-                converter_instance = ConverterFactory.getConcreteInstance(message_type, CHANNEL_TYPES.MSTEAMS.value)
+                converter_instance = ConverterFactory.getConcreteInstance(message_type, ChannelTypes.MSTEAMS.value)
                 response = await converter_instance.messageConverter(message)
                 data = {
                     "type": "message",
