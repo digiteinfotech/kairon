@@ -45,8 +45,11 @@ class TestBusinessServiceProvider:
         actual = BSP360Dialog.get_partner_auth_token()
         assert actual == api_resp.get("token_type") + " " + api_resp.get("access_token")
 
+    @responses.activate
     def test_get_auth_token_error(self):
-        responses.reset()
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+        url = f"{base_url}/api/v2/token"
+        responses.add("POST", json={}, url=url, status=500)
         with pytest.raises(AppException, match=r"Failed to get partner auth token: *"):
             BSP360Dialog.get_partner_auth_token()
 
@@ -93,8 +96,8 @@ class TestBusinessServiceProvider:
         actual = BSP360Dialog("test", "test").get_account(channel_id)
         assert actual == api_resp["partner_channels"][0]["waba_account"]["id"]
 
+    @responses.activate
     def test_get_account_failure(self, monkeypatch):
-        responses.reset()
         channel_id = "skds23Ga"
         partner_id = "jhgajfdk"
 
@@ -103,12 +106,19 @@ class TestBusinessServiceProvider:
 
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
         monkeypatch.setitem(Utility.environment["channels"]["360dialog"], "partner_id", partner_id)
+
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+        url = f"{base_url}/api/v2/partners/{partner_id}/channels?filters={{'id':'{channel_id}'}}"
+        responses.add("GET", json={}, url=url, status=500)
         with pytest.raises(AppException, match=r"Failed to retrieve account info: *"):
             BSP360Dialog("test", "test").get_account(channel_id)
 
-    def test_get_account_auth_failure(self):
-        responses.reset()
+    @responses.activate
+    def test_get_account_auth_failure(self, monkeypatch):
         channel_id = "skds23Ga"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+        url = f"{base_url}/api/v2/token"
+        responses.add("POST", json={}, url=url, status=401)
         with pytest.raises(AppException, match=r"Failed to get partner auth token: *"):
             BSP360Dialog("test", "test").get_account(channel_id)
 
@@ -129,8 +139,10 @@ class TestBusinessServiceProvider:
         webhook_url = BSP360Dialog.set_webhook_url(api_key, webhook_url)
         assert webhook_url == "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
 
+    @responses.activate
     def test_set_webhook_url_failure(self):
-        responses.reset()
+        url = "https://waba.360dialog.io/v1/configs/webhook"
+        responses.add("POST", json={}, url=url, status=500)
         webhook_url = "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
         api_key = "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
         with pytest.raises(AppException, match=r"Failed to set webhook url: *"):
@@ -156,8 +168,10 @@ class TestBusinessServiceProvider:
         api_key = BSP360Dialog.generate_waba_key("skds23Ga")
         assert api_key == "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
 
+    @responses.activate
     def test_generate_waba_key_failure(self, monkeypatch):
-        responses.reset()
+        url = "https://hub.360dialog.io/api/v2/token"
+        responses.add("POST", json={}, url=url, status=500)
         with pytest.raises(AppException, match=r"Failed to get partner auth token: *"):
             BSP360Dialog.generate_waba_key("skds23Ga")
 
@@ -166,6 +180,9 @@ class TestBusinessServiceProvider:
 
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
         monkeypatch.setitem(Utility.environment["channels"]["360dialog"], "partner_id", 'f167CmPA')
+        url = "https://hub.360dialog.io/api/v2/partners/f167CmPA/channels/skds23Ga/api_keys"
+        responses.add("POST", json={}, url=url, status=500)
+
         with pytest.raises(AppException, match=r"Failed to generate api_keys for business account: *"):
             BSP360Dialog.generate_waba_key("skds23Ga")
 
@@ -323,15 +340,21 @@ class TestBusinessServiceProvider:
             "language": {"policy": "deterministic", "code": "en"}
         }
 
+    @responses.activate
     def test_get_template_failure(self, monkeypatch):
-        responses.reset()
         bot = "62bc24b493a0d6b7a46328ff"
         template_id = "test_id"
+        partner_id = "new_partner_id"
+        account_id = "Cyih7GWA"
 
         def _get_partners_auth_token(*args, **kwargs):
             return "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIs.ImtpZCI6Ik1EZEZOVFk1UVVVMU9FSXhPRGN3UVVZME9EUTFRVFJDT1.RSRU9VUTVNVGhDTURWRk9UUTNPQSJ9"
 
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+        template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id':'{template_id}'}}"
+        url = f"{base_url}{template_endpoint}"
+        responses.add("GET", json={}, url=url, status=500)
 
         with pytest.raises(AppException, match=r"Failed to get template: *"):
             BSP360Dialog(bot, "user").get_template(template_id)
@@ -404,8 +427,11 @@ class TestBusinessServiceProvider:
         with pytest.raises(AppException, match="Feature disabled for this account. Please contact support!"):
             BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process()
 
+    @responses.activate
     def test_post_process_error(self):
-        responses.reset()
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
+        url = f"{base_url}/api/v2/token"
+        responses.add("POST", json={}, url=url, status=500)
         with pytest.raises(AppException, match=r'Failed to get partner auth token: *'):
             BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process()
 
