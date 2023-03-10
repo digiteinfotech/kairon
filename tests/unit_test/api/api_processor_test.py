@@ -473,6 +473,7 @@ class TestAccountProcessor:
 
         assert len(account_bots_before_delete) == 3
         AccountProcessor.delete_account(pytest.deleted_account)
+        
         with pytest.raises(DoesNotExist):
             UserEmailConfirmation.objects(email='ritika@digite.com').get()
 
@@ -505,6 +506,7 @@ class TestAccountProcessor:
         assert accessors_before_delete[0]['accessor_email'] == 'udit.pandey@digite.com'
         assert accessors_before_delete[1]['accessor_email'] == 'ritika@digite.com'
         AccountProcessor.delete_account(pytest.deleted_account)
+
         with pytest.raises(DoesNotExist):
             UserEmailConfirmation.objects(email='ritika@digite.com').get()
 
@@ -564,6 +566,7 @@ class TestAccountProcessor:
         assert User.objects(email__iexact="ritika.G@digite.com", status=True).get()
 
         AccountProcessor.delete_account(pytest.deleted_account)
+
         with pytest.raises(DoesNotExist):
             UserEmailConfirmation.objects(email='ritika.G@digite.com').get()
 
