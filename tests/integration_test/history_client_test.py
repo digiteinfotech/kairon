@@ -1511,7 +1511,7 @@ def test_delete_bot_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_
                   json={"success": True, "message": "Event triggered successfully!"},
                   match=[responses.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com',
                                                         'till_date': Utility.convert_date_to_string(till_date),
-                                                        'sender_id': None})],
+                                                        'sender_id': ""})],
                   status=200)
 
     response = client.delete(

@@ -32,12 +32,13 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                              type=str,
                              help="Kairon user who is initiating the command", action='store')
     data_parser.add_argument('till_date',
-                             type=date,
-                             default=datetime.utcnow().date(),
+                             type=str,
+                             default=None,
                              help="upto which date history to be deleted", action='store')
     data_parser.add_argument('sender_id',
                              type=str,
-                             default=None,
+                             default='',
+                             nargs='?',
                              help="sender id for user history deletion", action='store')
 
     data_parser.set_defaults(func=initiate_history_deletion_archival)

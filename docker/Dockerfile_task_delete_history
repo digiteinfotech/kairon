@@ -58,8 +58,8 @@ COPY augmentation ${TASK_HOME}/augmentation
 
 ENV BOT default
 ENV USER default
-ENV MONTH default
+ENV TILL_DATE default
 ENV SENDER_ID default
 
 
-CMD ["sh","-c","python -m kairon delete-conversation ${BOT} ${USER} ${MONTH} ${SENDER_ID}"]
+CMD ["sh","-c","python -m kairon delete-conversation ${BOT} ${USER} ${TILL_DATE} ${SENDER_ID}"]

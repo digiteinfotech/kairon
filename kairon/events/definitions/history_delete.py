@@ -24,7 +24,7 @@ class DeleteHistoryEvent(EventsBase):
         self.till_date = kwargs.get('till_date', datetime.utcnow().date())
         if not isinstance(self.till_date, date):
             self.till_date = datetime.strptime(self.till_date, "%Y-%m-%d").date()
-        self.sender_id = kwargs.get('sender_id')
+        self.sender_id = kwargs.get('sender_id') if not Utility.check_empty_string(kwargs.get('sender_id')) else ''
 
     def validate(self):
         """
