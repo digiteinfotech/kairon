@@ -23,17 +23,18 @@ class ElementTransformerOps():
         try:
             message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
             op_message = self.message_extractor(message, self.message_type)
-            response = ElementTransformerOps.replace_strategy(message_template, op_message, self.channel, self.message_type)
+            response = ElementTransformerOps.replace_strategy(message_template, op_message, self.channel,
+                                                              self.message_type)
             return response
         except Exception as ex:
             raise AppException(f"Exception in ElementTransformerOps::Image_transformer: {str(ex)}")
-
 
     def video_transformer(self, message):
         try:
             message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
             op_message = self.message_extractor(message, self.message_type)
-            response = ElementTransformerOps.replace_strategy(message_template, op_message, self.channel, self.message_type)
+            response = ElementTransformerOps.replace_strategy(message_template, op_message, self.channel,
+                                                              self.message_type)
             return response
         except Exception as ex:
             raise AppException(f"Exception in ElementTransformerOps::Image_transformer: {str(ex)}")
@@ -42,7 +43,8 @@ class ElementTransformerOps():
         try:
             link_extract = self.message_extractor(message, self.message_type)
             message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
-            response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel, self.message_type)
+            response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel,
+                                                              self.message_type)
             return response
         except Exception as ex:
             raise AppException(f"Exception in ElementTransformerOps::Link_Transformer: {str(ex)}")
@@ -64,11 +66,11 @@ class ElementTransformerOps():
                     if item.get("type") == ElementTypes.IMAGE.value:
                         body.update({"type": item.get("type"), "URL": item.get("src"),
                                      "caption": item.get("alt")})
-                        return  body
+                        return body
             elif message_type == ElementTypes.LINK.value:
                 jsoniterator = ElementTransformerOps.json_generator(json_message)
                 stringbuilder = ElementTransformerOps.convertjson_to_link_format(jsoniterator)
-                body = {"data":stringbuilder}
+                body = {"data": stringbuilder}
                 return body
             elif message_type == ElementTypes.VIDEO.value:
                 jsoniterator = ElementTransformerOps.json_generator(json_message)
@@ -107,7 +109,7 @@ class ElementTransformerOps():
                 raise Exception(message_config)
 
     @staticmethod
-    def convertjson_to_link_format(jsoniterator, bind_display_str = True):
+    def convertjson_to_link_format(jsoniterator, bind_display_str=True):
         stringbuilder = ""
         for jsonlist in jsoniterator:
             childerobj = jsonlist.get("children")
@@ -127,4 +129,3 @@ class ElementTransformerOps():
                     else:
                         stringbuilder = " ".join([stringbuilder, link]).strip()
         return stringbuilder
-

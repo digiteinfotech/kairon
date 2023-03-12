@@ -28,7 +28,8 @@ class TelegramResponseConverter(ElementTransformerOps):
             link_extract = self.message_extractor(message, self.message_type)
             message_template = ElementTransformerOps.getChannelConfig(self.channel_type, self.message_type)
             if message_template is not None:
-                response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel_type, self.message_type)
+                response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel_type,
+                                                                  self.message_type)
                 return response
         except Exception as ex:
             raise Exception(f" Error in TelegramResponseConverter::link_transformer {str(ex)}")

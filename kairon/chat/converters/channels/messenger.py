@@ -16,20 +16,20 @@ class MessengerResponseConverter(ElementTransformerOps):
             if message_type == ElementTypes.LINK.value:
                 jsoniterator = ElementTransformerOps.json_generator(json_message)
                 stringbuilder = ElementTransformerOps.convertjson_to_link_format(jsoniterator, bind_display_str=False)
-                body = {"data":stringbuilder}
+                body = {"data": stringbuilder}
                 return body
             if message_type == ElementTypes.VIDEO.value:
                 return super().message_extractor(json_message, message_type)
         except Exception as ex:
             raise Exception(f" Error in MessengerResponseConverter::message_extractor {str(ex)}")
 
-
     def link_transformer(self, message):
         try:
             link_extract = self.message_extractor(message, self.message_type)
             message_template = ElementTransformerOps.getChannelConfig(self.channel_type, self.message_type)
             if message_template is not None:
-                response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel_type, self.message_type)
+                response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel_type,
+                                                                  self.message_type)
                 return response
         except Exception as ex:
             raise Exception(f" Error in MessengerResponseConverter::link_transformer {str(ex)}")

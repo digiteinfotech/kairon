@@ -30,7 +30,8 @@ class WhatsappResponseConverter(ElementTransformerOps):
             link_extract = self.message_extractor(message, self.message_type)
             message_template = ElementTransformerOps.getChannelConfig(self.channel_type, self.message_type)
             if message_template is not None:
-                response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel_type, self.message_type)
+                response = ElementTransformerOps.replace_strategy(message_template, link_extract, self.channel_type,
+                                                                  self.message_type)
                 return response
         except Exception as ex:
             raise Exception(f"Error in WhatsappResponseConverter::link_transformer {str(ex)}")
@@ -40,9 +41,9 @@ class WhatsappResponseConverter(ElementTransformerOps):
             message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
             button_json_temp = json.loads(message_template)
             jsoniterator = ElementTransformerOps.json_generator(message)
-            buttons = {"buttons":[]}
+            buttons = {"buttons": []}
             body_default = ElementTransformerOps.getChannelConfig(self.channel, "body_message")
-            body_msg = {"text":body_default}
+            body_msg = {"text": body_default}
             for item in jsoniterator:
                 if item.get("type") == ElementTypes.BUTTON.value:
                     title = ElementTransformerOps.json_generator(item.get("children"))
@@ -50,10 +51,10 @@ class WhatsappResponseConverter(ElementTransformerOps):
                         button_text = titletext.get("text")
                     btn_body = {}
                     btn_body.update({"type": "reply"})
-                    btn_body.update({"reply":{"id":item.get("value"),"title":button_text}})
+                    btn_body.update({"reply": {"id": item.get("value"), "title": button_text}})
                     buttons["buttons"].append(btn_body)
-            button_json_temp.update({"body":body_msg})
-            button_json_temp.update({"action":buttons})
+            button_json_temp.update({"body": body_msg})
+            button_json_temp.update({"action": buttons})
             return button_json_temp
         except Exception as ex:
             raise Exception(f"Exception in WhatsappResponseConverter::button_transfomer: {str(ex)}")

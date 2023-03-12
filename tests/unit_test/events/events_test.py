@@ -1061,7 +1061,7 @@ class TestEventExecution:
         bot = 'test_events_bot'
         user = 'test_user'
         till_date = datetime.utcnow().date()
-        sender_id = None
+        sender_id = ""
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.delete_history}")
         responses.reset()
         responses.add("POST",

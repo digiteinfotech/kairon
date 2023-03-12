@@ -72,6 +72,7 @@ class WhatsappCloud(object):
             raise ValueError('`{}` is not a valid `messaging_type`'.format(messaging_type))
 
         body = {
+            "preview_url": True,
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
             "to": to_phone_number,
@@ -95,6 +96,7 @@ class WhatsappCloud(object):
             @outputs: response json
         """
         payload.update({
+            "preview_url": True,
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
             "to": to_phone_number
