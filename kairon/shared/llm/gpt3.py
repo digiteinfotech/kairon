@@ -9,11 +9,11 @@ from loguru import logger as logging
 
 
 class GPT3FAQEmbedding(LLMBase):
-    __answer_command__ = "Answer the question as truthfully as possible using the provided context, always add the link from the document in the answer if available, and if the answer is not contained within the text below, simply state 'I don't know.'"
+    __answer_command__ = "Answer question based on the context below, if answer is not in the context go check previous logs."
     __answer_params__ = {
         "temperature": 0.0,
         "max_tokens": 300,
-        "model": "text-davinci-003",
+        "model": "gpt-3.5-turbo",
     }
 
     __embedding__ = 1536
@@ -53,19 +53,31 @@ class GPT3FAQEmbedding(LLMBase):
         return result.to_dict_recursive()["data"][0]["embedding"]
 
     def __get_answer(self, query, context):
-        completion = openai.Completion.create(
+        # completion = openai.Completion.create(
+        #     api_key=self.api_key,
+        #     prompt=f"{self.__answer_command__} \n\nContext:\n{context}\n\n Q: {query}\n A:",
+        #     **self.__answer_params__
+        # )
+        messages = [
+            {"role": "system",
+             "content": "You are a personal assistant. Answer question based on the context below"},
+            {"role": "user", "content": f"{self.__answer_command__} \n\nContext:\n{context}\n\n Q: {query}\n A:"}
+        ]
+
+        completion = openai.ChatCompletion.create(
             api_key=self.api_key,
-            prompt=f"{self.__answer_command__} \n\nContext:\n{context}\n\n Q: {query}\n A:",
+            messages=messages,
             **self.__answer_params__
         )
-        response = ' '.join([choice['text'] for choice in completion.to_dict_recursive()['choices']])
+
+        response = ' '.join([choice['message']['content'] for choice in completion.to_dict_recursive()['choices']])
         return response
 
     def __create_collection__(self, collection_name: Text):
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
-                                                request_method="DELETE",
-                                                headers=self.headers,
-                                                return_json=False)
+                                     request_method="DELETE",
+                                     headers=self.headers,
+                                     return_json=False)
 
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                      request_method="PUT",
@@ -75,19 +87,20 @@ class GPT3FAQEmbedding(LLMBase):
 
     def __collection_upsert__(self, collection_name: Text, data: Union[List, Dict]):
         response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points"),
-                                     request_method="PUT",
-                                     headers=self.headers,
-                                     request_body=data,
-                                     return_json=True)
+                                                request_method="PUT",
+                                                headers=self.headers,
+                                                request_body=data,
+                                                return_json=True)
         if not response.get('result'):
             if "status" in response:
                 logging.exception(response['status'].get('error'))
                 raise AppException("Unable to train faq! contact support")
 
     def __collection_search__(self, collection_name: Text, vector: List):
-        response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/search"),
-                                     request_method="POST",
-                                     headers=self.headers,
-                                     request_body={'vector': vector, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70},
-                                     return_json=True)
+        response = Utility.execute_http_request(
+            http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/search"),
+            request_method="POST",
+            headers=self.headers,
+            request_body={'vector': vector, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70},
+            return_json=True)
         return response

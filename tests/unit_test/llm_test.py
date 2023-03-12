@@ -140,7 +140,7 @@ class TestLLM:
                 assert mock_openai.call_args.kwargs['input'] == test_content.data
 
     @responses.activate
-    @mock.patch("kairon.shared.llm.gpt3.openai.Completion.create", autospec=True)
+    @mock.patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     def test_gpt3_faq_embedding_predict(self,
                                         mock_embedding,
@@ -157,7 +157,7 @@ class TestLLM:
 
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(
-            OpenAIResponse({'choices': [{'text': generated_text}]}, {}))
+            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot)
@@ -180,7 +180,11 @@ class TestLLM:
             assert mock_embedding.call_args.kwargs['input'] == query
 
             assert mock_completion.call_args.kwargs['api_key'] == Utility.environment['llm']['api_key']
-            assert mock_completion.call_args.kwargs[
-                       'prompt'] == f"{gpt3.__answer_command__} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"
             assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
                        gpt3.__answer_params__.keys())
+            assert mock_completion.call_args.kwargs[
+                       'messages'] == [
+            {"role": "system",
+             "content": "You are a personal assistant. Answer question based on the context below"},
+            {"role": "user", "content": f"{gpt3.__answer_command__} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+        ]
