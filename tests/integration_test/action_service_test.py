@@ -5095,7 +5095,7 @@ class TestActionServer(AsyncHTTPTestCase):
             self.assertEqual(response_json, {'error': "No registered action found for name 'Action Not Found Exception'.",
                                              'action_name': 'Action Not Found Exception'})
 
-    @patch("kairon.shared.llm.gpt3.openai.Completion.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action(self, mock_search, mock_embedding, mock_completion):
@@ -5112,7 +5112,7 @@ class TestActionServer(AsyncHTTPTestCase):
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'text': generated_text}]}, {}))
+        mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score':0.80, 'payload':{'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
@@ -5133,7 +5133,7 @@ class TestActionServer(AsyncHTTPTestCase):
                 'response': None, 'image': None, 'attachment': None}
              ])
 
-    @patch("kairon.shared.llm.gpt3.openai.Completion.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_failure(self, mock_search, mock_embedding, mock_completion):
@@ -5150,7 +5150,7 @@ class TestActionServer(AsyncHTTPTestCase):
         generated_text = "I don't know."
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'text': generated_text}]}, {}))
+        mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score':0.80, 'payload':{'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
