@@ -64,3 +64,5 @@ fastapi-keycloak
 pyjwt==2.6.0
 openpyxl
 uuid6
+starlette>=0.25.0 # not directly required, pinned by Snyk to avoid a vulnerability
+werkzeug>=2.2.3 # not directly required, pinned by Snyk to avoid a vulnerability
