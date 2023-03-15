@@ -2842,6 +2842,78 @@ class TestActions:
         assert result is None
         assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: False || response: {\'success\': False}'
 
+    def test_prepare_email_text(self):
+        custom_text = "The user with ${sender_id} has message ${user_message}."
+        tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello",
+                        'key_vault': {'EMAIL': 'nkhare@digite.com', 'KEY_VAULT': '123456789-0lmgxzxdfghj',
+                                      'AWS': '435fdr'}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "The user with 987654321 has message hello."},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': custom_text,
+                     'data': tracker_data})],
+        )
+        Utility.email_conf['email']['templates']['conversation'] = open('template/emails/custom_text.html', 'rb').read().decode()
+        actual = ActionUtility.prepare_email_text(custom_text, tracker_data, "test@kairon.com")
+        assert str(actual).__contains__("</table>")
+
+    def test_prepare_email_text_failure(self):
+        custom_text = "The user with ${sender_id} has message ${user_message}."
+        tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello",
+                        'key_vault': {'EMAIL': 'nkhare@digite.com', 'KEY_VAULT': '123456789-0lmgxzxdfghj',
+                                      'AWS': '435fdr'}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False, "data": "The user with 987654321 has message hello."},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': custom_text,
+                     'data': tracker_data})],
+        )
+
+        Utility.email_conf['email']['templates']['conversation'] = open('template/emails/custom_text.html', 'rb').read().decode()
+        with pytest.raises(ActionFailure, match="Expression evaluation failed: script: The user with ${sender_id} has message ${user_message}. || data: {\'slot\': ' \
+                      '{\'email\': \'udit.pandey@digite.com\', \'firstname\': \'udit\'}, \'sender_id\': \'987654321\', ' \
+                      '\'intent\': \'greet\', \'user_message\': \'hello\', \'key_vault\': {\'EMAIL\': \'nkhare@digite.com\', ' \
+                      '\'KEY_VAULT\': \'123456789-0lmgxzxdfghj\', \'AWS\': \'435fdr\'}} || raise_err_on_failure: True || response: ' \
+                      '{\'success\': False, \'data\': \'The user with 987654321 has message hello.\'}"):
+            ActionUtility.prepare_email_text(custom_text, tracker_data, "test@kairon.com")
+
+    def test_prepare_email_text_failure_no_data(self):
+        custom_text = "The user with ${sender_id} has message ${user_message}."
+        tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
+                        'sender_id': "987654321", "intent": "greet", "user_message": "hello",
+                        'key_vault': {'EMAIL': 'nkhare@digite.com', 'KEY_VAULT': '123456789-0lmgxzxdfghj',
+                                      'AWS': '435fdr'}}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False},
+            status=200,
+            match=[
+                responses.json_params_matcher(
+                    {'script': custom_text,
+                     'data': tracker_data})],
+        )
+
+        Utility.email_conf['email']['templates']['conversation'] = open('template/emails/custom_text.html','rb').read().decode()
+        with pytest.raises(ActionFailure, match="Expression evaluation failed: script: "
+                                                "The user with ${sender_id} has message ${user_message}. || data: "
+                                                "{'slot': {'email': 'udit.pandey@digite.com', 'firstname': 'udit'}, "
+                                                "'sender_id': '987654321', 'intent': 'greet', 'user_message': 'hello', "
+                                                "'key_vault': {'EMAIL': 'nkhare@digite.com', 'KEY_VAULT': '123456789-0lmgxzxdfghj', "
+                                                "'AWS': '435fdr'}} || raise_err_on_failure: True || response: {'success': False, "
+                                                "'data': 'The user with 987654321 has message hello."):
+            ActionUtility.prepare_email_text(custom_text, tracker_data, "test@kairon.com")
+
     def test_compose_response_using_expression(self):
         response_config = {"value": "${a.b.d}", "evaluation_type": "expression"}
         http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}

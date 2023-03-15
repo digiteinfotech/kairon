@@ -451,6 +451,17 @@ class ActionUtility:
         return conversation_mail_template
 
     @staticmethod
+    def prepare_email_text(custom_text_mail: str, tracker_data: dict, subject: str, user_email: str = None):
+        text, _ = ActionUtility.evaluate_script(custom_text_mail, tracker_data)
+        custom_text_mail_template = Utility.email_conf['email']['templates']['custom_text']
+        custom_text_mail_template = custom_text_mail_template.replace('SUBJECT', subject)
+        if not ActionUtility.is_empty(user_email):
+            custom_text_mail_template = custom_text_mail_template.replace('USER_EMAIL', user_email)
+        custom_text_mail_template.replace('This email was sent to USER_EMAIL', '')
+        custom_text_mail_template = custom_text_mail_template.replace('CUSTOM_TEXT', text)
+        return custom_text_mail_template
+
+    @staticmethod
     def __format_bot_reply(reply: dict):
         bot_reply = ""
         button_template = Utility.email_conf['email']['templates']['button_template']
