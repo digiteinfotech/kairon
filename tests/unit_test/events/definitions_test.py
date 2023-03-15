@@ -610,7 +610,7 @@ class TestEventDefinitions:
         assert body['bot'] == bot
         assert body['user'] == user
         assert body['till_date']
-        assert body['sender_id'] is ""
+        assert body['sender_id'] == ""
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
 

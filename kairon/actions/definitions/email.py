@@ -56,12 +56,16 @@ class ActionEmail(ActionsBase):
         to_email = action_config['to_email']
         smtp_password = action_config.get('smtp_password')
         smtp_userid = action_config.get('smtp_userid')
+        custom_text = action_config.get('custom_text')
         try:
             tracker_data = ActionUtility.build_context(tracker)
             password = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_password, self.bot)
             userid = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_userid, self.bot)
             for mail in to_email:
-                body = ActionUtility.prepare_email_body(tracker_data[ActionParameterType.chat_log.value], action_config['subject'], mail)
+                if ActionUtility.is_empty(custom_text):
+                    body = ActionUtility.prepare_email_body(tracker_data[ActionParameterType.chat_log.value], action_config['subject'], mail)
+                else:
+                    body = ActionUtility.prepare_email_text(custom_text, tracker_data, action_config['subject'], mail)
                 await Utility.trigger_email(email=[mail],
                                             subject=f"{tracker.sender_id} {action_config['subject']}",
                                             body=body,
@@ -70,7 +74,7 @@ class ActionEmail(ActionsBase):
                                             sender_email=action_config['from_email'],
                                             smtp_password=password,
                                             smtp_userid=userid,
-                                            tls=action_config['tls'],
+                                            tls=action_config['tls']
                                             )
 
         except Exception as e:
