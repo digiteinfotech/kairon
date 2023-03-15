@@ -122,6 +122,7 @@ class MailTemplates(EmbeddedDocument):
     add_member_confirmation = StringField()
     password_generated = StringField()
     conversation = StringField()
+    custom_text_mail = StringField()
     bot_msg_conversation = StringField()
     user_msg_conversation = StringField()
     update_role = StringField()
