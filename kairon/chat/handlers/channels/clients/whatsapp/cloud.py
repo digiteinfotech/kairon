@@ -118,7 +118,9 @@ class WhatsappCloud(object):
             json=payload,
             timeout=timeout
         )
-        return r.json()
+        resp = r.json()
+        logger.debug(resp)
+        return resp
 
     def get_attachment(self, attachment_id, timeout=None):
         """
@@ -133,7 +135,9 @@ class WhatsappCloud(object):
             params=self.auth_args,
             timeout=timeout
         )
-        return r.json()
+        resp = r.json()
+        logger.debug(resp)
+        return resp
 
     def mark_as_read(self, msg_id, timeout=None):
         payload = {"messaging_product": "whatsapp", "status": "read", "message_id": msg_id}

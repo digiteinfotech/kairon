@@ -26,7 +26,6 @@ class Whatsapp:
     def __init__(self, config: dict) -> None:
         """Init whatsapp input channel."""
         self.config = config
-        self.page_access_token = config.get('api_key')
         self.last_message: Dict[Text, Any] = {}
 
     @classmethod
@@ -56,15 +55,16 @@ class Whatsapp:
         await self._handle_user_message(text, message["from"], message, bot)
 
     async def __handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
+        access_token = self.config.get('access_token')
         for entry in payload["entry"]:
             for changes in entry["changes"]:
                 self.last_message = changes
                 client = WhatsappFactory.get_client("meta")
-                self.client = client(self.page_access_token, from_phone_number_id=self.get_business_phone_number_id())
+                self.client = client(access_token, from_phone_number_id=self.get_business_phone_number_id())
                 msg_metadata = changes.get("value", {}).get("metadata", {})
                 metadata.update(msg_metadata)
                 messages = changes.get("value", {}).get("messages")
-                for message in messages:
+                for message in messages or []:
                     await self.message(message, metadata, bot)
 
     async def handle_meta_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
@@ -87,10 +87,11 @@ class Whatsapp:
         return "success"
 
     async def __handle_360dialog_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
+        access_token = self.config.get('api_key')
         for msg in payload.get("messages", {}):
             self.last_message = msg
             client = WhatsappFactory.get_client(WhatsappBSPTypes.bsp_360dialog.value)
-            self.client = client(self.page_access_token, config=self.config,
+            self.client = client(access_token, config=self.config,
                                  from_phone_number_id=self.get_business_phone_number_id())
             metadata.update(msg)
             await self.message(msg, metadata, bot)

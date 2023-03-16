@@ -39,7 +39,9 @@ class WhatsappOnPremise(WhatsappCloud):
             json=payload,
             timeout=timeout
         )
-        return r.json()
+        resp = r.json()
+        logger.debug(resp)
+        return resp
 
     def get_attachment(self, media_id, timeout=None):
         """
@@ -54,7 +56,9 @@ class WhatsappOnPremise(WhatsappCloud):
             headers=self.auth_args,
             timeout=timeout
         )
-        return r.json()
+        resp = r.json()
+        logger.debug(resp)
+        return resp
 
     def mark_as_read(self, msg_id, timeout=None):
         payload = {
@@ -66,7 +70,9 @@ class WhatsappOnPremise(WhatsappCloud):
             json=payload,
             timeout=timeout
         )
-        return r.json()
+        resp = r.json()
+        logger.debug(resp)
+        return resp
 
     def send_template_message(self, namespace: Text, name: Text, to_phone_number, language_code: Text = "en"):
         payload = {
