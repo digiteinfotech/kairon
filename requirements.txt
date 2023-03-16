@@ -1,3 +1,4 @@
+torchvision==0.14.1
 sentence-transformers
 pyyaml
 torch==1.11.0
@@ -64,3 +65,4 @@ fastapi-keycloak
 pyjwt==2.6.0
 openpyxl
 uuid6
+typeguard==2.13.3
