@@ -1299,6 +1299,73 @@ def test_get_data_importer_logs():
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config'}
 
+@responses.activate
+def test_upload_with_chat_client_config():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+             ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
+             ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))))
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
+
+
+@responses.activate
+def test_upload_without_chat_client_config():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+             ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
+
+
+def test_download_data_with_chat_client_config():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/download/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    file_bytes = BytesIO(response.content)
+    zip_file = ZipFile(file_bytes, mode='r')
+    assert zip_file.filelist.__len__() == 8
+    assert zip_file.getinfo('chat_client_config.yml')
+    assert zip_file.getinfo('config.yml')
+    assert zip_file.getinfo('domain.yml')
+    assert zip_file.getinfo('actions.yml')
+    assert zip_file.getinfo('data/stories.yml')
+    assert zip_file.getinfo('data/rules.yml')
+    assert zip_file.getinfo('data/nlu.yml')
+
 
 def test_get_slots():
     response = client.get(

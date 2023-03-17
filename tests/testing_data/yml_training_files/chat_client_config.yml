@@ -1,4 +1,3 @@
-bot: 6411a5bb7fc7076fbece53dc
 config:
   api_server_host_url: http://testserver
   bot: 6411a5bb7fc7076fbece53dc
@@ -29,8 +28,5 @@ config:
   user: sysadmin
   whitelist:
   - '*'
-status: true
-timestamp: 2023-03-15 11:02:19.445000
-user: sysadmin
 white_listed_domain:
 - '*'

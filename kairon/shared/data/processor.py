@@ -180,7 +180,6 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
-            chat_client_config_path = os.path.join(path, "chat_client_config.yml")
             actions_yml = os.path.join(path, 'actions.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
@@ -190,11 +189,10 @@ class MongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             actions = Utility.read_yaml(actions_yml)
-            chat_client_config = Utility.read_yaml(chat_client_config_path)
             TrainingDataValidator.validate_custom_actions(actions)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, chat_client_config, overwrite,
-                                    REQUIREMENTS.copy())
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite=overwrite,
+                                    what=REQUIREMENTS.copy()-{"chat_client_config"})
         except Exception as e:
             logging.exception(e)
             raise AppException(e)
@@ -1355,6 +1353,10 @@ class MongoProcessor:
         config_dict = config.to_mongo().to_dict()
         config_dict["config"].pop("headers", None)
         config_dict["config"].pop("multilingual", None)
+        config_dict.pop("bot", None)
+        config_dict.pop("status", None)
+        config_dict.pop("user", None)
+        config_dict.pop("timestamp", None)
         return config_dict
 
     def add_training_data(self, training_data: List[models.TrainingData], bot: Text, user: Text, is_integration: bool):
