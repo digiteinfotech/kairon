@@ -615,9 +615,9 @@ async def download_data(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Downloads training data nlu.md, domain.yml, stories.md, config.yml files
+    Downloads training data nlu.md, domain.yml, stories.md, config.yml, chat_client_config.yml files
     """
-    file = mongo_processor.download_files(current_user.get_bot())
+    file = mongo_processor.download_files(current_user.get_bot(), current_user.get_user())
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
     )

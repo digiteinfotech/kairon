@@ -104,6 +104,7 @@ class MongoProcessor:
             config: File,
             rules: File,
             http_action: File,
+            chat_client_config: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -117,29 +118,33 @@ class MongoProcessor:
         :param rules: rules data
         :param http_action: http_actions data
         :param config: config data
+        :param chat_client_config: chat_client_config data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action,
+                                                                  chat_client_config)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
-    def download_files(self, bot: Text):
+    def download_files(self, bot: Text, user: Text):
         """
         create zip file containing download data
 
         :param bot: bot id
+        :param user: user id
         :return: zip file path
         """
         nlu = self.load_nlu(bot)
         domain = self.load_domain(bot)
         stories = self.load_stories(bot)
         config = self.load_config(bot)
+        chat_client_config = self.load_chat_client_config(bot, user)
         rules = self.get_rules_for_training(bot)
         actions = self.load_action_configurations(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, chat_client_config)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -175,6 +180,7 @@ class MongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            chat_client_config_path = os.path.join(path, "chat_client_config.yml")
             actions_yml = os.path.join(path, 'actions.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
@@ -184,9 +190,10 @@ class MongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             actions = Utility.read_yaml(actions_yml)
+            chat_client_config = Utility.read_yaml(chat_client_config_path)
             TrainingDataValidator.validate_custom_actions(actions)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite,
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, chat_client_config, overwrite,
                                     REQUIREMENTS.copy())
         except Exception as e:
             logging.exception(e)
@@ -194,6 +201,7 @@ class MongoProcessor:
 
     def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
                            story_graph: StoryGraph = None, nlu: TrainingData = None, actions: dict = None,
+                           chat_client_config: dict = None,
                            overwrite: bool = False, what: set = REQUIREMENTS.copy()):
         if overwrite:
             self.delete_bot_data(bot, user, what)
@@ -210,6 +218,8 @@ class MongoProcessor:
             self.save_rules(story_graph.story_steps, bot, user)
         if 'config' in what:
             self.add_or_overwrite_config(config, bot, user)
+        if 'chat_client_config' in what:
+            self.save_chat_client_config(chat_client_config, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -1332,6 +1342,20 @@ class MongoProcessor:
             for key in config_dict
             if key in ["language", "pipeline", "policies"]
         }
+
+    def load_chat_client_config(self, bot: Text, user: Text):
+        """
+        loads chat client configuration for training
+
+        :param bot: bot id
+        :param user: user id
+        :return: dict
+        """
+        config = self.get_chat_client_config(bot, user)
+        config_dict = config.to_mongo().to_dict()
+        config_dict["config"].pop("headers", None)
+        config_dict["config"].pop("multilingual", None)
+        return config_dict
 
     def add_training_data(self, training_data: List[models.TrainingData], bot: Text, user: Text, is_integration: bool):
         """
@@ -3184,7 +3208,7 @@ class MongoProcessor:
         """
         loads configurations of all types of actions from the database
         :param bot: bot id
-        :return: dict of action configuations of all types.
+        :return: dict of action configurations of all types.
         """
         action_config = {}
         action_config.update(self.load_http_action(bot))
@@ -3195,6 +3219,7 @@ class MongoProcessor:
         action_config.update(self.load_slot_set_action(bot))
         action_config.update(self.load_google_search_action(bot))
         action_config.update(self.load_pipedrive_leads_action(bot))
+        action_config.update(self.load_two_stage_fallback_action_config(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -3279,6 +3304,15 @@ class MongoProcessor:
         """
         return {ActionType.pipedrive_leads_action.value: list(self.list_pipedrive_actions(bot, False))}
 
+    def load_two_stage_fallback_action_config(self, bot: Text):
+        """
+        Loads Two Stage Fallback actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.two_stage_fallback.value:
+                list(self.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK, False))}
+
     def load_form_validation_action(self, bot: Text):
         """
         Loads Form validation actions from the database
@@ -3336,7 +3370,7 @@ class MongoProcessor:
         files_received = REQUIREMENTS - files_to_prepare
         is_event_data = False
 
-        if files_received.difference({'config', 'actions'}):
+        if files_received.difference({'config', 'actions', 'chat_client_config'}):
             is_event_data = True
         else:
             non_event_validation_summary = self.save_data_without_event(bot_data_home_dir, bot, user, overwrite)
@@ -3350,11 +3384,13 @@ class MongoProcessor:
 
         actions = None
         config = None
+        chat_client_config = None
         validation_failed = False
         error_summary = {}
         component_count = COMPONENT_COUNT.copy()
         actions_path = os.path.join(data_home_dir, 'actions.yml')
         config_path = os.path.join(data_home_dir, 'config.yml')
+        chat_client_config_path = os.path.join(data_home_dir, 'chat_client_config.yml')
         if os.path.exists(actions_path):
             actions = Utility.read_yaml(actions_path)
             validation_failed, error_summary, actions_count = TrainingDataValidator.validate_custom_actions(actions)
@@ -3363,6 +3399,8 @@ class MongoProcessor:
             config = Utility.read_yaml(config_path)
             errors = TrainingDataValidator.validate_rasa_config(config)
             error_summary['config'] = errors
+        if os.path.exists(chat_client_config_path):
+            chat_client_config = Utility.read_yaml(chat_client_config_path)
 
         if not validation_failed and not error_summary.get('config'):
             files_to_save = set()
@@ -3370,7 +3408,10 @@ class MongoProcessor:
                 files_to_save.add('actions')
             if config:
                 files_to_save.add('config')
-            self.save_training_data(bot, user, actions=actions, config=config, overwrite=overwrite, what=files_to_save)
+            if chat_client_config:
+                files_to_save.add('chat_client_config')
+            self.save_training_data(bot, user, actions=actions, config=config, overwrite=overwrite, what=files_to_save,
+                                    chat_client_config=chat_client_config)
         else:
             validation_failed = True
         return {'summary': error_summary, 'component_count': component_count, 'validation_failed': validation_failed}
