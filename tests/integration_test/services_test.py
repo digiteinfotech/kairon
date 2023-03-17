@@ -987,7 +987,8 @@ def test_upload():
     files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
              ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
-             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
+             ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))))
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1260,14 +1261,16 @@ def test_get_data_importer_logs():
 
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][2]['status'] == 'Failure'
-    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config'}
+    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
+                                                                'chat_client_config'}
     assert actual['data']["logs"][2]['is_data_uploaded']
     assert actual['data']["logs"][2]['start_timestamp']
     assert actual['data']["logs"][2]['end_timestamp']
 
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
-    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
+                                                                'actions', 'chat_client_config'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
@@ -1293,7 +1296,8 @@ def test_get_data_importer_logs():
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
-    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain', 'actions'}
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
+                                                                'actions', 'chat_client_config'}
 
 
 def test_get_slots():
@@ -3385,7 +3389,7 @@ def test_download_data():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__()
+    assert zip_file.filelist.__len__() == 8
     zip_file.close()
     file_bytes.close()
 

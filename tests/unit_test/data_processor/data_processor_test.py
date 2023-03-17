@@ -102,6 +102,7 @@ class TestMongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            chat_client_config_path = os.path.join(path, "chat_client_config.yml")
             http_actions_path = os.path.join(path, 'actions.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
@@ -111,7 +112,8 @@ class TestMongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
-            return nlu, story_graph, domain, config, http_actions
+            chat_client_config = Utility.read_yaml(chat_client_config_path)
+            return nlu, story_graph, domain, config, http_actions, chat_client_config
 
         return _read_and_get_data
 
@@ -124,7 +126,14 @@ class TestMongoProcessor:
         assert result == {}
 
     @pytest.mark.asyncio
-    async def test_load_from_path(self):
+    async def test_load_from_path(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         result = await (
             processor.save_from_path(
@@ -134,7 +143,14 @@ class TestMongoProcessor:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_save_from_path_yml(self):
+    async def test_save_from_path_yml(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         result = await (
             processor.save_from_path(
@@ -300,7 +316,14 @@ class TestMongoProcessor:
         assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
 
     @pytest.mark.asyncio
-    async def test_upload_case_insensitivity(self):
+    async def test_upload_case_insensitivity(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         await (
             processor.save_from_path(
@@ -374,7 +397,14 @@ class TestMongoProcessor:
                                                                                                      'utter_please_rephrase'}
 
     @pytest.mark.asyncio
-    async def test_load_from_path_yml_training_files(self):
+    async def test_load_from_path_yml_training_files(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         await (
             processor.save_from_path(
@@ -450,7 +480,14 @@ class TestMongoProcessor:
             )
 
     @pytest.mark.asyncio
-    async def test_load_from_path_all_scenario(self):
+    async def test_load_from_path_all_scenario(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         await (
             processor.save_from_path("./tests/testing_data/all", bot="all", user="testUser")
@@ -495,7 +532,14 @@ class TestMongoProcessor:
         assert Utterances.objects(bot='all').count() == 27
 
     @pytest.mark.asyncio
-    async def test_load_from_path_all_scenario_append(self):
+    async def test_load_from_path_all_scenario_append(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         await (
             processor.save_from_path("./tests/testing_data/all",
@@ -1318,6 +1362,13 @@ class TestMongoProcessor:
 
     @elasticmock
     def test_start_training_done_with_intrumentation(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         def mongo_store(*args, **kwargs):
             return None
 
@@ -1612,10 +1663,53 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='No history server endpoint configured'):
             endpoint = processor.get_history_server_endpoint("test_bot")
 
-    def test_download_data_files(self):
+    def test_download_data_files(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
-        file = processor.download_files("tests")
+        file = processor.download_files("tests", "user@integration.com")
         assert file.endswith(".zip")
+
+    def test_download_data_files_with_actions(self, monkeypatch):
+        from zipfile import ZipFile
+        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(encoding='utf-8')
+
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        file_path = processor.download_files("tests", "user@integration.com")
+        assert file_path.endswith(".zip")
+        zip_file = ZipFile(file_path, mode='r')
+        assert zip_file.filelist.__len__() == 8
+        assert zip_file.getinfo('chat_client_config.yml')
+        assert zip_file.getinfo('config.yml')
+        assert zip_file.getinfo('domain.yml')
+        assert zip_file.getinfo('actions.yml')
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        assert zip_file.getinfo('data/nlu.yml')
+        file_info = zip_file.getinfo('actions.yml')
+        file_content = zip_file.read(file_info)
+        actual_actions = file_content.decode(encoding='utf-8')
+        assert actual_actions == expected_actions
+        zip_file.close()
+
+    def test_load_action_configurations(self):
+        processor = MongoProcessor()
+        action_config = processor.load_action_configurations("tests")
+        assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
+                                 'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
+                                 'pipedrive_leads_action': [], 'two_stage_fallback': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -2278,18 +2372,27 @@ class TestMongoProcessor:
         processor.delete_rules("test_save_rules_already_present", "rules_creator")
 
     @pytest.mark.asyncio
-    async def test_upload_and_save(self):
+    async def test_upload_and_save(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         nlu_content = "## intent:greet\n- hey\n- hello".encode()
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        chat_client_config_content = "config:\n  api_server_host_url: http://testserver\n  bot: 64120b21ee3a720ca5e7d1c4\n  chat_server_base_url: null\n  language: en\n  pipeline:\n  - name: WhitespaceTokenizer\n  - name: RegexFeaturizer\n  - name: LexicalSyntacticFeaturizer\n  - name: CountVectorsFeaturizer\n  - analyzer: char_wb\n    max_ngram: 4\n    min_ngram: 1\n    name: CountVectorsFeaturizer\n  - epochs: 100\n    name: DIETClassifier\n  - name: FallbackClassifier\n    threshold: 0.7\n  - name: EntitySynonymMapper\n  - epochs: 100\n    name: ResponseSelector\n  policies:\n  - name: MemoizationPolicy\n  - epochs: 100\n    max_history: 5\n    name: TEDPolicy\n  - name: RulePolicy\n  user: sysadmin\n  whitelist:\n  - '*'\nstatus: true\ntimestamp: 2023-03-15 18:14:57.490000\nuser: sysadmin\nwhite_listed_domain:\n- '*'\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, None, "test_upload_and_save",
-                                        "rules_creator")
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, chat_client_config,
+                                        "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 3
@@ -2297,20 +2400,29 @@ class TestMongoProcessor:
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
 
     @pytest.mark.asyncio
-    async def test_upload_and_save_with_rules(self):
+    async def test_upload_and_save_with_rules(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         nlu_content = "## intent:greet\n- hey\n- hello".encode()
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         rules_content = "rules:\n\n- rule: Only say `hello` if the user provided a location\n  condition:\n  - slot_was_set:\n    - location: true\n  steps:\n  - intent: greet\n  - action: utter_greet\n".encode()
+        chat_client_config_content = "config:\n  api_server_host_url: http://testserver\n  bot: 64120b21ee3a720ca5e7d1c4\n  chat_server_base_url: null\n  language: en\n  pipeline:\n  - name: WhitespaceTokenizer\n  - name: RegexFeaturizer\n  - name: LexicalSyntacticFeaturizer\n  - name: CountVectorsFeaturizer\n  - analyzer: char_wb\n    max_ngram: 4\n    min_ngram: 1\n    name: CountVectorsFeaturizer\n  - epochs: 100\n    name: DIETClassifier\n  - name: FallbackClassifier\n    threshold: 0.7\n  - name: EntitySynonymMapper\n  - epochs: 100\n    name: ResponseSelector\n  policies:\n  - name: MemoizationPolicy\n  - epochs: 100\n    max_history: 5\n    name: TEDPolicy\n  - name: RulePolicy\n  user: sysadmin\n  whitelist:\n  - '*'\nstatus: true\ntimestamp: 2023-03-15 18:14:57.490000\nuser: sysadmin\nwhite_listed_domain:\n- '*'\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
-        await processor.upload_and_save(nlu, domain, stories, config, rules, None, "test_upload_and_save",
-                                        "rules_creator")
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        await processor.upload_and_save(nlu, domain, stories, config, rules, None, chat_client_config,
+                                        "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
@@ -2320,20 +2432,29 @@ class TestMongoProcessor:
         assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 2
 
     @pytest.mark.asyncio
-    async def test_upload_and_save_with_http_action(self):
+    async def test_upload_and_save_with_http_action(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         nlu_content = "## intent:greet\n- hey\n- hello".encode()
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
+        chat_client_config_content = "config:\n  api_server_host_url: http://testserver\n  bot: 64120b21ee3a720ca5e7d1c4\n  chat_server_base_url: null\n  language: en\n  pipeline:\n  - name: WhitespaceTokenizer\n  - name: RegexFeaturizer\n  - name: LexicalSyntacticFeaturizer\n  - name: CountVectorsFeaturizer\n  - analyzer: char_wb\n    max_ngram: 4\n    min_ngram: 1\n    name: CountVectorsFeaturizer\n  - epochs: 100\n    name: DIETClassifier\n  - name: FallbackClassifier\n    threshold: 0.7\n  - name: EntitySynonymMapper\n  - epochs: 100\n    name: ResponseSelector\n  policies:\n  - name: MemoizationPolicy\n  - epochs: 100\n    max_history: 5\n    name: TEDPolicy\n  - name: RulePolicy\n  user: sysadmin\n  whitelist:\n  - '*'\nstatus: true\ntimestamp: 2023-03-15 18:14:57.490000\nuser: sysadmin\nwhite_listed_domain:\n- '*'\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, "test_upload_and_save",
-                                        "rules_creator")
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, chat_client_config,
+                                        "test_upload_and_save", "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
@@ -2521,14 +2642,22 @@ class TestMongoProcessor:
         assert len(slots) == 0
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all(self, get_training_data):
+    async def test_save_training_data_all(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -2580,14 +2709,22 @@ class TestMongoProcessor:
         assert len(Actions.objects(type='http_action', bot=bot)) == 5
 
     @pytest.mark.asyncio
-    async def test_save_training_data_no_rules_and_http_actions(self, get_training_data):
+    async def test_save_training_data_no_rules_and_http_actions(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         path = 'tests/testing_data/all'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -2629,14 +2766,22 @@ class TestMongoProcessor:
         assert not actions['http_action']
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all_overwrite(self, get_training_data):
+    async def test_save_training_data_all_overwrite(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -2687,14 +2832,22 @@ class TestMongoProcessor:
         assert len(actions['http_action']) == 5
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all_append(self, get_training_data):
+    async def test_save_training_data_all_append(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         path = 'tests/testing_data/validator/append'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, False)
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, False)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -2802,7 +2955,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, nlu=nlu, overwrite=True, what={'nlu'})
@@ -2862,7 +3015,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, story_graph=story_graph, overwrite=True, what={'stories'})
@@ -2880,6 +3033,21 @@ class TestMongoProcessor:
         assert not story_graph.story_steps[15].events[2].entities[0].get('end')
         assert story_graph.story_steps[15].events[2].entities[0]['value'] == 'hate'
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
+
+    def test_load_chat_client_config(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        chat_client_config = processor.load_chat_client_config('test_bot', 'user@integration.com')
+        assert chat_client_config["config"]
+        assert not chat_client_config["config"].get('headers')
+        assert not chat_client_config["config"].get('multilingual')
+        assert chat_client_config["status"]
 
     def test_delete_config_and_actions_only(self):
         bot = 'test'
@@ -2916,7 +3084,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
         config['language'] = 'fr'
 
         mongo_processor = MongoProcessor()
@@ -2963,7 +3131,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, story_graph=story_graph, domain=domain, overwrite=True,
@@ -3110,12 +3278,15 @@ class TestMongoProcessor:
     def resource_save_and_validate_training_files(self):
         pytest.bot = 'test_validate_and_prepare_data'
         config_path = 'tests/testing_data/yml_training_files/config.yml'
+        chat_client_config_path = "tests/testing_data/yml_training_files/chat_client_config.yml"
         domain_path = 'tests/testing_data/yml_training_files/domain.yml'
         nlu_path = 'tests/testing_data/yml_training_files/data/nlu.yml'
         stories_path = 'tests/testing_data/yml_training_files/data/stories.yml'
         http_action_path = 'tests/testing_data/yml_training_files/actions.yml'
         rules_path = 'tests/testing_data/yml_training_files/data/rules.yml'
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(open(config_path, 'rb').read()))
+        pytest.chat_client_config = UploadFile(filename="chat_client_config.yml",
+                                               file=BytesIO(open(chat_client_config_path, 'rb').read()))
         pytest.domain = UploadFile(filename="domain.yml", file=BytesIO(open(domain_path, 'rb').read()))
         pytest.nlu = UploadFile(filename="nlu.yml", file=BytesIO(open(nlu_path, 'rb').read()))
         pytest.stories = UploadFile(filename="stories.yml", file=BytesIO(open(stories_path, 'rb').read()))
@@ -3143,7 +3314,8 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_training_files(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
-        training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules]
+        training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules,
+                         pytest.chat_client_config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
         assert REQUIREMENTS == files_received
@@ -3152,6 +3324,7 @@ class TestMongoProcessor:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'chat_client_config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
@@ -3206,6 +3379,29 @@ class TestMongoProcessor:
         assert config['pipeline']
         assert config['policies']
         assert config['language']
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_chat_client_config(self, resource_save_and_validate_training_files,
+                                                                     monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        training_file = [pytest.chat_client_config]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
+        assert {'chat_client_config'} == files_received
+        assert not is_event_data
+        assert not non_event_validation_summary.get("config")
+        assert not non_event_validation_summary.get("http_actions")
+        chat_client_config = processor.load_chat_client_config(pytest.bot, 'test')
+        assert chat_client_config['config']
+        assert chat_client_config['status']
+        assert chat_client_config['white_listed_domain']
 
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_rules(self, resource_save_and_validate_training_files):
@@ -3396,6 +3592,7 @@ class TestMongoProcessor:
                         assert len(saved_actions['zendesk_action']) == 2
                         assert len(saved_actions['email_action']) == 2
                         assert len(saved_actions['pipedrive_leads_action']) == 2
+                        assert len(saved_actions['two_stage_fallback']) == 1
 
     def test_save_component_properties_all(self):
         config = {"nlu_epochs": 200,

@@ -152,15 +152,19 @@ class TestUtility:
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         rules_content = "rules:\n\n- rule: Only say `hello` if the user provided a location\n  condition:\n  - slot_was_set:\n    - location: true\n  steps:\n  - intent: greet\n  - action: utter_greet\n".encode()
         http_action_content = "http_actions:\n- action_name: action_performanceUsers1000@digite.com\n  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  http_url: http://www.alphabet.com\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
+        chat_client_config_content = "config:\n  api_server_host_url: http://testserver\n  bot: 64120b21ee3a720ca5e7d1c4\n  chat_server_base_url: null\n  language: en\n  pipeline:\n  - name: WhitespaceTokenizer\n  - name: RegexFeaturizer\n  - name: LexicalSyntacticFeaturizer\n  - name: CountVectorsFeaturizer\n  - analyzer: char_wb\n    max_ngram: 4\n    min_ngram: 1\n    name: CountVectorsFeaturizer\n  - epochs: 100\n    name: DIETClassifier\n  - name: FallbackClassifier\n    threshold: 0.7\n  - name: EntitySynonymMapper\n  - epochs: 100\n    name: ResponseSelector\n  policies:\n  - name: MemoizationPolicy\n  - epochs: 100\n    max_history: 5\n    name: TEDPolicy\n  - name: RulePolicy\n  user: sysadmin\n  whitelist:\n  - '*'\nstatus: true\ntimestamp: 2023-03-15 18:14:57.490000\nuser: sysadmin\nwhite_listed_domain:\n- '*'\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action,
+                                                                  chat_client_config)
         assert os.path.exists(training_file_loc['nlu'])
         assert os.path.exists(training_file_loc['config'])
+        assert os.path.exists(training_file_loc['chat_client_config'])
         assert os.path.exists(training_file_loc['stories'])
         assert os.path.exists(training_file_loc['domain'])
         assert os.path.exists(training_file_loc['rules'])
@@ -238,13 +242,17 @@ class TestUtility:
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
+        chat_client_config_content = "config:\n  api_server_host_url: http://testserver\n  bot: 64120b21ee3a720ca5e7d1c4\n  chat_server_base_url: null\n  language: en\n  pipeline:\n  - name: WhitespaceTokenizer\n  - name: RegexFeaturizer\n  - name: LexicalSyntacticFeaturizer\n  - name: CountVectorsFeaturizer\n  - analyzer: char_wb\n    max_ngram: 4\n    min_ngram: 1\n    name: CountVectorsFeaturizer\n  - epochs: 100\n    name: DIETClassifier\n  - name: FallbackClassifier\n    threshold: 0.7\n  - name: EntitySynonymMapper\n  - epochs: 100\n    name: ResponseSelector\n  policies:\n  - name: MemoizationPolicy\n  - epochs: 100\n    max_history: 5\n    name: TEDPolicy\n  - name: RulePolicy\n  user: sysadmin\n  whitelist:\n  - '*'\nstatus: true\ntimestamp: 2023-03-15 18:14:57.490000\nuser: sysadmin\nwhite_listed_domain:\n- '*'\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, None)
+        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, None, None,
+                                                                  chat_client_config)
         assert os.path.exists(training_file_loc['nlu'])
         assert os.path.exists(training_file_loc['config'])
+        assert os.path.exists(training_file_loc['chat_client_config'])
         assert os.path.exists(training_file_loc['stories'])
         assert os.path.exists(training_file_loc['domain'])
         assert not training_file_loc.get('rules')
@@ -252,8 +260,17 @@ class TestUtility:
         assert os.path.exists(training_file_loc['root'])
 
     @pytest.mark.asyncio
-    async def test_write_training_data(self):
+    async def test_write_training_data(self, monkeypatch):
         from kairon.shared.data.processor import MongoProcessor
+        from kairon.shared.account.processor import AccountProcessor
+
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
         await (
             processor.save_from_path(
@@ -408,19 +425,19 @@ class TestUtility:
 
     def test_validate_only_stories_and_nlu(self, resource_validate_only_stories_and_nlu):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'actions', 'config', 'domain'} == requirements
+        assert {'actions', 'config', 'domain', 'chat_client_config'} == requirements
 
     def test_validate_only_http_actions(self, resource_validate_only_http_actions):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'domain', 'config', 'stories', 'nlu'} == requirements
+        assert {'rules', 'domain', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     def test_validate_only_domain(self, resource_validate_only_domain):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'config', 'stories', 'nlu'} == requirements
+        assert {'rules', 'actions', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     def test_validate_only_config(self, resource_validate_only_config):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'domain', 'stories', 'nlu'} == requirements
+        assert {'rules', 'actions', 'domain', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate(self, resource_unzip_and_validate):

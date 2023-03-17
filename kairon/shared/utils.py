@@ -1010,7 +1010,7 @@ class Utility:
 
     @staticmethod
     def write_training_data(nlu, domain, config: dict,
-                            stories, rules=None, actions: dict = None):
+                            stories, rules=None, actions: dict = None, chat_client_config: dict = None):
         """
         convert mongo data  to individual files
 
@@ -1018,6 +1018,7 @@ class Utility:
         :param domain: domain data
         :param stories: stories data
         :param config: config data
+        :param chat_client_config: chat_client_config data
         :param rules: rules data
         :param actions: action configuration data
         :return: files path
@@ -1035,6 +1036,7 @@ class Utility:
         config_path = os.path.join(temp_path, DEFAULT_CONFIG_PATH)
         rules_path = os.path.join(data_path, "rules.yml")
         actions_path = os.path.join(temp_path, "actions.yml")
+        chat_client_config_path = os.path.join(temp_path, "chat_client_config.yml")
 
         nlu_as_str = nlu.nlu_as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
@@ -1052,13 +1054,16 @@ class Utility:
         if actions:
             actions_as_str = yaml.dump(actions).encode()
             Utility.write_to_file(actions_path, actions_as_str)
+        if chat_client_config:
+            chat_client_config_as_str = yaml.dump(chat_client_config).encode()
+            Utility.write_to_file(chat_client_config_path, chat_client_config_as_str)
         return temp_path
 
     @staticmethod
     def create_zip_file(
             nlu, domain, stories, config: Dict, bot: Text,
             rules=None,
-            actions: Dict = None
+            actions: Dict = None,  chat_client_config: Dict = None
     ):
         """
         adds training files to zip
@@ -1067,6 +1072,7 @@ class Utility:
         :param domain: domain data
         :param stories: stories data
         :param config: config data
+        :param chat_client_config: chat_client_config data
         :param bot: bot id
         :param rules: rules data
         :param actions: action configurations
@@ -1078,7 +1084,8 @@ class Utility:
             config,
             stories,
             rules,
-            actions
+            actions,
+            chat_client_config
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)

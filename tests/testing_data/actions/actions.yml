@@ -222,3 +222,16 @@ pipedrive_leads_action:
   response: Thankyou for your time
   metadata:
     name: name_slot
+
+two_stage_fallback:
+- fallback_message: I could not understand you! Did you mean any of the suggestions
+    below? Or else please rephrase your question.
+  name: kairon_two_stage_fallback
+  text_recommendations:
+    count: 0
+    use_intent_ranking: true
+  timestamp: 2023-03-15 18:15:00.717000
+  trigger_rules:
+  - is_dynamic_msg: false
+    payload: greet
+    text: Hi
