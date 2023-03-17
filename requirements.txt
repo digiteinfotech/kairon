@@ -59,6 +59,7 @@ openapi_spec_validator
 google-cloud-translate
 dramatiq
 dramatiq-mongodb==0.6.1
+typeguard==2.13.3
 keybert
 bs4
 fastapi-keycloak

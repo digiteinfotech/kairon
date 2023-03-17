@@ -620,6 +620,7 @@ class AccountProcessor:
                 add_member_confirmation=open('template/emails/memberAddConfirmation.html', 'r').read(),
                 password_generated=open('template/emails/passwordGenerated.html', 'r').read(),
                 conversation=open('template/emails/conversation.html', 'r').read(),
+                custom_text_mail=open('template/emails/custom_text_mail.html', 'r').read(),
                 bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
                 user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
                 update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
@@ -636,6 +637,7 @@ class AccountProcessor:
         Utility.email_conf['email']['templates']['add_member_confirmation'] = system_properties['mail_templates']['add_member_confirmation']
         Utility.email_conf['email']['templates']['password_generated'] = system_properties['mail_templates']['password_generated']
         Utility.email_conf['email']['templates']['conversation'] = system_properties['mail_templates']['conversation']
+        Utility.email_conf['email']['templates']['custom_text_mail'] = system_properties['mail_templates']['custom_text_mail']
         Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
         Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
         Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']

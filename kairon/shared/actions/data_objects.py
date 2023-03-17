@@ -253,6 +253,7 @@ class EmailActionConfig(Auditlog):
     subject = StringField(required=True)
     to_email = ListField(StringField(), required=True)
     response = StringField(required=True)
+    custom_text = StringField(required=False)
     tls = BooleanField(default=False)
     bot = StringField(required=True)
     user = StringField(required=True)
