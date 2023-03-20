@@ -408,19 +408,19 @@ class TestUtility:
 
     def test_validate_only_stories_and_nlu(self, resource_validate_only_stories_and_nlu):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'actions', 'config', 'domain'} == requirements
+        assert {'actions', 'config', 'domain', 'chat_client_config'} == requirements
 
     def test_validate_only_http_actions(self, resource_validate_only_http_actions):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'domain', 'config', 'stories', 'nlu'} == requirements
+        assert {'rules', 'domain', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     def test_validate_only_domain(self, resource_validate_only_domain):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'config', 'stories', 'nlu'} == requirements
+        assert {'rules', 'actions', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     def test_validate_only_config(self, resource_validate_only_config):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'domain', 'stories', 'nlu'} == requirements
+        assert {'rules', 'actions', 'domain', 'stories', 'nlu', 'chat_client_config'} == requirements
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate(self, resource_unzip_and_validate):

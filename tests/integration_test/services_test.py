@@ -987,7 +987,8 @@ def test_upload():
     files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
              ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
-             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
+             ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))))
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1260,14 +1261,16 @@ def test_get_data_importer_logs():
 
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][2]['status'] == 'Failure'
-    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config'}
+    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
+                                                                'chat_client_config'}
     assert actual['data']["logs"][2]['is_data_uploaded']
     assert actual['data']["logs"][2]['start_timestamp']
     assert actual['data']["logs"][2]['end_timestamp']
 
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
-    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
+                                                                'actions', 'chat_client_config'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
@@ -1293,7 +1296,111 @@ def test_get_data_importer_logs():
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
-    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain', 'actions'}
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
+                                                                'actions', 'chat_client_config'}
+
+
+@responses.activate
+def test_upload_with_chat_client_config_only():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("chat_client_config.yml",
+                                 open("tests/testing_data/all/chat_client_config.yml", "rb"))),)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert set(actual['data']["logs"][0]['files_received']) == {'chat_client_config'}
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['end_timestamp']
+
+
+@responses.activate
+def test_upload_with_chat_client_config():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+             ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
+             ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))))
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
+
+
+@responses.activate
+def test_upload_without_chat_client_config():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+             ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
+
+
+def test_download_data_with_chat_client_config():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/download/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    file_bytes = BytesIO(response.content)
+    zip_file = ZipFile(file_bytes, mode='r')
+    assert zip_file.filelist.__len__() == 8
+    assert zip_file.getinfo('chat_client_config.yml')
+    assert zip_file.getinfo('config.yml')
+    assert zip_file.getinfo('domain.yml')
+    assert zip_file.getinfo('actions.yml')
+    assert zip_file.getinfo('data/stories.yml')
+    assert zip_file.getinfo('data/rules.yml')
+    assert zip_file.getinfo('data/nlu.yml')
 
 
 def test_get_slots():
@@ -3385,7 +3492,7 @@ def test_download_data():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__()
+    assert zip_file.filelist.__len__() == 8
     zip_file.close()
     file_bytes.close()
 
@@ -10137,7 +10244,7 @@ def test_get_kairon_two_stage_fallback_action_1():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    del actual['data'][0]['timestamp']
+    assert actual['data'][0].get('timestamp') is None
     actual['data'][0].pop('_id')
     assert actual["data"] == [{'name': 'kairon_two_stage_fallback',
                                'text_recommendations': {"count": 4, "use_intent_ranking": False}, 'trigger_rules': [],

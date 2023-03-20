@@ -105,7 +105,8 @@ class TestDataImporter:
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         shutil.copytree(path, test_data_path)
-        importer = DataImporter(test_data_path, bot, user, REQUIREMENTS - {"http_actions"}, True, True)
+        importer = DataImporter(test_data_path, bot, user,
+                                REQUIREMENTS - {"http_actions", "chat_client_config"}, True, True)
         await importer.validate()
         importer.import_data()
 
@@ -125,7 +126,8 @@ class TestDataImporter:
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         shutil.copytree(path, test_data_path)
-        importer = DataImporter(test_data_path, bot, user, REQUIREMENTS - {"http_actions"}, True, False)
+        importer = DataImporter(test_data_path, bot, user,
+                                REQUIREMENTS - {"http_actions", "chat_client_config"}, True, False)
         await importer.validate()
         importer.import_data()
 
