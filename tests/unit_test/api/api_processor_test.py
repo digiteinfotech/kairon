@@ -268,7 +268,7 @@ class TestAccountProcessor:
         AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
-        assert ('test_version_2', 'fshaikh@digite.com') == AccountProcessor.update_bot_access(
+        assert ('test_version_2', 'fshaikh@digite.com', 'Fahad Ali', 'udit') == AccountProcessor.update_bot_access(
             bot_id, "udit.pandey@digite.com", 'testAdmin', ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value
         )
         bot_access = BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com").get()

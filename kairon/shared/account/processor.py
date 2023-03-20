@@ -243,8 +243,10 @@ class AccountProcessor:
         """
         bot_info = AccountProcessor.get_bot_and_validate_status(bot)
         owner_info = AccountProcessor.get_bot_owner(bot)
+        owner = AccountProcessor.get_user(owner_info["accessor_email"])
+        member = AccountProcessor.get_user(accessor_email)
         AccountProcessor.__update_role(bot, accessor_email, user, role, status, validate_ownership_modification)
-        return bot_info["name"], owner_info["accessor_email"]
+        return bot_info["name"], owner_info["accessor_email"], owner['first_name'], member['first_name']
 
     @staticmethod
     def __update_role(bot: Text, accessor_email: Text, user: Text,
