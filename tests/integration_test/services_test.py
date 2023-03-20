@@ -1320,7 +1320,19 @@ def test_upload_with_chat_client_config_only():
     assert actual["error_code"] == 0
     assert actual["data"] is None
     assert actual["success"]
-    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert set(actual['data']["logs"][0]['files_received']) == {'chat_client_config'}
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['end_timestamp']
 
 
 @responses.activate

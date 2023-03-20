@@ -235,7 +235,7 @@ class TestModelTesting:
             ModelTester.run_tests_on_model(bot)
 
     @pytest.fixture
-    def load_data(self, monkeypatch):
+    def load_data(self):
         from kairon.shared.data.constant import REQUIREMENTS
         async def _read_and_get_data(config_path: str, domain_path: str, nlu_path: str, stories_path: str, bot: str,
                                      user: str):

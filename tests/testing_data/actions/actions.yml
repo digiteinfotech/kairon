@@ -230,7 +230,6 @@ two_stage_fallback:
   text_recommendations:
     count: 0
     use_intent_ranking: true
-  timestamp: 2023-03-15 18:15:00.717000
   trigger_rules:
   - is_dynamic_msg: false
     payload: greet

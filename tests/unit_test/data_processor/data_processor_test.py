@@ -3221,7 +3221,9 @@ class TestMongoProcessor:
         assert not is_event_data
         print(chat_client_config)
         assert chat_client_config["config"]
-        assert chat_client_config['white_listed_domain']
+        assert chat_client_config['white_listed_domain'] == ["*"]
+        assert chat_client_config['config']['welcomeMessage'] == "Hello! How are you? This is Testing Welcome Message."
+        assert chat_client_config['config']['name'] == "kairon_testing"
         assert not chat_client_config["config"].get('headers')
         assert not chat_client_config["config"].get('multilingual')
         assert not chat_client_config.get("bot")
@@ -3355,6 +3357,9 @@ class TestMongoProcessor:
         assert not non_event_validation_summary.get("http_actions")
         chat_client_config = processor.load_chat_client_config(pytest.bot, 'test')
         assert chat_client_config['config']
+        assert chat_client_config['white_listed_domain'] == ["*"]
+        assert chat_client_config['config']['welcomeMessage'] == "Hello! How are you? This is Testing Welcome Message."
+        assert chat_client_config['config']['name'] == "kairon_testing"
         assert not chat_client_config.get('status')
         assert not chat_client_config.get('user')
         assert not chat_client_config.get('bot')
