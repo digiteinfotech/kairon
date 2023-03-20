@@ -6003,13 +6003,10 @@ def mock_file_upload(monkeypatch):
     def _set_status_mock(*args, **kwargs):
         return None
 
-    def _train_data_gen(*args, **kwargs):
-        return None
 
     monkeypatch.setattr(TrainingDataGenerationProcessor, "is_in_progress", _in_progress_mock)
     monkeypatch.setattr(TrainingDataGenerationProcessor, "check_data_generation_limit", _daily_limit_mock)
     monkeypatch.setattr(TrainingDataGenerationProcessor, "set_status", _set_status_mock)
-    monkeypatch.setattr(DataUtility, "trigger_data_generation_event", _train_data_gen)
 
 
 def test_file_upload_docx(mock_file_upload, monkeypatch):

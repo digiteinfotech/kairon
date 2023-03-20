@@ -603,9 +603,6 @@ async def upload_data_generation_file(
     token, _ = Authentication.generate_integration_token(
         current_user.get_bot(), current_user.email, token_type=TOKEN_TYPE.DYNAMIC.value
     )
-    background_tasks.add_task(
-        DataUtility.trigger_data_generation_event, current_user.get_bot(), current_user.get_user(), token
-    )
     return {"message": "File uploaded successfully and training data generation has begun"}
 
 
