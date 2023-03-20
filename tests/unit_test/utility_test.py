@@ -1790,3 +1790,19 @@ class TestUtility:
         current_utcnow = datetime(2023, 2, 12, 8, 00, 00, tzinfo=timezone.utc)
         result = Utility.convert_utcdate_with_timezone(current_utcnow, "Asia/Kolkata",dateformat)
         assert result == datetime(2023, 2, 12, 13, 30)
+
+    @pytest.mark.asyncio
+    async def test_save_training_files_as_zip_exception(self):
+        with pytest.raises(AppException, match="Invalid zip"):
+            await DataUtility.save_training_files_as_zip(pytest.bot, {})
+
+    def test_prepare_response_none(self):
+        response_type, data = DataUtility.prepare_response(value={})
+        assert response_type is None
+        assert data is None
+
+    def test_load_default_actions(self):
+        result = DataUtility.load_default_actions()
+        assert result is not None
+        assert len(result) == 9
+        assert type(result) == list

@@ -259,21 +259,6 @@ class DataUtility:
         return list(Utility.get_imports(registry.__file__))
 
     @staticmethod
-    def trigger_data_generation_event(bot: str, user: str, token: str):
-        try:
-            event_url = Utility.environment['data_generation']['event_url']
-            logger.info("Training data generator event started")
-            response = requests.post(event_url, headers={'content-type': 'application/json'},
-                                     json={'user': user, 'token': token})
-            logger.info("Training data generator event completed" + response.content.decode('utf8'))
-        except Exception as e:
-            logger.error(str(e))
-            TrainingDataGenerationProcessor.set_status(bot=bot,
-                                                       user=user,
-                                                       status=EVENT_STATUS.FAIL.value,
-                                                       exception=str(e))
-
-    @staticmethod
     def get_interpreter(model_path):
         from rasa.model import get_model, get_model_subdirectories
         from rasa.core.interpreter import create_interpreter
