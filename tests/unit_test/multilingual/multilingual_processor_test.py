@@ -34,14 +34,6 @@ class TestMultilingualProcessor:
         s_lang = "en"
         d_lang = "es"
 
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {'source_language': s_lang, 'language': d_lang, 'source_bot_id': 'test_bot'}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-
         def _mock_service_client(*args, **kwargs):
             class MockServiceClient:
 
@@ -143,14 +135,6 @@ class TestMultilingualProcessor:
         s_lang = "en"
         d_lang = "es"
 
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {'source_language': s_lang, 'language': d_lang, 'source_bot_id': 'test_bot'}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-
         def _mock_service_client(*args, **kwargs):
             class MockServiceClient:
 
@@ -246,14 +230,6 @@ class TestMultilingualProcessor:
         mp = MongoProcessor()
         s_lang = "en"
         d_lang = "es"
-
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {'source_language': s_lang, 'language': d_lang, 'source_bot_id': 'test_bot'}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
 
         def _mock_service_client(*args, **kwargs):
             class MockServiceClient:
@@ -369,14 +345,6 @@ class TestMultilingualProcessor:
         mp = MongoProcessor()
         s_lang = "en"
         d_lang = "es"
-
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {'source_language': s_lang, 'language': d_lang, 'source_bot_id': 'test_bot'}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
 
         def _mock_service_client(*args, **kwargs):
             class MockServiceClient:
@@ -496,14 +464,6 @@ class TestMultilingualProcessor:
         s_lang = "en"
         d_lang = "es"
 
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {'source_language': s_lang, 'language': d_lang, 'source_bot_id': 'test_bot'}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-
         def _mock_translate(*args, **kwargs):
             raise Exception("translation failed")
 
@@ -531,14 +491,6 @@ class TestMultilingualProcessor:
         mp = MongoProcessor()
         s_lang = "en"
         d_lang = "es"
-
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {'source_language': s_lang, 'language': d_lang, 'source_bot_id': 'test_bot'}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
 
         def _mock_delete_domain(*args, **kwargs):
             raise Exception("file saving failed")

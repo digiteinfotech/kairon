@@ -104,7 +104,6 @@ class MongoProcessor:
             config: File,
             rules: File,
             http_action: File,
-            chat_client_config: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -118,14 +117,12 @@ class MongoProcessor:
         :param rules: rules data
         :param http_action: http_actions data
         :param config: config data
-        :param chat_client_config: chat_client_config data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action,
-                                                                  chat_client_config)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
@@ -4674,6 +4671,7 @@ class MongoProcessor:
                 action['_id'] = action['_id'].__str__()
             else:
                 action.pop('_id')
+            action.pop('timestamp')
             action.pop('status')
             action.pop('bot')
             action.pop('user')

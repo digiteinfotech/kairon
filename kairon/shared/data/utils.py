@@ -126,7 +126,7 @@ class DataUtility:
 
     @staticmethod
     async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None,
-                                  http_action: File = None, chat_client_config: File = None):
+                                  http_action: File = None):
         """
         convert mongo data  to individual files
 
@@ -136,7 +136,6 @@ class DataUtility:
         :param config: config data
         :param rules: rules data
         :param http_action: http actions data
-        :param chat_client_config: chat_client_config data
         :return: files path
         """
         from rasa.shared.constants import DEFAULT_DATA_PATH
@@ -149,19 +148,16 @@ class DataUtility:
         domain_path = os.path.join(tmp_dir, domain.filename)
         stories_path = os.path.join(data_path, stories.filename)
         config_path = os.path.join(tmp_dir, config.filename)
-        chat_client_config_path = os.path.join(tmp_dir, chat_client_config.filename)
 
         Utility.write_to_file(nlu_path, await nlu.read())
         Utility.write_to_file(domain_path, await domain.read())
         Utility.write_to_file(stories_path, await stories.read())
         Utility.write_to_file(config_path, await config.read())
-        Utility.write_to_file(chat_client_config_path, await chat_client_config.read())
 
         training_file_loc['rules'] = await DataUtility.write_rule_data(data_path, rules)
         training_file_loc['http_action'] = await DataUtility.write_http_data(tmp_dir, http_action)
         training_file_loc['nlu'] = nlu_path
         training_file_loc['config'] = config_path
-        training_file_loc['chat_client_config'] = chat_client_config_path
         training_file_loc['stories'] = stories_path
         training_file_loc['domain'] = domain_path
         training_file_loc['root'] = tmp_dir

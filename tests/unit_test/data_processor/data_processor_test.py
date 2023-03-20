@@ -126,14 +126,7 @@ class TestMongoProcessor:
         assert result == {}
 
     @pytest.mark.asyncio
-    async def test_load_from_path(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_load_from_path(self):
         processor = MongoProcessor()
         result = await (
             processor.save_from_path(
@@ -143,14 +136,7 @@ class TestMongoProcessor:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_save_from_path_yml(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_save_from_path_yml(self):
         processor = MongoProcessor()
         result = await (
             processor.save_from_path(
@@ -316,14 +302,7 @@ class TestMongoProcessor:
         assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
 
     @pytest.mark.asyncio
-    async def test_upload_case_insensitivity(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_upload_case_insensitivity(self):
         processor = MongoProcessor()
         await (
             processor.save_from_path(
@@ -397,14 +376,7 @@ class TestMongoProcessor:
                                                                                                      'utter_please_rephrase'}
 
     @pytest.mark.asyncio
-    async def test_load_from_path_yml_training_files(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_load_from_path_yml_training_files(self):
         processor = MongoProcessor()
         await (
             processor.save_from_path(
@@ -480,14 +452,7 @@ class TestMongoProcessor:
             )
 
     @pytest.mark.asyncio
-    async def test_load_from_path_all_scenario(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_load_from_path_all_scenario(self):
         processor = MongoProcessor()
         await (
             processor.save_from_path("./tests/testing_data/all", bot="all", user="testUser")
@@ -532,14 +497,7 @@ class TestMongoProcessor:
         assert Utterances.objects(bot='all').count() == 27
 
     @pytest.mark.asyncio
-    async def test_load_from_path_all_scenario_append(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_load_from_path_all_scenario_append(self):
         processor = MongoProcessor()
         await (
             processor.save_from_path("./tests/testing_data/all",
@@ -1362,13 +1320,6 @@ class TestMongoProcessor:
 
     @elasticmock
     def test_start_training_done_with_intrumentation(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         def mongo_store(*args, **kwargs):
             return None
 
@@ -2372,27 +2323,18 @@ class TestMongoProcessor:
         processor.delete_rules("test_save_rules_already_present", "rules_creator")
 
     @pytest.mark.asyncio
-    async def test_upload_and_save(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_upload_and_save(self):
         processor = MongoProcessor()
         nlu_content = "## intent:greet\n- hey\n- hello".encode()
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
-        chat_client_config_content = "config:\n  api_server_host_url: http://testserver\n  bot: 64120b21ee3a720ca5e7d1c4\n  chat_server_base_url: null\n  language: en\n  pipeline:\n  - name: WhitespaceTokenizer\n  - name: RegexFeaturizer\n  - name: LexicalSyntacticFeaturizer\n  - name: CountVectorsFeaturizer\n  - analyzer: char_wb\n    max_ngram: 4\n    min_ngram: 1\n    name: CountVectorsFeaturizer\n  - epochs: 100\n    name: DIETClassifier\n  - name: FallbackClassifier\n    threshold: 0.7\n  - name: EntitySynonymMapper\n  - epochs: 100\n    name: ResponseSelector\n  policies:\n  - name: MemoizationPolicy\n  - epochs: 100\n    max_history: 5\n    name: TEDPolicy\n  - name: RulePolicy\n  user: sysadmin\n  whitelist:\n  - '*'\nstatus: true\ntimestamp: 2023-03-15 18:14:57.490000\nuser: sysadmin\nwhite_listed_domain:\n- '*'\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
-        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, None, chat_client_config,
-                                        "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, None, None, "test_upload_and_save",
+                                        "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 3
@@ -2400,29 +2342,20 @@ class TestMongoProcessor:
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator"))) == 2
 
     @pytest.mark.asyncio
-    async def test_upload_and_save_with_rules(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_upload_and_save_with_rules(self):
         processor = MongoProcessor()
         nlu_content = "## intent:greet\n- hey\n- hello".encode()
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         rules_content = "rules:\n\n- rule: Only say `hello` if the user provided a location\n  condition:\n  - slot_was_set:\n    - location: true\n  steps:\n  - intent: greet\n  - action: utter_greet\n".encode()
-        chat_client_config_content = "config:\n  api_server_host_url: http://testserver\n  bot: 64120b21ee3a720ca5e7d1c4\n  chat_server_base_url: null\n  language: en\n  pipeline:\n  - name: WhitespaceTokenizer\n  - name: RegexFeaturizer\n  - name: LexicalSyntacticFeaturizer\n  - name: CountVectorsFeaturizer\n  - analyzer: char_wb\n    max_ngram: 4\n    min_ngram: 1\n    name: CountVectorsFeaturizer\n  - epochs: 100\n    name: DIETClassifier\n  - name: FallbackClassifier\n    threshold: 0.7\n  - name: EntitySynonymMapper\n  - epochs: 100\n    name: ResponseSelector\n  policies:\n  - name: MemoizationPolicy\n  - epochs: 100\n    max_history: 5\n    name: TEDPolicy\n  - name: RulePolicy\n  user: sysadmin\n  whitelist:\n  - '*'\nstatus: true\ntimestamp: 2023-03-15 18:14:57.490000\nuser: sysadmin\nwhite_listed_domain:\n- '*'\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
-        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
-        await processor.upload_and_save(nlu, domain, stories, config, rules, None, chat_client_config,
-                                        "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, rules, None, "test_upload_and_save",
+                                        "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
@@ -2432,29 +2365,20 @@ class TestMongoProcessor:
         assert len(list(Rules.objects(bot="test_upload_and_save", user="rules_creator"))) == 2
 
     @pytest.mark.asyncio
-    async def test_upload_and_save_with_http_action(self, monkeypatch):
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+    async def test_upload_and_save_with_http_action(self):
         processor = MongoProcessor()
         nlu_content = "## intent:greet\n- hey\n- hello".encode()
         stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
-        chat_client_config_content = "config:\n  api_server_host_url: http://testserver\n  bot: 64120b21ee3a720ca5e7d1c4\n  chat_server_base_url: null\n  language: en\n  pipeline:\n  - name: WhitespaceTokenizer\n  - name: RegexFeaturizer\n  - name: LexicalSyntacticFeaturizer\n  - name: CountVectorsFeaturizer\n  - analyzer: char_wb\n    max_ngram: 4\n    min_ngram: 1\n    name: CountVectorsFeaturizer\n  - epochs: 100\n    name: DIETClassifier\n  - name: FallbackClassifier\n    threshold: 0.7\n  - name: EntitySynonymMapper\n  - epochs: 100\n    name: ResponseSelector\n  policies:\n  - name: MemoizationPolicy\n  - epochs: 100\n    max_history: 5\n    name: TEDPolicy\n  - name: RulePolicy\n  user: sysadmin\n  whitelist:\n  - '*'\nstatus: true\ntimestamp: 2023-03-15 18:14:57.490000\nuser: sysadmin\nwhite_listed_domain:\n- '*'\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
-        chat_client_config = UploadFile(filename="chat_client_config.yml", file=BytesIO(chat_client_config_content))
-        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, chat_client_config,
-                                        "test_upload_and_save", "rules_creator")
+        await processor.upload_and_save(nlu, domain, stories, config, None, http_action, "test_upload_and_save",
+                                        "rules_creator")
         assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
@@ -3626,6 +3550,14 @@ class TestMongoProcessor:
                         assert len(saved_actions['email_action']) == 2
                         assert len(saved_actions['pipedrive_leads_action']) == 2
                         assert len(saved_actions['two_stage_fallback']) == 1
+                        assert saved_actions['two_stage_fallback'][0]['name'] == "kairon_two_stage_fallback"
+                        assert saved_actions['two_stage_fallback'][0]['text_recommendations'] == \
+                               {'count': 0, 'use_intent_ranking': True}
+                        assert saved_actions['two_stage_fallback'][0]['trigger_rules'] == \
+                               [{'text': 'Hi', 'payload': 'greet', 'is_dynamic_msg': False}]
+                        assert saved_actions['two_stage_fallback'][0]['fallback_message'] \
+                               == "I could not understand you! Did you mean any of the suggestions below? " \
+                                  "Or else please rephrase your question."
 
     @pytest.mark.asyncio
     async def test_load_action_configurations_with_two_stage_fallback(self):
@@ -9587,7 +9519,7 @@ class TestMongoProcessor:
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         print(config)
         assert config == [{'name': 'kairon_two_stage_fallback',
@@ -9600,7 +9532,7 @@ class TestMongoProcessor:
         bot = 'test'
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK, False))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         assert config[0].get("_id") is None
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': [],
@@ -9637,7 +9569,7 @@ class TestMongoProcessor:
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'trigger_rules': [{'text': 'Mail me', 'payload': 'greet', 'is_dynamic_msg': False},
@@ -9658,7 +9590,7 @@ class TestMongoProcessor:
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'greet', 'message': 'my payload', 'is_dynamic_msg': True},
@@ -9689,7 +9621,7 @@ class TestMongoProcessor:
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'text_recommendations': {"count": 3, "use_intent_ranking": False},
@@ -9710,7 +9642,7 @@ class TestMongoProcessor:
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'send_mail', 'message': 'my payload', 'is_dynamic_msg': False},

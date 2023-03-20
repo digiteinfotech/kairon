@@ -1299,6 +1299,30 @@ def test_get_data_importer_logs():
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config'}
 
+
+@responses.activate
+def test_upload_with_chat_client_config_only():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("chat_client_config.yml",
+                                 open("tests/testing_data/all/chat_client_config.yml", "rb"))),)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
+
+
 @responses.activate
 def test_upload_with_chat_client_config():
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
@@ -10208,7 +10232,7 @@ def test_get_kairon_two_stage_fallback_action_1():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    del actual['data'][0]['timestamp']
+    assert actual['data'][0].get('timestamp') is None
     actual['data'][0].pop('_id')
     assert actual["data"] == [{'name': 'kairon_two_stage_fallback',
                                'text_recommendations': {"count": 4, "use_intent_ranking": False}, 'trigger_rules': [],
