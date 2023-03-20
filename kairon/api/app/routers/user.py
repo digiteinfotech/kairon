@@ -63,10 +63,11 @@ async def accept_bot_collaboration_invite_with_token_validation(
     Accepts a bot collaboration invitation sent via mail.
     """
     bot_admin, bot_name, accessor_email, role = AccountProcessor.validate_request_and_accept_bot_access_invite(token.data, bot)
+    user = AccountProcessor.get_user(bot_admin)
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=bot_admin, accessor_email=accessor_email,
-                                  bot_name=bot_name, role=role)
+                                  bot_name=bot_name, role=role, member_confirm=user['first_name'])
     return {"message": "Invitation accepted"}
 
 
@@ -96,17 +97,18 @@ async def update_bot_access_for_user(
     """
     Updates user's role or status.
     """
-    bot_name, owner_email = AccountProcessor.update_bot_access(
+    bot_name, owner_email, owner_name, member_name = AccountProcessor.update_bot_access(
         bot, allow_bot.email, current_user.get_user(), allow_bot.role, allow_bot.activity_status
     )
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='update_role_member_mail',
                                   email=allow_bot.email, first_name=f'{current_user.first_name} {current_user.last_name}',
-                                  bot_name=bot_name, new_role=allow_bot.role, status=allow_bot.activity_status)
+                                  bot_name=bot_name, new_role=allow_bot.role, status=allow_bot.activity_status,
+                                  member_name=member_name)
         background_tasks.add_task(Utility.format_and_send_mail, mail_type='update_role_owner_mail', email=owner_email,
                                   member_email=allow_bot.email, bot_name=bot_name, new_role=allow_bot.role,
                                   first_name=f'{current_user.first_name} {current_user.last_name}',
-                                  status=allow_bot.activity_status)
+                                  status=allow_bot.activity_status, owner_name=owner_name)
     return Response(message='User access updated')
 
 
