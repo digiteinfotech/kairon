@@ -2,12 +2,14 @@ from mongoengine import Document, StringField, DictField, DateTimeField, Validat
 from datetime import datetime
 
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.data.signals import push_notification
+from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 
 
+@auditlogger.log
 @push_notification.apply
-class LiveAgents(Document):
+class LiveAgents(Auditlog):
     agent_type = StringField(required=True, choices=Utility.get_live_agents)
     config = DictField(required=True)
     override_bot = BooleanField(default=False)

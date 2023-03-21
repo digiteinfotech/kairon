@@ -1,10 +1,14 @@
-from mongoengine import Document, StringField, BooleanField, DateTimeField, IntField
-from kairon.shared.data.signals import push_notification
 from datetime import datetime
 
+from mongoengine import StringField, BooleanField, DateTimeField, IntField
 
+from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.signals import push_notification, auditlogger
+
+
+@auditlogger.log
 @push_notification.apply
-class BotReplicationLogs(Document):
+class BotReplicationLogs(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     source_bot_name = StringField(default=None)
