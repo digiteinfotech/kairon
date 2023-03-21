@@ -10074,7 +10074,7 @@ class TestMongoProcessor:
         log_seven = processor.get_logs(bot, "model_testing", start_time, end_time)
         assert len(log_seven) == 2
         log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)
-        assert len(log_eight) == 2
+        assert len(log_eight) == 8
 
     def test_delete_audit_logs(self):
         processor = MongoProcessor()
@@ -10083,15 +10083,15 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            bot="test", user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            auditlog_id="test", mapping="Bot_id", user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            bot="test", user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
+            auditlog_id="test", mapping="Bot_id", user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            bot="test", user="test", timestamp=start_time - timedelta(days=480),
+            auditlog_id="test", mapping="Bot_id", user="test", timestamp=start_time - timedelta(days=480),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
@@ -10658,22 +10658,22 @@ class TestModelProcessor:
 
 
     def test_auditlog_for_chat_client_config(self):
-        auditlog_data = list(AuditLogData.objects(bot='test', user='testUser', entity='ChatClientConfig'))
+        auditlog_data = list(AuditLogData.objects(auditlog_id='test', user='testUser', entity='ChatClientConfig'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
-        assert auditlog_data[0].bot == "test"
+        assert auditlog_data[0].auditlog_id == "test"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='save', entity='Intents'))
+        auditlog_data = list(AuditLogData.objects(auditlog_id='tests', user='testUser', action='save', entity='Intents'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
-        assert auditlog_data[0].bot == "tests"
+        assert auditlog_data[0].auditlog_id == "tests"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "Intents"
 
-        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='delete', entity='Intents'))
+        auditlog_data = list(AuditLogData.objects(auditlog_id='tests', user='testUser', action='delete', entity='Intents'))
         #No hard delete supported for intents
         assert len(auditlog_data) == 0
 

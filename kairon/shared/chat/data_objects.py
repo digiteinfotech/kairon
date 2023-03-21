@@ -1,13 +1,16 @@
-from mongoengine import Document, StringField, DictField, DateTimeField, ValidationError
 from datetime import datetime
 
+from mongoengine import StringField, DictField, DateTimeField, ValidationError
+
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.data.signals import push_notification
+from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 
 
+@auditlogger.log
 @push_notification.apply
-class Channels(Document):
+class Channels(Auditlog):
     bot = StringField(required=True)
     connector_type = StringField(required=True, choices=Utility.get_channels)
     config = DictField(required=True)
@@ -31,4 +34,3 @@ class Channels(Document):
                 'bot': self.bot, 'user': self.user, 'connector_type': self.connector_type
             })
             Utility.register_telegram_webhook(Utility.decrypt_message(self.config['access_token']), webhook_url)
-

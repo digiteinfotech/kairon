@@ -1638,7 +1638,10 @@ class Utility:
         except AttributeError:
             action = kwargs.get("action")
 
-        audit_log = AuditLogData(bot=document.bot,
+        auditlog_id, mapping = Utility.get_auditlog_id_and_mapping(document)
+
+        audit_log = AuditLogData(auditlog_id=auditlog_id,
+                                 mapping=mapping,
                                  user=document.user,
                                  action=action,
                                  entity=name,
@@ -1647,12 +1650,26 @@ class Utility:
         audit_log.save()
 
     @staticmethod
+    def get_auditlog_id_and_mapping(document):
+        try:
+            auditlog_id = document.bot.__str__()
+            mapping = "Bot_id"
+        except AttributeError:
+            auditlog_id = document.id.__str__()
+            mapping = f"{document._class_name.__str__()}_id"
+
+        return auditlog_id, mapping
+
+    @staticmethod
     def publish_auditlog(auditlog, event_url=None):
         from .data.data_objects import EventConfig
         from mongoengine.errors import DoesNotExist
 
         try:
-            event_config = EventConfig.objects(bot=auditlog.bot).get()
+            if auditlog.mapping != "Bot_id":
+                logger.debug("Only bot level event config is supported as of")
+                return
+            event_config = EventConfig.objects(bot=auditlog.auditlog_id).get()
 
             headers = json.loads(Utility.decrypt_message(event_config.headers))
             ws_url = event_config.ws_url
