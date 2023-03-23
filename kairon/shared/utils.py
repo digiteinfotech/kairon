@@ -1776,12 +1776,15 @@ class StoryValidator:
         graph = DiGraph()
         vertices = {}
         for story_step in steps:
-            vertices[story_step['step']['name']] = KaironStoryStep(story_step["step"]["name"],
+            vertices[story_step['step']['node_id']] = KaironStoryStep(story_step["step"]["name"],
                                                                    story_step["step"]["type"])
         for story_step in steps:
-            story_step_object = vertices[story_step["step"]["name"]]
+            story_step_object = vertices[story_step["step"]["node_id"]]
             for connected_story_step in story_step['connections'] or []:
-                connection_object = vertices[connected_story_step["name"]]
+                if connected_story_step['node_id'] in vertices.keys():
+                    connection_object = vertices[connected_story_step["node_id"]]
+                else:
+                    connection_object = KaironStoryStep(connected_story_step["name"], connected_story_step["type"])
                 graph.add_edge(story_step_object, connection_object)
         return graph
 

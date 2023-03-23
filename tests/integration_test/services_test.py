@@ -2356,24 +2356,24 @@ def test_add_multiflow_story():
         json={
             "name": "test_path",
             "steps": [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "NBVgfd", "component_id": "Mnvehd"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "Bcgdh", "component_id": "PLhfhs"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "Mnvehd"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "Nbgd", "component_id": "PLhfhs"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "xcdfWW", "component_id": "MNbcg"},
-                                {"name": "goodbye", "type": "INTENT", "node_id": "PPlllk", "component_id": "QQAA"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"},
+                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "QQAA"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfd", "component_id": "QQAA"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "MDDF", "component_id": "NNXX"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "QQAA"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNXX"}]
             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "YYhas", "component_id": "NNXX"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNXX"},
                 "connections": None
             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "SSLLKK", "component_id": "MnveRRhd"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"},
              "connections": None
             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "TTYYsgdg", "component_id": "MnveRRhd"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"}]
             }
         ],
         },
@@ -2394,24 +2394,24 @@ def test_add_multiflow_story_with_name_already_exists():
         json={
             "name": "test_path",
             "steps": [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                                {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"},
+                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MNbcg"}]
             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MNbcg"},
                 "connections": None
             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MNbcg"},
              "connections": None
             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MNbcg"}]
             }
         ],
         },
@@ -2447,17 +2447,17 @@ def test_add_multiflow_story_lone_intent():
         json={
             "name": "test_add_multiflow_story_lone_intent",
             "steps": [
-                {"step": {"name": "greet", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "MNbcg"},
+                 "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"},
+                 "connections": [{"name": "queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
                  "connections": None
                 },
-                {"step": {"name": "queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+                {"step": {"name": "queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
                  "connections": None
                 },
             ],
@@ -2477,17 +2477,17 @@ def test_add_multiflow_story_missing_event_type():
         json={
             "name": "test_path",
             "steps": [
-                {"step": {"name": "hi", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "hi", "node_id": "1", "component_id": "MNbcg"},
+                 "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "3", "component_id": "MNbcg"},
+                 "connections": [{"name": "queries", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "5", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "5", "component_id": "MNbcg"},
                  "connections": None
                  },
-                {"step": {"name": "queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+                {"step": {"name": "queries", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
                  "connections": None
                  },
             ],
@@ -2510,8 +2510,8 @@ def test_add_multiflow_story_invalid_event_type():
         json={
             "name": "test_path",
             "steps": [
-                {"step": {"name": "hi", "type": "data", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "hi", "type": "data", "node_id": "1", "component_id": "MNbcg"},
+                 "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
                  },
             ],
         },
@@ -2610,24 +2610,24 @@ def test_update_multiflow_story():
         json={
             "name": "test_path",
             "steps": [
-                {"step": {"name": "greeting", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "NBVPd", "component_id": "MNbcZZg"}]
+                {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "MNbcg"},
+                 "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "MNbcZZg"}]
                  },
-                {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "MMNb", "component_id": "MNbcZZg"},
-                 "connections": [{"name": "more_query", "type": "INTENT", "node_id": "OKde", "component_id": "uhsjJ"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "POiQWW", "component_id": "MgGFD"}]
+                {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "MNbcZZg"},
+                 "connections": [{"name": "more_query", "type": "INTENT", "node_id": "3", "component_id": "uhsjJ"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MgGFD"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "MMNCFRD", "component_id": "MgGFD"},
-                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "GTREbg", "component_id": "MNbcg"}]
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MgGFD"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "MAAQQW", "component_id": "MNbcg"},
+                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MNbcg"},
                  "connections": None
                  },
-                {"step": {"name": "utter_more_query", "type": "BOT", "node_id": "Pbvgds", "component_id": "IIUUUYY"},
+                {"step": {"name": "utter_more_query", "type": "BOT", "node_id": "6", "component_id": "IIUUUYY"},
                  "connections": None
                  },
-                {"step": {"name": "more_query", "type": "INTENT", "node_id": "RTYNBVF", "component_id": "uhsjJ"},
-                 "connections": [{"name": "utter_more_query", "type": "BOT", "node_id": "PGFDXSW", "component_id": "IIUUUYY"}]
+                {"step": {"name": "more_query", "type": "INTENT", "node_id": "3", "component_id": "uhsjJ"},
+                 "connections": [{"name": "utter_more_query", "type": "BOT", "node_id": "6", "component_id": "IIUUUYY"}]
                  }
             ],
         },
@@ -2647,24 +2647,24 @@ def test_update_multiflow_story_with_name_already_exists():
         json={
             "name": "another_test_path",
             "steps": [
-                {"step": {"name": "greet", "type": "INTENT", "node_id": "63f9VfLyGrMiIBlXEINhX2Bg", "component_id": "63g0SIHe0vlF7BpABhUBlcOW"},
-                 "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "63cg27q7jwIPmXO5gbnsdI7A", "component_id": "637k8PnBABFMoKiUJqQTCBRP"}]
+                {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63g0SIHe0vlF7BpABhUBlcOW"},
+                 "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "637k8PnBABFMoKiUJqQTCBRP"}]
                  },
-                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "63q9igjrjmdYwCnoYU9AGPVF", "component_id": "637k8PnBABFMoKiUJqQTCBRP"},
-                 "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "63Np55Yma0vj3f5JxDGJTxoK", "component_id": "63NUrDSW34K8XzuabEwO7SJH"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "63QtprhYW8wwemHrplf43D5o", "component_id": "63zr5t71RcH6WZCP5kNGpZYv"}]
+                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "637k8PnBABFMoKiUJqQTCBRP"},
+                 "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63NUrDSW34K8XzuabEwO7SJH"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63zr5t71RcH6WZCP5kNGpZYv"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63dEaCz2SOzb55q05RqOzZHX", "component_id": "63zr5t71RcH6WZCP5kNGpZYv"},
-                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63URCVUSBlRGjkY77fe9V3Db", "component_id": "630r3YIqp2UhggEsIvC8Q8pC"}]
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63zr5t71RcH6WZCP5kNGpZYv"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "630r3YIqp2UhggEsIvC8Q8pC"}]
                  },
-                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63pncLl58mPn9Y1Jh0SkLygp", "component_id": "630r3YIqp2UhggEsIvC8Q8pC"},
+                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "630r3YIqp2UhggEsIvC8Q8pC"},
                  "connections": None
                  },
-                {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "63BRjkDFIA3gaEMzsAVncKNT", "component_id": "63vwObDTOE2KLCP1FejFbSm8"},
+                {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63vwObDTOE2KLCP1FejFbSm8"},
                  "connections": None
                  },
-                {"step": {"name": "more_queries", "type": "INTENT", "node_id": "63l2ajY6iUFwHpcOkwrlW0G4", "component_id": "63NUrDSW34K8XzuabEwO7SJH"},
-                 "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "63T2VKqUyQsN0exheNIFFbdt", "component_id": "63vwObDTOE2KLCP1FejFbSm8"}]
+                {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63NUrDSW34K8XzuabEwO7SJH"},
+                 "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63vwObDTOE2KLCP1FejFbSm8"}]
                  }
             ],
         },
@@ -2681,24 +2681,24 @@ def test_update_multiflow_story_with_name_already_exists():
         json={
             "name": "another_test_path",
             "steps": [
-                {"step": {"name": "greeting", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                 "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"}]
+                {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "NNNNHHG"},
+                 "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "NNNNHHG"}]
                  },
-                {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                 "connections": [{"name": "more_query", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"}]
+                {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "NNNNHHG"},
+                 "connections": [{"name": "more_query", "type": "INTENT", "node_id": "3", "component_id": "NNNNHHG"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NNNNHHG"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"}]
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NNNNHHG"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNNNHHG"}]
                  },
-                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
+                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNNNHHG"},
                  "connections": None
                  },
-                {"step": {"name": "utter_more_query", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
+                {"step": {"name": "utter_more_query", "type": "BOT", "node_id": "6", "component_id": "NNNNHHG"},
                  "connections": None
                  },
-                {"step": {"name": "more_query", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                 "connections": [{"name": "utter_more_query", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"}]
+                {"step": {"name": "more_query", "type": "INTENT", "node_id": "3", "component_id": "NNNNHHG"},
+                 "connections": [{"name": "utter_more_query", "type": "BOT", "node_id": "6", "component_id": "NNNNHHG"}]
                  }
             ],
         },
@@ -2717,8 +2717,8 @@ def test_update_multiflow_story_invalid_event_type():
         json={
             "name": "test_path",
             "steps": [
-                {"step": {"name": "hiie", "type": "data", "node_id": "639buaSHN9lGMil3b7imBNLX", "component_id": "63Xx6ZbMOcBcq5Ltb1XoC3R5"},
-                 "connections": [{"name": "utter_hiie", "type": "BOT", "node_id": "63ih1waNgPIHuLmXz7B0pa5g", "component_id": "63nzrQFKnrc97QOI2renluu9"}]
+                {"step": {"name": "hiie", "type": "data", "node_id": "1", "component_id": "63Xx6ZbMOcBcq5Ltb1XoC3R5"},
+                 "connections": [{"name": "utter_hiie", "type": "BOT", "node_id": "2", "component_id": "63nzrQFKnrc97QOI2renluu9"}]
                  },
             ],
         },
@@ -2760,17 +2760,17 @@ def test_get_multiflow_stories():
     assert get_story['type'] == 'MULTIFLOW'
     assert get_story['name'] == 'test_path'
     print(get_story['steps'])
-    assert get_story['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': 'NBVgfPPPd', 'component_id': 'MNbcg'},
-                                   'connections': [{'name': 'utter_greeting', 'type': 'BOT', 'node_id': 'NBVPd', 'component_id': 'MNbcZZg'}]},
-                                  {'step': {'name': 'utter_greeting', 'type': 'BOT', 'node_id': 'MMNb', 'component_id': 'MNbcZZg'},
-                                   'connections': [{'name': 'more_query', 'type': 'INTENT', 'node_id': 'OKde', 'component_id': 'uhsjJ'},
-                                                   {'name': 'goodbye', 'type': 'INTENT', 'node_id': 'POiQWW', 'component_id': 'MgGFD'}]},
-                                  {'step': {'name': 'goodbye', 'type': 'INTENT', 'node_id': 'MMNCFRD', 'component_id': 'MgGFD'},
-                                   'connections': [{'name': 'utter_goodbye', 'type': 'BOT', 'node_id': 'GTREbg', 'component_id': 'MNbcg'}]},
-                                  {'step': {'name': 'utter_goodbye', 'type': 'BOT', 'node_id': 'MAAQQW', 'component_id': 'MNbcg'}, 'connections': []},
-                                  {'step': {'name': 'utter_more_query', 'type': 'BOT', 'node_id': 'Pbvgds', 'component_id': 'IIUUUYY'}, 'connections': []},
-                                  {'step': {'name': 'more_query', 'type': 'INTENT', 'node_id': 'RTYNBVF', 'component_id': 'uhsjJ'},
-                                   'connections': [{'name': 'utter_more_query', 'type': 'BOT', 'node_id': 'PGFDXSW', 'component_id': 'IIUUUYY'}]}]
+    assert get_story['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': '1', 'component_id': 'MNbcg'},
+                                   'connections': [{'name': 'utter_greeting', 'type': 'BOT', 'node_id': '2', 'component_id': 'MNbcZZg'}]},
+                                  {'step': {'name': 'utter_greeting', 'type': 'BOT', 'node_id': '2', 'component_id': 'MNbcZZg'},
+                                   'connections': [{'name': 'more_query', 'type': 'INTENT', 'node_id': '3', 'component_id': 'uhsjJ'},
+                                                   {'name': 'goodbye', 'type': 'INTENT', 'node_id': '4', 'component_id': 'MgGFD'}]},
+                                  {'step': {'name': 'goodbye', 'type': 'INTENT', 'node_id': '4', 'component_id': 'MgGFD'},
+                                   'connections': [{'name': 'utter_goodbye', 'type': 'BOT', 'node_id': '5', 'component_id': 'MNbcg'}]},
+                                  {'step': {'name': 'utter_goodbye', 'type': 'BOT', 'node_id': '5', 'component_id': 'MNbcg'}, 'connections': []},
+                                  {'step': {'name': 'utter_more_query', 'type': 'BOT', 'node_id': '6', 'component_id': 'IIUUUYY'}, 'connections': []},
+                                  {'step': {'name': 'more_query', 'type': 'INTENT', 'node_id': '3', 'component_id': 'uhsjJ'},
+                                   'connections': [{'name': 'utter_more_query', 'type': 'BOT', 'node_id': '6', 'component_id': 'IIUUUYY'}]}]
 
 
 def test_delete_multiflow_story():
