@@ -9,6 +9,8 @@ from mongoengine import connect
 from openai.openai_response import OpenAIResponse
 from openai.util import convert_to_openai_object
 
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.data.data_objects import BotContent
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding, LLMBase
@@ -53,13 +55,17 @@ class TestLLM:
     @responses.activate
     @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     def test_gpt3_faq_embedding_train(self, mock_openai):
+        bot = "test_embed_faq"
+        user = "test"
+        value = "nupurkhare"
         test_content = BotContent(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
-            bot="test_embed_faq", user="test").save()
+            bot=bot, user=user).save()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_openai.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot)
 
             responses.add(
@@ -90,20 +96,26 @@ class TestLLM:
             response = gpt3.train()
             assert response['faq'] == 1
 
-            assert mock_openai.call_args.kwargs['api_key'] == Utility.environment['llm']['api_key']
+            print(mock_openai.call_args.kwargs['api_key'])
+            assert mock_openai.call_args.kwargs['api_key'] == "nupurkhare"
             assert mock_openai.call_args.kwargs['input'] == test_content.data
 
     @responses.activate
     @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     def test_gpt3_faq_embedding_train_upsert_error(self, mock_openai):
+        bot = "test_embed_faq_not_exists"
+        user = "test"
+        value = "nupurk"
         test_content = BotContent(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
-            bot="test_embed_faq_not_exists", user="test").save()
+            bot=bot, user=user).save()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_openai.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
 
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot)
 
             responses.add(
@@ -136,7 +148,7 @@ class TestLLM:
             with pytest.raises(AppException, match="Unable to train faq! contact support"):
                 gpt3.train()
 
-                assert mock_openai.call_args.kwargs['api_key'] == Utility.environment['llm']['api_key']
+                assert mock_openai.call_args.kwargs['api_key'] == "nupurk"
                 assert mock_openai.call_args.kwargs['input'] == test_content.data
 
     @responses.activate
@@ -147,10 +159,15 @@ class TestLLM:
                                         mock_completion
                                         ):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-
+        
+        bot = "test_embed_faq_predict"
+        user = "test"
+        value = "knupur"
         test_content = BotContent(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
-            bot="test_embed_faq_predict", user="test").save()
+            bot=bot, user=user).save()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
@@ -159,7 +176,7 @@ class TestLLM:
         mock_completion.return_value = convert_to_openai_object(
             OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
 
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot)
 
             responses.add(
@@ -176,10 +193,11 @@ class TestLLM:
 
             assert response['content'] == generated_text
 
-            assert mock_embedding.call_args.kwargs['api_key'] == Utility.environment['llm']['api_key']
+            print(mock_embedding.call_args.kwargs['api_key'])
+            assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
             assert mock_embedding.call_args.kwargs['input'] == query
 
-            assert mock_completion.call_args.kwargs['api_key'] == Utility.environment['llm']['api_key']
+            assert mock_completion.call_args.kwargs['api_key'] == "knupur"
             assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
                        gpt3.__answer_params__.keys())
             assert mock_completion.call_args.kwargs[

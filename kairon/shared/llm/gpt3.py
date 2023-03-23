@@ -1,3 +1,5 @@
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.llm.base import LLMBase
 from typing import Text, Dict, List, Union
 from kairon.shared.utils import Utility
@@ -26,7 +28,7 @@ class GPT3FAQEmbedding(LLMBase):
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
         self.vector_config = {'size': 1536, 'distance': 'Cosine'}
-        self.api_key = Utility.environment['llm']['api_key']
+        self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=False)
 
     def train(self, *args, **kwargs) -> Dict:
         self.__create_collection__(self.bot + self.suffix)
