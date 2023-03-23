@@ -40,6 +40,7 @@ class TestLLM:
             LLMFactory.get_instance("test", "sample")
 
     def test_llm_factory_faq_type(self):
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value='value', bot='test', user='test').save()
         inst = LLMFactory.get_instance("test", "faq")
         assert isinstance(inst, GPT3FAQEmbedding)
         assert inst.db_url == Utility.environment['vector']['db']
@@ -99,6 +100,10 @@ class TestLLM:
             print(mock_openai.call_args.kwargs['api_key'])
             assert mock_openai.call_args.kwargs['api_key'] == "nupurkhare"
             assert mock_openai.call_args.kwargs['input'] == test_content.data
+
+    def test_gpt3_faq_embedding_train_failure(self):
+        with pytest.raises(AppException, match=f"Bot secret '{BotSecretType.gpt_key.value}' not configured!"):
+            GPT3FAQEmbedding('test_failure')
 
     @responses.activate
     @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
