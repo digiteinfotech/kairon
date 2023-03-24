@@ -23,7 +23,7 @@ class TestSysAdminProcessor:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     def test_get_secrets_not_found(self):
-        bot = "test"
+        bot = "testing"
         name = BotSecretType.gpt_key.value
         with pytest.raises(AppException, match=f"Bot secret '{name}' not configured!"):
             Sysadmin.get_bot_secret(bot, name, True)
