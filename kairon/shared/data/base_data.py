@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, DictField, queryset_manager
+from mongoengine import Document, StringField, DateTimeField, DictField, queryset_manager, ListField
 from datetime import datetime
 
 from kairon.shared.data.constant import AuditlogActions
@@ -7,7 +7,7 @@ from kairon.shared.data.signals import auditlog
 
 class AuditLogData(Document):
     auditlog_id = StringField(required=True)
-    mapping = StringField(required=True)
+    mapping = ListField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     action = StringField(required=True, choices=[action.value for action in AuditlogActions])

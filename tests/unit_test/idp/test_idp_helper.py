@@ -11,6 +11,7 @@ from kairon.idp.data_objects import IdpConfig
 from kairon.idp.factory import IDPFactory
 from kairon.idp.helper import IDPHelper
 from kairon.idp.processor import IDPProcessor
+from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.utils import Utility
 from stress_test.data_objects import User
 
@@ -462,7 +463,11 @@ class TestIDP:
                     "given_name": "test",
                     "family_name": "user"}
 
+        def _validate_org_settings(*args, **kwargs):
+            return
+
         monkeypatch.setattr(IDPProcessor, 'get_idp_token', _get_idp_token)
+        monkeypatch.setattr(OrgProcessor, 'validate_org_settings', _validate_org_settings)
 
         realm_name = "IDPTEST"
         loop = asyncio.new_event_loop()
@@ -477,7 +482,11 @@ class TestIDP:
                     "given_name": "test",
                     "family_name": "user"}
 
+        def _validate_org_settings(*args, **kwargs):
+            return
+
         monkeypatch.setattr(IDPProcessor, 'get_idp_token', _get_idp_token)
+        monkeypatch.setattr(OrgProcessor, 'validate_org_settings', _validate_org_settings)
 
         realm_name = "IDPTEST"
         loop = asyncio.new_event_loop()

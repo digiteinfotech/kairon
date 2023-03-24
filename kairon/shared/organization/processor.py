@@ -18,13 +18,14 @@ class OrgProcessor:
     def upsert_organization(user, org_data):
         try:
             org = Organization.objects(account__contains=user.account).get()
+            old_org = org.name
             org.name = org_data.get("name")
             org.create_user = org_data.get("create_user")
             org.only_sso_login = org_data.get("only_sso_login")
             org.account = org_data.get("account") if org_data.get("account") is not None else org.account
             org.save()
             try:
-                idp_config = IdpConfig.objects(account__contains=user.account, organization=org_data.get("name")).get()
+                idp_config = IdpConfig.objects(account__contains=user.account, organization=old_org).get()
                 idp_config.organization = org_data.get("name")
                 result = idp_config.config("config")
                 result["client_id"] = Utility.decrypt_message(result["client_id"])
@@ -151,5 +152,5 @@ class OrgProcessor:
         if not existing_user:
             OrgProcessor.upsert_user_org_mapping(user, org, FeatureMappings.ONLY_SSO_LOGIN.value, only_sso_login)
         else:
-            if OrgProcessor.get_user_org_mapping(user, FeatureMappings.ONLY_SSO_LOGIN.value, org).get("value") is None:
+            if OrgProcessor.get_user_org_mapping(user, FeatureMappings.ONLY_SSO_LOGIN.value, org) is None:
                 OrgProcessor.upsert_user_org_mapping(user, org, FeatureMappings.ONLY_SSO_LOGIN.value, only_sso_login)

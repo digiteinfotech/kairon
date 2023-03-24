@@ -188,7 +188,6 @@ async def idp_callback(session_state: str, code: str,
     """
     Identify user and create access token for user
     """
-    OrgProcessor.validate_org_settings(realm_name, FeatureMappings.CREATE_USER.value)
     existing_user, user_details, access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name,
                                                                                                          session_state,
                                                                                                          code)

@@ -1641,12 +1641,12 @@ class Utility:
         auditlog_id, mapping = Utility.get_auditlog_id_and_mapping(document)
 
         audit_log = AuditLogData(auditlog_id=auditlog_id,
-                                 mapping=mapping,
+                                 mapping=[mapping],
                                  user=document.user,
                                  action=action,
                                  entity=name,
                                  data=document.to_mongo().to_dict())
-        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
+        Utility.publish_auditlog(audit_log, **kwargs)
         audit_log.save()
 
     @staticmethod
@@ -1661,7 +1661,7 @@ class Utility:
         return auditlog_id, mapping
 
     @staticmethod
-    def publish_auditlog(auditlog, event_url=None):
+    def publish_auditlog(auditlog, **kwargs):
         from .data.data_objects import EventConfig
         from mongoengine.errors import DoesNotExist
 
@@ -1674,9 +1674,13 @@ class Utility:
             headers = json.loads(Utility.decrypt_message(event_config.headers))
             ws_url = event_config.ws_url
             method = event_config.method
-            if ws_url is not None:
+            if ws_url:
                 Utility.execute_http_request(request_method=method, http_url=ws_url,
                                              request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
+            if kwargs.get("event_url"):
+                Utility.execute_http_request(request_method=method, http_url=kwargs.get("event_url"),
+                                             request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
+
         except (DoesNotExist, AppException):
             return
 

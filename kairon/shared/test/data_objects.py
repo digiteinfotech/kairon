@@ -1,12 +1,10 @@
-from mongoengine import StringField, DateTimeField, DictField, BooleanField
+from mongoengine import StringField, DateTimeField, DictField, BooleanField, Document
 
-from kairon.shared.data.base_data import Auditlog
-from kairon.shared.data.signals import push_notification, auditlogger
+from kairon.shared.data.signals import push_notification
 
 
-@auditlogger.log
 @push_notification.apply
-class ModelTestingLogs(Auditlog):
+class ModelTestingLogs(Document):
     reference_id = StringField(default=None)
     data = DictField(default=None)
     type = StringField(required=True, choices=['nlu', 'stories', 'common'])
