@@ -11,7 +11,7 @@ from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
-from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE, FeatureMappings
+from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
 from kairon.shared.models import User
 
 router = APIRouter()
@@ -188,7 +188,6 @@ async def idp_callback(session_state: str, code: str,
     """
     Identify user and create access token for user
     """
-    OrgProcessor.validate_org_settings(realm_name, FeatureMappings.CREATE_USER.value)
     existing_user, user_details, access_token = await IDPProcessor.identify_user_and_create_access_token(realm_name,
                                                                                                          session_state,
                                                                                                          code)

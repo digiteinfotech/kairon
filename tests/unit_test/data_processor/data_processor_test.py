@@ -34,6 +34,7 @@ from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
 
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
@@ -10114,7 +10115,7 @@ class TestMongoProcessor:
         log_seven = processor.get_logs(bot, "model_testing", start_time, end_time)
         assert len(log_seven) == 2
         log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)
-        assert len(log_eight) == 2
+        assert len(log_eight) == 6
 
     def test_delete_audit_logs(self):
         processor = MongoProcessor()
@@ -10123,15 +10124,15 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            bot="test", user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            auditlog_id="test", mapping=["Bot_id"], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            bot="test", user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
+            auditlog_id="test", mapping=["Bot_id"], user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            bot="test", user="test", timestamp=start_time - timedelta(days=480),
+            auditlog_id="test", mapping=["Bot_id"], user="test", timestamp=start_time - timedelta(days=480),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
@@ -10698,22 +10699,22 @@ class TestModelProcessor:
 
 
     def test_auditlog_for_chat_client_config(self):
-        auditlog_data = list(AuditLogData.objects(bot='test', user='testUser', entity='ChatClientConfig'))
+        auditlog_data = list(AuditLogData.objects(auditlog_id='test', user='testUser', entity='ChatClientConfig'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
-        assert auditlog_data[0].bot == "test"
+        assert auditlog_data[0].auditlog_id == "test"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='save', entity='Intents'))
+        auditlog_data = list(AuditLogData.objects(auditlog_id='tests', user='testUser', action='save', entity='Intents'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
-        assert auditlog_data[0].bot == "tests"
+        assert auditlog_data[0].auditlog_id == "tests"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "Intents"
 
-        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='delete', entity='Intents'))
+        auditlog_data = list(AuditLogData.objects(auditlog_id='tests', user='testUser', action='delete', entity='Intents'))
         #No hard delete supported for intents
         assert len(auditlog_data) == 0
 
@@ -10899,3 +10900,36 @@ class TestModelProcessor:
         result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(3, "wxyz@abcd.com")
         assert result[bot_a["_id"].__str__()] == 0.9424565337899992
         assert result[bot_c["_id"].__str__()] == 0.8424565337899992
+
+    def test_auditlog_for_data_with_encrypted_field(self):
+        start_time = datetime.utcnow() - timedelta(days=1)
+        end_time = datetime.utcnow() + timedelta(days=1)
+
+        processor = MongoProcessor()
+        bot = 'secret'
+        user = 'secret_user'
+        key = "auditlog"
+        value = "secret-value"
+        processor.add_secret(key, value, bot, user)
+
+        config = {
+             "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+             "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+             "client_id": "3396830255712.3396861654876869879",
+             "client_secret": "cf92180a7634d90bf42a217408376878"
+         }
+        connector_type = "slack"
+        meta_config = {}
+
+        Channels(bot=bot, user=user, connector_type=connector_type, config=config, meta_config=meta_config).save()
+
+        auditlog_data = processor.get_logs("secret", "audit_logs", start_time, end_time)
+        assert auditlog_data[0]["mapping"][0] == "Bot_id"
+        assert auditlog_data[0]["auditlog_id"] == bot
+        assert auditlog_data[0]["entity"] == "Channels"
+        assert auditlog_data[0]["data"]["config"] != config
+
+        assert auditlog_data[2]["mapping"][0] == "Bot_id"
+        assert auditlog_data[2]["auditlog_id"] == bot
+        assert auditlog_data[2]["entity"] == "KeyVault"
+        assert auditlog_data[2]["data"]["value"] != value

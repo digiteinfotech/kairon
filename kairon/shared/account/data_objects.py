@@ -8,18 +8,20 @@ from mongoengine import (
     LongField,
     SequenceField,
     DictField, FloatField, EmbeddedDocumentField, EmbeddedDocument, ListField,
-    DynamicField, DynamicDocument
+    DynamicField
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
 
 from kairon.shared.constants import UserActivityType
-from kairon.shared.data.signals import push_notification
+from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.utils import Utility
 
 
-class BotAccess(Document):
+@auditlogger.log
+class BotAccess(Auditlog):
     accessor_email = StringField(required=True)
     role = StringField(required=True, choices=[role.value for role in ACCESS_ROLES])
     bot = StringField(required=True)
@@ -30,7 +32,8 @@ class BotAccess(Document):
     status = StringField(required=True, choices=[status.value for status in ACTIVITY_STATUS])
 
 
-class User(Document):
+@auditlogger.log
+class User(Auditlog):
     email = StringField(required=True)
     first_name = StringField(required=True)
     last_name = StringField(required=True)
@@ -61,8 +64,9 @@ class BotMetaData(EmbeddedDocument):
     source_bot_id = StringField(default=None)
 
 
+@auditlogger.log
 @push_notification.apply
-class Bot(Document):
+class Bot(Auditlog):
     name = StringField(required=True)
     account = LongField(required=True)
     user = StringField(required=True)
@@ -75,7 +79,8 @@ class Bot(Document):
             raise ValidationError("Bot Name cannot be empty or blank spaces")
 
 
-class Account(Document):
+@auditlogger.log
+class Account(Auditlog):
     id = SequenceField(required=True, primary_key=True)
     name = StringField(required=True)
     user = StringField(required=True)
@@ -107,7 +112,8 @@ class Feedback(Document):
     timestamp = DateTimeField(default=datetime.utcnow)
 
 
-class UiConfig(Document):
+@auditlogger.log
+class UiConfig(Auditlog):
     config = DictField(default={})
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -145,7 +151,8 @@ class UserActivityLog(Document):
     data = DynamicField()
 
 
-class TrustedDevice(DynamicDocument):
+@auditlogger.log
+class TrustedDevice(Auditlog):
     fingerprint = StringField(required=True)
     user = StringField(required=True)
     is_confirmed = BooleanField(default=False)
@@ -155,7 +162,8 @@ class TrustedDevice(DynamicDocument):
     status = BooleanField(default=True)
 
 
-class Organization(Document):
+@auditlogger.log
+class Organization(Auditlog):
     name = StringField(required=True)
     user = StringField(required=True)
     account = ListField(required=True)

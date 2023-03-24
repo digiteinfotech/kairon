@@ -1,4 +1,4 @@
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode
 
 from mongoengine.errors import DoesNotExist
 from pydantic import SecretStr
@@ -11,6 +11,7 @@ from kairon.idp.data_objects import IdpConfig
 from kairon.idp.factory import IDPFactory
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
+from kairon.shared.data.constant import FeatureMappings
 
 
 class IDPProcessor:
@@ -128,6 +129,8 @@ class IDPProcessor:
         if existing_user:
             AccountProcessor.get_user_details(idp_token['email'])
         else:
+            from kairon.shared.organization.processor import OrgProcessor
+            OrgProcessor.validate_org_settings(realm_name, FeatureMappings.CREATE_USER.value)
             await AccountProcessor.account_setup(idp_token)
             tmp_token = Utility.generate_token(idp_token['email'])
             await AccountProcessor.confirm_email(tmp_token)
