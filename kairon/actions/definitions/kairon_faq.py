@@ -4,7 +4,7 @@ from loguru import logger
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.data_objects import ActionServerLogs, KaironFaqAction
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
 from kairon.shared.actions.utils import ActionUtility
