@@ -5257,6 +5257,7 @@ class TestActionServer(AsyncHTTPTestCase):
         action_name = GPT_LLM_FAQ
         bot = "5f50fd0a56b698ca10d35d2e"
         user = "udit.pandey"
+        value = "keyvalue"
         user_msg = "What kind of language is python?"
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
@@ -5266,6 +5267,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score':0.80, 'payload':{'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
         request_object["tracker"]["slots"]["bot"] = bot
@@ -5333,6 +5335,7 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=False, bot=bot, user=user).save()
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))

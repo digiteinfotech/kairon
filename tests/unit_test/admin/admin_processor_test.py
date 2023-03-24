@@ -26,7 +26,7 @@ class TestSysAdminProcessor:
         bot = "test"
         name = BotSecretType.gpt_key.value
         with pytest.raises(AppException, match=f"Bot secret '{name}' not configured!"):
-            Sysadmin.get_bot_secret(bot, name)
+            Sysadmin.get_bot_secret(bot, name, True)
 
         assert Sysadmin.get_bot_secret(bot, name, raise_err=False) is None
 
@@ -35,7 +35,7 @@ class TestSysAdminProcessor:
         user = "test_user"
         value = "uditpandey"
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
-        secret = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value)
+        secret = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, True)
         assert secret == value
 
     def test_get_secrets_empty_value(self):
