@@ -5351,3 +5351,22 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(type=ActionType.kairon_faq_action.value, status="FAILURE").get()
         assert log['bot_response'] == 'Faq feature is disabled for the bot! Please contact support.'
         assert log['exception'] == 'Faq feature is disabled for the bot! Please contact support.'
+
+    def test_kairon_faq_response_action_does_not_exists(self):
+        bot = "5n80fd0a56b698ca10d35d2efg"
+        user = "uditpandey"
+        user_msg = "What kind of language is python?"
+        action_name = GPT_LLM_FAQ
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        print(response_json)
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 0)
+        self.assertEqual(len(response_json['responses']), 0)
