@@ -4,7 +4,7 @@ from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
-    INTEGRATION_STATUS, FALLBACK_MESSAGE
+    INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import SlotValidationOperators, LogicalOperators, ActionParameterType, EvaluationType
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
@@ -730,6 +730,36 @@ class TwoStageFallbackConfigRequest(BaseModel):
         if values.get('text_recommendations') and values['text_recommendations'].count < 0:
             raise ValueError("count cannot be negative")
         return values
+
+
+class KaironFaqConfigRequest(BaseModel):
+    system_prompt: str = DEFAULT_SYSTEM_PROMPT
+    context_prompt: str = DEFAULT_CONTEXT_PROMPT
+    failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
+    top_results_cap: int = 10
+    similarity_threshold: float = 0.70
+
+    @validator("system_prompt")
+    def validate_system_prompt(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("system_prompt is required")
+        return v
+
+    @validator("context_prompt")
+    def validate_context_prompt(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if not v or Utility.check_empty_string(v):
+            raise ValueError("context_prompt is required")
+        return v
+
+    @validator("similarity_threshold")
+    def validate_similarity_threshold(cls, v, values, **kwargs):
+        if not 0.3 <= v <= 1:
+            raise ValueError("similarity_threshold should be within 0.3 and 1")
+        return v
 
 
 class RazorpayActionRequest(BaseModel):

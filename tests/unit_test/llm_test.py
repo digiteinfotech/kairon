@@ -9,6 +9,7 @@ from mongoengine import connect
 from openai.openai_response import OpenAIResponse
 from openai.util import convert_to_openai_object
 
+from kairon.shared.data.constant import DEFAULT_CONTEXT_PROMPT, DEFAULT_SYSTEM_PROMPT
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.data.data_objects import BotContent
@@ -164,7 +165,7 @@ class TestLLM:
                                         mock_completion
                                         ):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        
+
         bot = "test_embed_faq_predict"
         user = "test"
         value = "knupur"
@@ -208,6 +209,6 @@ class TestLLM:
             assert mock_completion.call_args.kwargs[
                        'messages'] == [
             {"role": "system",
-             "content": "You are a personal assistant. Answer question based on the context below"},
-            {"role": "user", "content": f"{gpt3.__answer_command__} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {"role": "user", "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
         ]

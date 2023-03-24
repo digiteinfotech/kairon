@@ -3060,6 +3060,26 @@ class TestActions:
                           'fallback_message': "I could not understand you! Did you mean any of the suggestions below?"
                                               " Or else please rephrase your question."}
 
+    def test_get_bot_settings(self):
+        bot = "test_bot"
+        bot_settings = ActionUtility.get_bot_settings(bot=bot)
+        bot_settings.pop('timestamp')
+        assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
+                                'website_data_generator_depth_search_limit': 2, 'enable_gpt_llm_faq': False,
+                                'chat_token_expiry': 30, 'refresh_token_expiry': 60, 'whatsapp': 'meta',
+                                'bot': 'test_bot', 'status': True}
+
+    def test_get_faq_action_config(self):
+        bot = "test_bot"
+        k_faq_action_config = ActionUtility.get_faq_action_config(bot=bot)
+        k_faq_action_config.pop('timestamp')
+        assert k_faq_action_config == \
+               {'name': 'kairon_faq_action', 'top_results_cap': 10, 'similarity_threshold': 0.7,
+                'system_prompt': 'You are a personal assistant. Answer question based on the context below',
+                'context_prompt': 'Answer question based on the context below, if answer is not in the '
+                                  'context go check previous logs.',
+                'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot'}
+
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
             ActionTwoStageFallback(bot="test", name=KAIRON_TWO_STAGE_FALLBACK).retrieve_config()

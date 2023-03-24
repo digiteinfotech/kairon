@@ -1,5 +1,6 @@
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from typing import Text, Dict, List, Union
 from kairon.shared.utils import Utility
@@ -11,7 +12,6 @@ from loguru import logger as logging
 
 
 class GPT3FAQEmbedding(LLMBase):
-    __answer_command__ = "Answer question based on the context below, if answer is not in the context go check previous logs."
     __answer_params__ = {
         "temperature": 0.0,
         "max_tokens": 300,
@@ -42,9 +42,15 @@ class GPT3FAQEmbedding(LLMBase):
     def predict(self, query: Text, *args, **kwargs) -> Dict:
         query_embedding = self.__get_embedding(query)
 
-        search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding)
+        limit = kwargs.get('top_results_cap', 10)
+        score_threshold = kwargs.get('similarity_threshold', 0.70)
+        system_prompt = kwargs.get('system_prompt', DEFAULT_SYSTEM_PROMPT)
+        context_prompt = kwargs.get('context_prompt', DEFAULT_CONTEXT_PROMPT)
+
+        search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
+                                                   limit=limit, score_threshold=score_threshold)
         context = "\n".join([item['payload']['content'] for item in search_result['result']])
-        return {"content": self.__get_answer(query, context)}
+        return {"content": self.__get_answer(query, context, system_prompt=system_prompt, context_prompt=context_prompt)}
 
     def __get_embedding(self, text: Text) -> List[float]:
         result = openai.Embedding.create(
@@ -54,16 +60,15 @@ class GPT3FAQEmbedding(LLMBase):
         )
         return result.to_dict_recursive()["data"][0]["embedding"]
 
-    def __get_answer(self, query, context):
+    def __get_answer(self, query, context, system_prompt: Text, context_prompt: Text):
         # completion = openai.Completion.create(
         #     api_key=self.api_key,
         #     prompt=f"{self.__answer_command__} \n\nContext:\n{context}\n\n Q: {query}\n A:",
         #     **self.__answer_params__
         # )
         messages = [
-            {"role": "system",
-             "content": "You are a personal assistant. Answer question based on the context below"},
-            {"role": "user", "content": f"{self.__answer_command__} \n\nContext:\n{context}\n\n Q: {query}\n A:"}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"{context_prompt} \n\nContext:\n{context}\n\n Q: {query}\n A:"}
         ]
 
         completion = openai.ChatCompletion.create(
@@ -98,11 +103,11 @@ class GPT3FAQEmbedding(LLMBase):
                 logging.exception(response['status'].get('error'))
                 raise AppException("Unable to train faq! contact support")
 
-    def __collection_search__(self, collection_name: Text, vector: List):
+    def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
         response = Utility.execute_http_request(
             http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/search"),
             request_method="POST",
             headers=self.headers,
-            request_body={'vector': vector, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70},
+            request_body={'vector': vector, 'limit': limit, 'with_payload': True, 'score_threshold': score_threshold},
             return_json=True)
         return response
