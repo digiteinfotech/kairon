@@ -6,7 +6,7 @@ from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
-    RazorpayActionRequest
+    RazorpayActionRequest, KaironFaqConfigRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -360,6 +360,62 @@ async def update_two_stage_fallback_action(
     """
     mongo_processor.edit_two_stage_fallback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")
+
+
+@router.post("/action/faq", response_model=Response)
+async def add_kairon_faq_action(
+        request_data: KaironFaqConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores Kairon FAQ Action
+    """
+    return {
+        "message": "Action Added Successfully",
+        "data": {
+            "_id": mongo_processor.add_kairon_faq_action(
+                request_data.dict(),
+                current_user.get_bot(),
+                current_user.get_user()
+            )
+        }
+    }
+
+
+@router.put("/action/faq/{faq_action_id}", response_model=Response)
+async def update_kairon_faq_action(
+        faq_action_id: str,
+        request_data: KaironFaqConfigRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates kairon FAQ Action
+    """
+    mongo_processor.edit_kairon_faq_action(faq_action_id, request_data.dict(),
+                                           current_user.get_bot(), current_user.get_user())
+    return Response(message="Action updated!")
+
+
+@router.get("/action/faq", response_model=Response)
+async def get_kairon_faq_action(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Retrieves kairon FAQ Action
+    """
+    action = mongo_processor.get_kairon_faq_action(current_user.get_bot())
+    return Response(data=action)
+
+
+@router.delete("/action/faq", response_model=Response)
+async def delete_kairon_faq_action(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes the Kairon FAQ action.
+    """
+    mongo_processor.delete_kairon_faq_action(current_user.get_bot())
+    return Response(message='Action deleted')
 
 
 @router.post("/razorpay", response_model=Response)

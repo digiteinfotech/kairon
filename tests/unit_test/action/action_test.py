@@ -19,7 +19,7 @@ from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
-from kairon.shared.data.data_objects import Slots, KeyVault
+from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
@@ -3039,6 +3039,26 @@ class TestActions:
                                             {'is_dynamic_msg': False, 'text': 'Mail me', 'payload': 'send_mail'}],
                           'fallback_message': "I could not understand you! Did you mean any of the suggestions below?"
                                               " Or else please rephrase your question."}
+
+    def test_get_bot_settings(self):
+        bot = "test_bot"
+        bot_settings = ActionUtility.get_bot_settings(bot=bot)
+        bot_settings.pop('timestamp')
+        assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
+                                'website_data_generator_depth_search_limit': 2, 'enable_gpt_llm_faq': False,
+                                'chat_token_expiry': 30, 'refresh_token_expiry': 60, 'whatsapp': 'meta',
+                                'bot': 'test_bot', 'status': True}
+
+    def test_get_faq_action_config(self):
+        bot = "test_bot"
+        k_faq_action_config = ActionUtility.get_faq_action_config(bot=bot)
+        k_faq_action_config.pop('timestamp')
+        assert k_faq_action_config == \
+               {'name': 'kairon_faq_action', 'top_results_cap': 10, 'similarity_threshold': 0.7,
+                'system_prompt': 'You are a personal assistant. Answer question based on the context below',
+                'context_prompt': 'Answer question based on the context below, if answer is not in the '
+                                  'context go check previous logs.',
+                'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot'}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
