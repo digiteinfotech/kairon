@@ -31,11 +31,11 @@ class TestSysAdminProcessor:
         assert Sysadmin.get_bot_secret(bot, name, raise_err=False) is None
 
     def test_get_secrets(self):
-        bot = "test"
+        bot = "testsecrettest"
         user = "test_user"
         value = "uditpandey"
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
-        secret = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, True)
+        secret = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value)
         assert secret == value
 
     def test_get_secrets_empty_value(self):
