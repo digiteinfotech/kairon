@@ -5,7 +5,7 @@ import urllib.parse
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
-from kairon.actions.definitions.base import ActionsBase
+from kairon.actions.definitions.bot_response import ActionKaironBotResponse
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.factory import ActionFactory
 from kairon.actions.definitions.form_validation import ActionFormValidation
@@ -2152,7 +2152,7 @@ class TestActions:
 
     def test_kairon_faq_action_not_exists(self):
         with pytest.raises(DoesNotExist):
-            BotSettings.objects(bot="testingAbot", status=True).get()
+            ActionKaironBotResponse("testingAbot", "test_bot_kairon_faq_action_not_found").retrieve_config()
 
     def test_get_google_search_action_config(self):
         bot = 'test_action_server'
