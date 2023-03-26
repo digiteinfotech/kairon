@@ -5,7 +5,6 @@ import urllib.parse
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
-from kairon.actions.definitions.bot_response import ActionKaironBotResponse
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.factory import ActionFactory
 from kairon.actions.definitions.form_validation import ActionFormValidation
@@ -13,6 +12,7 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
+from kairon.actions.definitions.kairon_faq import ActionKaironFaq
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
@@ -2150,9 +2150,25 @@ class TestActions:
         actual = ActionUtility.prepare_email_body(events, "conversation history", "test@kairon.com")
         assert str(actual).__contains__("</table>")
 
+    def test_get_kairon_faq_action_config(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='kairon_faq_action', type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(bot=bot, user=user).save()
+        actual = ActionUtility.get_action(bot, 'kairon_faq_action')
+        assert actual['type'] == ActionType.kairon_faq_action.value
+        actual = ActionKaironFaq(bot, 'kairon_faq_action').retrieve_config()
+        assert actual['ignore_utterances'] == False
+        assert actual['enable_gpt_llm_faq'] == False
+
     def test_kairon_faq_action_not_exists(self):
-        with pytest.raises(DoesNotExist):
-            ActionKaironBotResponse("testingAbot", "test_bot_kairon_faq_action_not_found").retrieve_config()
+        with patch('kairon.shared.data.data_objects.BotSettings.objects') as objects_mock:
+            objects_mock.return_value.get.side_effect = DoesNotExist
+            bot_settings = ActionKaironFaq('test_bot', 'testing_kairon_faq').retrieve_config()
+            assert bot_settings['ignore_utterances'] == False
+            assert bot_settings['enable_gpt_llm_faq'] == False
+            objects_mock.assert_called_once_with(bot='test_bot', status=True)
+            objects_mock.return_value.get.assert_called_once_with()
 
     def test_get_google_search_action_config(self):
         bot = 'test_action_server'
