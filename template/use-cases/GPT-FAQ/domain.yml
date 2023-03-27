@@ -1,0 +1,43 @@
+version: '2.0'
+config:
+  store_entities_as_slots: true
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+intents:
+- greet:
+    use_entities: []
+- bye:
+    use_entities: []
+- nlu_fallback:
+    use_entities: []
+entities:
+- bot
+- kairon_action_response
+slots:
+  kairon_action_response:
+    type: rasa.shared.core.slots.AnySlot
+    initial_value: null
+    auto_fill: false
+    influence_conversation: false
+  bot:
+    type: rasa.shared.core.slots.AnySlot
+    initial_value: 64025900afe8e6ee25ddfc67
+    auto_fill: true
+    influence_conversation: false
+responses:
+  utter_bye:
+  - text: Take care, I'm here for you if you need anything.
+  - text: Adieu, always here for you.
+  - text: See you later, I'm here to help.
+  utter_greet:
+  - text: I'm your AI Assistant, ready to assist
+  - text: Let me be your AI Assistant and provide you with service
+  utter_default:
+  - text: Sorry I didn't get that. Can you rephrase?
+  utter_please_rephrase:
+  - text: I'm sorry, I didn't quite understand that. Could you rephrase?
+actions:
+- gpt_llm_faq
+forms: {}
+e2e_actions: []

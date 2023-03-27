@@ -1,0 +1,14 @@
+version: "2.0"
+rules:
+- rule: ask the user to rephrase whenever they send a message with low nlu confidence
+  steps:
+  - intent: nlu_fallback
+  - action: gpt_llm_faq
+- rule: greet
+  steps:
+  - intent: greet
+  - action: utter_greet
+- rule: bye
+  steps:
+  - intent: bye
+  - action: utter_bye
