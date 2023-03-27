@@ -34,6 +34,8 @@ from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
 
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
@@ -1355,12 +1357,14 @@ class TestMongoProcessor:
     ):
         bot = "tests"
         user = "testUser"
+        value = "nupurk"
         BotContent(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
             bot=bot, user=user).save()
         BotContent(
             data="Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.",
             bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
         MongoProcessor().add_action(GPT_LLM_FAQ, bot, user, False, ActionType.kairon_faq_action.value)
         settings = BotSettings.objects(bot=bot).get()
         settings.enable_gpt_llm_faq = True

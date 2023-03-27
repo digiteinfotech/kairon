@@ -5257,6 +5257,7 @@ class TestActionServer(AsyncHTTPTestCase):
         action_name = GPT_LLM_FAQ
         bot = "5f50fd0a56b698ca10d35d2e"
         user = "udit.pandey"
+        value = "keyvalue"
         user_msg = "What kind of language is python?"
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
@@ -5266,6 +5267,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score':0.80, 'payload':{'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
         request_object["tracker"]["slots"]["bot"] = bot
@@ -5333,6 +5335,7 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=False, bot=bot, user=user).save()
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -5348,3 +5351,22 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(type=ActionType.kairon_faq_action.value, status="FAILURE").get()
         assert log['bot_response'] == 'Faq feature is disabled for the bot! Please contact support.'
         assert log['exception'] == 'Faq feature is disabled for the bot! Please contact support.'
+
+    def test_kairon_faq_response_action_does_not_exists(self):
+        bot = "5n80fd0a56b698ca10d35d2efg"
+        user = "uditpandey"
+        user_msg = "What kind of language is python?"
+        action_name = GPT_LLM_FAQ
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        print(response_json)
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 0)
+        self.assertEqual(len(response_json['responses']), 0)
