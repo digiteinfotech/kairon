@@ -51,6 +51,11 @@ class ActionKaironFaq(ActionsBase):
         bot_response = "Faq feature is disabled for the bot! Please contact support."
         try:
             k_faq_action_config = self.retrieve_config()
+            use_bot_responses = k_faq_action_config.get('use_bot_responses')
+            num_bot_responses = k_faq_action_config.get('num_bot_responses')
+            if use_bot_responses:
+                previous_bot_responses = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
+                k_faq_action_config['previous_bot_responses'] = previous_bot_responses
             bot_response = k_faq_action_config.get('failure_message', DEFAULT_NLU_FALLBACK_RESPONSE)
             user_msg = tracker.latest_message.get('text')
             llm = LLMFactory.get_instance(self.bot, "faq")

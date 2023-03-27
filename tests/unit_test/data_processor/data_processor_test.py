@@ -124,7 +124,8 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70,
+                   "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="similarity_threshold should be within 0.3 and 1"):
             processor.add_kairon_faq_action(request, bot, user)
 
@@ -133,8 +134,29 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70,
+                   "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="top_results should not be greater than 30"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_query_prompt(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "use_query_prompt": True, "query_prompt": "", "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="query_prompt is required"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_num_bot_responses(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "use_query_prompt": False, "query_prompt": "", "num_bot_responses": 15}
+        with pytest.raises(ValidationError, match="num_bot_responses should not be greater than 5"):
             processor.add_kairon_faq_action(request, bot, user)
 
     def test_add_kairon_with_empty_system_prompt(self):
@@ -143,7 +165,7 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {"system_prompt": "", "context_prompt": DEFAULT_CONTEXT_PROMPT,
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70}
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="system_prompt name is required"):
             processor.add_kairon_faq_action(request, bot, user)
 
@@ -153,7 +175,7 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": "",
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70}
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="context_prompt name is required"):
             processor.add_kairon_faq_action(request, bot, user)
 
@@ -167,14 +189,16 @@ class TestMongoProcessor:
         action[0].pop("_id")
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
                            'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                           "top_results": 10, "similarity_threshold": 0.70}]
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
+                           "use_bot_responses": False, "num_bot_responses": 5}]
 
     def test_add_kairon_faq_action_already_exist(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "num_bot_responses": 5}
         with pytest.raises(AppException, match="Action already exists!"):
             processor.add_kairon_faq_action(request, bot, user)
 
@@ -183,7 +207,8 @@ class TestMongoProcessor:
         bot = 'invalid_bot'
         user = 'test_user'
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "num_bot_responses": 5}
         with pytest.raises(AppException, match="Action not found"):
             processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
 
@@ -192,20 +217,24 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
-                   "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70}
+                   "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
+                   "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
+                   "num_bot_responses": 5}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
                            'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
-                           "top_results": 10, "similarity_threshold": 0.70}]
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": True,
+                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt"}]
         request = {}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
                            'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                           "top_results": 10, "similarity_threshold": 0.70}]
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
+                           "use_bot_responses": False, "num_bot_responses": 5}]
 
     def test_get_kairon_faq_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -220,7 +249,8 @@ class TestMongoProcessor:
         action[0].pop("_id")
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
                            'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                           "top_results": 10, "similarity_threshold": 0.70}]
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
+                           "use_bot_responses": False, "num_bot_responses": 5}]
 
     def test_delete_kairon_faq_action(self):
         processor = MongoProcessor()
