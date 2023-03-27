@@ -42,7 +42,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
-    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction
+    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, KaironFaqAction
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType
@@ -61,7 +61,7 @@ from .constant import (
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
     TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType, GPT_LLM_FAQ,
-    DEFAULT_LLM_FALLBACK_RULE
+    DEFAULT_LLM_FALLBACK_RULE, KAIRON_FAQ_ACTION
 )
 from .data_objects import (
     Responses,
@@ -2412,6 +2412,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.razorpay_action.value
                     elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
+                    elif event['name'] == KAIRON_FAQ_ACTION:
+                        step['type'] = StoryStepType.kairon_faq_action.value
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = StoryStepType.bot.value
                     else:
@@ -4187,6 +4189,8 @@ class MongoProcessor:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.kairon_faq_action.value:
+                Utility.delete_document([KaironFaqAction], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4677,6 +4681,71 @@ class MongoProcessor:
             action.pop('user')
             yield action
 
+    def add_kairon_faq_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Add Kairon FAQ Action
+
+        :param request_data: request config for kairon faq action
+        :param bot: bot id
+        :param user: user
+        """
+        Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, exp_message="Action already exists!")
+        request_data['bot'] = bot
+        request_data['user'] = user
+        request_data['name'] = KAIRON_FAQ_ACTION
+        data_object = KaironFaqAction(**request_data).save()
+        id = (
+            data_object.save().to_mongo().to_dict()["_id"].__str__()
+        )
+        self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
+        return id
+
+    def edit_kairon_faq_action(self, faq_action_id: str, request_data: dict, bot: Text, user: Text):
+        """
+        Edit Kairon FAQ Action
+
+        :param faq_action_id: faq action id
+        :param request_data: request config for kairon faq action
+        :param bot: bot id
+        :param user: user
+        """
+        if not Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, id=faq_action_id,
+                                raise_error=False):
+            raise AppException('Action not found')
+        action = KaironFaqAction.objects(id=faq_action_id, name__iexact=KAIRON_FAQ_ACTION, bot=bot).get()
+        action.context_prompt = request_data.get("context_prompt")
+        action.system_prompt = request_data.get("system_prompt")
+        action.failure_message = request_data.get("failure_message")
+        action.top_results = request_data.get("top_results")
+        action.similarity_threshold = request_data.get("similarity_threshold")
+        action.timestamp = datetime.utcnow()
+        action.user = user
+        action.save()
+
+    def get_kairon_faq_action(self, bot: Text):
+        """
+        fetches Kairon FAQ Action
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        actions = []
+        for action in KaironFaqAction.objects(bot=bot):
+            action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
+            action.pop('timestamp')
+            action.pop('bot')
+            action.pop('user')
+            actions.append(action)
+        return actions
+
+    def delete_kairon_faq_action(self, bot: Text):
+        try:
+            action = KaironFaqAction.objects(bot=bot, name=KAIRON_FAQ_ACTION).get()
+            action.delete()
+        except DoesNotExist:
+            raise AppException("Kairon FAQ Action does not exists!")
+
     @staticmethod
     def save_auditlog_event_config(bot, user, data):
         headers = {} if data.get("headers") is None else data.get("headers")
@@ -4969,7 +5038,7 @@ class MongoProcessor:
         id = (
             content_obj.save().to_mongo().to_dict()["_id"].__str__()
         )
-        self.add_action(GPT_LLM_FAQ, bot, user, False, ActionType.kairon_faq_action.value)
+        self.add_kairon_faq_action({}, bot=bot, user=user)
         return id
 
     def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
@@ -4992,8 +5061,9 @@ class MongoProcessor:
         try:
             content = BotContent.objects(bot=bot, id=content_id).get()
             content.delete()
+            self.delete_kairon_faq_action(bot=bot)
             if self.get_row_count(BotContent, bot) <= 0:
-                self.delete_action(GPT_LLM_FAQ, bot, user)
+                self.delete_action(KAIRON_FAQ_ACTION, bot, user)
         except DoesNotExist:
             raise AppException("Text does not exists!")
 

@@ -11,6 +11,7 @@ from openai.util import convert_to_openai_object
 
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.data.constant import DEFAULT_CONTEXT_PROMPT, DEFAULT_SYSTEM_PROMPT
 from kairon.shared.data.data_objects import BotContent
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding, LLMBase
@@ -164,7 +165,7 @@ class TestLLM:
                                         mock_completion
                                         ):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        
+
         bot = "test_embed_faq_predict"
         user = "test"
         value = "knupur"
@@ -208,6 +209,59 @@ class TestLLM:
             assert mock_completion.call_args.kwargs[
                        'messages'] == [
             {"role": "system",
-             "content": "You are a personal assistant. Answer question based on the context below"},
-            {"role": "user", "content": f"{gpt3.__answer_command__} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {"role": "user", "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
         ]
+
+    @responses.activate
+    @mock.patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
+    @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    def test_gpt3_faq_embedding_predict_with_values(self,
+                                                    mock_embedding,
+                                                    mock_completion
+                                                    ):
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        test_content = BotContent(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            bot="test_embed_faq_predict", user="test").save()
+
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query = "What kind of language is python?"
+        k_faq_action_config = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                               "top_results": 10, "similarity_threshold": 0.70}
+
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_completion.return_value = convert_to_openai_object(
+            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
+            gpt3 = GPT3FAQEmbedding(test_content.bot)
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.json_params_matcher(
+                    {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
+                json={'result': [
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            )
+
+            response = gpt3.predict(query, **k_faq_action_config)
+
+            assert response['content'] == generated_text
+
+            assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
+            assert mock_embedding.call_args.kwargs['input'] == query
+
+            assert mock_completion.call_args.kwargs['api_key'] == "knupur"
+            assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
+                       gpt3.__answer_params__.keys())
+            assert mock_completion.call_args.kwargs[
+                       'messages'] == [
+                       {"role": "system",
+                        "content": DEFAULT_SYSTEM_PROMPT},
+                       {"role": "user",
+                        "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+                   ]

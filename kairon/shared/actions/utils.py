@@ -134,6 +134,28 @@ class ActionUtility:
         return value
 
     @staticmethod
+    def get_bot_settings(bot: Text):
+        from kairon.shared.data.data_objects import BotSettings
+        try:
+            bot_settings = BotSettings.objects(bot=bot, status=True).get()
+        except DoesNotExist as e:
+            logger.exception(e)
+            bot_settings = BotSettings(bot=bot, status=True)
+        bot_settings = bot_settings.to_mongo().to_dict()
+        return bot_settings
+
+    @staticmethod
+    def get_faq_action_config(bot: Text):
+        from kairon.shared.actions.data_objects import KaironFaqAction
+        try:
+            k_faq_action_config = KaironFaqAction.objects(bot=bot).get()
+        except DoesNotExist as e:
+            logger.exception(e)
+            k_faq_action_config = KaironFaqAction(bot=bot)
+        k_faq_action_config = k_faq_action_config.to_mongo().to_dict()
+        return k_faq_action_config
+
+    @staticmethod
     def build_context(tracker: Tracker, extract_keyvault: bool = False):
         """
         Creates a dict of tracker object that contains contextual information
