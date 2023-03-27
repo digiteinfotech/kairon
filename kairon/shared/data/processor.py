@@ -4193,7 +4193,7 @@ class MongoProcessor:
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.kairon_faq_action.value:
-                Utility.delete_document([KaironFaqAction], name__iexact=name, bot=bot, user=user)
+                KaironFaqAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4703,6 +4703,15 @@ class MongoProcessor:
         self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
         return id
 
+    def __add_default_kairon_faq_action(self, bot: Text, user: Text):
+        if not Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, raise_error=False):
+            action = KaironFaqAction(bot=bot, user=user).save()
+            id = (
+                action.save().to_mongo().to_dict()["_id"].__str__()
+            )
+            self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
+            return id
+
     def edit_kairon_faq_action(self, faq_action_id: str, request_data: dict, bot: Text, user: Text):
         """
         Edit Kairon FAQ Action
@@ -4721,6 +4730,10 @@ class MongoProcessor:
         action.failure_message = request_data.get("failure_message")
         action.top_results = request_data.get("top_results")
         action.similarity_threshold = request_data.get("similarity_threshold")
+        action.use_query_prompt = request_data.get('use_query_prompt', False)
+        action.query_prompt = request_data.get('query_prompt')
+        action.use_bot_responses = request_data.get('use_bot_responses', False)
+        action.num_bot_responses = request_data.get('num_bot_responses', 5)
         action.timestamp = datetime.utcnow()
         action.user = user
         action.save()
@@ -4741,13 +4754,6 @@ class MongoProcessor:
             action.pop('user')
             actions.append(action)
         return actions
-
-    def delete_kairon_faq_action(self, bot: Text):
-        try:
-            action = KaironFaqAction.objects(bot=bot, name=KAIRON_FAQ_ACTION).get()
-            action.delete()
-        except DoesNotExist:
-            raise AppException("Kairon FAQ Action does not exists!")
 
     @staticmethod
     def save_auditlog_event_config(bot, user, data):
@@ -5047,7 +5053,7 @@ class MongoProcessor:
         id = (
             content_obj.save().to_mongo().to_dict()["_id"].__str__()
         )
-        self.add_kairon_faq_action({}, bot=bot, user=user)
+        self.__add_default_kairon_faq_action(bot=bot, user=user)
         return id
 
     def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
@@ -5070,7 +5076,6 @@ class MongoProcessor:
         try:
             content = BotContent.objects(bot=bot, id=content_id).get()
             content.delete()
-            self.delete_kairon_faq_action(bot=bot)
             if self.get_row_count(BotContent, bot) <= 0:
                 self.delete_action(KAIRON_FAQ_ACTION, bot, user)
         except DoesNotExist:

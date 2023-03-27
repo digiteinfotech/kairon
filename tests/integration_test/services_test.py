@@ -922,7 +922,7 @@ def test_get_kairon_faq_action_with_no_actions():
 
 def test_add_kairon_faq_action_with_invalid_similarity_threshold():
     action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 2}
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
         json=action,
@@ -931,6 +931,56 @@ def test_add_kairon_faq_action_with_invalid_similarity_threshold():
     actual = response.json()
     assert actual["message"] == [{'loc': ['body', 'similarity_threshold'],
                                   'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_invalid_top_results():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'top_results'],
+                                  'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_invalid_query_prompt():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              "use_query_prompt": True, "query_prompt": ""}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'query_prompt is required', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_invalid_num_bot_responses():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              "use_query_prompt": False, "query_prompt": "", "num_bot_responses": 10}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'num_bot_responses'],
+                                  'msg': 'num_bot_responses should not be greater than 5', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -1014,6 +1064,71 @@ def test_update_kairon_faq_action_does_not_exist():
     assert actual["error_code"] == 422
 
 
+def test_update_kairon_faq_action_with_invalid_similarity_threshold():
+    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+              "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 1.50}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'similarity_threshold'],
+                                  'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_update_kairon_faq_action_with_invalid_top_results():
+    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+              "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'top_results'],
+                                  'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_update_kairon_faq_action_with_invalid_query_prompt():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              "use_query_prompt": True, "query_prompt": ""}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'query_prompt is required', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_update_kairon_faq_action_with_query_prompt_with_false():
+    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+              "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50,
+              "use_query_prompt": False, "query_prompt": ""}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == 'Action updated!'
+    assert not actual["data"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
 def test_update_kairon_faq_action():
     action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50}
@@ -1041,7 +1156,8 @@ def test_get_kairon_faq_action():
     actual['data'][0].pop("_id")
     assert actual["data"] == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
                                'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
-                               "top_results": 9, "similarity_threshold": 0.50}]
+                               "top_results": 9, "similarity_threshold": 0.50, 'use_bot_responses': False,
+                               "use_query_prompt": False, 'num_bot_responses': 5}]
 
 
 def test_delete_kairon_faq_action_not_exists():
