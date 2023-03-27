@@ -9,7 +9,6 @@ from mongoengine import connect
 from openai.openai_response import OpenAIResponse
 from openai.util import convert_to_openai_object
 
-from kairon.shared.data.constant import DEFAULT_CONTEXT_PROMPT, DEFAULT_SYSTEM_PROMPT
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.data.constant import DEFAULT_CONTEXT_PROMPT, DEFAULT_SYSTEM_PROMPT
