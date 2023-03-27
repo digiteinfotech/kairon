@@ -187,6 +187,9 @@ GPT_LLM_FAQ = "gpt_llm_faq"
 DEFAULT_LLM_FALLBACK_RULE = 'search answer in faq'
 FALLBACK_MESSAGE = "I could not understand you! Did you mean any of the suggestions below?" \
                    " Or else please rephrase your question."
+KAIRON_FAQ_ACTION = "kairon_faq_action"
+DEFAULT_CONTEXT_PROMPT = "Answer question based on the context below, if answer is not in the context go check previous logs."
+DEFAULT_SYSTEM_PROMPT = "You are a personal assistant. Answer question based on the context below"
 
 
 class AuditlogActions(str, Enum):
