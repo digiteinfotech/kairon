@@ -1677,9 +1677,6 @@ class Utility:
             if ws_url:
                 Utility.execute_http_request(request_method=method, http_url=ws_url,
                                              request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
-            if kwargs.get("event_url"):
-                Utility.execute_http_request(request_method=method, http_url=kwargs.get("event_url"),
-                                             request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
         except (DoesNotExist, AppException):
             return
 

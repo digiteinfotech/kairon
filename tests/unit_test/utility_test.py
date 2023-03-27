@@ -1426,6 +1426,43 @@ class TestUtility:
         count = AuditLogData.objects(auditlog_id=bot, user=user).count()
         assert count >= 3
 
+    @responses.activate
+    def test_publish_auditlog(self):
+        bot = 'secret'
+        user = 'secret_user'
+        config = {
+                "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                "client_id": "3396830255712.3396861654876869879",
+                "client_secret": "cf92180a7634d90bf42a217408376878"
+            }
+        auditlog_data = {
+            "auditlog_id": bot,
+            "mapping": "Bot_id",
+            "user": user,
+            "action": "update",
+            "entity": "Channels",
+            "data": config,
+        }
+
+        event_url = "http://publish_log.com/consume"
+        EventConfig(bot=bot,
+                    user=user,
+                    ws_url="http://publish_log.com/consume",
+                    headers={'Autharization': '123456789'},
+                    method="GET").save()
+
+        responses.add(
+            responses.POST,
+            event_url,
+            json='{"message": "Auditlog saved on remote server"}',
+            status=200
+        )
+
+        Utility.publish_auditlog(AuditLogData(**auditlog_data))
+        count = AuditLogData.objects(auditlog_id=bot, user=user).count()
+        assert count == 1
+
     @pytest.mark.asyncio
     async def test_messageConverter_whatsapp_button_two(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
