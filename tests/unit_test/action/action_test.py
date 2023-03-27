@@ -5,7 +5,6 @@ import urllib.parse
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
-from kairon.actions.definitions.base import ActionsBase
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.factory import ActionFactory
 from kairon.actions.definitions.form_validation import ActionFormValidation
@@ -13,20 +12,21 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
+from kairon.actions.definitions.kairon_faq import ActionKaironFaq
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
-from kairon.shared.data.data_objects import Slots, KeyVault
+from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
 
 import pytest
 import responses
-from mongoengine import connect, QuerySet
+from mongoengine import connect, QuerySet, DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType, HttpRequestContentType
@@ -2149,6 +2149,26 @@ class TestActions:
         events = [{"event":"action","timestamp":1594907100.12764,"name":"action_session_start","policy":None,"confidence":None},{"event":"session_started","timestamp":1594907100.12765},{"event":"action","timestamp":1594907100.12767,"name":"action_listen","policy":None,"confidence":None},{"event":"user","timestamp":1594907100.42744,"text":"can't","parse_data":{"intent":{"name":"test intent","confidence":0.253578245639801},"entities":[],"intent_ranking":[{"name":"test intent","confidence":0.253578245639801},{"name":"goodbye","confidence":0.1504897326231},{"name":"greet","confidence":0.138640150427818},{"name":"affirm","confidence":0.0857767835259438},{"name":"smalltalk_human","confidence":0.0721133947372437},{"name":"deny","confidence":0.069614589214325},{"name":"bot_challenge","confidence":0.0664894133806229},{"name":"faq_vaccine","confidence":0.062177762389183},{"name":"faq_testing","confidence":0.0530692934989929},{"name":"out_of_scope","confidence":0.0480506233870983}],"response_selector":{"default":{"response":{"name":None,"confidence":0},"ranking":[],"full_retrieval_intent":None}},"text":"can't"},"input_channel":None,"message_id":"bbd413bf5c834bf3b98e0da2373553b2","metadata":{}},{"event":"action","timestamp":1594907100.4308,"name":"utter_test intent","policy":"policy_0_MemoizationPolicy","confidence":1},{"event":"bot","timestamp":1594907100.4308,"text":"will not = won\"t","data":{"elements":None,"quick_replies":None,"buttons":None,"attachment":None,"image":None,"custom":None},"metadata":{}},{"event":"action","timestamp":1594907100.43384,"name":"action_listen","policy":"policy_0_MemoizationPolicy","confidence":1},{"event":"user","timestamp":1594907117.04194,"text":"can\"t","parse_data":{"intent":{"name":"test intent","confidence":0.253578245639801},"entities":[],"intent_ranking":[{"name":"test intent","confidence":0.253578245639801},{"name":"goodbye","confidence":0.1504897326231},{"name":"greet","confidence":0.138640150427818},{"name":"affirm","confidence":0.0857767835259438},{"name":"smalltalk_human","confidence":0.0721133947372437},{"name":"deny","confidence":0.069614589214325},{"name":"bot_challenge","confidence":0.0664894133806229},{"name":"faq_vaccine","confidence":0.062177762389183},{"name":"faq_testing","confidence":0.0530692934989929},{"name":"out_of_scope","confidence":0.0480506233870983}],"response_selector":{"default":{"response":{"name":None,"confidence":0},"ranking":[],"full_retrieval_intent":None}},"text":"can\"t"},"input_channel":None,"message_id":"e96e2a85de0748798748385503c65fb3","metadata":{}},{"event":"action","timestamp":1594907117.04547,"name":"utter_test intent","policy":"policy_1_TEDPolicy","confidence":0.978452920913696},{"event":"bot","timestamp":1594907117.04548,"text":"can not = can't","data":{"elements":None,"quick_replies":None,"buttons":None,"attachment":None,"image":None,"custom":None},"metadata":{}}]
         actual = ActionUtility.prepare_email_body(events, "conversation history", "test@kairon.com")
         assert str(actual).__contains__("</table>")
+
+    def test_get_kairon_faq_action_config(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='kairon_faq_action', type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(bot=bot, user=user).save()
+        actual = ActionUtility.get_action(bot, 'kairon_faq_action')
+        assert actual['type'] == ActionType.kairon_faq_action.value
+        actual = ActionKaironFaq(bot, 'kairon_faq_action').retrieve_config()
+        assert actual['ignore_utterances'] == False
+        assert actual['enable_gpt_llm_faq'] == False
+
+    def test_kairon_faq_action_not_exists(self):
+        with patch('kairon.shared.data.data_objects.BotSettings.objects') as objects_mock:
+            objects_mock.return_value.get.side_effect = DoesNotExist
+            bot_settings = ActionKaironFaq('test_bot', 'testing_kairon_faq').retrieve_config()
+            assert bot_settings['ignore_utterances'] == False
+            assert bot_settings['enable_gpt_llm_faq'] == False
+            objects_mock.assert_called_once_with(bot='test_bot', status=True)
+            objects_mock.return_value.get.assert_called_once_with()
 
     def test_get_google_search_action_config(self):
         bot = 'test_action_server'
