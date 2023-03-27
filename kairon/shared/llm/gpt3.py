@@ -1,6 +1,7 @@
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
+from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from typing import Text, Dict, List, Union
 from kairon.shared.utils import Utility
