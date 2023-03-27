@@ -44,13 +44,14 @@ class GPT3FAQEmbedding(LLMBase):
 
         limit = kwargs.get('top_results', 10)
         score_threshold = kwargs.get('similarity_threshold', 0.70)
-        system_prompt = kwargs.get('system_prompt', DEFAULT_SYSTEM_PROMPT)
-        context_prompt = kwargs.get('context_prompt', DEFAULT_CONTEXT_PROMPT)
+        system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
+        context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
 
         search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
                                                    limit=limit, score_threshold=score_threshold)
         context = "\n".join([item['payload']['content'] for item in search_result['result']])
-        return {"content": self.__get_answer(query, context, system_prompt=system_prompt, context_prompt=context_prompt)}
+        return {"content": self.__get_answer(query, context, system_prompt=system_prompt, context_prompt=context_prompt,
+                                             **kwargs)}
 
     def __get_embedding(self, text: Text) -> List[float]:
         result = openai.Embedding.create(
@@ -60,16 +61,18 @@ class GPT3FAQEmbedding(LLMBase):
         )
         return result.to_dict_recursive()["data"][0]["embedding"]
 
-    def __get_answer(self, query, context, system_prompt: Text, context_prompt: Text):
-        # completion = openai.Completion.create(
-        #     api_key=self.api_key,
-        #     prompt=f"{self.__answer_command__} \n\nContext:\n{context}\n\n Q: {query}\n A:",
-        #     **self.__answer_params__
-        # )
+    def __get_answer(self, query, context, system_prompt: Text, context_prompt: Text, **kwargs):
+        query_prompt = kwargs.get('query_prompt')
+        use_query_prompt = kwargs.get('use_query_prompt')
+        previous_bot_responses = kwargs.get('previous_bot_responses')
+        if use_query_prompt and query_prompt:
+            context_prompt = f"{context_prompt}\n\n{query_prompt}"
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{context_prompt} \n\nContext:\n{context}\n\n Q: {query}\n A:"}
         ]
+        if previous_bot_responses:
+            messages.append({"role": "assistant", "content": f"{previous_bot_responses}"})
 
         completion = openai.ChatCompletion.create(
             api_key=self.api_key,
