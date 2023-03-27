@@ -156,6 +156,20 @@ class ActionUtility:
         return k_faq_action_config
 
     @staticmethod
+    def prepare_bot_responses(tracker: Tracker, last_n):
+        """
+        Retrieve bot responses from tracker events.
+        """
+        message_trail = ""
+        for event in reversed(tracker.events):
+            if event.get('event') == 'bot':
+                message_trail = f"{event.get('text')}\n{message_trail}"
+                last_n -= 1
+            if last_n <= 0:
+                break
+        return message_trail
+
+    @staticmethod
     def build_context(tracker: Tracker, extract_keyvault: bool = False):
         """
         Creates a dict of tracker object that contains contextual information

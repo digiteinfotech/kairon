@@ -735,6 +735,10 @@ class TwoStageFallbackConfigRequest(BaseModel):
 class KaironFaqConfigRequest(BaseModel):
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
     context_prompt: str = DEFAULT_CONTEXT_PROMPT
+    use_query_prompt: bool = False
+    query_prompt: str = None
+    use_bot_responses: bool = False
+    num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     top_results: int = 10
     similarity_threshold: float = 0.70
@@ -766,6 +770,20 @@ class KaironFaqConfigRequest(BaseModel):
         if v > 30:
             raise ValueError("top_results should not be greater than 30")
         return v
+
+    @validator("num_bot_responses")
+    def validate_num_bot_responses(cls, v, values, **kwargs):
+        if v > 5:
+            raise ValueError("num_bot_responses should not be greater than 5")
+        return v
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        if values.get('use_query_prompt') and Utility.check_empty_string(values.get('query_prompt')):
+            raise ValueError("query_prompt is required")
+        return values
 
 
 class RazorpayActionRequest(BaseModel):
