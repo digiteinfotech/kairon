@@ -10303,15 +10303,15 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            auditlog_id="test", mapping=["Bot_id"], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            auditlog_id=["test"], mapping="Bot_id", user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            auditlog_id="test", mapping=["Bot_id"], user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
+            auditlog_id=["test"], mapping="Bot_id", user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            auditlog_id="test", mapping=["Bot_id"], user="test", timestamp=start_time - timedelta(days=480),
+            auditlog_id=["test"], mapping="Bot_id", user="test", timestamp=start_time - timedelta(days=480),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
@@ -10881,7 +10881,7 @@ class TestModelProcessor:
         auditlog_data = list(AuditLogData.objects(auditlog_id='test', user='testUser', entity='ChatClientConfig'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
-        assert auditlog_data[0].auditlog_id == "test"
+        assert auditlog_data[0].auditlog_id[0] == "test"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "ChatClientConfig"
 
@@ -10889,7 +10889,7 @@ class TestModelProcessor:
         auditlog_data = list(AuditLogData.objects(auditlog_id='tests', user='testUser', action='save', entity='Intents'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
-        assert auditlog_data[0].auditlog_id == "tests"
+        assert auditlog_data[0].auditlog_id[0] == "tests"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "Intents"
 
@@ -11103,12 +11103,12 @@ class TestModelProcessor:
         Channels(bot=bot, user=user, connector_type=connector_type, config=config, meta_config=meta_config).save()
 
         auditlog_data = processor.get_logs("secret", "audit_logs", start_time, end_time)
-        assert auditlog_data[0]["mapping"][0] == "Bot_id"
-        assert auditlog_data[0]["auditlog_id"] == bot
+        assert auditlog_data[0]["mapping"] == "Bot_id"
+        assert auditlog_data[0]["auditlog_id"][0] == bot
         assert auditlog_data[0]["entity"] == "Channels"
         assert auditlog_data[0]["data"]["config"] != config
 
-        assert auditlog_data[2]["mapping"][0] == "Bot_id"
-        assert auditlog_data[2]["auditlog_id"] == bot
+        assert auditlog_data[2]["mapping"] == "Bot_id"
+        assert auditlog_data[2]["auditlog_id"][0] == bot
         assert auditlog_data[2]["entity"] == "KeyVault"
         assert auditlog_data[2]["data"]["value"] != value

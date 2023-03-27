@@ -1640,8 +1640,8 @@ class Utility:
 
         auditlog_id, mapping = Utility.get_auditlog_id_and_mapping(document)
 
-        audit_log = AuditLogData(auditlog_id=auditlog_id,
-                                 mapping=[mapping],
+        audit_log = AuditLogData(auditlog_id=[auditlog_id],
+                                 mapping=mapping,
                                  user=document.user,
                                  action=action,
                                  entity=name,

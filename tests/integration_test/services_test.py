@@ -13063,7 +13063,7 @@ def test_get_auditlog_for_user_1():
     assert actual["data"][0]["user"] == email
 
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["mapping"] == ["Bot_id"]
+    assert actual["data"][0]["mapping"] == "Bot_id"
 
 def test_get_auditlog_for_bot():
     from_date = datetime.utcnow().date() - timedelta(days=1)
