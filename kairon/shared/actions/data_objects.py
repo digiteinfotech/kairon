@@ -490,7 +490,7 @@ class KaironFaqAction(Auditlog):
     name = StringField(default=KAIRON_FAQ_ACTION)
     system_prompt = StringField(default=DEFAULT_SYSTEM_PROMPT)
     context_prompt = StringField(default=DEFAULT_CONTEXT_PROMPT)
-    top_results_cap = IntField(default=10)
+    top_results = IntField(default=10)
     similarity_threshold = FloatField(default=0.70)
     failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
     bot = StringField(required=True)
@@ -504,6 +504,8 @@ class KaironFaqAction(Auditlog):
             raise ValidationError("context_prompt name is required")
         if not 0.3 <= self.similarity_threshold <= 1:
             raise ValidationError("similarity_threshold should be within 0.3 and 1")
+        if self.top_results > 30:
+            raise ValidationError("top_results should not be greater than 30")
 
 
 

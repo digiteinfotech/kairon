@@ -4716,7 +4716,7 @@ class MongoProcessor:
         action.context_prompt = request_data.get("context_prompt")
         action.system_prompt = request_data.get("system_prompt")
         action.failure_message = request_data.get("failure_message")
-        action.top_results_cap = request_data.get("top_results_cap")
+        action.top_results = request_data.get("top_results")
         action.similarity_threshold = request_data.get("similarity_threshold")
         action.timestamp = datetime.utcnow()
         action.user = user
@@ -5061,6 +5061,7 @@ class MongoProcessor:
         try:
             content = BotContent.objects(bot=bot, id=content_id).get()
             content.delete()
+            self.delete_kairon_faq_action(bot=bot)
             if self.get_row_count(BotContent, bot) <= 0:
                 self.delete_action(KAIRON_FAQ_ACTION, bot, user)
         except DoesNotExist:

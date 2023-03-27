@@ -43,7 +43,7 @@ class GPT3FAQEmbedding(LLMBase):
     def predict(self, query: Text, *args, **kwargs) -> Dict:
         query_embedding = self.__get_embedding(query)
 
-        limit = kwargs.get('top_results_cap', 10)
+        limit = kwargs.get('top_results', 10)
         score_threshold = kwargs.get('similarity_threshold', 0.70)
         system_prompt = kwargs.get('system_prompt', DEFAULT_SYSTEM_PROMPT)
         context_prompt = kwargs.get('context_prompt', DEFAULT_CONTEXT_PROMPT)

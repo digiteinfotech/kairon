@@ -1,0 +1,236 @@
+http_action:
+- action_name: http_action_1
+  http_url: http://www.alphabet.com
+  params_list:
+  - key: intent
+    parameter_type: intent
+  - key: chat_log
+    parameter_type: chat_log
+  - key: user_message
+    parameter_type: user_message
+  - key: sender_id
+    parameter_type: sender_id
+  - key: slot
+    parameter_type: slot
+    value: slot
+  - key: value
+    parameter_type: value
+    value: value
+  headers:
+    - key: intent
+      parameter_type: intent
+    - key: chat_log
+      parameter_type: chat_log
+    - key: user_message
+      parameter_type: user_message
+    - key: sender_id
+      parameter_type: sender_id
+    - key: slot
+      parameter_type: slot
+      value: slot
+    - key: value
+      parameter_type: value
+      value: value
+  request_method: GET
+  response:
+    value: json
+- action_name: http_action_2
+  http_url: http://www.alphabet.com
+  headers:
+  - key: authorization
+    parameter_type: slot
+    value: authorization
+  request_method: GET
+  response:
+    value: json
+- action_name: http_action_3
+  http_url: http://www.alphabet.com
+  request_method: GET
+  response:
+    value: json
+- action_name: http_action_4
+  http_url: http://www.alphabet.com
+  params_list:
+  - key: testParam1
+    parameter_type: value
+    value: testValue1
+  - key: testParam2
+    parameter_type: slot
+    value: testValue1
+  request_method: GET
+  response:
+    value: json
+
+slot_set_action:
+- name: slot_set_action_1
+  set_slots:
+    - name: auth
+      type: reset_slot
+- name: slot_set_action_2
+  set_slots:
+  - name: auth_token
+    type: from_value
+    value: asdfghjklqwertyuiop
+- name: slot_set_action_3
+  set_slots:
+  - name: user_details
+    type: from_value
+    value:
+      - name: udit
+        last_name: pandey
+
+form_validation_action:
+- name: form_validation_action_1
+  slot: name
+- name: form_validation_action_2
+  slot: cuisine
+  validation_semantic:
+    or:
+      - operator: equal_to
+        value: indian
+      - operator: equal_to
+        value: nepalese
+  valid_response: perfect
+  invalid_response: not found in database
+- name: form_validation_action_3
+  slot: name
+  valid_response: accepted
+- name: form_validation_action_4
+  slot: seating
+  validation_semantic:
+    or:
+      - operator: greater_than
+        value: 0
+      - operator: less_than
+        value: 10
+  invalid_response: value not acceptable
+
+google_search_action:
+- name: google_search_action_1
+  api_key:
+    key: api_key
+    value: asdfghjklrtyu
+    parameter_type: value
+  search_engine_id: sdfg34567dfgh
+- name: google_search_action_2
+  api_key:
+    key: api_key
+    value: asdfghjklrtyu
+  search_engine_id: sdfg34567dfgh
+  failure_response: no response from google
+  num_results: 2
+
+jira_action:
+- name: jira_action_1
+  url: http://digite.atlassian.net
+  user_name: udit.pandey@digite.com
+  api_token:
+    key: api_token
+    value: bkjbk1234567890
+    parameter_type: value
+  project_key: HEL
+  issue_type: Subtask
+  parent_key: TAS
+  summary: new demo request
+  response: ticket created
+- name: jira_action_2
+  url: http://digite.atlassian.net
+  user_name: udit.pandey@digite.com
+  api_token:
+    key: api_token
+    value: hgvj1234567890
+    parameter_type: value
+  project_key: HEL
+  issue_type: Task
+  summary: new demo request
+  response: ticket created
+
+zendesk_action:
+- name: zendesk_action_1
+  subdomain: digite751
+  user_name: udit.pandey@digite.com
+  api_token:
+    key: api_token
+    value: 123456wertyu
+    parameter_type: value
+  subject: new demo request
+  response: Request taken
+- name: zendesk_action_2
+  subdomain: digite751
+  user_name: udit.pandey@digite.com
+  api_token:
+    key: api_token
+    value: 1234567dfghjk
+    parameter_type: value
+  subject: new demo request
+  response: Request taken
+
+email_action:
+- action_name: email_action_1
+  smtp_url: smtp.gmail.com
+  smtp_port: 587
+  smtp_userid:
+    key: smtp_userid
+    value: udit.pandey@digite.com
+    parameter_type: value
+  smtp_password:
+    key: smtp_password
+    value: dfgh4567
+    parameter_type: value
+  from_email: udit.pandey@digite.com
+  subject: bot fallback
+  to_email:
+  - udit.pandey@digite.com
+  - ritika.gupta@digite.com
+  response: email sent
+  tls: False
+- action_name: email_action_2
+  smtp_url: smtp.gmail.com
+  smtp_port: 587
+  smtp_password:
+    key: smtp_password
+    value: sdfgh5678
+    parameter_type: value
+  from_email: udit.pandey@digite.com
+  subject: bot fallback
+  to_email:
+  - udit.pandey@digite.com
+  - ritika.gupta@digite.com
+  response: email sent
+
+pipedrive_leads_action:
+- name: action_pipedrive_leads
+  domain: https://digite751.pipedrive.com
+  api_token:
+    key: api_token
+    value: asdfghjk456
+    parameter_type: value
+  title: new lead generated
+  response: Lead created for you
+  metadata:
+    name: name_slot
+    org_name: organization_slot
+    email: email_slot
+    phone: phone_slot
+- name: action_create_lead
+  domain: https://digite7.pipedrive.com
+  api_token:
+    key: api_token
+    value: asdfghjk456dfghjk
+    parameter_type: value
+  title: lead detected
+  response: Thankyou for your time
+  metadata:
+    name: name_slot
+
+two_stage_fallback:
+- fallback_message: I could not understand you! Did you mean any of the suggestions
+    below? Or else please rephrase your question.
+  name: kairon_two_stage_fallback
+  text_recommendations:
+    count: 0
+    use_intent_ranking: true
+  trigger_rules:
+  - is_dynamic_msg: false
+    payload: greet
+    text: Hi

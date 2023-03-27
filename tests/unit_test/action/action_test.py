@@ -18,7 +18,7 @@ from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, KAIRON_FAQ_ACTION
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -2154,21 +2154,22 @@ class TestActions:
         bot = 'test_action_server'
         user = 'test_user'
         Actions(name='kairon_faq_action', type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
-        BotSettings(bot=bot, user=user).save()
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
         assert actual['type'] == ActionType.kairon_faq_action.value
         actual = ActionKaironFaq(bot, 'kairon_faq_action').retrieve_config()
-        assert actual['ignore_utterances'] == False
-        assert actual['enable_gpt_llm_faq'] == False
+        actual.pop("timestamp")
+        assert actual == {'name': 'kairon_faq_action',
+                          'system_prompt': 'You are a personal assistant. Answer question based on the context below',
+                          'context_prompt': 'Answer question based on the context below, if answer is not in the '
+                                            'context go check previous logs.',
+                          'top_results': 10, 'similarity_threshold': 0.7,
+                          'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                          'bot': 'test_action_server'}
 
     def test_kairon_faq_action_not_exists(self):
-        with patch('kairon.shared.data.data_objects.BotSettings.objects') as objects_mock:
-            objects_mock.return_value.get.side_effect = DoesNotExist
-            bot_settings = ActionKaironFaq('test_bot', 'testing_kairon_faq').retrieve_config()
-            assert bot_settings['ignore_utterances'] == False
-            assert bot_settings['enable_gpt_llm_faq'] == False
-            objects_mock.assert_called_once_with(bot='test_bot', status=True)
-            objects_mock.return_value.get.assert_called_once_with()
+        with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
+            ActionKaironFaq('test_kairon_faq_action_not_exists', 'testing_kairon_faq').retrieve_config()
 
     def test_get_google_search_action_config(self):
         bot = 'test_action_server'
@@ -3074,7 +3075,7 @@ class TestActions:
         k_faq_action_config = ActionUtility.get_faq_action_config(bot=bot)
         k_faq_action_config.pop('timestamp')
         assert k_faq_action_config == \
-               {'name': 'kairon_faq_action', 'top_results_cap': 10, 'similarity_threshold': 0.7,
+               {'name': 'kairon_faq_action', 'top_results': 10, 'similarity_threshold': 0.7,
                 'system_prompt': 'You are a personal assistant. Answer question based on the context below',
                 'context_prompt': 'Answer question based on the context below, if answer is not in the '
                                   'context go check previous logs.',
