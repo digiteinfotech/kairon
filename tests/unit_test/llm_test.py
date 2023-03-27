@@ -1,4 +1,5 @@
 import os
+from unittest.mock import Mock
 from urllib.parse import urljoin
 
 import mock
@@ -338,21 +339,28 @@ class TestLLM:
 
         bot = "test_embed_faq_predict"
         user = "test"
-        value = "knupur"
         test_content = BotContent(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
+        rephrased_query = "Explain python is called high level programming language in laymen terms?"
         k_faq_action_config = {
             "query_prompt": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
             "use_query_prompt": True
         }
 
-        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_completion.return_value = convert_to_openai_object(
+        def mock_completion_for_query_prompt(*args, **kwargs):
+            return convert_to_openai_object(
+            OpenAIResponse({'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}, {}))
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
             OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_completion.side_effect = [mock_completion_for_query_prompt(), mock_completion_for_answer()]
 
         gpt3 = GPT3FAQEmbedding(test_content.bot)
 
@@ -375,12 +383,21 @@ class TestLLM:
         assert mock_embedding.call_args.kwargs['input'] == query
 
         assert mock_completion.call_args.kwargs['api_key'] == "knupur"
-        assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
+        assert all(mock_completion.call_args_list[0].kwargs[key] == gpt3.__answer_params__[key] for key in
                    gpt3.__answer_params__.keys())
-        assert mock_completion.call_args.kwargs[
+        assert mock_completion.call_args_list[0].kwargs[
                    'messages'] == [
                    {"role": "system",
                     "content": DEFAULT_SYSTEM_PROMPT},
                    {"role": "user",
-                    "content": f"{DEFAULT_CONTEXT_PROMPT}\n\n{k_faq_action_config['query_prompt']} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+                    "content": f"{k_faq_action_config['query_prompt']}\n\n Q: {query}\n A:"}
+               ]
+        assert all(mock_completion.call_args_list[1].kwargs[key] == gpt3.__answer_params__[key] for key in
+                   gpt3.__answer_params__.keys())
+        assert mock_completion.call_args_list[1].kwargs[
+                   'messages'] == [
+                   {"role": "system",
+                    "content": DEFAULT_SYSTEM_PROMPT},
+                   {"role": "user",
+                    "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{test_content.data}\n\n Q: {rephrased_query}\n A:"}
                ]
