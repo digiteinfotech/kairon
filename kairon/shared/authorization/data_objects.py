@@ -1,15 +1,18 @@
 from mongoengine import (
-    Document,
     StringField,
     DateTimeField,
     ListField
 )
 from mongoengine.errors import ValidationError
+
+from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
+from kairon.shared.data.signals import auditlogger
 from kairon.shared.utils import Utility
 
 
-class Integration(Document):
+@auditlogger.log
+class Integration(Auditlog):
     name = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
