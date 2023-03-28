@@ -6,8 +6,7 @@ from kairon.shared.data.signals import auditlog
 
 
 class AuditLogData(Document):
-    auditlog_id = ListField(required=True)
-    mapping = StringField(required=True)
+    audit = DictField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     action = StringField(required=True, choices=[action.value for action in AuditlogActions])

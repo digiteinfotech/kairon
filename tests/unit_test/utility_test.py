@@ -1359,7 +1359,7 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url")
         kwargs = {"action": "save"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(auditlog_id=bot, user=user, action="save").count()
+        count = AuditLogData.objects(audit__Bot_id=bot, user=user, action="save").count()
         assert count == 1
 
     def test_save_and_publish_auditlog_action_save_another(self, monkeypatch):
@@ -1376,7 +1376,7 @@ class TestUtility:
                                    method="GET")
         kwargs = {"action": "save"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(auditlog_id=bot, user=user, action="save").count()
+        count = AuditLogData.objects(audit__Bot_id=bot, user=user, action="save").count()
         assert count == 2
 
     def test_save_and_publish_auditlog_action_update(self, monkeypatch):
@@ -1392,7 +1392,7 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(auditlog_id=bot, user=user, action="update").count()
+        count = AuditLogData.objects(audit__Bot_id=bot, user=user, action="update").count()
         assert count == 1
 
     def test_save_and_publish_auditlog_total_count(self, monkeypatch):
@@ -1408,7 +1408,7 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(auditlog_id=bot, user=user).count()
+        count = AuditLogData.objects(audit__Bot_id=bot, user=user).count()
         assert count >= 3
 
     def test_save_and_publish_auditlog_total_count_with_event_url(self, monkeypatch):
@@ -1423,7 +1423,7 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
         Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(auditlog_id=bot, user=user).count()
+        count = AuditLogData.objects(audit__Bot_id=bot, user=user).count()
         assert count >= 3
 
     @responses.activate
@@ -1437,8 +1437,7 @@ class TestUtility:
                 "client_secret": "cf92180a7634d90bf42a217408376878"
             }
         auditlog_data = {
-            "auditlog_id": bot,
-            "mapping": "Bot_id",
+            "audit": {"Bot_id": bot},
             "user": user,
             "action": "update",
             "entity": "Channels",
@@ -1460,7 +1459,7 @@ class TestUtility:
         )
 
         Utility.publish_auditlog(AuditLogData(**auditlog_data))
-        count = AuditLogData.objects(auditlog_id=bot, user=user).count()
+        count = AuditLogData.objects(audit__Bot_id=bot, user=user).count()
         assert count == 1
 
     @pytest.mark.asyncio
