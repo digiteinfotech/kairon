@@ -1350,6 +1350,7 @@ class MongoProcessor:
         config_dict = config.to_mongo().to_dict()
         config_dict["config"].pop("headers", None)
         config_dict["config"].pop("multilingual", None)
+        config_dict.pop("_id", None)
         config_dict.pop("bot", None)
         config_dict.pop("status", None)
         config_dict.pop("user", None)
@@ -3405,6 +3406,8 @@ class MongoProcessor:
             error_summary['config'] = errors
         if os.path.exists(chat_client_config_path):
             chat_client_config = Utility.read_yaml(chat_client_config_path)
+            print(chat_client_config)
+            chat_client_config = chat_client_config["config"]
 
         if not validation_failed and not error_summary.get('config'):
             files_to_save = set()
@@ -3666,23 +3669,6 @@ class MongoProcessor:
             logging.error(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
-
-    def add_rule_for_kairon_faq_action(self, bot: Text, user: Text):
-        search_event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
-        events = [
-            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
-            StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name),
-            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
-        ]
-        try:
-            rule = Rules.objects(bot=bot, status=True, events__match=search_event).first()
-            if not rule:
-                raise DoesNotExist('Rule with nlu_fallback event not found')
-            rule.events = events
-            rule.save()
-        except DoesNotExist as e:
-            logging.exception(e)
-            Rules(block_name=DEFAULT_LLM_FALLBACK_RULE, bot=bot, user=user, start_checkpoints=[STORY_START], events=events).save()
 
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
         from kairon.shared.account.processor import AccountProcessor
@@ -4692,6 +4678,10 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user
         """
+        bot_settings = self.get_bot_settings(bot=bot, user=user)
+        if not bot_settings['enable_gpt_llm_faq']:
+            raise AppException('Faq feature is disabled for the bot! Please contact support.')
+
         Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, exp_message="Action already exists!")
         request_data['bot'] = bot
         request_data['user'] = user
@@ -5043,6 +5033,9 @@ class MongoProcessor:
             yield action
 
     def save_content(self, content: Text, user: Text, bot: Text):
+        bot_settings = self.get_bot_settings(bot=bot, user=user)
+        if not bot_settings['enable_gpt_llm_faq']:
+            raise AppException('Faq feature is disabled for the bot! Please contact support.')
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
 
@@ -5064,7 +5057,7 @@ class MongoProcessor:
                                 exp_message="Text already exists!")
 
         try:
-            content_obj = BotContent.objects(bot=bot, user=user, id=content_id).get()
+            content_obj = BotContent.objects(bot=bot, id=content_id).get()
             content_obj.data = content
             content_obj.user = user
             content_obj.timestamp = datetime.utcnow()

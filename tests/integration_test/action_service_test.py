@@ -9,13 +9,13 @@ from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction
+    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, KaironFaqAction
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
-    DEFAULT_NLU_FALLBACK_RESPONSE
+    DEFAULT_NLU_FALLBACK_RESPONSE, KAIRON_FAQ_ACTION, DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 import numpy as np
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 from kairon.shared.data.processor import MongoProcessor
@@ -5244,6 +5244,126 @@ class TestActionServer(AsyncHTTPTestCase):
             response_json = json.loads(response.body.decode("utf8"))
             self.assertEqual(response_json, {'error': "No registered action found for name 'Action Not Found Exception'.",
                                              'action_name': 'Action Not Found Exception'})
+
+    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_with_bot_responses(self, mock_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = KAIRON_FAQ_ACTION
+        bot = "5f50fd0a56b698ca10d35d2k"
+        user = "udit.pandey"
+        value = "keyvalue"
+        user_msg = "What kind of language is python?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_completion.return_value = convert_to_openai_object(
+            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+        mock_search.return_value = {
+            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, use_bot_responses=True, num_bot_responses=2).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
+                                               {'event': 'bot', "text": "how are you"}]
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+              'response': None, 'image': None, 'attachment': None}
+             ])
+        assert mock_completion.call_args.kwargs[
+                   'messages'] == [
+                   {"role": "system",
+                    "content": DEFAULT_SYSTEM_PROMPT},
+                   {"role": "user",
+                    "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{bot_content}\n\n Q: {user_msg}\n A:"},
+                   {"role": "assistant",
+                    "content": "hello\nhow are you\n"}
+               ]
+
+    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_with_query_prompt(self, mock_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = KAIRON_FAQ_ACTION
+        bot = "5f50fd0a56b698ca10d35d2s"
+        user = "udit.pandey"
+        value = "keyvalue"
+        user_msg = "What kind of language is python?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query_prompt = "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language."
+        rephrased_query = "Explain python is called high level programming language in laymen terms?"
+
+        def mock_completion_for_query_prompt(*args, **kwargs):
+            return convert_to_openai_object(
+            OpenAIResponse({'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}, {}))
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
+            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        mock_completion.side_effect = [mock_completion_for_query_prompt(), mock_completion_for_answer()]
+
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_completion.return_value = convert_to_openai_object(
+            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+        mock_search.return_value = {
+            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, use_query_prompt=True, query_prompt=query_prompt).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
+                                               {'event': 'bot', "text": "how are you"}]
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+              'response': None, 'image': None, 'attachment': None}
+             ])
+        assert mock_completion.call_args.kwargs[
+                   'messages'] == [
+                   {"role": "system",
+                    "content": DEFAULT_SYSTEM_PROMPT},
+                   {"role": "user",
+                    "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{bot_content}\n\n Q: {rephrased_query}\n A:"}
+               ]
 
     @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)

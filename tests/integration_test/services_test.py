@@ -745,7 +745,28 @@ def test_list_bots():
     assert response['data']['shared'] == []
 
 
-def test_content_upload_api():
+def test_content_upload_api_with_gpt_feature_disabled():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        json={
+            "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
+                    "used to inform decision-making. Data can take many forms, including text, numbers, images, "
+                    "audio, and video."
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["message"] == "Faq feature is disabled for the bot! Please contact support."
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_content_upload_api(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
         json={
@@ -762,7 +783,11 @@ def test_content_upload_api():
     assert actual["error_code"] == 0
 
 
-def test_content_upload_api_invalid():
+def test_content_upload_api_invalid(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
         json={
@@ -1018,7 +1043,26 @@ def test_add_kairon_faq_action_with_empty_context_prompt():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action():
+def test_add_kairon_faq_action_with_gpt_feature_disabled():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == 'Faq feature is disabled for the bot! Please contact support.'
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
@@ -1034,7 +1078,11 @@ def test_add_kairon_faq_action():
     assert actual["error_code"] == 0
 
 
-def test_add_kairon_faq_action_already_exist():
+def test_add_kairon_faq_action_already_exist(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
@@ -1608,6 +1656,14 @@ def test_upload_with_chat_client_config_only():
     assert actual['data']["logs"][0]['is_data_uploaded']
     assert actual['data']["logs"][0]['start_timestamp']
     assert actual['data']["logs"][0]['end_timestamp']
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual['data'].pop('headers')
+    assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
 
 
 @responses.activate

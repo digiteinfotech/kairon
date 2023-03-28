@@ -71,7 +71,8 @@ class TrainingDataValidator(Validator):
                 domain_path=domain_path, training_data_paths=training_data_paths, config_file=config_path,
             )
             cls.actions = Utility.read_yaml(os.path.join(root_dir, 'actions.yml'))
-            cls.chat_client_config = Utility.read_yaml(os.path.join(root_dir, 'chat_client_config.yml'))
+            chat_client_config = Utility.read_yaml(os.path.join(root_dir, 'chat_client_config.yml'))
+            cls.chat_client_config = chat_client_config if chat_client_config else {}
 
             return await TrainingDataValidator.from_importer(file_importer)
         except YamlValidationException as e:

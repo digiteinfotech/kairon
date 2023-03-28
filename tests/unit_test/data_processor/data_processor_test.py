@@ -120,10 +120,21 @@ class TestMongoProcessor:
 
         return _read_and_get_data
 
+    def test_add_kairon_with_gpt_feature_disabled(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "num_bot_responses": 5}
+        with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
+            processor.add_kairon_faq_action(request, bot, user)
+
     def test_add_kairon_with_invalid_similarity_threshold(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70,
                    "num_bot_responses": 5}
@@ -310,30 +321,6 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
-
-    def test_add_rule_for_kairon_faq_action(self):
-        processor = MongoProcessor()
-        bot = 'test_faq_action'
-        user = 'test_faq_action'
-        processor.add_rule_for_kairon_faq_action(bot, user)
-        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE, status=True, bot=bot).get()
-        assert rule.events == [
-            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
-            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
-            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
-        ]
-
-    def test_add_rule_for_kairon_faq_action_already_exists(self):
-        processor = MongoProcessor()
-        bot = 'test_faq_action'
-        user = 'test_faq_action'
-        processor.add_rule_for_kairon_faq_action(bot, user)
-        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE, status=True, bot=bot).get()
-        assert rule.events == [
-            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
-            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
-            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
-        ]
 
     def test_add_or_overwrite_config_no_existing_config(self):
         bot = 'test_config'
@@ -1538,7 +1525,7 @@ class TestMongoProcessor:
         assert rule.events == [
             StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
             StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
-            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
+            StoryEvents(name='utter_please_rephrase', type=ActionExecuted.type_name)
         ]
 
     def test_add_endpoints(self):
@@ -3384,6 +3371,7 @@ class TestMongoProcessor:
         assert chat_client_config['config']['name'] == "kairon_testing"
         assert not chat_client_config["config"].get('headers')
         assert not chat_client_config["config"].get('multilingual')
+        assert not chat_client_config.get("_id")
         assert not chat_client_config.get("bot")
         assert not chat_client_config.get("status")
         assert not chat_client_config.get("user")
@@ -3518,6 +3506,7 @@ class TestMongoProcessor:
         assert chat_client_config['white_listed_domain'] == ["*"]
         assert chat_client_config['config']['welcomeMessage'] == "Hello! How are you? This is Testing Welcome Message."
         assert chat_client_config['config']['name'] == "kairon_testing"
+        assert not chat_client_config.get("_id")
         assert not chat_client_config.get('status')
         assert not chat_client_config.get('user')
         assert not chat_client_config.get('bot')
@@ -10459,6 +10448,22 @@ class TestMongoProcessor:
         assert Utility.is_exist(Utterances, raise_error=False, name='utter_ask', bot='test')
         assert Utility.is_exist(Responses, raise_error=False, name='utter_ask', bot='test')
 
+    def test_save_content_with_gpt_feature_disabled(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
+                  'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
+                  ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
+                  'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
+                  'physical machines.'
+        with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
+            processor.save_content(content, user, bot)
+
+        settings = BotSettings.objects(bot=bot).get()
+        settings.enable_gpt_llm_faq = True
+        settings.save()
+
     def test_save_content(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -10533,7 +10538,7 @@ class TestMongoProcessor:
 
     def test_get_content(self):
         processor = MongoProcessor()
-        bot = 'testBot'
+        bot = 'test'
         user = 'testUser'
         content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
                   'application are tested in isolation to ensure that each unit functions as expected. '
@@ -10545,7 +10550,7 @@ class TestMongoProcessor:
 
     def test_delete_content_for_action(self):
         processor = MongoProcessor()
-        bot = 'testBot'
+        bot = 'test'
         user = 'testUser'
         processor.delete_content(pytest.content_id, user, bot)
         with pytest.raises(DoesNotExist):
