@@ -170,7 +170,6 @@ def start_training(bot: str, user: str, token: str = None):
         ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
         settings = processor.get_bot_settings(bot, user)
         if settings['enable_gpt_llm_faq']:
-            processor.add_rule_for_kairon_faq_action(bot, user)
             llm = LLMFactory.get_instance(bot, "faq")
             faqs = llm.train()
             account = AccountProcessor.get_bot(bot)['account']
