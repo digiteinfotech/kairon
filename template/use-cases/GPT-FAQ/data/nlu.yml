@@ -1,0 +1,19 @@
+version: "2.0"
+nlu:
+- intent: bye
+  examples: |
+    - good bye
+    - bye
+    - See you later!
+    - Goodbye!
+- intent: greet
+  examples: |
+    - Hi
+    - Hello
+    - Greetings
+    - Hi there
+    - Good day
+    - Howdy
+    - Hey there
+    - What's up?
+    - Hullo

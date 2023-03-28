@@ -66,7 +66,7 @@ class GPT3FAQEmbedding(LLMBase):
         use_query_prompt = kwargs.get('use_query_prompt')
         previous_bot_responses = kwargs.get('previous_bot_responses')
         if use_query_prompt and query_prompt:
-            context_prompt = f"{context_prompt}\n\n{query_prompt}"
+            query = self.__rephrase_query(query, system_prompt, query_prompt)
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{context_prompt} \n\nContext:\n{context}\n\n Q: {query}\n A:"}
@@ -80,6 +80,19 @@ class GPT3FAQEmbedding(LLMBase):
             **self.__answer_params__
         )
 
+        response = ' '.join([choice['message']['content'] for choice in completion.to_dict_recursive()['choices']])
+        return response
+
+    def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text):
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"{query_prompt}\n\n Q: {query}\n A:"}
+        ]
+        completion = openai.ChatCompletion.create(
+            api_key=self.api_key,
+            messages=messages,
+            **self.__answer_params__
+        )
         response = ' '.join([choice['message']['content'] for choice in completion.to_dict_recursive()['choices']])
         return response
 
