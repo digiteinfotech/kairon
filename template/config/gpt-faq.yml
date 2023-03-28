@@ -1,0 +1,32 @@
+language: en
+pipeline:
+- name: WhitespaceTokenizer
+- case_sensitive: false
+  name: RegexFeaturizer
+- name: LexicalSyntacticFeaturizer
+- alias: cvf-word
+  name: CountVectorsFeaturizer
+- alias: cvf-char
+  analyzer: char_wb
+  max_ngram: 4
+  min_ngram: 1
+  name: CountVectorsFeaturizer
+- from_pt: true
+  model_name: bert
+  model_weights: google/bert_uncased_L-4_H-512_A-8
+  name: kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer
+- epochs: 180
+  name: DIETClassifier
+- name: FallbackClassifier
+  threshold: 0.75
+- name: EntitySynonymMapper
+- epochs: 100
+  name: ResponseSelector
+policies:
+- name: MemoizationPolicy
+- epochs: 200
+  name: TEDPolicy
+- core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.3
+  enable_fallback_prediction: false
+  name: RulePolicy
