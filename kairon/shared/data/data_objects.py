@@ -37,7 +37,6 @@ from validators import domain
 from ..constants import WhatsappBSPTypes
 
 
-
 class Entity(EmbeddedDocument):
     start = LongField(required=True)
     end = LongField(required=True)
@@ -59,8 +58,9 @@ class Entity(EmbeddedDocument):
             self.entity = self.entity.strip().lower()
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.start == other.start and self.end == other.end and self.value == other.value \
-               and self.entity == other.entity
+        return isinstance(other,
+                          self.__class__) and self.start == other.start and self.end == other.end and self.value == other.value \
+            and self.entity == other.entity
 
 
 @auditlogger.log
@@ -492,8 +492,9 @@ class StoryEvents(EmbeddedDocument):
                 entity.clean()
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value \
-               and self.entities == other.entities
+        return isinstance(other,
+                          self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value \
+            and self.entities == other.entities
 
 
 class StepFlowEvent(EmbeddedDocument):
@@ -529,7 +530,8 @@ class Stories(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
+    template_type = StringField(default=TemplateType.CUSTOM.value,
+                                choices=[template.value for template in TemplateType])
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "block_name", "status")]}]}
 
@@ -561,7 +563,8 @@ class MultiflowStories(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
+    template_type = StringField(default=TemplateType.CUSTOM.value,
+                                choices=[template.value for template in TemplateType])
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
 
@@ -594,7 +597,8 @@ class Rules(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    template_type = StringField(default=TemplateType.CUSTOM.value, choices=[template.value for template in TemplateType])
+    template_type = StringField(default=TemplateType.CUSTOM.value,
+                                choices=[template.value for template in TemplateType])
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
 
@@ -843,6 +847,7 @@ class EventConfig(Auditlog):
 
 signals.pre_save_post_validation.connect(EventConfig.pre_save_post_validation, sender=EventConfig)
 signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, sender=KeyVault)
+
 
 @push_notification.apply
 class UserOrgMappings(Document):
