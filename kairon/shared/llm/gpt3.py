@@ -29,6 +29,7 @@ class GPT3FAQEmbedding(LLMBase):
         self.suffix = "_faq_embd"
         self.vector_config = {'size': 1536, 'distance': 'Cosine'}
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
+        self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:
         self.__create_collection__(self.bot + self.suffix)
@@ -81,6 +82,8 @@ class GPT3FAQEmbedding(LLMBase):
         )
 
         response = ' '.join([choice['message']['content'] for choice in completion.to_dict_recursive()['choices']])
+        self.__logs.append({'messages': messages, 'raw_completion_response': completion.to_dict_recursive(),
+                          'type': 'answer_query', 'parameters': self.__answer_params__})
         return response
 
     def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text):
@@ -94,6 +97,8 @@ class GPT3FAQEmbedding(LLMBase):
             **self.__answer_params__
         )
         response = ' '.join([choice['message']['content'] for choice in completion.to_dict_recursive()['choices']])
+        self.__logs.append({'messages': messages, 'raw_completion_response': completion.to_dict_recursive(),
+                          'type': 'rephrase_query', 'parameters': self.__answer_params__})
         return response
 
     def __create_collection__(self, collection_name: Text):
@@ -127,3 +132,7 @@ class GPT3FAQEmbedding(LLMBase):
             request_body={'vector': vector, 'limit': limit, 'with_payload': True, 'score_threshold': score_threshold},
             return_json=True)
         return response
+
+    @property
+    def logs(self):
+        return self.__logs

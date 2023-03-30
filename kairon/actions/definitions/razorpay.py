@@ -93,7 +93,8 @@ class ActionRazorpay(ActionsBase):
                 exception=exception,
                 api_response=str(http_response),
                 bot_response=bot_response,
-                status=status
+                status=status,
+                user_msg=tracker.latest_message.get('text')
             ).save()
         dispatcher.utter_message(bot_response)
         return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}

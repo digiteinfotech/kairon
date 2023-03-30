@@ -153,6 +153,7 @@ class ActionUtility:
             logger.exception(e)
             k_faq_action_config = KaironFaqAction(bot=bot)
         k_faq_action_config = k_faq_action_config.to_mongo().to_dict()
+        k_faq_action_config.pop('_id', None)
         return k_faq_action_config
 
     @staticmethod
