@@ -48,7 +48,9 @@ class ActionKaironFaq(ActionsBase):
         exception = None
         llm_response = None
         k_faq_action_config = None
+        llm_logs = None
         bot_response = "Faq feature is disabled for the bot! Please contact support."
+        user_msg = tracker.latest_message.get('text')
         try:
             k_faq_action_config = self.retrieve_config()
             use_bot_responses = k_faq_action_config.get('use_bot_responses')
@@ -57,9 +59,9 @@ class ActionKaironFaq(ActionsBase):
                 previous_bot_responses = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
                 k_faq_action_config['previous_bot_responses'] = previous_bot_responses
             bot_response = k_faq_action_config.get('failure_message', DEFAULT_NLU_FALLBACK_RESPONSE)
-            user_msg = tracker.latest_message.get('text')
             llm = LLMFactory.get_instance(self.bot, "faq")
             llm_response = llm.predict(user_msg, **k_faq_action_config)
+            llm_logs = llm.logs
             if llm_response.get('content') != "I don't know.":
                 bot_response = llm_response['content']
         except Exception as e:
@@ -78,7 +80,9 @@ class ActionKaironFaq(ActionsBase):
                 bot_response=bot_response,
                 status=status,
                 llm_response=llm_response,
-                kairon_faq_action_config=k_faq_action_config
+                kairon_faq_action_config=k_faq_action_config,
+                llm_logs=llm_logs,
+                user_msg=user_msg
             ).save()
         dispatcher.utter_message(bot_response)
         return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}

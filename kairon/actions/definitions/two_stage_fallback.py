@@ -96,6 +96,7 @@ class ActionTwoStageFallback(ActionsBase):
             bot=tracker.get_slot("bot"),
             exception=exception,
             bot_response=str(recommendations),
-            status=status
+            status=status,
+            user_msg=tracker.latest_message.get('text')
         ).save()
         return {}
