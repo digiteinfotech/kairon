@@ -86,7 +86,8 @@ class ActionKaironBotResponse(ActionsBase):
                 status=status,
                 enable_rephrasing=bot_settings['rephrase_response'],
                 is_rephrased=is_rephrased,
-                raw_gpt_response=raw_resp
+                raw_gpt_response=raw_resp,
+                user_msg=tracker.latest_message.get('text')
             ).save()
         dispatcher.utter_message(**bot_response)
         return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}

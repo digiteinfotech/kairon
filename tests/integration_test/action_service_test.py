@@ -132,7 +132,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log.pop('_id')
         log.pop('timestamp')
         assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
-                       'sender': 'default',
+                       'sender': 'default', 'user_msg': 'get intents',
                        'headers': {'botid': '**********************2e', 'userid': '****', 'tag': '******ot', 'email': '*******************om'},
                        'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                        'request_params': {'bot': '**********************2e', 'user': '1011', 'tag': '******ot', 'contact': None, 'name': '****'},
@@ -227,7 +227,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
-        assert log == {'type': 'http_action', 'intent': 'test_run',
+        assert log == {'type': 'http_action', 'intent': 'test_run', 'user_msg': 'get intents',
                        'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default',
                        'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
                        'url': 'http://localhost:8081/mock', 'request_method': 'GET',
