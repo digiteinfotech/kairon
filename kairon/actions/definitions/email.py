@@ -92,7 +92,8 @@ class ActionEmail(ActionsBase):
                 bot=tracker.get_slot("bot"),
                 exception=exception,
                 bot_response=bot_response,
-                status=status
+                status=status,
+                user_msg=tracker.latest_message.get('text')
             ).save()
         dispatcher.utter_message(bot_response)
         return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
