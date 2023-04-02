@@ -63,8 +63,9 @@ class Entity(EmbeddedDocument):
                and self.entity == other.entity
 
 
+@auditlogger.log
 @push_notification.apply
-class TrainingExamples(Document):
+class TrainingExamples(Auditlog):
     intent = StringField(required=True)
     text = StringField(required=True)
     bot = StringField(required=True)
@@ -106,8 +107,9 @@ class TrainingExamples(Document):
                 ent.clean()
 
 
+@auditlogger.log
 @push_notification.apply
-class EntitySynonyms(Document):
+class EntitySynonyms(Auditlog):
     bot = StringField(required=True)
     name = StringField(required=True)
     value = StringField(required=True)
@@ -133,8 +135,9 @@ class EntitySynonyms(Document):
         self.value = self.value.strip()
 
 
+@auditlogger.log
 @push_notification.apply
-class LookupTables(Document):
+class LookupTables(Auditlog):
     name = StringField(required=True)
     value = StringField(required=True)
     bot = StringField(required=True)
@@ -159,8 +162,9 @@ class LookupTables(Document):
         self.name = self.name.strip().lower()
 
 
+@auditlogger.log
 @push_notification.apply
-class RegexFeatures(Document):
+class RegexFeatures(Auditlog):
     name = StringField(required=True)
     pattern = StringField(required=True)
     bot = StringField(required=True)
@@ -214,8 +218,9 @@ class Intents(Auditlog):
         self.name = self.name.strip().lower()
 
 
+@auditlogger.log
 @push_notification.apply
-class Entities(Document):
+class Entities(Auditlog):
     name = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -396,8 +401,9 @@ class Responses(Auditlog):
         self.name = self.name.strip().lower()
 
 
+@auditlogger.log
 @push_notification.apply
-class SessionConfigs(Document):
+class SessionConfigs(Auditlog):
     sesssionExpirationTime = LongField(required=True, default=60)
     carryOverSlots = BooleanField(required=True, default=True)
     bot = StringField(required=True)
@@ -680,8 +686,9 @@ class Endpoints(Auditlog):
             self.action_endpoint.validate()
 
 
+@auditlogger.log
 @push_notification.apply
-class ModelTraining(Document):
+class ModelTraining(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     status = StringField(default=EVENT_STATUS.INITIATED.value)
@@ -692,8 +699,9 @@ class ModelTraining(Document):
     model_config = DictField()
 
 
+@auditlogger.log
 @push_notification.apply
-class ModelDeployment(Document):
+class ModelDeployment(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     model = StringField(default=None)
@@ -796,7 +804,8 @@ class BotAssets(Auditlog):
     status = BooleanField(default=True)
 
 
-class KeyVault(Document):
+@auditlogger.log
+class KeyVault(Auditlog):
     key = StringField(required=True)
     value = StringField(required=True)
     bot = StringField(required=True)

@@ -34,6 +34,9 @@ from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
 
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
@@ -49,7 +52,7 @@ from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
-    DEFAULT_LLM_FALLBACK_RULE
+    DEFAULT_LLM_FALLBACK_RULE, DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT, KAIRON_FAQ_ACTION
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -102,6 +105,7 @@ class TestMongoProcessor:
             domain_path = os.path.join(path, DEFAULT_DOMAIN_PATH)
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
+            chat_client_config_path = os.path.join(path, "chat_client_config.yml")
             http_actions_path = os.path.join(path, 'actions.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
@@ -111,9 +115,174 @@ class TestMongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
-            return nlu, story_graph, domain, config, http_actions
+            chat_client_config = Utility.read_yaml(chat_client_config_path)
+            return nlu, story_graph, domain, config, http_actions, chat_client_config
 
         return _read_and_get_data
+
+    def test_add_kairon_with_gpt_feature_disabled(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "num_bot_responses": 5}
+        with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_similarity_threshold(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70,
+                   "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="similarity_threshold should be within 0.3 and 1"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_top_results(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70,
+                   "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="top_results should not be greater than 30"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_query_prompt(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "use_query_prompt": True, "query_prompt": "", "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="query_prompt is required"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_num_bot_responses(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "use_query_prompt": False, "query_prompt": "", "num_bot_responses": 15}
+        with pytest.raises(ValidationError, match="num_bot_responses should not be greater than 5"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_empty_system_prompt(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": "", "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="system_prompt name is required"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_empty_context_prompt(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": "",
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="context_prompt name is required"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_faq_action_with_default_values(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {}
+        pytest.action_id = processor.add_kairon_faq_action(request, bot, user)
+        action = list(processor.get_kairon_faq_action(bot))
+        action[0].pop("_id")
+        assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
+                           'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
+                           "use_bot_responses": False, "num_bot_responses": 5}]
+
+    def test_add_kairon_faq_action_already_exist(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "num_bot_responses": 5}
+        with pytest.raises(AppException, match="Action already exists!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_edit_kairon_faq_action_does_not_exist(self):
+        processor = MongoProcessor()
+        bot = 'invalid_bot'
+        user = 'test_user'
+        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+                   "num_bot_responses": 5}
+        with pytest.raises(AppException, match="Action not found"):
+            processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
+
+    def test_edit_kairon_faq_action(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+                   "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
+                   "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
+                   "num_bot_responses": 5}
+        processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
+        action = list(processor.get_kairon_faq_action(bot))
+        action[0].pop("_id")
+        assert action == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
+                           'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": True,
+                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt"}]
+        request = {}
+        processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
+        action = list(processor.get_kairon_faq_action(bot))
+        action[0].pop("_id")
+        assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
+                           'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
+                           "use_bot_responses": False, "num_bot_responses": 5}]
+
+    def test_get_kairon_faq_action_does_not_exist(self):
+        processor = MongoProcessor()
+        bot = 'invalid_bot'
+        action = list(processor.get_kairon_faq_action(bot))
+        assert action == []
+
+    def test_get_kairon_faq_action(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        action = list(processor.get_kairon_faq_action(bot))
+        action[0].pop("_id")
+        assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
+                           'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
+                           "use_bot_responses": False, "num_bot_responses": 5}]
+
+    def test_delete_kairon_faq_action(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        processor.delete_action("kairon_faq_action", bot, user)
+
+    def test_delete_kairon_faq_action_already_deleted(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        with pytest.raises(AppException, match=f'Action with name "kairon_faq_action" not found'):
+            processor.delete_action('kairon_faq_action', bot, user)
+
+    def test_delete_kairon_faq_action_not_present(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        with pytest.raises(AppException, match=f'Action with name "non_existent_kairon_faq_action" not found'):
+            processor.delete_action('non_existent_kairon_faq_action', bot, user)
 
     def test_auditlog_event_config_does_not_exist(self):
         result = MongoProcessor.get_auditlog_event_config("nobot")
@@ -152,30 +321,6 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
-
-    def test_add_rule_for_kairon_faq_action(self):
-        processor = MongoProcessor()
-        bot = 'test_faq_action'
-        user = 'test_faq_action'
-        processor.add_rule_for_kairon_faq_action(bot, user)
-        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE, status=True, bot=bot).get()
-        assert rule.events == [
-            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
-            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
-            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
-        ]
-
-    def test_add_rule_for_kairon_faq_action_already_exists(self):
-        processor = MongoProcessor()
-        bot = 'test_faq_action'
-        user = 'test_faq_action'
-        processor.add_rule_for_kairon_faq_action(bot, user)
-        rule = Rules.objects(block_name=DEFAULT_LLM_FALLBACK_RULE, status=True, bot=bot).get()
-        assert rule.events == [
-            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
-            StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
-            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
-        ]
 
     def test_add_or_overwrite_config_no_existing_config(self):
         bot = 'test_config'
@@ -1241,24 +1386,24 @@ class TestMongoProcessor:
 
 
         steps = [
-            {"step": {"name": "query", "type": "INTENT", "node_id": "61hWwp6t0FlWqzOn38mizYap", "component_id": "61m96mPGu2VexybDeVg1dLyH"},
-                "connections": [{"name": "utter_query", "type": "BOT", "node_id": "612FOSGCXnkZB4K9EXssqHmR", "component_id": "61uaImwNrsJI1pVphl8mZh20"}]
+            {"step": {"name": "query", "type": "INTENT", "node_id": "1", "component_id": "61m96mPGu2VexybDeVg1dLyH"},
+                "connections": [{"name": "utter_query", "type": "BOT", "node_id": "2", "component_id": "61uaImwNrsJI1pVphl8mZh20"}]
             },
-            {"step": {"name": "utter_query", "type": "BOT", "node_id": "62YaxTDB1qnMvRfti5sTKuoh", "component_id": "61uaImwNrsJI1pVphl8mZh20"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "627pcJyD8MvRXnJakN5Bb7xM", "component_id": "62By0VXVLpUNDNPqkr5vRRzm"},
-                                {"name": "goodbye", "type": "INTENT", "node_id": "62I4CHKGkpze231OIzrOWeXA", "component_id": "62N9BCfSKVYOKoBivGhWDRHC"}]
+            {"step": {"name": "utter_query", "type": "BOT", "node_id": "2", "component_id": "61uaImwNrsJI1pVphl8mZh20"},
+                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "62By0VXVLpUNDNPqkr5vRRzm"},
+                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "62N9BCfSKVYOKoBivGhWDRHC"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "62LLRTlrORUAUG5fhMBN9lwj", "component_id": "62N9BCfSKVYOKoBivGhWDRHC"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "622AbT6Lii0iKBxVMb8EOwxx", "component_id": "62uzXd9Pj5a9tEbVBkMuVn3o"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "62N9BCfSKVYOKoBivGhWDRHC"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "62uzXd9Pj5a9tEbVBkMuVn3o"}]
             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "62mV7g0oDYRvI1kHUp8mPnNH", "component_id": "62uzXd9Pj5a9tEbVBkMuVn3o"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "62uzXd9Pj5a9tEbVBkMuVn3o"},
                 "connections": None
             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "62ZtJ8HHP00E22w5UNgpDb9P", "component_id": "62ib6tlbgIGth8vBSwSYFvbS"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "62ib6tlbgIGth8vBSwSYFvbS"},
              "connections": None
             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "6235v0cMfpXbbYqQeVLjN1si", "component_id": "62By0VXVLpUNDNPqkr5vRRzm"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "62ihJ9nrkIDmlaGYUiMNX25Z", "component_id": "62ib6tlbgIGth8vBSwSYFvbS"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "62By0VXVLpUNDNPqkr5vRRzm"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "62ib6tlbgIGth8vBSwSYFvbS"}]
             }
         ]
 
@@ -1353,12 +1498,14 @@ class TestMongoProcessor:
     ):
         bot = "tests"
         user = "testUser"
+        value = "nupurk"
         BotContent(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
             bot=bot, user=user).save()
         BotContent(
             data="Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.",
             bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
         MongoProcessor().add_action(GPT_LLM_FAQ, bot, user, False, ActionType.kairon_faq_action.value)
         settings = BotSettings.objects(bot=bot).get()
         settings.enable_gpt_llm_faq = True
@@ -1378,7 +1525,7 @@ class TestMongoProcessor:
         assert rule.events == [
             StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
             StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
-            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
+            StoryEvents(name='utter_please_rephrase', type=ActionExecuted.type_name)
         ]
 
     def test_add_endpoints(self):
@@ -1612,10 +1759,53 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='No history server endpoint configured'):
             endpoint = processor.get_history_server_endpoint("test_bot")
 
-    def test_download_data_files(self):
+    def test_download_data_files(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
-        file = processor.download_files("tests")
+        file = processor.download_files("tests", "user@integration.com")
         assert file.endswith(".zip")
+
+    def test_download_data_files_with_actions(self, monkeypatch):
+        from zipfile import ZipFile
+        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(encoding='utf-8')
+
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        file_path = processor.download_files("tests", "user@integration.com")
+        assert file_path.endswith(".zip")
+        zip_file = ZipFile(file_path, mode='r')
+        assert zip_file.filelist.__len__() == 8
+        assert zip_file.getinfo('chat_client_config.yml')
+        assert zip_file.getinfo('config.yml')
+        assert zip_file.getinfo('domain.yml')
+        assert zip_file.getinfo('actions.yml')
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        assert zip_file.getinfo('data/nlu.yml')
+        file_info = zip_file.getinfo('actions.yml')
+        file_content = zip_file.read(file_info)
+        actual_actions = file_content.decode(encoding='utf-8')
+        assert actual_actions == expected_actions
+        zip_file.close()
+
+    def test_load_action_configurations(self):
+        processor = MongoProcessor()
+        action_config = processor.load_action_configurations("tests")
+        assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
+                                 'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
+                                 'pipedrive_leads_action': [], 'two_stage_fallback': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -1643,24 +1833,24 @@ class TestMongoProcessor:
     def test_get_multiflow_stories(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greeting", "type": "INTENT", "node_id": "63Ye7StHCD6zZ1uyNv9mFtUk", "component_id": "63bLGgJEl8dz0axb9FvrWvHq"},
-             "connections": [{"name": "utter_hiii", "type": "BOT", "node_id": "63IbxaaXH5ZeUXkFMg2ysCMs", "component_id": "63IjWdIIpHgT36sJXpqnS7Mx"}]
+            {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "63bLGgJEl8dz0axb9FvrWvHq"},
+             "connections": [{"name": "utter_hiii", "type": "BOT", "node_id": "2", "component_id": "63IjWdIIpHgT36sJXpqnS7Mx"}]
              },
-            {"step": {"name": "utter_hiii", "type": "BOT", "node_id": "63GSHRxMAJaUdhrMwEtAD2HW", "component_id": "63IjWdIIpHgT36sJXpqnS7Mx"},
-             "connections": [{"name": "record", "type": "INTENT", "node_id": "63k4ridZuaJ56GEMM0rcWpX7", "component_id": "634nMJ9hAAtbgr6Wn1Fhm89D"},
-                             {"name": "id", "type": "INTENT", "node_id": "63PcEiJRj2SLBOcT9sKRN2xB", "component_id": "632o76BgDW2eo3JOqDGk9RQW"}]
+            {"step": {"name": "utter_hiii", "type": "BOT", "node_id": "2", "component_id": "63IjWdIIpHgT36sJXpqnS7Mx"},
+             "connections": [{"name": "record", "type": "INTENT", "node_id": "3", "component_id": "634nMJ9hAAtbgr6Wn1Fhm89D"},
+                             {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "632o76BgDW2eo3JOqDGk9RQW"}]
              },
-            {"step": {"name": "id", "type": "INTENT", "node_id": "63fq0UL4lleHtYGggvZqcyid", "component_id": "632o76BgDW2eo3JOqDGk9RQW"},
-             "connections": [{"name": "utter_id", "type": "BOT", "node_id": "63Wsh0SNYEizzzcPNVKrmlGd", "component_id": "637d13it2UNSslxVSbWZjBqO"}]
+            {"step": {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "632o76BgDW2eo3JOqDGk9RQW"},
+             "connections": [{"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "637d13it2UNSslxVSbWZjBqO"}]
              },
-            {"step": {"name": "utter_id", "type": "BOT", "node_id": "630atoKRo6ZhpTYtFK5sDd65", "component_id": "637d13it2UNSslxVSbWZjBqO"},
+            {"step": {"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "637d13it2UNSslxVSbWZjBqO"},
              "connections": None
              },
-            {"step": {"name": "utter_record", "type": "BOT", "node_id": "63tHz0IsdW3hKc9c7jwn5T8X", "component_id": "63e63sU5PHRQnnINYPZitORt"},
+            {"step": {"name": "utter_record", "type": "BOT", "node_id": "6", "component_id": "63e63sU5PHRQnnINYPZitORt"},
              "connections": None
              },
-            {"step": {"name": "record", "type": "INTENT", "node_id": "63Gt35RsRRWEbw0dBxvIcRE5", "component_id": "634nMJ9hAAtbgr6Wn1Fhm89D"},
-             "connections": [{"name": "utter_record", "type": "BOT", "node_id": "637FwbxVcpxAxFQRJleeOM0n", "component_id": "63e63sU5PHRQnnINYPZitORt"}]
+            {"step": {"name": "record", "type": "INTENT", "node_id": "3", "component_id": "634nMJ9hAAtbgr6Wn1Fhm89D"},
+             "connections": [{"name": "utter_record", "type": "BOT", "node_id": "6", "component_id": "63e63sU5PHRQnnINYPZitORt"}]
              }
         ]
         story_dict = {"name": "a different story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -1671,18 +1861,18 @@ class TestMongoProcessor:
         assert stories[0]['name'] == 'a different story'
         assert stories[0]['type'] == 'MULTIFLOW'
         print(stories[0]['steps'])
-        assert stories[0]['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': '63Ye7StHCD6zZ1uyNv9mFtUk', 'component_id': '63bLGgJEl8dz0axb9FvrWvHq'},
-                                        'connections': [{'name': 'utter_hiii', 'type': 'BOT', 'node_id': '63IbxaaXH5ZeUXkFMg2ysCMs', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'}]},
-                                       {'step': {'name': 'utter_hiii', 'type': 'BOT', 'node_id': '63GSHRxMAJaUdhrMwEtAD2HW', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'},
-                                        'connections': [{'name': 'record', 'type': 'INTENT', 'node_id': '63k4ridZuaJ56GEMM0rcWpX7', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
-                                                        {'name': 'id', 'type': 'INTENT', 'node_id': '63PcEiJRj2SLBOcT9sKRN2xB', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'}]},
-                                       {'step': {'name': 'id', 'type': 'INTENT', 'node_id': '63fq0UL4lleHtYGggvZqcyid', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'},
-                                        'connections': [{'name': 'utter_id', 'type': 'BOT', 'node_id': '63Wsh0SNYEizzzcPNVKrmlGd', 'component_id': '637d13it2UNSslxVSbWZjBqO'}]},
-                                       {'step': {'name': 'utter_id', 'type': 'BOT', 'node_id': '630atoKRo6ZhpTYtFK5sDd65', 'component_id': '637d13it2UNSslxVSbWZjBqO'},
-                                        'connections': []}, {'step': {'name': 'utter_record', 'type': 'BOT', 'node_id': '63tHz0IsdW3hKc9c7jwn5T8X', 'component_id': '63e63sU5PHRQnnINYPZitORt'},
+        assert stories[0]['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': '1', 'component_id': '63bLGgJEl8dz0axb9FvrWvHq'},
+                                        'connections': [{'name': 'utter_hiii', 'type': 'BOT', 'node_id': '2', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'}]},
+                                       {'step': {'name': 'utter_hiii', 'type': 'BOT', 'node_id': '2', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'},
+                                        'connections': [{'name': 'record', 'type': 'INTENT', 'node_id': '3', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
+                                                        {'name': 'id', 'type': 'INTENT', 'node_id': '4', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'}]},
+                                       {'step': {'name': 'id', 'type': 'INTENT', 'node_id': '4', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'},
+                                        'connections': [{'name': 'utter_id', 'type': 'BOT', 'node_id': '5', 'component_id': '637d13it2UNSslxVSbWZjBqO'}]},
+                                       {'step': {'name': 'utter_id', 'type': 'BOT', 'node_id': '5', 'component_id': '637d13it2UNSslxVSbWZjBqO'},
+                                        'connections': []}, {'step': {'name': 'utter_record', 'type': 'BOT', 'node_id': '6', 'component_id': '63e63sU5PHRQnnINYPZitORt'},
                                                              'connections': []},
-                                       {'step': {'name': 'record', 'type': 'INTENT', 'node_id': '63Gt35RsRRWEbw0dBxvIcRE5', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
-                                        'connections': [{'name': 'utter_record', 'type': 'BOT', 'node_id': '637FwbxVcpxAxFQRJleeOM0n', 'component_id': '63e63sU5PHRQnnINYPZitORt'}]}]
+                                       {'step': {'name': 'record', 'type': 'INTENT', 'node_id': '3', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
+                                        'connections': [{'name': 'utter_record', 'type': 'BOT', 'node_id': '6', 'component_id': '63e63sU5PHRQnnINYPZitORt'}]}]
 
 
     def test_edit_training_example_duplicate(self):
@@ -2521,14 +2711,22 @@ class TestMongoProcessor:
         assert len(slots) == 0
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all(self, get_training_data):
+    async def test_save_training_data_all(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -2580,14 +2778,22 @@ class TestMongoProcessor:
         assert len(Actions.objects(type='http_action', bot=bot)) == 5
 
     @pytest.mark.asyncio
-    async def test_save_training_data_no_rules_and_http_actions(self, get_training_data):
+    async def test_save_training_data_no_rules_and_http_actions(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         path = 'tests/testing_data/all'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -2629,14 +2835,22 @@ class TestMongoProcessor:
         assert not actions['http_action']
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all_overwrite(self, get_training_data):
+    async def test_save_training_data_all_overwrite(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, True)
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, True)
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -2687,14 +2901,22 @@ class TestMongoProcessor:
         assert len(actions['http_action']) == 5
 
     @pytest.mark.asyncio
-    async def test_save_training_data_all_append(self, get_training_data):
+    async def test_save_training_data_all_append(self, get_training_data, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         path = 'tests/testing_data/validator/append'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
-        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions, False)
+        mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
+                                           chat_client_config, False, REQUIREMENTS.copy()-{"chat_client_config"})
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -2802,7 +3024,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, nlu=nlu, overwrite=True, what={'nlu'})
@@ -2862,7 +3084,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, story_graph=story_graph, overwrite=True, what={'stories'})
@@ -2916,7 +3138,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
         config['language'] = 'fr'
 
         mongo_processor = MongoProcessor()
@@ -2963,7 +3185,7 @@ class TestMongoProcessor:
         path = 'tests/testing_data/yml_training_files'
         bot = 'test'
         user = 'test'
-        nlu, story_graph, domain, config, http_actions = await get_training_data(path)
+        nlu, story_graph, domain, config, http_actions, chat_client_config = await get_training_data(path)
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, story_graph=story_graph, domain=domain, overwrite=True,
@@ -3110,12 +3332,15 @@ class TestMongoProcessor:
     def resource_save_and_validate_training_files(self):
         pytest.bot = 'test_validate_and_prepare_data'
         config_path = 'tests/testing_data/yml_training_files/config.yml'
+        chat_client_config_path = "tests/testing_data/yml_training_files/chat_client_config.yml"
         domain_path = 'tests/testing_data/yml_training_files/domain.yml'
         nlu_path = 'tests/testing_data/yml_training_files/data/nlu.yml'
         stories_path = 'tests/testing_data/yml_training_files/data/stories.yml'
         http_action_path = 'tests/testing_data/yml_training_files/actions.yml'
         rules_path = 'tests/testing_data/yml_training_files/data/rules.yml'
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(open(config_path, 'rb').read()))
+        pytest.chat_client_config = UploadFile(filename="chat_client_config.yml",
+                                               file=BytesIO(open(chat_client_config_path, 'rb').read()))
         pytest.domain = UploadFile(filename="domain.yml", file=BytesIO(open(domain_path, 'rb').read()))
         pytest.nlu = UploadFile(filename="nlu.yml", file=BytesIO(open(nlu_path, 'rb').read()))
         pytest.stories = UploadFile(filename="stories.yml", file=BytesIO(open(stories_path, 'rb').read()))
@@ -3124,6 +3349,55 @@ class TestMongoProcessor:
         pytest.non_nlu = UploadFile(filename="non_nlu.yml", file=BytesIO(open(rules_path, 'rb').read()))
         yield "resource_save_and_validate_training_files"
         shutil.rmtree(os.path.join('training_data', pytest.bot))
+
+    @pytest.mark.asyncio
+    async def test_load_chat_client_config(self, monkeypatch, resource_save_and_validate_training_files):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        training_file = [pytest.chat_client_config]
+        is_event_data = await processor.validate_and_log(pytest.bot, 'user@integration.com', training_file, True)
+        chat_client_config = processor.load_chat_client_config(pytest.bot, 'user@integration.com')
+        assert not is_event_data
+        print(chat_client_config)
+        assert chat_client_config["config"]
+        assert chat_client_config['white_listed_domain'] == ["*"]
+        assert chat_client_config['config']['welcomeMessage'] == "Hello! How are you? This is Testing Welcome Message."
+        assert chat_client_config['config']['name'] == "kairon_testing"
+        assert not chat_client_config["config"].get('headers')
+        assert not chat_client_config["config"].get('multilingual')
+        assert not chat_client_config.get("_id")
+        assert not chat_client_config.get("bot")
+        assert not chat_client_config.get("status")
+        assert not chat_client_config.get("user")
+        assert not chat_client_config.get("timestamp")
+
+    @pytest.mark.asyncio
+    async def test_download_data_files_with_chat_client_config(self, monkeypatch,
+                                                               resource_save_and_validate_training_files):
+        from zipfile import ZipFile
+        import yaml
+
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        training_file = [pytest.chat_client_config]
+        is_event_data = await processor.validate_and_log(pytest.bot, 'user@integration.com', training_file, True)
+        file_path = processor.download_files(pytest.bot, "user@integration.com")
+        assert file_path.endswith(".zip")
+        zip_file = ZipFile(file_path, mode='r')
+        assert zip_file.filelist.__len__() == 8
+        assert zip_file.getinfo('chat_client_config.yml')
 
     @pytest.fixture()
     def resource_validate_and_prepare_data_save_actions_and_config_append(self):
@@ -3143,7 +3417,8 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_training_files(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
-        training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules]
+        training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules,
+                         pytest.chat_client_config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
         assert REQUIREMENTS == files_received
@@ -3152,6 +3427,7 @@ class TestMongoProcessor:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
+        assert os.path.exists(os.path.join(bot_data_home_dir, 'chat_client_config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
@@ -3206,6 +3482,35 @@ class TestMongoProcessor:
         assert config['pipeline']
         assert config['policies']
         assert config['language']
+
+    @pytest.mark.asyncio
+    async def test_validate_and_prepare_data_save_chat_client_config(self, resource_save_and_validate_training_files,
+                                                                     monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        training_file = [pytest.chat_client_config]
+        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
+            pytest.bot, 'test', training_file, True)
+        assert {'chat_client_config'} == files_received
+        assert not is_event_data
+        assert not non_event_validation_summary.get("config")
+        assert not non_event_validation_summary.get("http_actions")
+        chat_client_config = processor.load_chat_client_config(pytest.bot, 'test')
+        assert chat_client_config['config']
+        assert chat_client_config['white_listed_domain'] == ["*"]
+        assert chat_client_config['config']['welcomeMessage'] == "Hello! How are you? This is Testing Welcome Message."
+        assert chat_client_config['config']['name'] == "kairon_testing"
+        assert not chat_client_config.get("_id")
+        assert not chat_client_config.get('status')
+        assert not chat_client_config.get('user')
+        assert not chat_client_config.get('bot')
+        assert chat_client_config['white_listed_domain']
 
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_rules(self, resource_save_and_validate_training_files):
@@ -3396,6 +3701,29 @@ class TestMongoProcessor:
                         assert len(saved_actions['zendesk_action']) == 2
                         assert len(saved_actions['email_action']) == 2
                         assert len(saved_actions['pipedrive_leads_action']) == 2
+                        assert len(saved_actions['two_stage_fallback']) == 1
+                        assert saved_actions['two_stage_fallback'][0]['name'] == "kairon_two_stage_fallback"
+                        assert saved_actions['two_stage_fallback'][0]['text_recommendations'] == \
+                               {'count': 0, 'use_intent_ranking': True}
+                        assert saved_actions['two_stage_fallback'][0]['trigger_rules'] == \
+                               [{'text': 'Hi', 'payload': 'greet', 'is_dynamic_msg': False}]
+                        assert saved_actions['two_stage_fallback'][0]['fallback_message'] \
+                               == "I could not understand you! Did you mean any of the suggestions below? " \
+                                  "Or else please rephrase your question."
+
+    @pytest.mark.asyncio
+    async def test_load_action_configurations_with_two_stage_fallback(self):
+        processor = MongoProcessor()
+        saved_actions = processor.load_action_configurations('test_validate_and_prepare_data_all_actions')
+        assert len(saved_actions['two_stage_fallback']) == 1
+        two_stage_fallback_action = saved_actions['two_stage_fallback'][0]
+        assert two_stage_fallback_action['name'] == "kairon_two_stage_fallback"
+        assert two_stage_fallback_action['text_recommendations'] == {'count': 0, 'use_intent_ranking': True}
+        assert two_stage_fallback_action['trigger_rules'] == [{'text': 'Hi', 'payload': 'greet',
+                                                                         'is_dynamic_msg': False}]
+        assert two_stage_fallback_action['fallback_message'] \
+               == "I could not understand you! Did you mean any of the suggestions below? " \
+                  "Or else please rephrase your question."
 
     def test_save_component_properties_all(self):
         config = {"nlu_epochs": 200,
@@ -7627,24 +7955,24 @@ class TestMongoProcessor:
     def test_add_multiflow_story(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "633M8rEkTpNuJy2QUOFINpWB", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "633vlwkIwEiAvNuIWZ6WhVHk", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "63pmXkrKZlssnMCCF5t9zQOM", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "63pmXkrKZlssnMCCF5t9zQOM", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                                {"name": "goodbye", "type": "INTENT", "node_id": "63cFWKeNDnbX44HbPMf686Qr", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63DmL9rA9KMYGQkjhi8oHAUG", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63OVepqW0uJaqlt0JwKLCvn4", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63dQaLXeiysWjOeWM7lWZIcE", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
                 "connections": None
             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "633xnjCuP4iNZfEq5D7jyI9A", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "63qKb0LraTjsGErh1re7m3d4", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "63NQw4mn0rX74o0ms7KlbqXz", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
             }
         ]
 
@@ -7653,27 +7981,67 @@ class TestMongoProcessor:
         story = MultiflowStories.objects(block_name="story", bot="test").get()
         assert len(story.events) == 6
 
+    def test_add_multiflow_story_same_action_intent_name(self):
+        processor = MongoProcessor()
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1",
+                      "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2",
+                              "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3",
+                              "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4",
+                              "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [{"name": "goodbye", "type": "EMAIL_ACTION", "node_id": "5",
+                              "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "goodbye", "type": "EMAIL_ACTION", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "633xnjCuP4iNZfEq5D7jyI9A",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             }
+        ]
+
+        story_dict = {'name': "story with same action name as intent", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "test", "TestUser")
+        story = MultiflowStories.objects(block_name="story with same action name as intent", bot="test").get()
+        assert len(story.events) == 6
+
     def test_add_multiflow_story_with_same_events(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "633M8rEkTpNuJy2QUOFINpWB", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
-             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "633vlwkIwEiAvNuIWZ6WhVHk", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "63pmXkrKZlssnMCCF5t9zQOM", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "63pmXkrKZlssnMCCF5t9zQOM", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "63cFWKeNDnbX44HbPMf686Qr", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63DmL9rA9KMYGQkjhi8oHAUG", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63OVepqW0uJaqlt0JwKLCvn4", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63dQaLXeiysWjOeWM7lWZIcE", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "633xnjCuP4iNZfEq5D7jyI9A", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "63qKb0LraTjsGErh1re7m3d4", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "63NQw4mn0rX74o0ms7KlbqXz", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
              }
         ]
 
@@ -7684,29 +8052,29 @@ class TestMongoProcessor:
     def test_add_multiflow_story_with_multiple_actions(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "63Ts6WeAQ7OPlVaOY1DkT6fw", "component_id": "63sKhFlHTZCgTyY6aCi34T6P"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "639swyznwvzYNBHt7kno3gQA", "component_id": "63ybbEJli191Ey3ek2XML6Po"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63sKhFlHTZCgTyY6aCi34T6P"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63ybbEJli191Ey3ek2XML6Po"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "63qT0Vf5VpE5eTvUnxoQMtl8", "component_id": "63ybbEJli191Ey3ek2XML6Po"},
-                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "63sDgrfuscY6xY6t884mzcWY", "component_id": "63LamdXLIvKT4A1Lo8Nrlgso"},
-                                {"name": "utter_thought", "type": "BOT", "node_id": "63cu1pWwuuZinBEU55eWuz2j", "component_id": "63jwAHaBHS7qMWZiGTOgX2V1"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63ybbEJli191Ey3ek2XML6Po"},
+                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "63LamdXLIvKT4A1Lo8Nrlgso"},
+                                {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "63jwAHaBHS7qMWZiGTOgX2V1"}]
             },
-            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "63A5nDkEuvJ4r5RmqqtdwSoY", "component_id": "63jwAHaBHS7qMWZiGTOgX2V1"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "63pJnRSP7Y3x4YEDOcDs1JBE", "component_id": "63kn8FkXZajTdGwrSbOgVnpg"}]
+            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "63jwAHaBHS7qMWZiGTOgX2V1"},
+                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "63kn8FkXZajTdGwrSbOgVnpg"}]
             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "639CMVZv02vyfrV9WUNtjwQc", "component_id": "63kn8FkXZajTdGwrSbOgVnpg"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "63QW07sLT0EFFLE4t3QhtpLs", "component_id": "63ovTDWUJ7gP5IlhhRNmc327"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "63kn8FkXZajTdGwrSbOgVnpg"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63ovTDWUJ7gP5IlhhRNmc327"}]
             },
-            {"step": {"name": "utter_qoute", "type": "BOT", "node_id": "6390fKncGsz0rOKNySwn7zlO", "component_id": "63LamdXLIvKT4A1Lo8Nrlgso"},
-             "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "634MeOjA1bdZAnhpWWeENyrf", "component_id": "63DVHaMnngGY70EUgG9ATwVF"}]
+            {"step": {"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "63LamdXLIvKT4A1Lo8Nrlgso"},
+             "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "7", "component_id": "63DVHaMnngGY70EUgG9ATwVF"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63QIqypfA3jirsZKy9zWDrdx", "component_id": "63DVHaMnngGY70EUgG9ATwVF"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63b7Xac45GDvU762fLlLl6HA", "component_id": "632hGiC1QFwtD48CH5VWXOjH"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "7", "component_id": "63DVHaMnngGY70EUgG9ATwVF"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "8", "component_id": "632hGiC1QFwtD48CH5VWXOjH"}]
             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "63OHVGCfW6C1UBCYoXw6A8Ml", "component_id": "63ovTDWUJ7gP5IlhhRNmc327"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63ovTDWUJ7gP5IlhhRNmc327"},
              "connections": None
             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63Q5OPwJw800PM26HaNggRW6", "component_id": "632hGiC1QFwtD48CH5VWXOjH"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "8", "component_id": "632hGiC1QFwtD48CH5VWXOjH"},
              "connections": None
             }
         ]
@@ -7719,26 +8087,26 @@ class TestMongoProcessor:
     def test_add_multiflow_story_with_cycle(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ppooakak"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-                                {"name": "utter_thought", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
+                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+                                {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"}]
             },
-            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"},
+                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"}]
             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-                "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"},
+                "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
             },
-            {"step": {"name": "utter_qoute", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-             "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+             "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"},
+                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"},
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"},
              "connections": None
             }
         ]
@@ -7751,27 +8119,27 @@ class TestMongoProcessor:
     def test_add_multiflow_story_no_multiple_action_for_intent(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "heyyy", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-             "connections": [{"name": "utter_heyyy", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-                             {"name": "utter_greet", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "heyyy", "type": "INTENT", "node_id": "1", "component_id": "ppooakak"},
+             "connections": [{"name": "utter_heyyy", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
+                             {"name": "utter_greet", "type": "BOT", "node_id": "3", "component_id": "ppooakak"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-             "connections": [{"name": "more_queriesss", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-                             {"name": "goodbyeee", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+             "connections": [{"name": "more_queriesss", "type": "INTENT", "node_id": "4", "component_id": "ppooakak"},
+                             {"name": "goodbyeee", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"}]
              },
-            {"step": {"name": "goodbyeee", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-             "connections": [{"name": "utter_goodbyeee", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "goodbyeee", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"},
+             "connections": [{"name": "utter_goodbyeee", "type": "BOT", "node_id": "6", "component_id": "ppooakak"}]
              },
-            {"step": {"name": "utter_goodbyeee", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
+            {"step": {"name": "utter_goodbyeee", "type": "BOT", "node_id": "6", "component_id": "ppooakak"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queriesss", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
+            {"step": {"name": "utter_more_queriesss", "type": "BOT", "node_id": "7", "component_id": "ppooakak"},
              "connections": None
              },
-            {"step": {"name": "more_queriesss", "type": "INTENT", "node_id": "poiutfvv", "component_id": "ppooakak"},
-             "connections": [{"name": "utter_more_queriesss", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"}]
+            {"step": {"name": "more_queriesss", "type": "INTENT", "node_id": "4", "component_id": "ppooakak"},
+             "connections": [{"name": "utter_more_queriesss", "type": "BOT", "node_id": "7", "component_id": "ppooakak"}]
             },
-            {"step": {"name": "utter_heyyy", "type": "BOT", "node_id": "poiutfvv", "component_id": "ppooakak"},
+            {"step": {"name": "utter_heyyy", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
              "connections": None
             }
         ]
@@ -7784,24 +8152,24 @@ class TestMongoProcessor:
     def test_add_multiflow_story_with_connected_nodes(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "63sr4TZGJPZsUanXrqbzqmXL", "component_id": "63ue2YkCdcVmnU0L7Q8wCjnc"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "63AuSR61IHzdb8QC0twSz0rk", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63ue2YkCdcVmnU0L7Q8wCjnc"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "63L0ziCRuX7cxXmMxA9B6FxX", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"},
-                "connections": [{"name": "thought", "type": "INTENT", "node_id": "63CDtbGrZ5yXbm5JeNoL3Oas", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
-                                {"name": "mood", "type": "INTENT", "node_id": "63JLvLSFbzgOpxH9zGLrJJ2m", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"},
+                "connections": [{"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
+                                {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"}]
             },
-            {"step": {"name": "mood", "type": "INTENT", "node_id": "63jr4IT7p4mu7oFzstz6TNJZ", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"},
-                "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "63Xf0k1RuhEQ5q4TW1TpsJaO", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"}]
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"},
+                "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"}]
             },
-            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "630Ty9OFOXF7pR4txKRow8Pj", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"},
-                "connections": [{"name": "utter_thought", "type": "BOT", "node_id": "63A38ASx5v8lDcsqkgYPqq7n", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"},
+                "connections": [{"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
             },
-            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "63g33N4phUApWIAMxQ8evexP", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"},
+            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"},
              "connections": None
             },
-            {"step": {"name": "thought", "type": "INTENT", "node_id": "63aI3CW8clFgktrOyx9srAbd", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
-                "connections": [{"name": "utter_thought", "type": "BOT", "node_id": "63u2zcKPyPJJVs96I6EEvP9w", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
+            {"step": {"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
+                "connections": [{"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
             }
         ]
 
@@ -7813,24 +8181,24 @@ class TestMongoProcessor:
     def test_add_none_multiflow_story_name(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "ksos09"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "ksos09"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "ksos09"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "ksos09"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "ksos09"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "ksos09"}]
              }
         ]
         with pytest.raises(AppException, match="Story name cannot be empty or blank spaces"):
@@ -7840,14 +8208,14 @@ class TestMongoProcessor:
     def test_add_multiflow_story_same_source(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
                 "connections": None
             },
-            {"step": {"name": "mood", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
             },
         ]
 
@@ -7858,16 +8226,16 @@ class TestMongoProcessor:
     def test_add_multiflow_story_connected_steps(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
                 "connections": None
             },
-            {"step": {"name": "mood", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-                "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+                "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"}]
             },
-            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"},
              "connections": None
             },
         ]
@@ -7879,24 +8247,24 @@ class TestMongoProcessor:
     def test_add_empty_multiflow_story_name(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "ksos09"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "ksos09"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "ksos09"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "ksos09"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "ksos09"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "ksos09"}]
              }
         ]
         with pytest.raises(AppException, match="Story name cannot be empty or blank spaces"):
@@ -7906,24 +8274,24 @@ class TestMongoProcessor:
     def test_add_blank_multiflow_story_name(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "ksos09"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "ksos09"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "ksos09"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "ksos09"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "ksos09"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "ksos09"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "ksos09"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "ksos09"}]
              }
         ]
         with pytest.raises(AppException, match="Story name cannot be empty or blank spaces"):
@@ -7939,24 +8307,24 @@ class TestMongoProcessor:
     def test_update_multiflow_story(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "63YvUu6ezLO26kwsZeFHAJhX", "component_id": "63TARMJ08PO7uSpktNcGIY9l"},
-             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "63XCfKvmfYCzSCv5L2fJselo", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63TARMJ08PO7uSpktNcGIY9l"},
+             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"}]
              },
-            {"step": {"name": "utter_time", "type": "BOT", "node_id": "63xUecQ4Ts3Y3wQOxctfyW3M", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "639UbkpZR7ravZvf7b3i0WgE", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "63tZZbXr9ODL90R422Mn3zFU", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"}]
+            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63jCYLDUkfbTon8e23yERc2J", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63SkaL6L821FnhDc7FOj1KEl", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63DisfBZ1VJ5Y9QLj92vlejH", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "63n8hxRet8zpDCXp6SKW5Tzf", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "63cIWkvcM6GNRF8hMmMDGg8Z", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "638G17wjK2JzSLLhI8bigNhq", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"}]
              }
         ]
         story_dict = {'name': "updated_story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -7969,24 +8337,24 @@ class TestMongoProcessor:
     def test_update_multiflow_story_with_same_events(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "63YvUu6ezLO26kwsZeFHAJhX", "component_id": "63TARMJ08PO7uSpktNcGIY9l"},
-             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "63XCfKvmfYCzSCv5L2fJselo", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63TARMJ08PO7uSpktNcGIY9l"},
+             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"}]
              },
-            {"step": {"name": "utter_time", "type": "BOT", "node_id": "63xUecQ4Ts3Y3wQOxctfyW3M", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "639UbkpZR7ravZvf7b3i0WgE", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "63tZZbXr9ODL90R422Mn3zFU", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"}]
+            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63jCYLDUkfbTon8e23yERc2J", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63SkaL6L821FnhDc7FOj1KEl", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63DisfBZ1VJ5Y9QLj92vlejH", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "63n8hxRet8zpDCXp6SKW5Tzf", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "63cIWkvcM6GNRF8hMmMDGg8Z", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "638G17wjK2JzSLLhI8bigNhq", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"}]
              }
         ]
 
@@ -7996,34 +8364,34 @@ class TestMongoProcessor:
     def test_update_multiflow_story_with_same_events_with_different_story_id(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "633M8rEkTpNuJy2QUOFINpWB",
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1",
                       "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
-             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "633vlwkIwEiAvNuIWZ6WhVHk",
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2",
                               "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "63pmXkrKZlssnMCCF5t9zQOM",
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "63pmXkrKZlssnMCCF5t9zQOM",
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3",
                               "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "63cFWKeNDnbX44HbPMf686Qr",
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4",
                               "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63DmL9rA9KMYGQkjhi8oHAUG",
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4",
                       "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63OVepqW0uJaqlt0JwKLCvn4",
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5",
                               "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63dQaLXeiysWjOeWM7lWZIcE",
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5",
                       "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "633xnjCuP4iNZfEq5D7jyI9A",
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6",
                       "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "63qKb0LraTjsGErh1re7m3d4",
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3",
                       "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "63NQw4mn0rX74o0ms7KlbqXz",
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
                               "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
              }
         ]
@@ -8035,24 +8403,24 @@ class TestMongoProcessor:
     def test_update_non_existing_multiflow_story(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greeted", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_timed", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "greeted", "type": "INTENT", "node_id": "1", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_timed", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_timed", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "some_more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-                             {"name": "saying_goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "utter_timed", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+             "connections": [{"name": "some_more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                             {"name": "saying_goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "saying_goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_saying_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "saying_goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_saying_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_saying_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
+            {"step": {"name": "utter_saying_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "utter_some_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
+            {"step": {"name": "utter_some_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "some_more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_some_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "some_more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_some_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
              }
         ]
         with pytest.raises(AppException, match="Flow does not exists"):
@@ -8062,24 +8430,24 @@ class TestMongoProcessor:
     def test_update_multiflow_story_with_invalid_event(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_time", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
              }
         ]
         story_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -8087,24 +8455,24 @@ class TestMongoProcessor:
             processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
 
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_time", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_time", "type": "INTENT", "node_id": "2", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_time", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "utter_time", "type": "INTENT", "node_id": "2", "component_id": "NKUPKJ"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "4", "component_id": "NKUPKJ"}]
              }
         ]
         rule_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -8114,24 +8482,24 @@ class TestMongoProcessor:
     def test_update_multiflow_story_name(self):
         processor = MongoProcessor()
         events = [
-            {"step": {"name": "greet", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_time", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "Myhhdhs", "component_id": "NKUPKJ"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
              }
         ]
         with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
@@ -8141,24 +8509,24 @@ class TestMongoProcessor:
     def test_update_empty_multiflow_story_name(self):
         processor = MongoProcessor()
         events = [
-            {"step": {"name": "greet", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"}]
+            {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "MkkfnA"},
+             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "MkkfnA"}]
              },
-            {"step": {"name": "utter_time", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "Ndgwhx", "component_id": "MkkfnA"}]
+            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "MkkfnA"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MkkfnA"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MkkfnA"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MkkfnA"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MkkfnA"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MkkfnA"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MkkfnA"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MkkfnA"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MkkfnA"}]
              }
         ]
         with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
@@ -8168,24 +8536,24 @@ class TestMongoProcessor:
     def test_update_blank_multiflow_story_name(self):
         processor = MongoProcessor()
         events = [
-            {"step": {"name": "greet", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"}]
+            {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "MkkfnA"},
+             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "MkkfnA"}]
              },
-            {"step": {"name": "utter_time", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "Ndgwhx", "component_id": "MkkfnA"}]
+            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "MkkfnA"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MkkfnA"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MkkfnA"}]
              },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MkkfnA"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MkkfnA"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MkkfnA"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MkkfnA"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "Ndgwhx", "component_id": "MkkfnA"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "Ndgwhx", "component_id": "MkkfnA"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MkkfnA"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MkkfnA"}]
              }
         ]
         with pytest.raises(AppException, match='Story name cannot be empty or blank spaces'):
@@ -8205,24 +8573,24 @@ class TestMongoProcessor:
     def test_case_delete_multiflow_story(self):
         processor = MongoProcessor()
         steps = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "63qz4p6iHvSoGej9wreqiUQ8", "component_id": "63K8PA5su49O7HQBDmSrgJXz"},
-             "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "637zCjy1PzZ52ngDBuWSUiRM", "component_id": "63OgU8uyVaj0649DWx5VOSAk"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63K8PA5su49O7HQBDmSrgJXz"},
+             "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "63OgU8uyVaj0649DWx5VOSAk"}]
              },
-            {"step": {"name": "utter_hi", "type": "BOT", "node_id": "63P5n6VCLjbccznnopCpbnp3", "component_id": "63OgU8uyVaj0649DWx5VOSAk"},
-             "connections": [{"name": "status", "type": "INTENT", "node_id": "63JEjmczXN1j60Fy3UiajFIF", "component_id": "63KWJCwd8MUGVpNQWlKWhiTa"},
-                             {"name": "id", "type": "INTENT", "node_id": "63PsCAdVqupkcx7JKvcvmPr0", "component_id": "63aLcDfR8mIfWaiVSUwNQLa6"}]
+            {"step": {"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "63OgU8uyVaj0649DWx5VOSAk"},
+             "connections": [{"name": "status", "type": "INTENT", "node_id": "3", "component_id": "63KWJCwd8MUGVpNQWlKWhiTa"},
+                             {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "63aLcDfR8mIfWaiVSUwNQLa6"}]
              },
-            {"step": {"name": "id", "type": "INTENT", "node_id": "63vPYwYWMrh0y0tJhZV9NTnF", "component_id": "63aLcDfR8mIfWaiVSUwNQLa6"},
-             "connections": [{"name": "utter_id", "type": "BOT", "node_id": "63kW5Xx4BF8seXQTM2XWovew", "component_id": "636lABcKF5Y6hoRvYOC4xPbv"}]
+            {"step": {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "63aLcDfR8mIfWaiVSUwNQLa6"},
+             "connections": [{"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "636lABcKF5Y6hoRvYOC4xPbv"}]
              },
-            {"step": {"name": "utter_id", "type": "BOT", "node_id": "63TppOTnV7ObOG31qoLdivsM", "component_id": "636lABcKF5Y6hoRvYOC4xPbv"},
+            {"step": {"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "636lABcKF5Y6hoRvYOC4xPbv"},
              "connections": None
              },
-            {"step": {"name": "utter_status", "type": "BOT", "node_id": "630f795l69a18Oc2dyaSnzto", "component_id": "63sQZwlPiuydd8eVgIQwAmXw"},
+            {"step": {"name": "utter_status", "type": "BOT", "node_id": "6", "component_id": "63sQZwlPiuydd8eVgIQwAmXw"},
              "connections": None
              },
-            {"step": {"name": "status", "type": "INTENT", "node_id": "63s78Ex0v1KmHsvxXCtaLFHf", "component_id": "63KWJCwd8MUGVpNQWlKWhiTa"},
-             "connections": [{"name": "utter_status", "type": "BOT", "node_id": "63UtTcAysPciUdurgVKWGEF1", "component_id": "63sQZwlPiuydd8eVgIQwAmXw"}]
+            {"step": {"name": "status", "type": "INTENT", "node_id": "3", "component_id": "63KWJCwd8MUGVpNQWlKWhiTa"},
+             "connections": [{"name": "utter_status", "type": "BOT", "node_id": "6", "component_id": "63sQZwlPiuydd8eVgIQwAmXw"}]
              }
         ]
         story_dict = {"name": "a story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -9342,7 +9710,7 @@ class TestMongoProcessor:
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         print(config)
         assert config == [{'name': 'kairon_two_stage_fallback',
@@ -9355,7 +9723,7 @@ class TestMongoProcessor:
         bot = 'test'
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK, False))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         assert config[0].get("_id") is None
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': [],
@@ -9392,7 +9760,7 @@ class TestMongoProcessor:
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'trigger_rules': [{'text': 'Mail me', 'payload': 'greet', 'is_dynamic_msg': False},
@@ -9413,7 +9781,7 @@ class TestMongoProcessor:
         processor.add_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'greet', 'message': 'my payload', 'is_dynamic_msg': True},
@@ -9444,7 +9812,7 @@ class TestMongoProcessor:
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'text_recommendations': {"count": 3, "use_intent_ranking": False},
@@ -9465,7 +9833,7 @@ class TestMongoProcessor:
         processor.edit_two_stage_fallback_action(request, bot, user)
         assert Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, bot=bot).get()
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
-        config[0].pop("timestamp")
+        assert config[0].get("timestamp") is None
         config[0].pop("_id")
         assert config == [{'name': 'kairon_two_stage_fallback', 'trigger_rules': [
             {'text': 'Mail me', 'payload': 'send_mail', 'message': 'my payload', 'is_dynamic_msg': False},
@@ -9490,6 +9858,28 @@ class TestMongoProcessor:
         processor.delete_action(KAIRON_TWO_STAGE_FALLBACK, bot, user)
         with pytest.raises(DoesNotExist):
             Actions.objects(name=KAIRON_TWO_STAGE_FALLBACK, status=True, bot=bot).get()
+
+    def test_create_kairon_faq_action_rule(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": KAIRON_FAQ_ACTION, "type": "KAIRON_FAQ_ACTION"}
+        ]
+        story_dict = {'name': "activate kairon faq action", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
+        pytest.two_stage_fallback_story_id = processor.add_complex_story(story_dict, bot, user)
+        rule = Rules.objects(block_name="activate kairon faq action", bot=bot,
+                             events__name=KAIRON_FAQ_ACTION, status=True).get()
+        assert rule.to_mongo().to_dict()['events'] == [{'name': '...', 'type': 'action'},
+                                                       {'name': 'greet', 'type': 'user'},
+                                                       {'name': KAIRON_FAQ_ACTION, 'type': 'action'}]
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "activate kairon faq action"]
+        assert story_with_form[0]['steps'] == [
+            {"name": "greet", "type": "INTENT"},
+            {"name": KAIRON_FAQ_ACTION, "type": "KAIRON_FAQ_ACTION"}
+        ]
 
     def test_add_secret(self):
         processor = MongoProcessor()
@@ -9892,7 +10282,7 @@ class TestMongoProcessor:
         log_seven = processor.get_logs(bot, "model_testing", start_time, end_time)
         assert len(log_seven) == 2
         log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)
-        assert len(log_eight) == 2
+        assert len(log_eight) == 6
 
     def test_delete_audit_logs(self):
         processor = MongoProcessor()
@@ -9901,15 +10291,15 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            bot="test", user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            audit={"Bot_id": "test"}, user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            bot="test", user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
+            audit={"Bot_id": "test"}, user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            bot="test", user="test", timestamp=start_time - timedelta(days=480),
+            audit={"Bot_id": "test"}, user="test", timestamp=start_time - timedelta(days=480),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
@@ -10057,6 +10447,22 @@ class TestMongoProcessor:
         assert Utility.is_exist(Utterances, raise_error=False, name='utter_ask', bot='test')
         assert Utility.is_exist(Responses, raise_error=False, name='utter_ask', bot='test')
 
+    def test_save_content_with_gpt_feature_disabled(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
+                  'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
+                  ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
+                  'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
+                  'physical machines.'
+        with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
+            processor.save_content(content, user, bot)
+
+        settings = BotSettings.objects(bot=bot).get()
+        settings.enable_gpt_llm_faq = True
+        settings.save()
+
     def test_save_content(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -10070,7 +10476,7 @@ class TestMongoProcessor:
         content_id = '5349b4ddd2791d08c09890f3'
         with pytest.raises(AppException, match="Text already exists!"):
             processor.update_content(content_id, content, user, bot)
-        assert Actions.objects(name=GPT_LLM_FAQ, bot=bot, type=ActionType.kairon_faq_action.value).get()
+        assert Actions.objects(name=KAIRON_FAQ_ACTION, bot=bot, type=ActionType.kairon_faq_action.value).get()
 
     def test_save_content_invalid(self):
         processor = MongoProcessor()
@@ -10476,22 +10882,22 @@ class TestModelProcessor:
 
 
     def test_auditlog_for_chat_client_config(self):
-        auditlog_data = list(AuditLogData.objects(bot='test', user='testUser', entity='ChatClientConfig'))
+        auditlog_data = list(AuditLogData.objects(audit__Bot_id='test', user='testUser', entity='ChatClientConfig'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
-        assert auditlog_data[0].bot == "test"
+        assert auditlog_data[0].audit["Bot_id"] == "test"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='save', entity='Intents'))
+        auditlog_data = list(AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='save', entity='Intents'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
-        assert auditlog_data[0].bot == "tests"
+        assert auditlog_data[0].audit["Bot_id"] == "tests"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "Intents"
 
-        auditlog_data = list(AuditLogData.objects(bot='tests', user='testUser', action='delete', entity='Intents'))
+        auditlog_data = list(AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='delete', entity='Intents'))
         #No hard delete supported for intents
         assert len(auditlog_data) == 0
 
@@ -10677,3 +11083,34 @@ class TestModelProcessor:
         result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(3, "wxyz@abcd.com")
         assert result[bot_a["_id"].__str__()] == 0.9424565337899992
         assert result[bot_c["_id"].__str__()] == 0.8424565337899992
+
+    def test_auditlog_for_data_with_encrypted_field(self):
+        start_time = datetime.utcnow() - timedelta(days=1)
+        end_time = datetime.utcnow() + timedelta(days=1)
+
+        processor = MongoProcessor()
+        bot = 'secret'
+        user = 'secret_user'
+        key = "auditlog"
+        value = "secret-value"
+        processor.add_secret(key, value, bot, user)
+
+        config = {
+             "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+             "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+             "client_id": "3396830255712.3396861654876869879",
+             "client_secret": "cf92180a7634d90bf42a217408376878"
+         }
+        connector_type = "slack"
+        meta_config = {}
+
+        Channels(bot=bot, user=user, connector_type=connector_type, config=config, meta_config=meta_config).save()
+
+        auditlog_data = processor.get_logs("secret", "audit_logs", start_time, end_time)
+        assert auditlog_data[0]["audit"]["Bot_id"] == bot
+        assert auditlog_data[0]["entity"] == "Channels"
+        assert auditlog_data[0]["data"]["config"] != config
+
+        assert auditlog_data[2]["audit"]["Bot_id"] == bot
+        assert auditlog_data[2]["entity"] == "KeyVault"
+        assert auditlog_data[2]["data"]["value"] != value

@@ -67,6 +67,7 @@ class ActionSetSlot(ActionsBase):
             sender=tracker.sender_id,
             messages=message,
             bot=tracker.get_slot("bot"),
-            status=status
+            status=status,
+            user_msg=tracker.latest_message.get('text')
         ).save()
         return reset_slots

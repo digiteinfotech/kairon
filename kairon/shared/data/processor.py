@@ -42,7 +42,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
-    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction
+    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, KaironFaqAction
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType
@@ -61,7 +61,7 @@ from .constant import (
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
     TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType, GPT_LLM_FAQ,
-    DEFAULT_LLM_FALLBACK_RULE
+    DEFAULT_LLM_FALLBACK_RULE, KAIRON_FAQ_ACTION
 )
 from .data_objects import (
     Responses,
@@ -126,20 +126,22 @@ class MongoProcessor:
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
-    def download_files(self, bot: Text):
+    def download_files(self, bot: Text, user: Text):
         """
         create zip file containing download data
 
         :param bot: bot id
+        :param user: user id
         :return: zip file path
         """
         nlu = self.load_nlu(bot)
         domain = self.load_domain(bot)
         stories = self.load_stories(bot)
         config = self.load_config(bot)
+        chat_client_config = self.load_chat_client_config(bot, user)
         rules = self.get_rules_for_training(bot)
         actions = self.load_action_configurations(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, chat_client_config)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -186,14 +188,15 @@ class MongoProcessor:
             actions = Utility.read_yaml(actions_yml)
             TrainingDataValidator.validate_custom_actions(actions)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite,
-                                    REQUIREMENTS.copy())
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite=overwrite,
+                                    what=REQUIREMENTS.copy()-{"chat_client_config"})
         except Exception as e:
             logging.exception(e)
             raise AppException(e)
 
     def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
                            story_graph: StoryGraph = None, nlu: TrainingData = None, actions: dict = None,
+                           chat_client_config: dict = None,
                            overwrite: bool = False, what: set = REQUIREMENTS.copy()):
         if overwrite:
             self.delete_bot_data(bot, user, what)
@@ -210,6 +213,8 @@ class MongoProcessor:
             self.save_rules(story_graph.story_steps, bot, user)
         if 'config' in what:
             self.add_or_overwrite_config(config, bot, user)
+        if 'chat_client_config' in what:
+            self.save_chat_client_config(chat_client_config, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -1333,6 +1338,25 @@ class MongoProcessor:
             if key in ["language", "pipeline", "policies"]
         }
 
+    def load_chat_client_config(self, bot: Text, user: Text):
+        """
+        loads chat client configuration for training
+
+        :param bot: bot id
+        :param user: user id
+        :return: dict
+        """
+        config = self.get_chat_client_config(bot, user)
+        config_dict = config.to_mongo().to_dict()
+        config_dict["config"].pop("headers", None)
+        config_dict["config"].pop("multilingual", None)
+        config_dict.pop("_id", None)
+        config_dict.pop("bot", None)
+        config_dict.pop("status", None)
+        config_dict.pop("user", None)
+        config_dict.pop("timestamp", None)
+        return config_dict
+
     def add_training_data(self, training_data: List[models.TrainingData], bot: Text, user: Text, is_integration: bool):
         """
         adds a list of intents
@@ -2389,6 +2413,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.razorpay_action.value
                     elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
+                    elif event['name'] == KAIRON_FAQ_ACTION:
+                        step['type'] = StoryStepType.kairon_faq_action.value
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = StoryStepType.bot.value
                     else:
@@ -3041,7 +3067,10 @@ class MongoProcessor:
         :param bot: bot id
         :return: Count of rows
         """
-        kwargs.update({"bot": bot})
+        query = {"bot": bot}
+        if document.__name__ == "AuditLogData":
+            query = {"audit__Bot_id": bot}
+        kwargs.update(query)
         return document.objects(**kwargs).count()
 
     @staticmethod
@@ -3184,7 +3213,7 @@ class MongoProcessor:
         """
         loads configurations of all types of actions from the database
         :param bot: bot id
-        :return: dict of action configuations of all types.
+        :return: dict of action configurations of all types.
         """
         action_config = {}
         action_config.update(self.load_http_action(bot))
@@ -3195,6 +3224,7 @@ class MongoProcessor:
         action_config.update(self.load_slot_set_action(bot))
         action_config.update(self.load_google_search_action(bot))
         action_config.update(self.load_pipedrive_leads_action(bot))
+        action_config.update(self.load_two_stage_fallback_action_config(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -3279,6 +3309,15 @@ class MongoProcessor:
         """
         return {ActionType.pipedrive_leads_action.value: list(self.list_pipedrive_actions(bot, False))}
 
+    def load_two_stage_fallback_action_config(self, bot: Text):
+        """
+        Loads Two Stage Fallback actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.two_stage_fallback.value:
+                list(self.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK, False))}
+
     def load_form_validation_action(self, bot: Text):
         """
         Loads Form validation actions from the database
@@ -3336,7 +3375,7 @@ class MongoProcessor:
         files_received = REQUIREMENTS - files_to_prepare
         is_event_data = False
 
-        if files_received.difference({'config', 'actions'}):
+        if files_received.difference({'config', 'actions', 'chat_client_config'}):
             is_event_data = True
         else:
             non_event_validation_summary = self.save_data_without_event(bot_data_home_dir, bot, user, overwrite)
@@ -3350,11 +3389,13 @@ class MongoProcessor:
 
         actions = None
         config = None
+        chat_client_config = None
         validation_failed = False
         error_summary = {}
         component_count = COMPONENT_COUNT.copy()
         actions_path = os.path.join(data_home_dir, 'actions.yml')
         config_path = os.path.join(data_home_dir, 'config.yml')
+        chat_client_config_path = os.path.join(data_home_dir, 'chat_client_config.yml')
         if os.path.exists(actions_path):
             actions = Utility.read_yaml(actions_path)
             validation_failed, error_summary, actions_count = TrainingDataValidator.validate_custom_actions(actions)
@@ -3363,6 +3404,10 @@ class MongoProcessor:
             config = Utility.read_yaml(config_path)
             errors = TrainingDataValidator.validate_rasa_config(config)
             error_summary['config'] = errors
+        if os.path.exists(chat_client_config_path):
+            chat_client_config = Utility.read_yaml(chat_client_config_path)
+            print(chat_client_config)
+            chat_client_config = chat_client_config["config"]
 
         if not validation_failed and not error_summary.get('config'):
             files_to_save = set()
@@ -3370,7 +3415,10 @@ class MongoProcessor:
                 files_to_save.add('actions')
             if config:
                 files_to_save.add('config')
-            self.save_training_data(bot, user, actions=actions, config=config, overwrite=overwrite, what=files_to_save)
+            if chat_client_config:
+                files_to_save.add('chat_client_config')
+            self.save_training_data(bot, user, actions=actions, config=config, overwrite=overwrite, what=files_to_save,
+                                    chat_client_config=chat_client_config)
         else:
             validation_failed = True
         return {'summary': error_summary, 'component_count': component_count, 'validation_failed': validation_failed}
@@ -3621,23 +3669,6 @@ class MongoProcessor:
             logging.error(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
-
-    def add_rule_for_kairon_faq_action(self, bot: Text, user: Text):
-        search_event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
-        events = [
-            StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
-            StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name),
-            StoryEvents(name=GPT_LLM_FAQ, type=ActionExecuted.type_name)
-        ]
-        try:
-            rule = Rules.objects(bot=bot, status=True, events__match=search_event).first()
-            if not rule:
-                raise DoesNotExist('Rule with nlu_fallback event not found')
-            rule.events = events
-            rule.save()
-        except DoesNotExist as e:
-            logging.exception(e)
-            Rules(block_name=DEFAULT_LLM_FALLBACK_RULE, bot=bot, user=user, start_checkpoints=[STORY_START], events=events).save()
 
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
         from kairon.shared.account.processor import AccountProcessor
@@ -4147,6 +4178,8 @@ class MongoProcessor:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.kairon_faq_action.value:
+                KaironFaqAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4631,10 +4664,86 @@ class MongoProcessor:
                 action['_id'] = action['_id'].__str__()
             else:
                 action.pop('_id')
+            action.pop('timestamp')
             action.pop('status')
             action.pop('bot')
             action.pop('user')
             yield action
+
+    def add_kairon_faq_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Add Kairon FAQ Action
+
+        :param request_data: request config for kairon faq action
+        :param bot: bot id
+        :param user: user
+        """
+        bot_settings = self.get_bot_settings(bot=bot, user=user)
+        if not bot_settings['enable_gpt_llm_faq']:
+            raise AppException('Faq feature is disabled for the bot! Please contact support.')
+
+        Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, exp_message="Action already exists!")
+        request_data['bot'] = bot
+        request_data['user'] = user
+        request_data['name'] = KAIRON_FAQ_ACTION
+        data_object = KaironFaqAction(**request_data).save()
+        id = (
+            data_object.save().to_mongo().to_dict()["_id"].__str__()
+        )
+        self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
+        return id
+
+    def __add_default_kairon_faq_action(self, bot: Text, user: Text):
+        if not Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, raise_error=False):
+            action = KaironFaqAction(bot=bot, user=user).save()
+            id = (
+                action.save().to_mongo().to_dict()["_id"].__str__()
+            )
+            self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
+            return id
+
+    def edit_kairon_faq_action(self, faq_action_id: str, request_data: dict, bot: Text, user: Text):
+        """
+        Edit Kairon FAQ Action
+
+        :param faq_action_id: faq action id
+        :param request_data: request config for kairon faq action
+        :param bot: bot id
+        :param user: user
+        """
+        if not Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, id=faq_action_id,
+                                raise_error=False):
+            raise AppException('Action not found')
+        action = KaironFaqAction.objects(id=faq_action_id, name__iexact=KAIRON_FAQ_ACTION, bot=bot).get()
+        action.context_prompt = request_data.get("context_prompt")
+        action.system_prompt = request_data.get("system_prompt")
+        action.failure_message = request_data.get("failure_message")
+        action.top_results = request_data.get("top_results")
+        action.similarity_threshold = request_data.get("similarity_threshold")
+        action.use_query_prompt = request_data.get('use_query_prompt', False)
+        action.query_prompt = request_data.get('query_prompt')
+        action.use_bot_responses = request_data.get('use_bot_responses', False)
+        action.num_bot_responses = request_data.get('num_bot_responses', 5)
+        action.timestamp = datetime.utcnow()
+        action.user = user
+        action.save()
+
+    def get_kairon_faq_action(self, bot: Text):
+        """
+        fetches Kairon FAQ Action
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        actions = []
+        for action in KaironFaqAction.objects(bot=bot):
+            action = action.to_mongo().to_dict()
+            action['_id'] = action['_id'].__str__()
+            action.pop('timestamp')
+            action.pop('bot')
+            action.pop('user')
+            actions.append(action)
+        return actions
 
     @staticmethod
     def save_auditlog_event_config(bot, user, data):
@@ -4673,7 +4782,7 @@ class MongoProcessor:
         if not to_date:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
-        data_filter = {"bot": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
+        data_filter = {"audit__Bot_id": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
         auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').to_json()
         return json.loads(auditlog_data)
 
@@ -4701,9 +4810,15 @@ class MongoProcessor:
                 LogType.history_deletion.value: ConversationsHistoryDeleteLogs,
                 LogType.multilingual.value: BotReplicationLogs
         }
-        if logtype in {LogType.action_logs.value, LogType.audit_logs.value}:
+        if logtype is LogType.action_logs.value:
             filter_query = {
                 "bot": bot,
+                "timestamp__gte": start_time,
+                "timestamp__lte": end_time
+            }
+        elif logtype is LogType.audit_logs.value:
+            filter_query = {
+                "audit__Bot_id": bot,
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }
@@ -4918,6 +5033,9 @@ class MongoProcessor:
             yield action
 
     def save_content(self, content: Text, user: Text, bot: Text):
+        bot_settings = self.get_bot_settings(bot=bot, user=user)
+        if not bot_settings['enable_gpt_llm_faq']:
+            raise AppException('Faq feature is disabled for the bot! Please contact support.')
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
 
@@ -4928,7 +5046,7 @@ class MongoProcessor:
         id = (
             content_obj.save().to_mongo().to_dict()["_id"].__str__()
         )
-        self.add_action(GPT_LLM_FAQ, bot, user, False, ActionType.kairon_faq_action.value)
+        self.__add_default_kairon_faq_action(bot=bot, user=user)
         return id
 
     def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
@@ -4939,7 +5057,7 @@ class MongoProcessor:
                                 exp_message="Text already exists!")
 
         try:
-            content_obj = BotContent.objects(bot=bot, user=user, id=content_id).get()
+            content_obj = BotContent.objects(bot=bot, id=content_id).get()
             content_obj.data = content
             content_obj.user = user
             content_obj.timestamp = datetime.utcnow()
@@ -4952,7 +5070,7 @@ class MongoProcessor:
             content = BotContent.objects(bot=bot, id=content_id).get()
             content.delete()
             if self.get_row_count(BotContent, bot) <= 0:
-                self.delete_action(GPT_LLM_FAQ, bot, user)
+                self.delete_action(KAIRON_FAQ_ACTION, bot, user)
         except DoesNotExist:
             raise AppException("Text does not exists!")
 

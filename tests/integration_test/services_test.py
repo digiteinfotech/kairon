@@ -32,7 +32,8 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
-    KAIRON_TWO_STAGE_FALLBACK, FeatureMappings
+    KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT, \
+    DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig, BotSettings
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -745,7 +746,28 @@ def test_list_bots():
     assert response['data']['shared'] == []
 
 
-def test_content_upload_api():
+def test_content_upload_api_with_gpt_feature_disabled():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        json={
+            "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
+                    "used to inform decision-making. Data can take many forms, including text, numbers, images, "
+                    "audio, and video."
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["message"] == "Faq feature is disabled for the bot! Please contact support."
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_content_upload_api(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
         json={
@@ -762,7 +784,11 @@ def test_content_upload_api():
     assert actual["error_code"] == 0
 
 
-def test_content_upload_api_invalid():
+def test_content_upload_api_invalid(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
         json={
@@ -908,6 +934,303 @@ def test_get_content_not_exists():
     assert actual["data"] == []
 
 
+def test_get_kairon_faq_action_with_no_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["data"] == []
+
+
+def test_add_kairon_faq_action_with_invalid_similarity_threshold():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'similarity_threshold'],
+                                  'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_invalid_top_results():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'top_results'],
+                                  'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_invalid_query_prompt():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              "use_query_prompt": True, "query_prompt": ""}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'query_prompt is required', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_invalid_num_bot_responses():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              "use_query_prompt": False, "query_prompt": "", "num_bot_responses": 10}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'num_bot_responses'],
+                                  'msg': 'num_bot_responses should not be greater than 5', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_empty_system_prompt():
+    action = {"system_prompt": "", "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'system_prompt'],
+                                  'msg': 'system_prompt is required', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_empty_context_prompt():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": "",
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'context_prompt'],
+                                  'msg': 'context_prompt is required', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_gpt_feature_disabled():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == 'Faq feature is disabled for the bot! Please contact support.'
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_kairon_faq_action_already_exist(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action already exists!"
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_update_kairon_faq_action_does_not_exist():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/61512cc2c6219f0aae7bba3d",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action not found"
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_update_kairon_faq_action_with_invalid_similarity_threshold():
+    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+              "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 1.50}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'similarity_threshold'],
+                                  'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_update_kairon_faq_action_with_invalid_top_results():
+    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+              "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', 'top_results'],
+                                  'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_update_kairon_faq_action_with_invalid_query_prompt():
+    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              "use_query_prompt": True, "query_prompt": ""}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'query_prompt is required', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_update_kairon_faq_action_with_query_prompt_with_false():
+    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+              "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50,
+              "use_query_prompt": False, "query_prompt": ""}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == 'Action updated!'
+    assert not actual["data"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_update_kairon_faq_action():
+    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+              "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == 'Action updated!'
+    assert not actual["data"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_get_kairon_faq_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    actual['data'][0].pop("_id")
+    assert actual["data"] == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
+                               'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
+                               "top_results": 9, "similarity_threshold": 0.50, 'use_bot_responses': False,
+                               "use_query_prompt": False, 'num_bot_responses': 5}]
+
+
+def test_delete_kairon_faq_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/non_existent_kairon_faq_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "non_existent_kairon_faq_action" not found'
+
+
+def test_delete_kairon_faq_action_1():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/kairon_faq_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
 def test_list_entities_empty():
     response = client.get(
         f"/api/bot/{pytest.bot}/entities",
@@ -988,7 +1311,8 @@ def test_upload():
     files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
              ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
-             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
+             ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))))
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1261,14 +1585,16 @@ def test_get_data_importer_logs():
 
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][2]['status'] == 'Failure'
-    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config'}
+    assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
+                                                                'chat_client_config'}
     assert actual['data']["logs"][2]['is_data_uploaded']
     assert actual['data']["logs"][2]['start_timestamp']
     assert actual['data']["logs"][2]['end_timestamp']
 
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
-    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config', 'actions'}
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
+                                                                'actions', 'chat_client_config'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
@@ -1294,7 +1620,119 @@ def test_get_data_importer_logs():
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
-    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain', 'actions'}
+    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
+                                                                'actions', 'chat_client_config'}
+
+
+@responses.activate
+def test_upload_with_chat_client_config_only():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("chat_client_config.yml",
+                                 open("tests/testing_data/all/chat_client_config.yml", "rb"))),)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert set(actual['data']["logs"][0]['files_received']) == {'chat_client_config'}
+    assert actual['data']["logs"][0]['is_data_uploaded']
+    assert actual['data']["logs"][0]['start_timestamp']
+    assert actual['data']["logs"][0]['end_timestamp']
+
+    response = client.get(f"/api/bot/{pytest.bot}/chat/client/config",
+                          headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual['data'].pop('headers')
+    assert actual["data"] == Utility.read_yaml("tests/testing_data/all/chat_client_config.yml")["config"]
+
+
+@responses.activate
+def test_upload_with_chat_client_config():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+             ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
+             ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))))
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
+
+
+@responses.activate
+def test_upload_without_chat_client_config():
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.reset()
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+             ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
+             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.data_importer)
+
+
+def test_download_data_with_chat_client_config():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/download/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    file_bytes = BytesIO(response.content)
+    zip_file = ZipFile(file_bytes, mode='r')
+    assert zip_file.filelist.__len__() == 8
+    assert zip_file.getinfo('chat_client_config.yml')
+    assert zip_file.getinfo('config.yml')
+    assert zip_file.getinfo('domain.yml')
+    assert zip_file.getinfo('actions.yml')
+    assert zip_file.getinfo('data/stories.yml')
+    assert zip_file.getinfo('data/rules.yml')
+    assert zip_file.getinfo('data/nlu.yml')
 
 
 def test_get_slots():
@@ -2237,9 +2675,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -2250,24 +2688,24 @@ def test_add_multiflow_story():
         json={
             "name": "test_path",
             "steps": [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "NBVgfd", "component_id": "Mnvehd"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "Bcgdh", "component_id": "PLhfhs"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "Mnvehd"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "Nbgd", "component_id": "PLhfhs"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "xcdfWW", "component_id": "MNbcg"},
-                                {"name": "goodbye", "type": "INTENT", "node_id": "PPlllk", "component_id": "QQAA"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"},
+                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "QQAA"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfd", "component_id": "QQAA"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "MDDF", "component_id": "NNXX"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "QQAA"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNXX"}]
             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "YYhas", "component_id": "NNXX"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNXX"},
                 "connections": None
             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "SSLLKK", "component_id": "MnveRRhd"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"},
              "connections": None
             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "TTYYsgdg", "component_id": "MnveRRhd"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"}]
             }
         ],
         },
@@ -2288,24 +2726,24 @@ def test_add_multiflow_story_with_name_already_exists():
         json={
             "name": "test_path",
             "steps": [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
             },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                                {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"},
+                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"}]
             },
-            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MNbcg"}]
             },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MNbcg"},
                 "connections": None
             },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MNbcg"},
              "connections": None
             },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MNbcg"}]
             }
         ],
         },
@@ -2341,17 +2779,17 @@ def test_add_multiflow_story_lone_intent():
         json={
             "name": "test_add_multiflow_story_lone_intent",
             "steps": [
-                {"step": {"name": "greet", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "MNbcg"},
+                 "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"},
+                 "connections": [{"name": "queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
                  "connections": None
                 },
-                {"step": {"name": "queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+                {"step": {"name": "queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
                  "connections": None
                 },
             ],
@@ -2371,17 +2809,17 @@ def test_add_multiflow_story_missing_event_type():
         json={
             "name": "test_path",
             "steps": [
-                {"step": {"name": "hi", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "hi", "node_id": "1", "component_id": "MNbcg"},
+                 "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "3", "component_id": "MNbcg"},
+                 "connections": [{"name": "queries", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "5", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "5", "component_id": "MNbcg"},
                  "connections": None
                  },
-                {"step": {"name": "queries", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
+                {"step": {"name": "queries", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
                  "connections": None
                  },
             ],
@@ -2404,8 +2842,8 @@ def test_add_multiflow_story_invalid_event_type():
         json={
             "name": "test_path",
             "steps": [
-                {"step": {"name": "hi", "type": "data", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"}]
+                {"step": {"name": "hi", "type": "data", "node_id": "1", "component_id": "MNbcg"},
+                 "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
                  },
             ],
         },
@@ -2421,11 +2859,11 @@ def test_add_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', "
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
                  'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                 'TWO_STAGE_FALLBACK_ACTION']}
+                 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']}
                  }]
     )
 
@@ -2491,9 +2929,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -2504,24 +2942,24 @@ def test_update_multiflow_story():
         json={
             "name": "test_path",
             "steps": [
-                {"step": {"name": "greeting", "type": "INTENT", "node_id": "NBVgfPPPd", "component_id": "MNbcg"},
-                 "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "NBVPd", "component_id": "MNbcZZg"}]
+                {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "MNbcg"},
+                 "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "MNbcZZg"}]
                  },
-                {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "MMNb", "component_id": "MNbcZZg"},
-                 "connections": [{"name": "more_query", "type": "INTENT", "node_id": "OKde", "component_id": "uhsjJ"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "POiQWW", "component_id": "MgGFD"}]
+                {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "MNbcZZg"},
+                 "connections": [{"name": "more_query", "type": "INTENT", "node_id": "3", "component_id": "uhsjJ"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MgGFD"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "MMNCFRD", "component_id": "MgGFD"},
-                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "GTREbg", "component_id": "MNbcg"}]
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MgGFD"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MNbcg"}]
                  },
-                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "MAAQQW", "component_id": "MNbcg"},
+                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "MNbcg"},
                  "connections": None
                  },
-                {"step": {"name": "utter_more_query", "type": "BOT", "node_id": "Pbvgds", "component_id": "IIUUUYY"},
+                {"step": {"name": "utter_more_query", "type": "BOT", "node_id": "6", "component_id": "IIUUUYY"},
                  "connections": None
                  },
-                {"step": {"name": "more_query", "type": "INTENT", "node_id": "RTYNBVF", "component_id": "uhsjJ"},
-                 "connections": [{"name": "utter_more_query", "type": "BOT", "node_id": "PGFDXSW", "component_id": "IIUUUYY"}]
+                {"step": {"name": "more_query", "type": "INTENT", "node_id": "3", "component_id": "uhsjJ"},
+                 "connections": [{"name": "utter_more_query", "type": "BOT", "node_id": "6", "component_id": "IIUUUYY"}]
                  }
             ],
         },
@@ -2541,24 +2979,24 @@ def test_update_multiflow_story_with_name_already_exists():
         json={
             "name": "another_test_path",
             "steps": [
-                {"step": {"name": "greet", "type": "INTENT", "node_id": "63f9VfLyGrMiIBlXEINhX2Bg", "component_id": "63g0SIHe0vlF7BpABhUBlcOW"},
-                 "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "63cg27q7jwIPmXO5gbnsdI7A", "component_id": "637k8PnBABFMoKiUJqQTCBRP"}]
+                {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63g0SIHe0vlF7BpABhUBlcOW"},
+                 "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "637k8PnBABFMoKiUJqQTCBRP"}]
                  },
-                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "63q9igjrjmdYwCnoYU9AGPVF", "component_id": "637k8PnBABFMoKiUJqQTCBRP"},
-                 "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "63Np55Yma0vj3f5JxDGJTxoK", "component_id": "63NUrDSW34K8XzuabEwO7SJH"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "63QtprhYW8wwemHrplf43D5o", "component_id": "63zr5t71RcH6WZCP5kNGpZYv"}]
+                {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "637k8PnBABFMoKiUJqQTCBRP"},
+                 "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63NUrDSW34K8XzuabEwO7SJH"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63zr5t71RcH6WZCP5kNGpZYv"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "63dEaCz2SOzb55q05RqOzZHX", "component_id": "63zr5t71RcH6WZCP5kNGpZYv"},
-                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "63URCVUSBlRGjkY77fe9V3Db", "component_id": "630r3YIqp2UhggEsIvC8Q8pC"}]
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63zr5t71RcH6WZCP5kNGpZYv"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "630r3YIqp2UhggEsIvC8Q8pC"}]
                  },
-                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "63pncLl58mPn9Y1Jh0SkLygp", "component_id": "630r3YIqp2UhggEsIvC8Q8pC"},
+                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "630r3YIqp2UhggEsIvC8Q8pC"},
                  "connections": None
                  },
-                {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "63BRjkDFIA3gaEMzsAVncKNT", "component_id": "63vwObDTOE2KLCP1FejFbSm8"},
+                {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63vwObDTOE2KLCP1FejFbSm8"},
                  "connections": None
                  },
-                {"step": {"name": "more_queries", "type": "INTENT", "node_id": "63l2ajY6iUFwHpcOkwrlW0G4", "component_id": "63NUrDSW34K8XzuabEwO7SJH"},
-                 "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "63T2VKqUyQsN0exheNIFFbdt", "component_id": "63vwObDTOE2KLCP1FejFbSm8"}]
+                {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63NUrDSW34K8XzuabEwO7SJH"},
+                 "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63vwObDTOE2KLCP1FejFbSm8"}]
                  }
             ],
         },
@@ -2575,24 +3013,24 @@ def test_update_multiflow_story_with_name_already_exists():
         json={
             "name": "another_test_path",
             "steps": [
-                {"step": {"name": "greeting", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                 "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"}]
+                {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "NNNNHHG"},
+                 "connections": [{"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "NNNNHHG"}]
                  },
-                {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                 "connections": [{"name": "more_query", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                                 {"name": "goodbye", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"}]
+                {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "NNNNHHG"},
+                 "connections": [{"name": "more_query", "type": "INTENT", "node_id": "3", "component_id": "NNNNHHG"},
+                                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NNNNHHG"}]
                  },
-                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"}]
+                {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NNNNHHG"},
+                 "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNNNHHG"}]
                  },
-                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
+                {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNNNHHG"},
                  "connections": None
                  },
-                {"step": {"name": "utter_more_query", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
+                {"step": {"name": "utter_more_query", "type": "BOT", "node_id": "6", "component_id": "NNNNHHG"},
                  "connections": None
                  },
-                {"step": {"name": "more_query", "type": "INTENT", "node_id": "Pbvgds", "component_id": "NNNNHHG"},
-                 "connections": [{"name": "utter_more_query", "type": "BOT", "node_id": "Pbvgds", "component_id": "NNNNHHG"}]
+                {"step": {"name": "more_query", "type": "INTENT", "node_id": "3", "component_id": "NNNNHHG"},
+                 "connections": [{"name": "utter_more_query", "type": "BOT", "node_id": "6", "component_id": "NNNNHHG"}]
                  }
             ],
         },
@@ -2611,8 +3049,8 @@ def test_update_multiflow_story_invalid_event_type():
         json={
             "name": "test_path",
             "steps": [
-                {"step": {"name": "hiie", "type": "data", "node_id": "639buaSHN9lGMil3b7imBNLX", "component_id": "63Xx6ZbMOcBcq5Ltb1XoC3R5"},
-                 "connections": [{"name": "utter_hiie", "type": "BOT", "node_id": "63ih1waNgPIHuLmXz7B0pa5g", "component_id": "63nzrQFKnrc97QOI2renluu9"}]
+                {"step": {"name": "hiie", "type": "data", "node_id": "1", "component_id": "63Xx6ZbMOcBcq5Ltb1XoC3R5"},
+                 "connections": [{"name": "utter_hiie", "type": "BOT", "node_id": "2", "component_id": "63nzrQFKnrc97QOI2renluu9"}]
                  },
             ],
         },
@@ -2628,11 +3066,13 @@ def test_update_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', "
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
-                        "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                        "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
+                        "'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
-                        'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']}
+                        'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
+                        'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']}
                  }]
     )
 
@@ -2654,17 +3094,17 @@ def test_get_multiflow_stories():
     assert get_story['type'] == 'MULTIFLOW'
     assert get_story['name'] == 'test_path'
     print(get_story['steps'])
-    assert get_story['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': 'NBVgfPPPd', 'component_id': 'MNbcg'},
-                                   'connections': [{'name': 'utter_greeting', 'type': 'BOT', 'node_id': 'NBVPd', 'component_id': 'MNbcZZg'}]},
-                                  {'step': {'name': 'utter_greeting', 'type': 'BOT', 'node_id': 'MMNb', 'component_id': 'MNbcZZg'},
-                                   'connections': [{'name': 'more_query', 'type': 'INTENT', 'node_id': 'OKde', 'component_id': 'uhsjJ'},
-                                                   {'name': 'goodbye', 'type': 'INTENT', 'node_id': 'POiQWW', 'component_id': 'MgGFD'}]},
-                                  {'step': {'name': 'goodbye', 'type': 'INTENT', 'node_id': 'MMNCFRD', 'component_id': 'MgGFD'},
-                                   'connections': [{'name': 'utter_goodbye', 'type': 'BOT', 'node_id': 'GTREbg', 'component_id': 'MNbcg'}]},
-                                  {'step': {'name': 'utter_goodbye', 'type': 'BOT', 'node_id': 'MAAQQW', 'component_id': 'MNbcg'}, 'connections': []},
-                                  {'step': {'name': 'utter_more_query', 'type': 'BOT', 'node_id': 'Pbvgds', 'component_id': 'IIUUUYY'}, 'connections': []},
-                                  {'step': {'name': 'more_query', 'type': 'INTENT', 'node_id': 'RTYNBVF', 'component_id': 'uhsjJ'},
-                                   'connections': [{'name': 'utter_more_query', 'type': 'BOT', 'node_id': 'PGFDXSW', 'component_id': 'IIUUUYY'}]}]
+    assert get_story['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': '1', 'component_id': 'MNbcg'},
+                                   'connections': [{'name': 'utter_greeting', 'type': 'BOT', 'node_id': '2', 'component_id': 'MNbcZZg'}]},
+                                  {'step': {'name': 'utter_greeting', 'type': 'BOT', 'node_id': '2', 'component_id': 'MNbcZZg'},
+                                   'connections': [{'name': 'more_query', 'type': 'INTENT', 'node_id': '3', 'component_id': 'uhsjJ'},
+                                                   {'name': 'goodbye', 'type': 'INTENT', 'node_id': '4', 'component_id': 'MgGFD'}]},
+                                  {'step': {'name': 'goodbye', 'type': 'INTENT', 'node_id': '4', 'component_id': 'MgGFD'},
+                                   'connections': [{'name': 'utter_goodbye', 'type': 'BOT', 'node_id': '5', 'component_id': 'MNbcg'}]},
+                                  {'step': {'name': 'utter_goodbye', 'type': 'BOT', 'node_id': '5', 'component_id': 'MNbcg'}, 'connections': []},
+                                  {'step': {'name': 'utter_more_query', 'type': 'BOT', 'node_id': '6', 'component_id': 'IIUUUYY'}, 'connections': []},
+                                  {'step': {'name': 'more_query', 'type': 'INTENT', 'node_id': '3', 'component_id': 'uhsjJ'},
+                                   'connections': [{'name': 'utter_more_query', 'type': 'BOT', 'node_id': '6', 'component_id': 'IIUUUYY'}]}]
 
 
 def test_delete_multiflow_story():
@@ -3386,7 +3826,7 @@ def test_download_data():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__()
+    assert zip_file.filelist.__len__() == 8
     zip_file.close()
     file_bytes.close()
 
@@ -6304,9 +6744,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -6369,9 +6809,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -10138,7 +10578,7 @@ def test_get_kairon_two_stage_fallback_action_1():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    del actual['data'][0]['timestamp']
+    assert actual['data'][0].get('timestamp') is None
     actual['data'][0].pop('_id')
     assert actual["data"] == [{'name': 'kairon_two_stage_fallback',
                                'text_recommendations': {"count": 4, "use_intent_ranking": False}, 'trigger_rules': [],
@@ -10490,7 +10930,8 @@ def test_initiate_bsp_onboarding_failure(monkeypatch):
     assert actual["data"] is None
 
 
-def test_initiate_bsp_onboarding_disabled():
+def test_initiate_bsp_onboarding_disabled(monkeypatch):
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -12968,11 +13409,11 @@ def test_get_auditlog_for_user_1():
     actual = response.json()
     assert actual["data"] is not None
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["entity"] == "Slots"
+    assert actual["data"][0]["entity"] == "BotAccess"
     assert actual["data"][0]["user"] == email
 
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-
+    assert actual["data"][0]["audit"]["Bot_id"] is not None
 
 def test_get_auditlog_for_bot():
     from_date = datetime.utcnow().date() - timedelta(days=1)
@@ -13014,7 +13455,7 @@ def test_get_auditlog_for_user_2():
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
     assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
-    assert audit_log_data[0]["entity"] == "Slots"
+    assert audit_log_data[0]["entity"] == "ModelTraining"
     assert audit_log_data[0]["user"] == email
 
 

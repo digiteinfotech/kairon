@@ -174,7 +174,8 @@ ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}
 ALLOWED_CONFIG_FORMATS = {'config.yaml', 'config.yml'}
 ALLOWED_RULES_FORMATS = {'rules.yaml', 'rules.yml'}
 ALLOWED_ACTIONS_FORMATS = {'actions.yaml', 'actions.yml'}
-REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions'}
+ALLOWED_CHAT_CLIENT_CONFIG_FORMATS = {'chat_client_config.yml', 'chat_client_config.yaml'}
+REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions', 'chat_client_config'}
 COMPONENT_COUNT = {'intents': 0, 'utterances': 0, 'stories': 0, 'training_examples': 0,
                    'http_actions': 0, 'jira_actions': 0, 'google_search_actions': 0, 'zendesk_actions': 0,
                    'email_actions': 0, 'slot_set_actions': 0, 'form_validation_actions': 0, 'rules': 0,
@@ -190,6 +191,9 @@ GPT_LLM_FAQ = "gpt_llm_faq"
 DEFAULT_LLM_FALLBACK_RULE = 'search answer in faq'
 FALLBACK_MESSAGE = "I could not understand you! Did you mean any of the suggestions below?" \
                    " Or else please rephrase your question."
+KAIRON_FAQ_ACTION = "kairon_faq_action"
+DEFAULT_CONTEXT_PROMPT = "Answer question based on the context below, if answer is not in the context go check previous logs."
+DEFAULT_SYSTEM_PROMPT = "You are a personal assistant. Answer question based on the context below"
 
 
 class AuditlogActions(str, Enum):

@@ -102,7 +102,8 @@ class ActionHTTP(ActionsBase):
                 messages=msg_logger,
                 exception=exception,
                 bot=self.bot,
-                status=status
+                status=status,
+                user_msg=tracker.latest_message.get('text')
             ).save()
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)

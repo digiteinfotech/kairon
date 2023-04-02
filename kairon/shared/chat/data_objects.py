@@ -1,13 +1,15 @@
-from mongoengine import Document, StringField, DictField, DateTimeField, ValidationError
+from mongoengine import StringField, DictField, DateTimeField, ValidationError
 from datetime import datetime
 
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.data.signals import push_notification
+from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 
 
+@auditlogger.log
 @push_notification.apply
-class Channels(Document):
+class Channels(Auditlog):
     bot = StringField(required=True)
     connector_type = StringField(required=True, choices=Utility.get_channels)
     config = DictField(required=True)

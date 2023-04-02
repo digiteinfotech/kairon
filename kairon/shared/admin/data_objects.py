@@ -1,15 +1,17 @@
 from datetime import datetime
 from mongoengine import (
     StringField,
-    DateTimeField, Document,
+    DateTimeField
 )
-from kairon.shared.data.signals import push_notification
+from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 from mongoengine import signals
 
 
+@auditlogger.log
 @push_notification.apply
-class BotSecrets(Document):
+class BotSecrets(Auditlog):
     secret_type = StringField(required=True)
     value = StringField(required=True)
     bot = StringField(required=True)

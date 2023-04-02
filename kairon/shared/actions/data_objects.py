@@ -5,7 +5,7 @@ from mongoengine import (
     DateTimeField,
     BooleanField,
     IntField,
-    ListField, DictField, DynamicField, DynamicDocument
+    ListField, DictField, DynamicField, DynamicDocument, FloatField
 )
 from mongoengine.errors import ValidationError
 from datetime import datetime
@@ -16,7 +16,9 @@ from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRe
     EvaluationType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, KAIRON_FAQ_ACTION, \
+    DEFAULT_SYSTEM_PROMPT, \
+    DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 from validators import email
@@ -480,6 +482,40 @@ class KaironTwoStageFallbackAction(Auditlog):
 
     def clean(self):
         self.name = self.name.strip().lower()
+
+
+@auditlogger.log
+@push_notification.apply
+class KaironFaqAction(Auditlog):
+    name = StringField(default=KAIRON_FAQ_ACTION)
+    system_prompt = StringField(default=DEFAULT_SYSTEM_PROMPT)
+    context_prompt = StringField(default=DEFAULT_CONTEXT_PROMPT)
+    use_query_prompt = BooleanField(default=False)
+    query_prompt = StringField()
+    use_bot_responses = BooleanField(default=False)
+    num_bot_responses = IntField(default=5)
+    top_results = IntField(default=10)
+    similarity_threshold = FloatField(default=0.70)
+    failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.system_prompt):
+            raise ValidationError("system_prompt name is required")
+        if Utility.check_empty_string(self.context_prompt):
+            raise ValidationError("context_prompt name is required")
+        if not 0.3 <= self.similarity_threshold <= 1:
+            raise ValidationError("similarity_threshold should be within 0.3 and 1")
+        if self.top_results > 30:
+            raise ValidationError("top_results should not be greater than 30")
+        if self.use_query_prompt and Utility.check_empty_string(self.query_prompt):
+            raise ValidationError("query_prompt is required")
+        if self.num_bot_responses > 5:
+            raise ValidationError("num_bot_responses should not be greater than 5")
+
+
 
 
 @auditlogger.log

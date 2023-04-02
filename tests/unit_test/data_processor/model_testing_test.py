@@ -236,6 +236,7 @@ class TestModelTesting:
 
     @pytest.fixture
     def load_data(self):
+        from kairon.shared.data.constant import REQUIREMENTS
         async def _read_and_get_data(config_path: str, domain_path: str, nlu_path: str, stories_path: str, bot: str,
                                      user: str):
             data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
@@ -251,7 +252,8 @@ class TestModelTesting:
             nlu = await importer.get_nlu_data(config.get('language'))
 
             processor = MongoProcessor()
-            processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True)
+            processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True,
+                                         what=REQUIREMENTS.copy()-{"chat_client_config"})
 
         return _read_and_get_data
 

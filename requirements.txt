@@ -67,5 +67,6 @@ pyjwt==2.6.0
 openpyxl
 uuid6
 typeguard==2.13.3
+boto3==1.26.100
 APScheduler
 croniter

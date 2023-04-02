@@ -268,7 +268,7 @@ class TestAccountProcessor:
         AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
-        assert ('test_version_2', 'fshaikh@digite.com') == AccountProcessor.update_bot_access(
+        assert ('test_version_2', 'fshaikh@digite.com', 'Fahad Ali', 'udit') == AccountProcessor.update_bot_access(
             bot_id, "udit.pandey@digite.com", 'testAdmin', ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value
         )
         bot_access = BotAccess.objects(bot=bot_id, accessor_email="udit.pandey@digite.com").get()
@@ -928,7 +928,11 @@ class TestAccountProcessor:
             loop = asyncio.new_event_loop()
             loop.run_until_complete(AccountProcessor.account_setup(account_setup=account))
 
-    def test_account_setup_user_info(self):
+    def test_account_setup_user_info(self, monkeypatch):
+        def _publish_auditlog(*args, **kwargs):
+            return
+
+        monkeypatch.setattr(Utility, "save_and_publish_auditlog", _publish_auditlog)
         account = {
             "account": "Test_Account",
             "bot": "Test",

@@ -5,7 +5,6 @@ import urllib.parse
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
-from kairon.actions.definitions.base import ActionsBase
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.factory import ActionFactory
 from kairon.actions.definitions.form_validation import ActionFormValidation
@@ -13,20 +12,21 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
+from kairon.actions.definitions.kairon_faq import ActionKaironFaq
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
-from kairon.shared.data.data_objects import Slots, KeyVault
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, KAIRON_FAQ_ACTION
+from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
 
 import pytest
 import responses
-from mongoengine import connect, QuerySet
+from mongoengine import connect, QuerySet, DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType, HttpRequestContentType
@@ -2127,6 +2127,28 @@ class TestActions:
         actual = ActionUtility.prepare_email_body(events, "conversation history", "test@kairon.com")
         assert str(actual).__contains__("</table>")
 
+    def test_get_kairon_faq_action_config(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='kairon_faq_action', type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        actual = ActionUtility.get_action(bot, 'kairon_faq_action')
+        assert actual['type'] == ActionType.kairon_faq_action.value
+        actual = ActionKaironFaq(bot, 'kairon_faq_action').retrieve_config()
+        actual.pop("timestamp")
+        assert actual == {'name': 'kairon_faq_action',
+                          'system_prompt': 'You are a personal assistant. Answer question based on the context below',
+                          'context_prompt': 'Answer question based on the context below, if answer is not in the '
+                                            'context go check previous logs.',
+                          'top_results': 10, 'similarity_threshold': 0.7,
+                          'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                          'bot': 'test_action_server', "num_bot_responses": 5, "use_bot_responses": False,
+                          'use_query_prompt': False}
+
+    def test_kairon_faq_action_not_exists(self):
+        with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
+            ActionKaironFaq('test_kairon_faq_action_not_exists', 'testing_kairon_faq').retrieve_config()
+
     def test_get_google_search_action_config(self):
         bot = 'test_action_server'
         user = 'test_user'
@@ -3017,6 +3039,27 @@ class TestActions:
                                             {'is_dynamic_msg': False, 'text': 'Mail me', 'payload': 'send_mail'}],
                           'fallback_message': "I could not understand you! Did you mean any of the suggestions below?"
                                               " Or else please rephrase your question."}
+
+    def test_get_bot_settings(self):
+        bot = "test_bot"
+        bot_settings = ActionUtility.get_bot_settings(bot=bot)
+        bot_settings.pop('timestamp')
+        assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
+                                'website_data_generator_depth_search_limit': 2, 'enable_gpt_llm_faq': False,
+                                'chat_token_expiry': 30, 'refresh_token_expiry': 60, 'whatsapp': 'meta',
+                                'bot': 'test_bot', 'status': True}
+
+    def test_get_faq_action_config(self):
+        bot = "test_bot"
+        k_faq_action_config = ActionUtility.get_faq_action_config(bot=bot)
+        k_faq_action_config.pop('timestamp')
+        assert k_faq_action_config == \
+               {'name': 'kairon_faq_action', 'top_results': 10, 'similarity_threshold': 0.7,
+                'system_prompt': 'You are a personal assistant. Answer question based on the context below',
+                'context_prompt': 'Answer question based on the context below, if answer is not in the '
+                                  'context go check previous logs.',
+                'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot',
+                "num_bot_responses": 5, "use_bot_responses": False, "use_query_prompt": False}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

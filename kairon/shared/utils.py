@@ -659,6 +659,7 @@ class Utility:
             body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
             body = body.replace('ACCESS_TYPE', kwargs.get('role', ""))
             body = body.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
+            body = body.replace('NAME', kwargs.get('member_confirm', "").capitalize())
             subject = Utility.email_conf['email']['templates']['add_member_confirmation_subject']
             subject = subject.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
         elif mail_type == 'update_role_member_mail':
@@ -669,6 +670,7 @@ class Utility:
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
             body = body.replace('STATUS', kwargs.get('status', ""))
             body = body.replace('MODIFIER_NAME', first_name.capitalize())
+            body = body.replace('NAME', kwargs.get('member_name', "").capitalize())
             subject = Utility.email_conf['email']['templates']['update_role_subject']
             subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'update_role_owner_mail':
@@ -680,6 +682,7 @@ class Utility:
             body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
             body = body.replace('STATUS', kwargs.get('status', ""))
             body = body.replace('MODIFIER_NAME', first_name.capitalize())
+            body = body.replace('NAME', kwargs.get('owner_name', "").capitalize())
             subject = Utility.email_conf['email']['templates']['update_role_subject']
             subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
         elif mail_type == 'transfer_ownership_mail':
@@ -1010,7 +1013,7 @@ class Utility:
 
     @staticmethod
     def write_training_data(nlu, domain, config: dict,
-                            stories, rules=None, actions: dict = None):
+                            stories, rules=None, actions: dict = None, chat_client_config: dict = None):
         """
         convert mongo data  to individual files
 
@@ -1018,6 +1021,7 @@ class Utility:
         :param domain: domain data
         :param stories: stories data
         :param config: config data
+        :param chat_client_config: chat_client_config data
         :param rules: rules data
         :param actions: action configuration data
         :return: files path
@@ -1035,6 +1039,7 @@ class Utility:
         config_path = os.path.join(temp_path, DEFAULT_CONFIG_PATH)
         rules_path = os.path.join(data_path, "rules.yml")
         actions_path = os.path.join(temp_path, "actions.yml")
+        chat_client_config_path = os.path.join(temp_path, "chat_client_config.yml")
 
         nlu_as_str = nlu.nlu_as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
@@ -1052,13 +1057,16 @@ class Utility:
         if actions:
             actions_as_str = yaml.dump(actions).encode()
             Utility.write_to_file(actions_path, actions_as_str)
+        if chat_client_config:
+            chat_client_config_as_str = yaml.dump(chat_client_config).encode()
+            Utility.write_to_file(chat_client_config_path, chat_client_config_as_str)
         return temp_path
 
     @staticmethod
     def create_zip_file(
             nlu, domain, stories, config: Dict, bot: Text,
             rules=None,
-            actions: Dict = None
+            actions: Dict = None,  chat_client_config: Dict = None
     ):
         """
         adds training files to zip
@@ -1067,6 +1075,7 @@ class Utility:
         :param domain: domain data
         :param stories: stories data
         :param config: config data
+        :param chat_client_config: chat_client_config data
         :param bot: bot id
         :param rules: rules data
         :param actions: action configurations
@@ -1078,7 +1087,8 @@ class Utility:
             config,
             stories,
             rules,
-            actions
+            actions,
+            chat_client_config
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)
@@ -1634,7 +1644,9 @@ class Utility:
         except AttributeError:
             action = kwargs.get("action")
 
-        audit_log = AuditLogData(bot=document.bot,
+        audit = Utility.get_auditlog_id_and_mapping(document)
+
+        audit_log = AuditLogData(audit=audit,
                                  user=document.user,
                                  action=action,
                                  entity=name,
@@ -1643,17 +1655,31 @@ class Utility:
         audit_log.save()
 
     @staticmethod
-    def publish_auditlog(auditlog, event_url=None):
+    def get_auditlog_id_and_mapping(document):
+        try:
+            auditlog_id = document.bot.__str__()
+            mapping = "Bot_id"
+        except AttributeError:
+            auditlog_id = document.id.__str__()
+            mapping = f"{document._class_name.__str__()}_id"
+
+        return {mapping: auditlog_id}
+
+    @staticmethod
+    def publish_auditlog(auditlog, **kwargs):
         from .data.data_objects import EventConfig
         from mongoengine.errors import DoesNotExist
 
         try:
-            event_config = EventConfig.objects(bot=auditlog.bot).get()
+            if auditlog.audit.get("Bot_id") is None:
+                logger.debug("Only bot level event config is supported as of")
+                return
+            event_config = EventConfig.objects(bot=auditlog.audit.get("Bot_id")).get()
 
             headers = json.loads(Utility.decrypt_message(event_config.headers))
             ws_url = event_config.ws_url
             method = event_config.method
-            if ws_url is not None:
+            if ws_url:
                 Utility.execute_http_request(request_method=method, http_url=ws_url,
                                              request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
         except (DoesNotExist, AppException):
@@ -1780,12 +1806,15 @@ class StoryValidator:
         graph = DiGraph()
         vertices = {}
         for story_step in steps:
-            vertices[story_step['step']['name']] = KaironStoryStep(story_step["step"]["name"],
+            vertices[story_step['step']['node_id']] = KaironStoryStep(story_step["step"]["name"],
                                                                    story_step["step"]["type"])
         for story_step in steps:
-            story_step_object = vertices[story_step["step"]["name"]]
+            story_step_object = vertices[story_step["step"]["node_id"]]
             for connected_story_step in story_step['connections'] or []:
-                connection_object = vertices[connected_story_step["name"]]
+                if connected_story_step['node_id'] in vertices.keys():
+                    connection_object = vertices[connected_story_step["node_id"]]
+                else:
+                    connection_object = KaironStoryStep(connected_story_step["name"], connected_story_step["type"])
                 graph.add_edge(story_step_object, connection_object)
         return graph
 

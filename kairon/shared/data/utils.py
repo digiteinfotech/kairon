@@ -14,7 +14,7 @@ from pandas import DataFrame
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
-    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE
+    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS
 from .constant import RESPONSE
 from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
@@ -62,7 +62,7 @@ class DataUtility:
                     path = os.path.join(data_path, file.filename)
                     Utility.write_to_file(path, await file.read())
                 elif file.filename in ALLOWED_CONFIG_FORMATS.union(ALLOWED_DOMAIN_FORMATS).union(
-                        ALLOWED_ACTIONS_FORMATS):
+                        ALLOWED_ACTIONS_FORMATS, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS):
                     path = os.path.join(bot_data_home_dir, file.filename)
                     Utility.write_to_file(path, await file.read())
 
@@ -115,6 +115,8 @@ class DataUtility:
             requirements.add('rules')
         if ALLOWED_ACTIONS_FORMATS.intersection(files_received).__len__() < 1:
             requirements.add('actions')
+        if ALLOWED_CHAT_CLIENT_CONFIG_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('chat_client_config')
 
         if requirements == REQUIREMENTS:
             if delete_dir_on_exception:

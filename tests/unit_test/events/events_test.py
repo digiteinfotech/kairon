@@ -84,7 +84,7 @@ class TestEventExecution:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS-{"http_actions"})
+        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS-{"http_actions", "chat_client_config"})
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -222,7 +222,8 @@ class TestEventExecution:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
+        DataImporterLogProcessor.add_log(bot, user,
+                                         files_received=REQUIREMENTS - {"http_actions", "chat_client_config"})
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 6
@@ -259,7 +260,8 @@ class TestEventExecution:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions", "rules"})
+        DataImporterLogProcessor.add_log(bot, user,
+                                         files_received=REQUIREMENTS - {"http_actions", "rules", "chat_client_config"})
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 7
@@ -298,7 +300,8 @@ class TestEventExecution:
 
         monkeypatch.setattr(Utility, "get_latest_file", _path)
 
-        DataImporterLogProcessor.add_log(bot, user, files_received=REQUIREMENTS - {"http_actions"})
+        DataImporterLogProcessor.add_log(bot, user,
+                                         files_received=REQUIREMENTS - {"http_actions", "chat_client_config"})
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True).execute()
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 8
@@ -906,7 +909,8 @@ class TestEventExecution:
             nlu = await importer.get_nlu_data(config.get('language'))
 
             processor = MongoProcessor()
-            processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True)
+            processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True,
+                                         what=REQUIREMENTS.copy()-{"chat_client_config"})
 
         return _read_and_get_data
 
