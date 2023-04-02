@@ -10,7 +10,7 @@ pytest-html==3.0.0
 pytest-cov==2.10.1
 pytest-xdist==2.1.0
 pytest-asyncio==0.14.0
-responses==0.12.0
+responses==0.23.1
 pandas==1.5.2
 mongoengine==0.23.1
 passlib[bcrypt]==1.7.4
@@ -67,3 +67,5 @@ pyjwt==2.6.0
 openpyxl
 uuid6
 typeguard==2.13.3
+APScheduler
+croniter

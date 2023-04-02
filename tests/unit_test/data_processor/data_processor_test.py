@@ -6800,15 +6800,14 @@ class TestMongoProcessor:
             RazorpayAction.objects(name='razorpay_action', status=True, bot=bot).get()
 
     @responses.activate
-    def test_push_notifications_enabled_message_type_event(self):
+    def test_push_notifications_enabled_message_type_event(self, monkeypatch):
         Utility.environment['notifications']['enable'] = True
         bot = "test"
         user = 'test'
         url = "http://localhost/events"
-        Utility.environment['notifications']['server_endpoint'] = url
-
+        monkeypatch.setitem(Utility.environment['notifications'], 'server_endpoint', url)
         responses.add(
-            'POST'
+            'POST',
             f'{url}/test',
             json={'message': 'Event in progress'}
         )

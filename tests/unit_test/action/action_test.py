@@ -244,7 +244,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)],
+            match=[responses.matchers.json_params_matcher(request_params)],
             headers={"Authorization": auth_token}
         )
 
@@ -265,7 +265,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)]
+            match=[responses.matchers.json_params_matcher(request_params)]
         )
 
         response = ActionUtility.execute_http_request(headers=None, http_url=http_url,
@@ -286,7 +286,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)],
+            match=[responses.matchers.json_params_matcher(request_params)],
             headers={"Authorization": auth_token}
         )
 
@@ -307,7 +307,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)]
+            match=[responses.matchers.json_params_matcher(request_params)]
         )
 
         response = ActionUtility.execute_http_request(headers=None, http_url=http_url,
@@ -328,7 +328,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)],
+            match=[responses.matchers.json_params_matcher(request_params)],
             headers={"Authorization": auth_token}
         )
 
@@ -370,7 +370,7 @@ class TestActions:
             body=resp_msg,
             status=500,
             match=[
-                responses.json_params_matcher(request_params)
+                responses.matchers.json_params_matcher(request_params)
             ]
         )
 
@@ -390,7 +390,7 @@ class TestActions:
             body=resp_msg,
             status=200,
             match=[
-                responses.json_params_matcher(request_params)
+                responses.matchers.json_params_matcher(request_params)
             ]
         )
 
@@ -1314,6 +1314,7 @@ class TestActions:
         except ActionFailure as e:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''
 
+    @responses.activate
     @pytest.mark.asyncio
     async def test_run_get_with_parameters(self, monkeypatch):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
@@ -1344,23 +1345,11 @@ class TestActions:
             }
         }
 
-        class MockResponse(object):
-            def __init__(self, url, headers):
-                self.status_code = 200
-                self.url = url
-                self.headers = headers
+        responses.add(
+            responses.GET, http_url, json=resp_msg,
+            match=[responses.matchers.urlencoded_params_matcher({'key1': 'value1', 'key2': 'value2'})],
+        )
 
-            def json(self):
-                return resp_msg
-
-            def text(self):
-                return json.dumps(resp_msg)
-
-        def mock_get(url, headers):
-            if headers and url == http_url + '?' + urllib.parse.urlencode({'key1': 'value1', 'key2': 'value2'}):
-                return MockResponse(url, headers)
-
-        monkeypatch.setattr(requests, "get", mock_get)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -1375,6 +1364,7 @@ class TestActions:
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
+    @responses.activate
     @pytest.mark.asyncio
     async def test_run_get_with_parameters_2(self, monkeypatch):
         action = HttpActionConfig(
@@ -1403,23 +1393,10 @@ class TestActions:
             }
         }
 
-        class MockResponse(object):
-            def __init__(self, url, headers):
-                self.status_code = 200
-                self.url = url
-                self.headers = headers
+        responses.add(
+            responses.GET, http_url, json=resp_msg
+        )
 
-            def json(self):
-                return resp_msg
-
-            def text(self):
-                return json.dumps(resp_msg)
-
-        def mock_get(url, headers):
-            if url == http_url:
-                return MockResponse(url, headers)
-
-        monkeypatch.setattr(requests, "get", mock_get)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -2517,7 +2494,7 @@ class TestActions:
             'POST',
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
-            match=[responses.json_params_matcher({'ticket': {'id': None, 'subject': 'new ticket', 'comment': {'id': None}}})]
+            match=[responses.matchers.json_params_matcher({'ticket': {'id': None, 'subject': 'new ticket', 'comment': {'id': None}}})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket')
 
@@ -2525,7 +2502,7 @@ class TestActions:
             'POST',
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
-            match=[responses.json_params_matcher(
+            match=[responses.matchers.json_params_matcher(
                 {'ticket': {'description': 'ticket described', 'id': None, 'subject': 'new ticket',
                             'tags': ['kairon', 'bot'], 'comment': {'id': None, 'html_body': 'html comment'}}})]
         )
@@ -2799,7 +2776,7 @@ class TestActions:
             json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': script,
                      'data': data})],
         )
@@ -2817,7 +2794,7 @@ class TestActions:
             json={"success": False, "data": "['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': script,
                      'data': data})],
         )
@@ -2834,7 +2811,7 @@ class TestActions:
             json={"success": False},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': script,
                      'data': data})],
         )
@@ -2842,6 +2819,7 @@ class TestActions:
         assert result is None
         assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: False || response: {\'success\': False}'
 
+    @responses.activate
     def test_prepare_email_text(self):
         custom_text = "The user with ${sender_id} has message ${user_message}."
         tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
@@ -2854,7 +2832,7 @@ class TestActions:
             json={"success": True, "data": "The user with 987654321 has message hello."},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': custom_text,
                      'data': tracker_data})],
         )
@@ -2874,7 +2852,7 @@ class TestActions:
             json={"success": False, "data": "The user with 987654321 has message hello."},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': custom_text,
                      'data': tracker_data})],
         )
@@ -2901,7 +2879,7 @@ class TestActions:
             json={"success": False},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': custom_text,
                      'data': tracker_data})],
         )
@@ -2939,7 +2917,7 @@ class TestActions:
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
             status=200,
-            match=[responses.json_params_matcher({'script': script, 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
         )
         result, log = ActionUtility.compose_response(response_config, http_response)
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
@@ -2955,7 +2933,7 @@ class TestActions:
             url=Utility.environment['evaluator']['url'],
             json={"success": False},
             status=200,
-            match=[responses.json_params_matcher({'script': script, 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
         )
         with pytest.raises(ActionFailure, match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
             ActionUtility.compose_response(response_config, http_response)
@@ -2978,14 +2956,14 @@ class TestActions:
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": ['red', 'buggy', 'bumpers']},
             status=200,
-            match=[responses.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
         )
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": 2},
             status=200,
-            match=[responses.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
         )
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
@@ -3004,14 +2982,14 @@ class TestActions:
             url=Utility.environment['evaluator']['url'],
             json={"success": False},
             status=200,
-            match=[responses.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
         )
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": 2},
             status=200,
-            match=[responses.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
         )
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': None, 'score': 2, "percentage": "30"}

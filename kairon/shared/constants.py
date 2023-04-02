@@ -54,6 +54,13 @@ class EventClass(str, Enum):
     multilingual = "multilingual"
     data_generator = "data_generator"
     faq_importer = "faq_importer"
+    message_broadcast = "message_broadcast"
+
+
+class EventRequestType(str, Enum):
+    trigger_async = "trigger_async"
+    update_schedule = "update_schedule"
+    add_schedule = "add_schedule"
 
 
 class DataGeneratorCliTypes(str, Enum):

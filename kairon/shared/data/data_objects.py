@@ -740,6 +740,7 @@ class BotSettings(Auditlog):
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
     whatsapp = StringField(default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value])
+    notification_scheduling_limit = IntField(default=4)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

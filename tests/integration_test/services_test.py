@@ -11,6 +11,7 @@ from zipfile import ZipFile
 import pytest
 import responses
 from botocore.exceptions import ClientError
+from bson import ObjectId
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
@@ -10586,6 +10587,298 @@ def test_get_channels_config():
                     'bsp_type': '360dialog'}, 'meta_config': {}}]
 
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_scheduled_broadcast(mock_event_server):
+    config = {
+        "name": "first_scheduler",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "57 22 * * *"
+        },
+        "recipients_config": {
+            "recipient_type": "static",
+            "recipients": "918958030541, "
+        },
+        "data_extraction_config": {
+            "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
+            "url": "http://kairon.local",
+        },
+        "template_config": [
+            {
+                "template_type": "static",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.first_scheduler_id = actual["data"]["msg_broadcast_id"]
+    assert pytest.first_scheduler_id
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_broadcast(mock_event_server):
+    config = {
+        "name": "one_time_schedule",
+        "connector_type": "whatsapp",
+        "recipients_config": {
+            "recipient_type": "static",
+            "recipients": "918958030541,"
+        },
+        "template_config": [
+            {
+                "template_type": "static",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.one_time_schedule_id = actual["data"]["msg_broadcast_id"]
+    assert pytest.one_time_schedule_id
+
+
+def test_broadcast_config_error():
+    config = {
+        "name": "one_time_schedule",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "* * * * *"
+        },
+        "recipients_config": {
+            "recipient_type": "static",
+            "recipients": "918958030541,"
+        },
+        "template_config": [
+            {
+                "template_type": "static",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'recurrence interval must be at least 86340 seconds!', 'type': 'value_error'}]
+
+    config["scheduler_config"]["schedule"] = ""
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'scheduler_config', '__root__'], 'msg': f"Invalid cron expression: ''", 'type': 'value_error'}]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_broadcast(mock_event_server):
+    config = {
+        "name": "first_scheduler",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "21 11 * * *"
+        },
+        "recipients_config": {
+            "recipient_type": "dynamic",
+            "recipients": "918958030541, "
+        },
+        "data_extraction_config": {
+            "url": "http://kairon.remote",
+        },
+        "template_config": [
+            {
+                "template_type": "dynamic",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                "data": "${response.data}"
+            }
+        ]
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
+
+
+def test_update_one_time_broadcast():
+    config = {
+        "name": "one_time_schedule",
+        "connector_type": "whatsapp",
+        "recipients_config": {
+            "recipient_type": "static",
+            "recipients": "918958030541,"
+        },
+        "template_config": [
+            {
+                "template_type": "static",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+            }
+        ]
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "scheduler_config is required!"
+
+
+def test_list_broadcast_config():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    actual["data"]['schedules'][0].pop("_id")
+    actual["data"]['schedules'][0].pop("timestamp")
+    actual["data"]['schedules'][0].pop("bot")
+    actual["data"]['schedules'][0].pop("user")
+    actual["data"]['schedules'][1].pop("_id")
+    actual["data"]['schedules'][1].pop("timestamp")
+    actual["data"]['schedules'][1].pop("bot")
+    actual["data"]['schedules'][1].pop("user")
+    assert actual["data"] == {'schedules': [
+        {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+         'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *'},
+         'data_extraction_config': {'method': 'GET', 'url': 'http://kairon.remote', 'headers': {}, 'request_body': {}},
+         'recipients_config': {'recipient_type': 'dynamic', 'recipients': '918958030541,'}, 'template_config': [
+            {'template_type': 'dynamic', 'template_id': 'brochure_pdf',
+             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': '${response.data}'}], 'status': True},
+        {'name': 'one_time_schedule', 'connector_type': 'whatsapp',
+         'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
+            {'template_type': 'static', 'template_id': 'brochure_pdf',
+             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'status': True}]}
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_delete_broadcast(mock_event_server):
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast removed!"
+
+
+def test_delete_broadcast_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Notification settings not found!"
+
+
+def test_list_broadcast_():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    actual["data"]["schedules"][0].pop("timestamp")
+    actual["data"]["schedules"][0].pop("user")
+    assert actual["data"] == {'schedules': [
+        {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
+         'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
+            {'template_type': 'static', 'template_id': 'brochure_pdf',
+             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'bot': pytest.bot, 'status': True,}]}
+
+
+def test_list_broadcast_logs():
+    from kairon.shared.chat.notifications.data_objects import MessageBroadcastLogs
+
+    ref_id = ObjectId().__str__()
+    MessageBroadcastLogs(**{'reference_id': ref_id, 'log_type': 'common', 'bot': pytest.bot, 'status': 'Completed',
+                              'user': 'test_user', 'broadcast_id': pytest.first_scheduler_id,
+                            'recipients': ['918958030541', '']}).save()
+    MessageBroadcastLogs(**{'reference_id': ref_id, 'log_type': 'send', 'bot': pytest.bot,
+                            'status': 'Success', 'api_response': {
+                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+                              'recipient': '9876543210', 'template_params': [{'type': 'header', 'parameters': [
+                {'type': 'document', 'document': {
+                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                    'filename': 'Brochure.pdf'}}]}]}).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?log_type=common",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["logs"][0].pop("timestamp")
+    assert actual["data"]["logs"] == [
+        {'reference_id':  ref_id, 'log_type': 'common', 'bot': pytest.bot, 'status': 'Completed', 'user': 'test_user',
+         'broadcast_id': pytest.first_scheduler_id, 'recipients': ['918958030541', '']}]
+    assert actual["data"]["total_count"] == 1
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?reference_id={ref_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    actual["data"]["logs"][0].pop("timestamp")
+    actual["data"]["logs"][1].pop("timestamp")
+    assert actual["data"] == {'logs': [{'reference_id': ref_id, 'log_type': 'common', 'bot': pytest.bot,
+           'status': 'Completed', 'user': 'test_user', 'broadcast_id': pytest.first_scheduler_id,
+                                        'recipients': ['918958030541', '']},
+          {'reference_id': ref_id, 'log_type': 'send', 'bot': pytest.bot, 'status': 'Success',
+           'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+           'recipient': '9876543210', 'template_params': [{'type': 'header',
+                                                           'parameters': [{'type': 'document', 'document': {
+                                                               'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                                               'filename': 'Brochure.pdf'}}]}]}], 'total_count': 2}
+
+
 def test_get_bot_settings():
     response = client.get(
         f"/api/bot/{pytest.bot}/settings",
@@ -10601,7 +10894,7 @@ def test_get_bot_settings():
     actual["data"].pop("status")
     assert actual['data'] == {
         "ignore_utterances": False, "force_import": False, "rephrase_response": False,
-        "website_data_generator_depth_search_limit": 2, "chat_token_expiry": 30,
+        "website_data_generator_depth_search_limit": 2, "chat_token_expiry": 30, 'notification_scheduling_limit': 4,
         "refresh_token_expiry": 60, 'enable_gpt_llm_faq': False, 'whatsapp': 'meta'
     }
 
@@ -12619,6 +12912,7 @@ def test_data_generation_limit_exceeded(monkeypatch):
     assert not response["success"]
 
 
+@responses.activate
 def test_data_generation_in_progress(monkeypatch):
     monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
 

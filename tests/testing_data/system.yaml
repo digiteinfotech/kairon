@@ -107,8 +107,13 @@ events:
     delete_history: ${DELETE_HISTORY_TASK_DEFINITION}
     multilingual: ${MULTILINGUAL_TASK_DEFINITION}
     data_generator: ${DATA_GENERATION_TASK_DEFINITION}
+    message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
+  scheduler:
+    collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
+    type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
+    min_trigger_interval: ${MIN_SCHDULER_TRIGGER_INTERVAL:86340}
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}

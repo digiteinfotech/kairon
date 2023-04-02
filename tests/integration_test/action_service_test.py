@@ -3569,6 +3569,7 @@ class TestActionServer(AsyncHTTPTestCase):
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json, {'events': [], 'responses': []})
 
+    @responses.activate
     def test_process_razorpay_action(self):
         action_name = "test_process_razorpay_action"
         bot = "5f50fd0a56b698ca10d35d2e"
@@ -3599,7 +3600,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "POST",
             "https://api.razorpay.com/v1/payment_links/",
             json=response_object,
-            match=[responses.json_params_matcher({
+            match=[responses.matchers.json_params_matcher({
                 "amount": 11000, "currency": "INR",
                 "customer": {"username": "udit.pandey", "email": "udit.pandey", "contact": "987654320"}
             })]
