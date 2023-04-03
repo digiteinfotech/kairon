@@ -1477,11 +1477,11 @@ class Utility:
             request_body = {}
         try:
             logger.info(f"Event started: {http_url}")
-            if request_method.lower() == 'get':
+            if request_method.lower() in ['get', 'delete']:
                 response = requests.request(
                     request_method.upper(), http_url, data=request_body, headers=headers, timeout=kwargs.get('timeout')
                 )
-            elif request_method.lower() in ['post', 'put', 'delete']:
+            elif request_method.lower() in ['post', 'put']:
                 response = requests.request(
                     request_method.upper(), http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout')
                 )
@@ -1517,14 +1517,14 @@ class Utility:
         return Utility.environment['events']['server_url']
 
     @staticmethod
-    def request_event_server(event_class: EventClass, payload: dict):
+    def request_event_server(event_class: EventClass, payload: dict, method: Text = "POST", is_scheduled: bool = False):
         """
         Trigger request to event server along with payload.
         """
         event_server_url = Utility.get_event_server_url()
         logger.debug(payload)
         resp = Utility.execute_http_request(
-            "POST", urljoin(event_server_url, f'/api/events/execute/{event_class}'),
+            method, urljoin(event_server_url, f'/api/events/execute/{event_class}?is_scheduled={is_scheduled}'),
             payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
         )
         if not resp['success']:
@@ -1783,6 +1783,14 @@ class Utility:
         if Utility.check_empty_string(value):
             raise AppException("Value can not be empty")
         return html.escape(value)
+
+    @staticmethod
+    def is_valid_event_request(event_class: Text, body: Dict):
+        if event_class not in {EventClass.message_broadcast.value}:
+            raise AppException(f"Scheduling is not allowed for '{event_class}' event")
+        if {"event_id", "bot", "user", "cron_exp"}.difference(set(body.keys())):
+            raise AppException(f'Missing {"event_id", "bot", "user", "cron_exp"} all or any from request body!')
+        return True
 
 
 class StoryValidator:

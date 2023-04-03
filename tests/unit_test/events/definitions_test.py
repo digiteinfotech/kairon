@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 import pytest
 import responses
 from fastapi import UploadFile
+from mock.mock import patch
 from mongoengine import connect
 
 from augmentation.utils import WebsiteParser
@@ -14,13 +15,15 @@ from kairon import Utility
 from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
+from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.constants import EventClass
+from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.constants import EventClass, EventRequestType
 from kairon.shared.data.constant import EVENT_STATUS, TrainingDataSourceType
 from kairon.shared.data.data_objects import EndPointHistory, Endpoints
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
@@ -96,7 +99,7 @@ class TestEventDefinitions:
         bot = 'test_definitions'
         user = 'test_user'
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.data_importer}"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.data_importer}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Success", "success": True, "error_code": 0, "data": {
@@ -124,7 +127,7 @@ class TestEventDefinitions:
         bot = 'test_definitions'
         user = 'test_user'
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.data_importer}"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.data_importer}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Failed", "success": False, "error_code": 400, "data": None}
@@ -202,7 +205,7 @@ class TestEventDefinitions:
         bot = 'test_faq'
         user = 'test_user'
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.faq_importer}"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.faq_importer}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Success", "success": True, "error_code": 0, "data": {
@@ -229,7 +232,7 @@ class TestEventDefinitions:
         bot = 'test_faq'
         user = 'test_user'
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.faq_importer}"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.faq_importer}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Failed", "success": False, "error_code": 400, "data": None}
@@ -339,7 +342,7 @@ class TestEventDefinitions:
     def test_model_training_enqueue(self, monkeypatch):
         bot = 'test_definitions'
         user = 'test_user'
-        url = f"http://localhost:5001/api/events/execute/{EventClass.model_training}"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.model_training}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Success", "success": True, "error_code": 0, "data": {
@@ -441,7 +444,7 @@ class TestEventDefinitions:
     def test_model_testing_enqueue(self):
         bot = 'test_definitions'
         user = 'test_user'
-        url = f"http://localhost:5001/api/events/execute/{EventClass.model_testing}"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.model_testing}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Success", "success": True, "error_code": 0, "data": {
@@ -546,6 +549,8 @@ class TestEventDefinitions:
         url = f"http://localhost:5001/api/events/execute/{EventClass.delete_history}"
         responses.add(
             "POST", url,
+            match=[responses.matchers.json_params_matcher(
+                {"bot": bot, "user": user, "till_date": str(till_date), "sender_id": "udit.pandey@digite.com"})],
             json={"message": "Success", "success": True, "error_code": 0, "data": {
                 'StatusCode': 200,
                 'FunctionError': None,
@@ -554,12 +559,6 @@ class TestEventDefinitions:
             }}
         )
         DeleteHistoryEvent(bot, user, till_date=till_date, sender_id='udit.pandey@digite.com').enqueue()
-        body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
-        body = json.loads(body.decode())
-        assert body['bot'] == bot
-        assert body['user'] == user
-        assert body['till_date'] == str(till_date)
-        assert body['sender_id'] == 'udit.pandey@digite.com'
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
@@ -598,7 +597,7 @@ class TestEventDefinitions:
     def test_delete_history_enqueue_event_server_failure(self):
         bot = 'test_definitions'
         user = 'test_user'
-        url = f"http://localhost:5001/api/events/execute/{EventClass.delete_history}"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.delete_history}?is_scheduled=False"
         responses.add(
             "POST", url,
             json={"message": "Failed", "success": False, "error_code": 400, "data": None}
@@ -661,17 +660,19 @@ class TestEventDefinitions:
     def test_trigger_multilingual_translation_enqueue(self):
         user = 'test_user'
         d_lang = "es"
-        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.multilingual}")
+        event_url = urljoin(Utility.environment['events']['server_url'],
+                            f"/api/events/execute/{EventClass.multilingual}")
         responses.add("POST",
                       event_url,
                       json={"message": "Event triggered successfully!", "success": True},
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang':  d_lang,
+                              {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang': d_lang,
                                'translate_responses': '', 'translate_actions': '--translate-actions'})]
                       )
-        MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=False, translate_actions=True).enqueue()
+        MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=False,
+                          translate_actions=True).enqueue()
 
         logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
         assert len(logs) == 1
@@ -689,7 +690,6 @@ class TestEventDefinitions:
         with pytest.raises(AppException, match="Event already in progress! Check logs."):
             MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=translate_responses,
                               translate_actions=translate_actions).validate()
-
         logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
         assert len(logs) == 1
 
@@ -705,7 +705,6 @@ class TestEventDefinitions:
         monkeypatch.setattr(MultilingualTranslator, "create_multilingual_bot", _mock_create_multilingual_bot)
         MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=translate_responses,
                           translate_actions=translate_actions).execute()
-
         logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
         assert len(logs) == 1
         assert logs[0]['destination_bot'] == 'translated_test_events_bot'
@@ -734,7 +733,6 @@ class TestEventDefinitions:
         website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
         source_type = TrainingDataSourceType.website
         DataGenerationEvent(bot, user, website_url=website_url).validate()
-
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
         assert len(logs) == 0
 
@@ -745,7 +743,6 @@ class TestEventDefinitions:
         source_type = TrainingDataSourceType.website
         with pytest.raises(AppException, match="depth should be between 0 and 2"):
             DataGenerationEvent(bot, user, website_url=website_url, depth=3).validate()
-
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
         assert len(logs) == 0
 
@@ -755,14 +752,16 @@ class TestEventDefinitions:
         user = 'test_user'
         website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
         source_type = TrainingDataSourceType.website
-        event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_generator}")
+        event_url = urljoin(Utility.environment['events']['server_url'],
+                            f"/api/events/execute/{EventClass.data_generator}")
         responses.add("POST",
                       event_url,
                       json={"message": "Event triggered successfully!", "success": True},
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'type': '--from-website', 'website_url': website_url, 'depth': 0})]
+                              {'bot': bot, 'user': user, 'type': '--from-website', 'website_url': website_url,
+                               'depth': 0})]
                       )
         DataGenerationEvent(bot, user, website_url=website_url).enqueue()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
@@ -788,7 +787,6 @@ class TestEventDefinitions:
         user = 'test_user'
         website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
         source_type = TrainingDataSourceType.website
-
         DataGenerationEvent(bot, user, website_url=website_url).execute()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
         assert len(logs) == 1
@@ -830,3 +828,469 @@ class TestEventDefinitions:
             DataGenerationEvent(bot, user, website_url=website_url).enqueue()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
         assert len(logs) == 0
+
+    def test_add_message_broadcast_invalid_config(self):
+        bot = "test_achedule"
+        user = "test_user"
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "918958030541, "
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
+            with pytest.raises(AppException, match="scheduler_config is required!"):
+                event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+        config["scheduler_config"] = {
+                "expression_type": "cron",
+                "schedule": "57 22 * * *"
+            }
+        with pytest.raises(AppException, match=f"Channel 'whatsapp' not configured!"):
+            event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+    @responses.activate
+    def test_add_message_broadcast_recurring_schedule(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "57 22 * * *"
+            },
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "918958030541, "
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True"
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None},
+        )
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
+            event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 1
+
+    def test_add_message_broadcast_one_time_event_failure(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "918958030541, "
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+        with patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings") as mock_get_bot_settings:
+            mock_get_bot_settings.return_value = {"notification_scheduling_limit": 2}
+            with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
+                with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+                    event.enqueue(EventRequestType.trigger_async.value, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 1
+
+    @responses.activate
+    def test_add_message_broadcast_one_time(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "918958030541, "
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+        with patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings") as mock_get_bot_settings:
+            mock_get_bot_settings.return_value = {"notification_scheduling_limit": 2}
+            with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
+                event.enqueue(EventRequestType.trigger_async.value, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    def test_add_message_broadcast_limit_reached(self, mock_get_bot_settings):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        event = MessageBroadcastEvent(bot, user)
+
+        mock_get_bot_settings.return_value = {"notification_scheduling_limit": 2}
+        with pytest.raises(AppException, match="Notification scheduling limit reached!"):
+            event.validate()
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+
+    def test_add_message_broadcast_event_server_connection_err(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        config = {
+            "name": "failed_schedule",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "57 22 * * *"
+            },
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "918958030541, "
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
+            with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+                event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+
+    @responses.activate
+    def test_add_message_broadcast_event_server_failure(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        config = {
+            "name": "failed_schedule",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "57 22 * * *"
+            },
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "918958030541, "
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True"
+        responses.add(
+            "POST", url,
+            json={"message": "Failed to add event!", "success": False, "error_code": 0, "data": None}
+        )
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
+            with pytest.raises(AppException, match=r"Failed to trigger message_broadcast event: *"):
+                event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+
+    def test_update_message_broadcast_event_server_connection_error(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "919756653433,918958030541, "
+            },
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "11 11 * * *"
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        event = MessageBroadcastEvent(bot, user)
+        with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+            event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=setting_id, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+        config = MessageBroadcastProcessor.get_settings(setting_id, bot)
+        config.pop("_id")
+        config.pop("timestamp")
+        config.pop("status")
+        config.pop("user")
+        config.pop("bot")
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+                          'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *'},
+                          'recipients_config': {'recipient_type': 'static', 'recipients': "918958030541,"},
+                          'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+
+    @responses.activate
+    def test_update_message_broadcast_event_server_failure(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "919756653433,918958030541, "
+            },
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "11 11 * * *"
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True"
+        responses.add(
+            "PUT", url,
+            json={"message": "Failed to update event!", "success": False, "error_code": 0, "data": None}
+        )
+
+        event = MessageBroadcastEvent(bot, user)
+        with pytest.raises(AppException, match=r"Failed to trigger message_broadcast event: *"):
+            event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=setting_id, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+        config = MessageBroadcastProcessor.get_settings(setting_id, bot)
+        config.pop("_id")
+        config.pop("timestamp")
+        config.pop("status")
+        config.pop("user")
+        config.pop("bot")
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+                          'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *'},
+                          'recipients_config': {'recipient_type': 'static', 'recipients': "918958030541,"},
+                          'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+
+    @responses.activate
+    def test_update_message_broadcast(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "919756653433,918958030541, "
+            },
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "11 11 * * *"
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True"
+        responses.add(
+            "PUT", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+
+        event = MessageBroadcastEvent(bot, user)
+        event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=setting_id, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+        config = MessageBroadcastProcessor.get_settings(setting_id, bot)
+        config.pop("_id")
+        config.pop("timestamp")
+        config.pop("status")
+        config.pop("user")
+        config.pop("bot")
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+                          'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *'},
+                          'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
+                          'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+
+    def test_update_message_broadcast_invalid_config(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": '918958030541,'
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+
+        event = MessageBroadcastEvent(bot, user)
+        with pytest.raises(AppException, match="scheduler_config is required!"):
+            event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=setting_id, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+        config = MessageBroadcastProcessor.get_settings(setting_id, bot)
+        config.pop("_id")
+        config.pop("timestamp")
+        config.pop("status")
+        config.pop("user")
+        config.pop("bot")
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+                          'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *'},
+                          'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
+                          'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+
+    def test_delete_message_broadcast_event_server_failure(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
+
+        event = MessageBroadcastEvent(bot, user)
+        with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+            event.delete_schedule(msg_broadcast_id=setting_id)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+        config = MessageBroadcastProcessor.get_settings(setting_id, bot)
+        config.pop("_id")
+        config.pop("timestamp")
+        config.pop("status")
+        config.pop("user")
+        config.pop("bot")
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+                          'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *'},
+                          'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
+                          'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+
+    @responses.activate
+    def test_delete_message_broadcast_failure(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True"
+        responses.add(
+            "DELETE", url,
+            json={"message": "Failed to delete event!", "success": False, "error_code": 0, "data": None}
+        )
+
+        event = MessageBroadcastEvent(bot, user)
+        with pytest.raises(AppException, match=r"Failed to trigger message_broadcast event: *"):
+            event.delete_schedule(msg_broadcast_id=setting_id)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
+        config = MessageBroadcastProcessor.get_settings(setting_id, bot)
+        config.pop("_id")
+        config.pop("timestamp")
+        config.pop("status")
+        config.pop("user")
+        config.pop("bot")
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+                          'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *'},
+                          'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
+                          'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+
+    @responses.activate
+    def test_delete_message_broadcast(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True"
+        responses.add(
+            "DELETE", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+
+        event = MessageBroadcastEvent(bot, user)
+        event.delete_schedule(msg_broadcast_id=setting_id)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 1
+        with pytest.raises(AppException, match="Notification settings not found!"):
+            MessageBroadcastProcessor.get_settings(setting_id, bot)

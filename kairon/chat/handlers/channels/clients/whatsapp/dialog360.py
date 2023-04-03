@@ -1,5 +1,6 @@
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.on_premise import WhatsappOnPremise
+from kairon.shared.constants import WhatsappBSPTypes
 
 
 class BSP360Dialog(WhatsappOnPremise):
@@ -11,6 +12,10 @@ class BSP360Dialog(WhatsappOnPremise):
         self.api_version = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["api_version"]
         self.auth_header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
         self.app = f'{self.base_url}/{self.api_version}'
+
+    @property
+    def client_type(self):
+        return WhatsappBSPTypes.bsp_360dialog.value
 
     @property
     def auth_args(self):

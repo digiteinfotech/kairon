@@ -1969,7 +1969,7 @@ class TestMongoProcessor:
             responses.POST,
             "http://localhost/train",
             status=200,
-            match=[responses.json_params_matcher({"bot": "test_event", "user": "testUser", "token": None})],
+            match=[responses.matchers.json_params_matcher({"bot": "test_event", "user": "testUser", "token": None})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
         model_path = start_training("test_event", "testUser")
@@ -1982,7 +1982,7 @@ class TestMongoProcessor:
             responses.POST,
             "http://localhost/train",
             status=200,
-            match=[responses.json_params_matcher({"bot": "test_event_with_token", "user": "testUser", "token": token})],
+            match=[responses.matchers.json_params_matcher({"bot": "test_event_with_token", "user": "testUser", "token": token})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
         model_path = start_training("test_event_with_token", "testUser", token)
@@ -7128,15 +7128,14 @@ class TestMongoProcessor:
             RazorpayAction.objects(name='razorpay_action', status=True, bot=bot).get()
 
     @responses.activate
-    def test_push_notifications_enabled_message_type_event(self):
+    def test_push_notifications_enabled_message_type_event(self, monkeypatch):
         Utility.environment['notifications']['enable'] = True
         bot = "test"
         user = 'test'
         url = "http://localhost/events"
-        Utility.environment['notifications']['server_endpoint'] = url
-
+        monkeypatch.setitem(Utility.environment['notifications'], 'server_endpoint', url)
         responses.add(
-            'POST'
+            'POST',
             f'{url}/test',
             json={'message': 'Event in progress'}
         )

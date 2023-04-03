@@ -40,7 +40,7 @@ class TestBusinessServiceProvider:
         }
         responses.add("POST", json=api_resp, url=url,
                       match=[
-                          responses.json_params_matcher({"username": partner_username, "password": partner_password})])
+                          responses.matchers.json_params_matcher({"username": partner_username, "password": partner_password})])
         actual = BSP360Dialog.get_partner_auth_token()
         assert actual == api_resp.get("token_type") + " " + api_resp.get("access_token")
 
