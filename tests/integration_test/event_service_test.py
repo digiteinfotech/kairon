@@ -7,13 +7,11 @@ from mock import patch
 
 from kairon.shared.constants import EventClass, EventExecutor
 from kairon.shared.utils import Utility
-from mongoengine import connect
 import json
 import os
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
-connect(**Utility.mongoengine_connection())
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 with patch("pymongo.collection.Collection.create_index"):
@@ -226,6 +224,16 @@ class TestEventServer(AsyncHTTPTestCase):
                                          "error_code": 422,
                                          "message": "Scheduling is not allowed for 'model_training' event"})
 
+    def test_scheduled_event_request_parameters_missing(self):
+        request_body = json.dumps({"bot": "test", "user": "test_user"}).encode('utf-8')
+        response = self.fetch(f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True", method="POST",
+                              body=request_body)
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {"data": None, "success": False,
+                                         "error_code": 422,
+                                         "message": f'Missing {"event_id", "bot", "user", "cron_exp"} all or any from request body!'})
+
     @patch('kairon.events.scheduler.kscheduler.KScheduler.update_job', autospec=True)
     def test_update_scheduled_event_request(self, mock_update_job):
         request_body = json.dumps(
@@ -248,6 +256,16 @@ class TestEventServer(AsyncHTTPTestCase):
         self.assertEqual(response_json, {"data": None, "success": False,
                                          "error_code": 422,
                                          "message": "Scheduling is not allowed for 'model_testing' event"})
+
+    def test_update_scheduled_event_request_missing_parameters(self):
+        request_body = json.dumps({"bot": "test", "user": "test_user"}).encode('utf-8')
+        response = self.fetch(f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True", method="PUT",
+                              body=request_body)
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {"data": None, "success": False,
+                                         "error_code": 422,
+                                         "message": f'Missing {"event_id", "bot", "user", "cron_exp"} all or any from request body!'})
 
     def test_update_non_scheduled_event_request(self):
         request_body = json.dumps(

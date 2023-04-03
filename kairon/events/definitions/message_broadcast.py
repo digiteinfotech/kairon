@@ -162,14 +162,15 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         return recipients
 
     def __get_template_parameters(self, template_config: Dict, data: Any, reference_id: Text):
+        eval_log = None
         template_params = template_config.get("data")
         if template_params:
             if template_config["template_type"] == "dynamic":
-                template_params = ActionUtility.evaluate_script(template_params, data)
+                template_params, eval_log = ActionUtility.evaluate_script(template_params, data)
             template_params = ast.literal_eval(template_params)
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, reference_id, template_params=template_params,
-            status=EVENT_STATUS.EVALUATE_TEMPLATE.value
+            status=EVENT_STATUS.EVALUATE_TEMPLATE.value, evaluation_log=eval_log
         )
         return template_params
 
@@ -184,7 +185,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         except DoesNotExist as e:
             logger.exception(e)
             raise AppException(f"{channel} channel config not found!")
-    
+
     def __broadcast(self, recipients: List, config: Dict, data: Any, reference_id: Text):
         channel_client = self.__get_client(config['connector_type'])
 

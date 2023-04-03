@@ -611,6 +611,35 @@ class TestEventDefinitions:
 
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 1
 
+    def test_add_message_broadcast_one_time_event_failure(self):
+        bot = "test_add_schedule_event"
+        user = "test_user"
+        config = {
+            "name": "first_scheduler",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "918958030541, "
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                }
+            ]
+        }
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+        with patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings") as mock_get_bot_settings:
+            mock_get_bot_settings.return_value = {"notification_scheduling_limit": 2}
+            with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
+                with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+                    event.enqueue(EventRequestType.trigger_async.value, config=config)
+
+        assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 1
+
     @responses.activate
     def test_add_message_broadcast_one_time(self):
         bot = "test_add_schedule_event"

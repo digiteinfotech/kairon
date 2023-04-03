@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Text, Callable, Tuple
+from typing import Text
 
 
 class EventSchedulerBase(ABC):
