@@ -10,7 +10,7 @@ class EventsBase:
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def enqueue(self):
+    def enqueue(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
