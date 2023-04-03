@@ -9,11 +9,11 @@ class EventSchedulerBase(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def add_job(self, event_id: Text, cron_exp: Text, func: Callable, args: Tuple):
+    def add_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def update_job(self, event_id: Text, cron_exp: Text, func: Callable, args: Tuple):
+    def update_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod

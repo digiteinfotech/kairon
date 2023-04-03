@@ -28,7 +28,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         """
         Initialise event.
         """
-        super(ScheduledEventsBase, self).__init__()
+        super(MessageBroadcastEvent, self).__init__()
         self.bot = bot
         self.user = user
 
@@ -182,6 +182,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             channel_client = channel_client(access_token, config=channel_config)
             return channel_client
         except DoesNotExist as e:
+            logger.exception(e)
             raise AppException(f"{channel} channel config not found!")
     
     def __broadcast(self, recipients: List, config: Dict, data: Any, reference_id: Text):

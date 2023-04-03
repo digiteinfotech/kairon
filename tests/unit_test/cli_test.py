@@ -8,12 +8,14 @@ from kairon.cli.conversations_deletion import initiate_history_deletion_archival
 from kairon.cli.data_generator import generate_training_data
 from kairon.cli.delete_logs import delete_logs
 from kairon.cli.importer import validate_and_import
+from kairon.cli.message_broadcast import send_notifications
 from kairon.cli.training import train
 from kairon.cli.testing import run_tests_on_model
 from kairon.cli.translator import translate_multilingual_bot
 from kairon.events.definitions.data_generator import DataGenerationEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
+from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.shared.utils import Utility
@@ -355,4 +357,44 @@ class TestDeleteLogsCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(func=delete_logs))
     def test_delete_logs(self, mock_args):
+        cli()
+
+
+class TestMessageBroadcastCli:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=send_notifications))
+    def test_message_broadcast_no_arguments(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'bot'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=send_notifications, bot="test_cli"))
+    def test_message_broadcast_no_user(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'user'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=send_notifications, bot="test_cli", user="testUser"))
+    def test_message_broadcast_no_event_id(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e).__contains__("'Namespace' object has no attribute 'event_id'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=send_notifications, bot="test_cli", user="testUser",
+                                                event_id="65432123456789876543"))
+    def test_message_broadcast_all_arguments(self, monkeypatch):
+        def mock_translator(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(MessageBroadcastEvent, "execute", mock_translator)
         cli()

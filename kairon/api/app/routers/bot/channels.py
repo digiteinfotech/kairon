@@ -5,7 +5,7 @@ from kairon import Utility
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
-    Response, DictData,
+    Response,
 )
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
 from kairon.shared.chat.models import ChannelRequest, MessageBroadcastRequest
@@ -164,7 +164,7 @@ async def delete_scheduled_message_broadcast(
 
 
 @router.get("/broadcast/message/logs", response_model=Response)
-async def retrieve_scheduled_message_broadcast(
+async def retrieve_scheduled_message_broadcast_logs(
         request: Request,
         start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)

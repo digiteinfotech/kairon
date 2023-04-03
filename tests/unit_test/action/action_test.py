@@ -3047,7 +3047,7 @@ class TestActions:
         assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
                                 'website_data_generator_depth_search_limit': 2, 'enable_gpt_llm_faq': False,
                                 'chat_token_expiry': 30, 'refresh_token_expiry': 60, 'whatsapp': 'meta',
-                                'bot': 'test_bot', 'status': True}
+                                'bot': 'test_bot', 'status': True, 'notification_scheduling_limit': 4}
 
     def test_get_faq_action_config(self):
         bot = "test_bot"
