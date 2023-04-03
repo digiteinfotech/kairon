@@ -541,6 +541,294 @@ class TestEventDefinitions:
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 0
 
+    @responses.activate
+    def test_delete_history_enqueue(self):
+        till_date = datetime.utcnow().date()
+        bot = 'test_definitions'
+        user = 'test_user'
+        url = f"http://localhost:5001/api/events/execute/{EventClass.delete_history}"
+        responses.add(
+            "POST", url,
+            match=[responses.matchers.json_params_matcher(
+                {"bot": bot, "user": user, "till_date": str(till_date), "sender_id": "udit.pandey@digite.com"})],
+            json={"message": "Success", "success": True, "error_code": 0, "data": {
+                'StatusCode': 200,
+                'FunctionError': None,
+                'LogResult': 'Success',
+                'ExecutedVersion': 'v1.0'
+            }}
+        )
+        DeleteHistoryEvent(bot, user, till_date=till_date, sender_id='udit.pandey@digite.com').enqueue()
+        logs = list(HistoryDeletionLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
+
+    def test_delete_history_presteps_already_in_progress(self):
+        bot = 'test_definitions'
+        user = 'test_user'
+
+        with pytest.raises(AppException, match="Event already in progress! Check logs."):
+            DeleteHistoryEvent(bot, user).validate()
+        logs = list(HistoryDeletionLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
+
+    @mock.patch('kairon.history.processor.MongoClient', autospec=True)
+    def test_delete_history_execute(self, mock_mongo):
+        import time
+
+        bot = 'test_definitions'
+        user = 'test_user'
+        mongo_client = mongomock.MongoClient("mongodb://test/conversations")
+        db = mongo_client.get_database("conversation")
+        collection = db.get_collection(bot)
+        items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
+        for item in items:
+            item['event']['timestamp'] = time.time()
+        collection.insert_many(items)
+        mock_mongo.return_value = mongo_client
+
+        DeleteHistoryEvent(bot, user).execute()
+        logs = list(HistoryDeletionLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        assert logs[0]['status'] == EVENT_STATUS.COMPLETED.value
+
+    @responses.activate
+    def test_delete_history_enqueue_event_server_failure(self):
+        bot = 'test_definitions'
+        user = 'test_user'
+        url = f"http://localhost:5001/api/events/execute/{EventClass.delete_history}?is_scheduled=False"
+        responses.add(
+            "POST", url,
+            json={"message": "Failed", "success": False, "error_code": 400, "data": None}
+        )
+        with pytest.raises(AppException, match='Failed to trigger delete_history event: Failed'):
+            DeleteHistoryEvent(bot, user).enqueue()
+        body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
+        body = json.loads(body.decode())
+        assert body['bot'] == bot
+        assert body['user'] == user
+        assert body['till_date']
+        assert body['sender_id'] == ""
+        logs = list(HistoryDeletionLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+
+    def test_delete_history_enqueue_connection_failure(self):
+        bot = 'test_definitions'
+        user = 'test_user'
+
+        DeleteHistoryEvent(bot, user).validate()
+        logs = list(HistoryDeletionLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+
+        with pytest.raises(AppException, match='Failed to execute the url:*'):
+            DeleteHistoryEvent(bot, user).enqueue()
+        logs = list(HistoryDeletionLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+
+    def test_trigger_multilingual_execute_presteps(self):
+        bot_name = 'test_events_bot'
+        user = 'test_user'
+        d_lang = "es"
+        translate_responses = False
+        translate_actions = True
+        bot_obj = AccountProcessor.add_bot(bot_name, 1, user)
+        pytest.multilingual_bot = bot_obj['_id'].__str__()
+        MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=translate_responses,
+                          translate_actions=translate_actions).validate()
+
+        logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
+        assert len(logs) == 0
+
+    def test_trigger_multilingual_source_and_dest_language_same(self):
+        bot_name = 'test_events_bot_en'
+        user = 'test_user'
+        d_lang = "en"
+        translate_responses = False
+        translate_actions = True
+        bot_obj = AccountProcessor.add_bot(bot_name, 1, user)
+        pytest.multilingual_bot = bot_obj['_id'].__str__()
+
+        with pytest.raises(AppException, match='Source and destination language cannot be the same.'):
+            MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=translate_responses,
+                              translate_actions=translate_actions).validate()
+
+        logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
+        assert len(logs) == 0
+
+    @responses.activate
+    def test_trigger_multilingual_translation_enqueue(self):
+        user = 'test_user'
+        d_lang = "es"
+        event_url = urljoin(Utility.environment['events']['server_url'],
+                            f"/api/events/execute/{EventClass.multilingual}")
+        responses.add("POST",
+                      event_url,
+                      json={"message": "Event triggered successfully!", "success": True},
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang': d_lang,
+                               'translate_responses': '', 'translate_actions': '--translate-actions'})]
+                      )
+        MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=False,
+                          translate_actions=True).enqueue()
+
+        logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
+        assert len(logs) == 1
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0].get('end_timestamp')
+        assert not logs[0].get('status')
+        assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
+
+    def test_trigger_multilingual_in_progress(self):
+        user = 'test_user'
+        d_lang = "es"
+        translate_responses = False
+        translate_actions = True
+        with pytest.raises(AppException, match="Event already in progress! Check logs."):
+            MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=translate_responses,
+                              translate_actions=translate_actions).validate()
+        logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
+        assert len(logs) == 1
+
+    def test_trigger_multilingual_translation(self, monkeypatch):
+        user = 'test_user'
+        d_lang = "es"
+        translate_responses = False
+        translate_actions = True
+
+        def _mock_create_multilingual_bot(*args, **kwargs):
+            return 'translated_test_events_bot'
+
+        monkeypatch.setattr(MultilingualTranslator, "create_multilingual_bot", _mock_create_multilingual_bot)
+        MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=translate_responses,
+                          translate_actions=translate_actions).execute()
+        logs = list(MultilingualLogProcessor.get_logs(pytest.multilingual_bot))
+        assert len(logs) == 1
+        assert logs[0]['destination_bot'] == 'translated_test_events_bot'
+        assert logs[0]['d_lang'] == d_lang
+        assert logs[0]['translate_responses'] == translate_responses
+        assert logs[0]['translate_actions'] == translate_actions
+        assert logs[0]['copy_type'] == 'Translation'
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert not logs[0].get('exception')
+        assert logs[0].get('status') == 'Success'
+        assert logs[0].get('event_status') == EVENT_STATUS.COMPLETED.value
+
+    def test_trigger_multilingual_translation_event_connection_error(self, monkeypatch):
+        bot = 'test_events_bot'
+        user = 'test_user'
+        d_lang = "es"
+        with pytest.raises(AppException, match='Failed to execute the url: *'):
+            MultilingualEvent(bot, user, dest_lang=d_lang, translate_responses=True, translate_actions=True).enqueue()
+        logs = list(MultilingualLogProcessor.get_logs(bot))
+        assert len(logs) == 0
+
+    def test_trigger_website_data_generation_execute_presteps(self):
+        bot = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TrainingDataSourceType.website
+        DataGenerationEvent(bot, user, website_url=website_url).validate()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 0
+
+    def test_trigger_website_data_generation_invalid_depth(self):
+        bot = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TrainingDataSourceType.website
+        with pytest.raises(AppException, match="depth should be between 0 and 2"):
+            DataGenerationEvent(bot, user, website_url=website_url, depth=3).validate()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 0
+
+    @responses.activate
+    def test_trigger_website_data_generation_enqueue(self):
+        bot = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TrainingDataSourceType.website
+        event_url = urljoin(Utility.environment['events']['server_url'],
+                            f"/api/events/execute/{EventClass.data_generator}")
+        responses.add("POST",
+                      event_url,
+                      json={"message": "Event triggered successfully!", "success": True},
+                      status=200,
+                      match=[
+                          responses.json_params_matcher(
+                              {'bot': bot, 'user': user, 'type': '--from-website', 'website_url': website_url,
+                               'depth': 0})]
+                      )
+        DataGenerationEvent(bot, user, website_url=website_url).enqueue()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 1
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert not logs[0].get('end_timestamp')
+        assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
+
+    def test_trigger_website_data_generation_in_progress(self):
+        bot = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TrainingDataSourceType.website
+        with pytest.raises(AppException, match="Event already in progress! Check logs."):
+            DataGenerationEvent(bot, user, website_url=website_url).validate()
+
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 1
+
+    def test_trigger_website_data_generation(self):
+        bot = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TrainingDataSourceType.website
+        DataGenerationEvent(bot, user, website_url=website_url).execute()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 1
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('document_path') == website_url
+        assert logs[0].get('source_type') == source_type
+        assert logs[0].get('status') == EVENT_STATUS.COMPLETED.value
+        assert list(logs[0].get('response')[0].keys()) == ['intent', 'training_examples', 'response']
+
+    def test_trigger_website_data_generation_no_data_found(self, monkeypatch):
+        bot = 'test_data_generation_bot'
+        user = 'test_user'
+        website_url = 'https://www.digite.com/swiftkanban/features/scrumban/'
+        source_type = TrainingDataSourceType.website
+
+        def _mock_get_qna(*args, **kwargs):
+            return {}, {}
+
+        monkeypatch.setattr(WebsiteParser, "get_qna", _mock_get_qna)
+        DataGenerationEvent(bot, user, website_url=website_url).execute()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 2
+        assert logs[0]['start_timestamp']
+        assert logs[0].get('end_timestamp')
+        assert logs[0].get('document_path') == website_url
+        assert logs[0].get('source_type') == source_type
+        assert logs[0].get('status') == EVENT_STATUS.FAIL.value
+        assert logs[0].get('exception') == "No data could be scraped!"
+
+    @responses.activate
+    def test_trigger_website_data_generation_event_connection_error(self):
+        bot = 'test_data_generation_bot_1'
+        user = 'test_user'
+        website_url = '/test/website.com'
+        source_type = TrainingDataSourceType.website
+        with pytest.raises(AppException, match='Failed to execute the url: *'):
+            DataGenerationEvent(bot, user, website_url=website_url).enqueue()
+        logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
+        assert len(logs) == 0
+
     def test_add_message_broadcast_invalid_config(self):
         bot = "test_achedule"
         user = "test_user"

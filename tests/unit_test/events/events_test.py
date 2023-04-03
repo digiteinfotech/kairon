@@ -337,7 +337,7 @@ class TestEventExecution:
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
-                          responses.json_params_matcher(
+                          responses.matchers.json_params_matcher(
                               {'bot': bot, 'user': user, 'import_data': '--import-data', 'event_type': EventClass.data_importer, 'overwrite': ''})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=True)
@@ -370,7 +370,7 @@ class TestEventExecution:
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
-                          responses.json_params_matcher(
+                          responses.matchers.json_params_matcher(
                               {'bot': bot, 'user': user, 'import_data': '--import-data', 'event_type': EventClass.data_importer, 'overwrite': '--overwrite'})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True)
@@ -403,7 +403,7 @@ class TestEventExecution:
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
-                          responses.json_params_matcher(
+                          responses.matchers.json_params_matcher(
                               {'bot': bot, 'user': user, 'import_data': '', 'event_type': EventClass.data_importer, 'overwrite': ''})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=False, overwrite=False)
@@ -1027,7 +1027,7 @@ class TestEventExecution:
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
-                          responses.json_params_matcher(
+                          responses.matchers.json_params_matcher(
                               {'bot': bot, 'user': user, 'augment_data': '--augment'})],
                       )
         ModelTestingEvent(bot, user).enqueue()
@@ -1053,7 +1053,7 @@ class TestEventExecution:
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
-                          responses.json_params_matcher(
+                          responses.matchers.json_params_matcher(
                               {'bot': bot, 'user': user, 'augment_data': ''})],
                       )
         ModelTestingEvent(bot, user, augment_data=False).enqueue()
@@ -1082,7 +1082,7 @@ class TestEventExecution:
                       json={"success": True, "message": "Event triggered successfully!"},
                       status=200,
                       match=[
-                          responses.json_params_matcher(
+                          responses.matchers.json_params_matcher(
                               {'bot': bot, 'user': user, 'till_date': Utility.convert_date_to_string(till_date),
                                'sender_id': sender_id})],
                       )

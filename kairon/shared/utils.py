@@ -1523,16 +1523,10 @@ class Utility:
         """
         event_server_url = Utility.get_event_server_url()
         logger.debug(payload)
-        if method in {"GET", "DELETE"}:
-            resp = Utility.execute_http_request(
-                method, urljoin(event_server_url, f'/api/events/execute/{event_class}?is_scheduled={is_scheduled}'),
-                payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
-            )
-        else:
-            resp = Utility.execute_http_request(
-                method, urljoin(event_server_url, f'/api/events/execute/{event_class}?is_scheduled={is_scheduled}'),
-                payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
-            )
+        resp = Utility.execute_http_request(
+            method, urljoin(event_server_url, f'/api/events/execute/{event_class}?is_scheduled={is_scheduled}'),
+            payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
+        )
         if not resp['success']:
             raise AppException(f"Failed to trigger {event_class} event: {resp.get('message', '')}")
 

@@ -85,7 +85,7 @@ class TestActionServer(AsyncHTTPTestCase):
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
+            match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
                                                   "name": "udit", "contact": None})],
         )
 
@@ -182,7 +182,7 @@ class TestActionServer(AsyncHTTPTestCase):
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.urlencoded_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+            match=[responses.matchers.urlencoded_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
         )
 
         request_object = {
@@ -280,7 +280,7 @@ class TestActionServer(AsyncHTTPTestCase):
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+            match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
         )
         responses.add(
             method=responses.POST,
@@ -288,7 +288,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -298,7 +298,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "${a.b.d}",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -308,7 +308,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": "red"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "${a.b.d.0}",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -394,7 +394,7 @@ class TestActionServer(AsyncHTTPTestCase):
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+            match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
         )
         responses.add(
             method=responses.POST,
@@ -402,7 +402,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -412,7 +412,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": False, "data": None},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "${e}",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -498,7 +498,7 @@ class TestActionServer(AsyncHTTPTestCase):
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+            match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
         )
         responses.add(
             method=responses.POST,
@@ -506,7 +506,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -516,7 +516,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": False, "data": None},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "${e}",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -602,7 +602,7 @@ class TestActionServer(AsyncHTTPTestCase):
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+            match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
         )
         responses.add(
             method=responses.POST,
@@ -610,7 +610,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": False, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -620,7 +620,7 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": False, "data": None},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': "${e}",
                      'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
@@ -3542,7 +3542,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "POST",
             "https://api.razorpay.com/v1/payment_links/",
             json=response_object,
-            match=[responses.json_params_matcher({
+            match=[responses.matchers.json_params_matcher({
                 "amount": 11000, "currency": "INR",
                 "customer": {"username": "udit.pandey", "email": "udit.pandey", "contact": "987654320"}
             })]
@@ -3829,7 +3829,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "POST",
             f"https://api.hsforms.com/submissions/v3/integration/submit/{portal_id}/{form_guid}",
             json={'inlineMessage': 'Thankyou for the submission'},
-            match=[responses.json_params_matcher({"fields": [{"name": "email", "value": "pandey.udit867@gmail.com"},
+            match=[responses.matchers.json_params_matcher({"fields": [{"name": "email", "value": "pandey.udit867@gmail.com"},
                                                              {"name": "firstname", "value": "udit pandey"}]})]
         )
         responses.start()
@@ -4648,7 +4648,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "POST",
             Utility.environment["plugins"]["gpt"]["url"],
             status=200, json=gpt_response,
-            match=[responses.json_params_matcher(
+            match=[responses.matchers.json_params_matcher(
                 {'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7,
                  'max_tokens': 152})],
         )
@@ -4794,7 +4794,7 @@ class TestActionServer(AsyncHTTPTestCase):
             Utility.environment["plugins"]["gpt"]["url"],
             status=400,
             json=gpt_response,
-            match=[responses.json_params_matcher({'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7, 'max_tokens': 152})],
+            match=[responses.matchers.json_params_matcher({'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7, 'max_tokens': 152})],
         )
 
         responses.start()

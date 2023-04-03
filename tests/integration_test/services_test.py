@@ -504,7 +504,7 @@ def test_augment_questions():
     responses.add(
         responses.POST,
         url="http://localhost:8000/questions",
-        match=[responses.json_params_matcher({"data": "TESTING TEXTDATA"})],
+        match=[responses.matchers.json_params_matcher({"data": "TESTING TEXTDATA"})],
         json={
             "success": True,
             "data": {
@@ -1456,7 +1456,7 @@ def test_upload_using_event_append(monkeypatch):
         json={"success": True},
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '', 'event_type': EventClass.data_importer})],
     )
 
@@ -3654,7 +3654,7 @@ def test_augment_paraphrase_gpt():
     responses.add(
         responses.POST,
         url="http://localhost:8000/paraphrases/gpt",
-        match=[responses.json_params_matcher(
+        match=[responses.matchers.json_params_matcher(
             {"api_key": "MockKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75,
              "max_tokens": 100, "num_responses": 10})],
         json={
@@ -3718,7 +3718,7 @@ def test_augment_paraphrase_gpt_fail():
     responses.add(
         responses.POST,
         url="http://localhost:8000/paraphrases/gpt",
-        match=[responses.json_params_matcher(
+        match=[responses.matchers.json_params_matcher(
             {"api_key": "InvalidKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75,
              "max_tokens": 100, "num_responses": 10})],
         json={
@@ -3764,7 +3764,7 @@ def test_augment_paraphrase():
             "error_code": 0,
         },
         status=200,
-        match=[responses.json_params_matcher(["where is digite located?"])]
+        match=[responses.matchers.json_params_matcher(["where is digite located?"])]
     )
     response = client.post(
         "/api/augment/paraphrases",
@@ -7357,7 +7357,7 @@ def test_chat(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": {'response': [{'bot': 'Hi'}]}, 'message': None}
     )
@@ -7379,7 +7379,7 @@ def test_chat_user(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": {'response': [{'bot': 'Hi'}]}, 'message': None}
     )
@@ -7401,7 +7401,7 @@ def test_chat_augment_user(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": {'response': [{'bot': 'Hi'}]}, 'message': None}
     )
@@ -7567,7 +7567,7 @@ def test_get_client_config_using_uid(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
     )
@@ -7611,7 +7611,7 @@ def test_get_client_config_refresh(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
     )
@@ -13112,7 +13112,7 @@ def test_multilingual_translate():
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
                   'translate_responses': "", 'translate_actions': ""})],
     )
@@ -13203,7 +13203,7 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         status=200,
         json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
                   'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'})],
     )
@@ -13282,7 +13282,7 @@ def test_data_generation_from_website(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher({
+            responses.matchers.json_params_matcher({
                 'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
                 'website_url': 'website.com', 'depth': 1
             })],
@@ -13362,7 +13362,7 @@ def test_data_generation_in_progress(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher({
+            responses.matchers.json_params_matcher({
                 'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
                 'website_url': 'website.com', 'depth': 0
             })],

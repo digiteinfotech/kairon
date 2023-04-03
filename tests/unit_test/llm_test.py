@@ -81,7 +81,7 @@ class TestLLM:
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
                 method="PUT",
                 adding_headers={},
-                match=[responses.json_params_matcher({'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
+                match=[responses.matchers.json_params_matcher({'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
                 status=200
             )
 
@@ -89,7 +89,7 @@ class TestLLM:
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
                 method="PUT",
                 adding_headers={},
-                match=[responses.json_params_matcher({'points': [{'id': test_content.vector_id,
+                match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                   'vector': embedding,
                                                                   'payload': {'content': test_content.data}
                                                                   }]})],
@@ -135,7 +135,7 @@ class TestLLM:
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
                 method="PUT",
                 adding_headers={},
-                match=[responses.json_params_matcher({'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
+                match=[responses.matchers.json_params_matcher({'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
                 status=200
             )
 
@@ -143,7 +143,7 @@ class TestLLM:
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
                 method="PUT",
                 adding_headers={},
-                match=[responses.json_params_matcher({'points': [{'id': test_content.vector_id,
+                match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                   'vector': embedding,
                                                                   'payload': {'content': test_content.data}
                                                                   }]})],
@@ -190,7 +190,7 @@ class TestLLM:
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
                 method="POST",
                 adding_headers={},
-                match=[responses.json_params_matcher(
+                match=[responses.matchers.json_params_matcher(
                     {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
                 json={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
@@ -245,7 +245,7 @@ class TestLLM:
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
                 method="POST",
                 adding_headers={},
-                match=[responses.json_params_matcher(
+                match=[responses.matchers.json_params_matcher(
                     {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
                 json={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
@@ -301,7 +301,7 @@ class TestLLM:
             url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
             method="POST",
             adding_headers={},
-            match=[responses.json_params_matcher(
+            match=[responses.matchers.json_params_matcher(
                 {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
             json={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
@@ -368,7 +368,7 @@ class TestLLM:
             url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
             method="POST",
             adding_headers={},
-            match=[responses.json_params_matcher(
+            match=[responses.matchers.json_params_matcher(
                 {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
             json={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}

@@ -175,5 +175,3 @@ llm:
 vector:
   db: ${VECTOR_DB:http://localhost:6333}
   key: ${VECTOR_DB_KEY}
-
-hello: "hey"
