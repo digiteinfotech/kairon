@@ -1963,7 +1963,7 @@ class MailUtility:
         ip = request.headers.get('X-Forwarded-For')
         geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
         data.update(geo_location)
-        user_details = "Hi,\nFollowing demo has been requested for Kairon:\n"
+        user_details = f"Hi,\nFollowing demo has been requested for Kairon:\n"
         body = Utility.email_conf['email']['templates']['custom_text_mail']
         for key, value in data.items():
             user_details = f"{user_details}<li>{key}: {value}</li>"
