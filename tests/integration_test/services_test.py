@@ -8,6 +8,7 @@ from io import BytesIO
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
+import mock
 import pytest
 import responses
 from botocore.exceptions import ClientError
@@ -46,7 +47,7 @@ from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.multilingual.utils.translator import Translator
 import json
 from unittest.mock import patch
@@ -126,6 +127,82 @@ def test_api_wrong_login():
     assert value[0]["metric_type"] == "invalid_login"
     assert value[0]["timestamp"]
     assert len(value) == 1
+
+
+@mock.patch("kairon.shared.utils.Utility.validate_recaptcha", autospec=True)
+@mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
+def test_book_a_demo(trigger_smtp_mock, validate_recaptcha_mock, monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+    data = {
+        "first_name": "sample",
+        "last_name": 'test',
+        "email": "sampletest@gmail.com",
+        "contact": "9876543210",
+        "additional_info": "Thank You"
+    }
+    form_data = {"data": data, "recaptcha_response": "1234567890"}
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/auth/demo",
+            json=form_data
+        ).json()
+    assert response['message'] == 'Thank You for your interest in Kairon. We will reach out to you soon.'
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+@mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
+def test_book_a_demo_with_invalid_recaptcha_response(trigger_smtp_mock, monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+    data = {
+        "first_name": "sample",
+        "last_name": 'test',
+        "email": "sampletest@gmail.com",
+        "contact": "9876543210",
+        "additional_info": "Thank You"
+    }
+    form_data = {"data": data, "recaptcha_response": ""}
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/auth/demo",
+            json=form_data
+        ).json()
+    assert response['message'] == 'recaptcha_response is required'
+    assert not response['data']
+    assert response['error_code'] == 422
+    assert not response['success']
+
+
+@mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
+def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock, monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+    data = {
+        "first_name": "sample",
+        "last_name": 'test',
+        "email": "sampletest@gmail.com",
+        "contact": "9876543210",
+        "additional_info": "Thank You"
+    }
+    form_data = {"data": data, "recaptcha_response": "1234567890"}
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/auth/demo",
+            json=form_data
+        ).json()
+    assert response['message'] == 'Failed to validate recaptcha'
+    assert not response['data']
+    assert response['error_code'] == 422
+    assert not response['success']
 
 
 def test_account_registration_error():
@@ -693,7 +770,7 @@ def test_add_trusted_device_on_signup_error(monkeypatch):
 
 def test_add_trusted_device_disabled(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     response = client.post(
         "/api/account/device/trusted",
         json={"data": "0987654321234567890"},
@@ -709,7 +786,7 @@ def test_add_trusted_device(monkeypatch):
     monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
     monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
 
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
         mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
@@ -4362,7 +4439,7 @@ def test_api_login_with_account_not_verified():
 
 
 def test_account_registration_with_confirmation(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/account/registration",
@@ -4437,7 +4514,7 @@ def test_invalid_token_for_confirmation():
 
 
 def test_add_member(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
 
     response = client.post(
@@ -4521,7 +4598,7 @@ def test_accept_bot_invite(monkeypatch):
         return {"mail_id" : "integration@demo.ai"}
 
     monkeypatch.setattr(Utility, 'verify_token', __mock_verify_token)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     monkeypatch.setattr(AccountProcessor, 'get_user_details', mock_smtp)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
     response = client.post(
@@ -4604,7 +4681,7 @@ def test_list_members():
 
 def test_transfer_ownership(monkeypatch):
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/owner/change",
         json={"data": "integration@demo.ai"},
@@ -4700,7 +4777,7 @@ def test_update_member_role(monkeypatch):
     assert actual["message"] == "Account Registered!"
 
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/member",
         json={"email": "integration_email_false@demo.ai", "role": "admin", "status": "inactive"},
@@ -5002,7 +5079,7 @@ def test_list_bots_for_different_user():
 
 
 def test_reset_password_for_valid_id(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/account/password/reset",
@@ -5055,7 +5132,7 @@ def test_list_bots_for_different_user_2():
 
 
 def test_send_link_for_valid_id(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.post("/api/account/email/confirmation/link",
                            json={
@@ -9883,7 +9960,7 @@ def test_trigger_mail_on_new_signup_with_sso(monkeypatch):
         return False, {'email': 'new_user@digite.com', 'first_name': 'new', 'password': SecretStr('123456789')}, token
 
     monkeypatch.setattr(Authentication, 'verify_and_process', __mock_verify_and_process)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.get(
         url=f"/api/auth/login/sso/callback/google?code=123456789", allow_redirects=False
@@ -13844,7 +13921,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
         return token
 
     monkeypatch.setattr(Authentication, "create_access_token", get_token)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     passwrd_change_response = client.post(
         "/api/account/password/change",
         json={
@@ -13875,7 +13952,7 @@ def test_create_access_token_with_iat():
 
 
 def test_overwrite_password_for_matching_passwords(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     response = client.post(
         "/api/account/password/change",
         json={
@@ -13939,7 +14016,7 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
         return token
 
     monkeypatch.setattr(Authentication, "create_access_token", get_token)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.environment['user']['reset_password_cooldown_period'] = 0
     passwrd_change_response = client.post(
         "/api/account/password/change",
@@ -13974,7 +14051,7 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
         return token
 
     monkeypatch.setattr(Authentication, "create_access_token", get_token)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     passwrd_change_response = client.post(
         "/api/account/password/change",
         json={

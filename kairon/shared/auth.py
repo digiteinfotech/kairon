@@ -21,7 +21,7 @@ from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import User
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.sso.factory import LoginSSOFactory
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.account.data_objects import UserActivityLog, UserActivityType
 
 Utility.load_environment()
@@ -408,6 +408,6 @@ class Authentication:
             trusted_fingerprints = AccountProcessor.list_trusted_device_fingerprints(user)
             if fingerprint not in trusted_fingerprints and Utility.email_conf["email"]["enable"]:
                 trust_device_url = AccountProcessor.add_trusted_device(user, fingerprint, True, **geo_location)
-                await Utility.format_and_send_mail(
+                await MailUtility.format_and_send_mail(
                     mail_type='untrusted_login', email=user, first_name=user, url=trust_device_url, **geo_location
                 )

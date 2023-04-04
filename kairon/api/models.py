@@ -502,6 +502,10 @@ class DictData(BaseModel):
     data: dict
 
 
+class RecaptchaVerifiedDictData(DictData):
+    recaptcha_response: str = None
+
+
 class RegexRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     pattern: str
