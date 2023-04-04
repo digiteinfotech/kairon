@@ -9,7 +9,7 @@ from kairon.shared.constants import OWNER_ACCESS
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.organization.processor import OrgProcessor
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
     user, mail, url = await AccountProcessor.account_setup(register_account.dict())
     AccountProcessor.get_location_and_add_trusted_device(user['email'], register_account.fingerprint, request, False)
     if Utility.email_conf["email"]["enable"]:
-        background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=user['first_name'], url=url)
+        background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='verification', email=mail, first_name=user['first_name'], url=url)
         return {"message": "Account Registered! A confirmation link has been sent to your mail"}
     else:
         return {"message": "Account Registered!"}
@@ -40,7 +40,7 @@ async def add_trusted_device(
     url, geo_location = AccountProcessor.get_location_and_add_trusted_device(current_user.email, fingerprint.data, request, raise_err=True)
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(
-            Utility.format_and_send_mail, mail_type='add_trusted_device', email=current_user.email,
+            MailUtility.format_and_send_mail, mail_type='add_trusted_device', email=current_user.email,
             first_name=current_user.first_name, url=url, **geo_location
         )
         return {"message": "A confirmation link has been sent to your registered mail address"}
@@ -93,7 +93,7 @@ async def verify(token: RecaptchaVerifiedTextData, background_tasks: BackgroundT
     Utility.validate_enable_sso_only()
     token_data = token.data
     mail, first_name = await AccountProcessor.confirm_email(token_data)
-    background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification_confirmation', email=mail, first_name=first_name)
+    background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='verification_confirmation', email=mail, first_name=first_name)
     return {"message": "Account Verified!"}
 
 
@@ -105,7 +105,7 @@ async def password_link_generate(mail: RecaptchaVerifiedTextData, background_tas
     Utility.validate_enable_sso_only()
     email = mail.data
     mail, first_name, url = await AccountProcessor.send_reset_link(email.strip())
-    background_tasks.add_task(Utility.format_and_send_mail, mail_type='password_reset', email=mail, first_name=first_name, url=url)
+    background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='password_reset', email=mail, first_name=first_name, url=url)
     return {"message": "Success! A password reset link has been sent to your mail id"}
 
 
@@ -116,7 +116,7 @@ async def password_change(data: Password, background_tasks: BackgroundTasks):
     """
     Utility.validate_enable_sso_only()
     mail, first_name = await AccountProcessor.overwrite_password(data.data, data.password.get_secret_value())
-    background_tasks.add_task(Utility.format_and_send_mail, mail_type='password_reset_confirmation', email=mail, first_name=first_name)
+    background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='password_reset_confirmation', email=mail, first_name=first_name)
     return {"message": "Success! Your password has been changed"}
 
 
@@ -128,7 +128,7 @@ async def send_confirm_link(email: RecaptchaVerifiedTextData, background_tasks: 
     Utility.validate_enable_sso_only()
     email = email.data
     mail, first_name, url = await AccountProcessor.send_confirmation_link(email)
-    background_tasks.add_task(Utility.format_and_send_mail, mail_type='verification', email=mail, first_name=first_name, url=url)
+    background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='verification', email=mail, first_name=first_name, url=url)
     return {"message": "Success! Confirmation link sent"}
 
 

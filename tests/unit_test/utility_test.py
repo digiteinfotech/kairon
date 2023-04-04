@@ -23,7 +23,7 @@ from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import TemplateType
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from unittest.mock import patch
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -558,16 +558,16 @@ class TestUtility:
             smtp_userid = None
             tls = False
 
-            await Utility.trigger_email([to_email],
-                                        subject,
-                                        body,
-                                        content_type=content_type,
-                                        smtp_url=smtp_url,
-                                        smtp_port=smtp_port,
-                                        sender_email=sender_email,
-                                        smtp_userid=smtp_userid,
-                                        smtp_password=smtp_password,
-                                        tls=tls)
+            await MailUtility.trigger_email([to_email],
+                                            subject,
+                                            body,
+                                            content_type=content_type,
+                                            smtp_url=smtp_url,
+                                            smtp_port=smtp_port,
+                                            sender_email=sender_email,
+                                            smtp_userid=smtp_userid,
+                                            smtp_password=smtp_password,
+                                            tls=tls)
 
             mbody = MIMEText(body, content_type)
             msg = MIMEMultipart('alternative')
@@ -615,16 +615,16 @@ class TestUtility:
             smtp_userid = None
             tls = True
 
-            await Utility.trigger_email([to_email],
-                                        subject,
-                                        body,
-                                        content_type=content_type,
-                                        smtp_url=smtp_url,
-                                        smtp_port=smtp_port,
-                                        sender_email=sender_email,
-                                        smtp_userid=smtp_userid,
-                                        smtp_password=smtp_password,
-                                        tls=tls)
+            await MailUtility.trigger_email([to_email],
+                                            subject,
+                                            body,
+                                            content_type=content_type,
+                                            smtp_url=smtp_url,
+                                            smtp_port=smtp_port,
+                                            sender_email=sender_email,
+                                            smtp_userid=smtp_userid,
+                                            smtp_password=smtp_password,
+                                            tls=tls)
 
             name, args, kwargs = mock.method_calls.pop(0)
             assert name == '().connect'
@@ -669,16 +669,16 @@ class TestUtility:
             smtp_userid = "test_user"
             tls = True
 
-            await Utility.trigger_email([to_email],
-                                        subject,
-                                        body,
-                                        content_type=content_type,
-                                        smtp_url=smtp_url,
-                                        smtp_port=smtp_port,
-                                        sender_email=sender_email,
-                                        smtp_userid=smtp_userid,
-                                        smtp_password=smtp_password,
-                                        tls=tls)
+            await MailUtility.trigger_email([to_email],
+                                            subject,
+                                            body,
+                                            content_type=content_type,
+                                            smtp_url=smtp_url,
+                                            smtp_port=smtp_port,
+                                            sender_email=sender_email,
+                                            smtp_userid=smtp_userid,
+                                            smtp_password=smtp_password,
+                                            tls=tls)
 
             name, args, kwargs = mock.method_calls.pop(0)
             assert name == '().connect'
@@ -730,7 +730,7 @@ class TestUtility:
             smtp_password = "changeit"
             smtp_port = 587
 
-            await Utility.trigger_smtp(to_email,
+            await MailUtility.trigger_smtp(to_email,
                                         subject,
                                         body,
                                         content_type=content_type)
