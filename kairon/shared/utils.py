@@ -54,7 +54,7 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes
+from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
 from .constants import EventClass
 from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK
@@ -628,189 +628,6 @@ class Utility:
             for cleanUp in glob(os.path.join(path, '*.tar.gz')):
                 if model != cleanUp:
                     shutil.move(cleanUp, new_path)
-
-    @staticmethod
-    async def format_and_send_mail(mail_type: str, email: str, first_name: str, url: str = None, **kwargs):
-        if mail_type == 'password_reset':
-            body = Utility.email_conf['email']['templates']['password_reset']
-            body = body.replace('FIRST_NAME', first_name.capitalize())
-            subject = Utility.email_conf['email']['templates']['password_reset_subject']
-        elif mail_type == 'password_reset_confirmation':
-            body = Utility.email_conf['email']['templates']['password_reset_confirmation']
-            subject = Utility.email_conf['email']['templates']['password_changed_subject']
-        elif mail_type == 'verification':
-            body = Utility.email_conf['email']['templates']['verification']
-            body = body.replace('FIRST_NAME', first_name.capitalize())
-            subject = Utility.email_conf['email']['templates']['confirmation_subject']
-        elif mail_type == 'verification_confirmation':
-            body = Utility.email_conf['email']['templates']['verification_confirmation']
-            body = body.replace('FIRST_NAME', first_name.capitalize())
-            subject = Utility.email_conf['email']['templates']['confirmed_subject']
-        elif mail_type == 'add_member':
-            body = Utility.email_conf['email']['templates']['add_member_invitation']
-            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
-            body = body.replace('BOT_OWNER_NAME', first_name.capitalize())
-            body = body.replace('ACCESS_TYPE', kwargs.get('role', ""))
-            body = body.replace('ACCESS_URL', url)
-            subject = Utility.email_conf['email']['templates']['add_member_subject']
-            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
-        elif mail_type == 'add_member_confirmation':
-            body = Utility.email_conf['email']['templates']['add_member_confirmation']
-            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
-            body = body.replace('ACCESS_TYPE', kwargs.get('role', ""))
-            body = body.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
-            body = body.replace('NAME', kwargs.get('member_confirm', "").capitalize())
-            subject = Utility.email_conf['email']['templates']['add_member_confirmation_subject']
-            subject = subject.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
-        elif mail_type == 'update_role_member_mail':
-            body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE',
-                                Utility.email_conf['email']['templates']['update_role_member_mail_body'])
-            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
-            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
-            body = body.replace('STATUS', kwargs.get('status', ""))
-            body = body.replace('MODIFIER_NAME', first_name.capitalize())
-            body = body.replace('NAME', kwargs.get('member_name', "").capitalize())
-            subject = Utility.email_conf['email']['templates']['update_role_subject']
-            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
-        elif mail_type == 'update_role_owner_mail':
-            body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE',
-                                Utility.email_conf['email']['templates']['update_role_owner_mail_body'])
-            body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
-            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
-            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
-            body = body.replace('STATUS', kwargs.get('status', ""))
-            body = body.replace('MODIFIER_NAME', first_name.capitalize())
-            body = body.replace('NAME', kwargs.get('owner_name', "").capitalize())
-            subject = Utility.email_conf['email']['templates']['update_role_subject']
-            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
-        elif mail_type == 'transfer_ownership_mail':
-            body = Utility.email_conf['email']['templates']['update_role']
-            body = body.replace('MAIL_BODY_HERE',
-                                Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])
-            body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
-            body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
-            body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
-            body = body.replace('MODIFIER_NAME', first_name.capitalize())
-            subject = Utility.email_conf['email']['templates']['update_role_subject']
-            subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
-        elif mail_type == 'password_generated':
-            body = Utility.email_conf['email']['templates']['password_generated']
-            body = body.replace('PASSWORD', kwargs.get('password', ""))
-            subject = Utility.email_conf['email']['templates']['password_generated_subject']
-        elif mail_type == 'untrusted_login':
-            geo_location = ""
-            reset_password_url = Utility.email_conf["app"]["url"] + "/reset_password"
-            body = Utility.email_conf['email']['templates']['untrusted_login']
-            for key, value in kwargs.items():
-                geo_location = f"{geo_location}<li>{key}: {value}</li>"
-            body = body.replace('GEO_LOCATION', geo_location)
-            body = body.replace('TRUST_DEVICE_URL', url)
-            body = body.replace('RESET_PASSWORD_URL', reset_password_url)
-            subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
-        elif mail_type == 'add_trusted_device':
-            geo_location = ""
-            body = Utility.email_conf['email']['templates']['add_trusted_device']
-            for key, value in kwargs.items():
-                geo_location = f"{geo_location}<li>{key}: {value}</li>"
-            body = body.replace('GEO_LOCATION', geo_location)
-            subject = Utility.email_conf['email']['templates']['add_trusted_device']
-        else:
-            logger.debug('Skipping sending mail as no template found for the mail type')
-            return
-        body = body.replace('FIRST_NAME', first_name)
-        body = body.replace('USER_EMAIL', email)
-        if url:
-            body = body.replace('VERIFICATION_LINK', url)
-        await Utility.validate_and_send_mail(email, subject, body)
-
-    @staticmethod
-    async def validate_and_send_mail(email: str, subject: str, body: str):
-        """
-        Used to validate the parameters of the mail to be sent
-
-        :param email: email id of the recipient
-        :param subject: subject of the mail
-        :param body: body or message of the mail
-        :return: None
-        """
-        if isinstance(mail_check(email), ValidationFailure):
-            raise AppException("Please check if email is valid")
-
-        if (
-                Utility.check_empty_string(subject)
-                or Utility.check_empty_string(body)
-        ):
-            raise ValidationError(
-                "Subject and body of the mail cannot be empty or blank space"
-            )
-        await Utility.trigger_smtp(email, subject, body)
-
-    @staticmethod
-    async def trigger_smtp(email: str, subject: str, body: str, content_type='html'):
-        """
-        Sends an email to the mail id of the recipient
-
-        :param email: the mail id of the recipient
-        :param subject: the subject of the mail
-        :param body: the body of the mail
-        :param content_type: "plain" or "html" content
-        :return: None
-        """
-        await Utility.trigger_email([email],
-                                    subject,
-                                    body,
-                                    content_type=content_type,
-                                    smtp_url=Utility.email_conf["email"]["sender"]["service"],
-                                    smtp_port=Utility.email_conf["email"]["sender"]["port"],
-                                    sender_email=Utility.email_conf["email"]["sender"]["email"],
-                                    smtp_userid=Utility.email_conf["email"]["sender"]["userid"],
-                                    smtp_password=Utility.email_conf["email"]["sender"]["password"],
-                                    tls=True)
-
-    @staticmethod
-    async def trigger_email(email: List[str],
-                            subject: str,
-                            body: str,
-                            smtp_url: str,
-                            smtp_port: int,
-                            sender_email: str,
-                            smtp_password: str,
-                            smtp_userid: str = None,
-                            tls: bool = False,
-                            content_type='html'):
-        """
-        Sends an email to the mail id of the recipient
-
-        :param smtp_userid:
-        :param sender_email:
-        :param tls:
-        :param smtp_port:
-        :param smtp_url:
-        :param email: the mail id of the recipient
-        :param subject: the subject of the mail
-        :param body: the body of the mail
-        :param content_type: "plain" or "html" content
-        :return: None
-        """
-        smtp = SMTP(smtp_url, port=smtp_port, timeout=10)
-        smtp.connect(smtp_url, smtp_port)
-        if tls:
-            smtp.starttls()
-        smtp.login(smtp_userid if
-                   smtp_userid else
-                   sender_email,
-                   smtp_password)
-        from_addr = sender_email
-        body = MIMEText(body, content_type)
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = from_addr
-        msg['To'] = ",".join(email)
-        msg.attach(body)
-        smtp.sendmail(from_addr, email, msg.as_string())
-        smtp.quit()
 
     @staticmethod
     def initiate_apm_client_config():
@@ -1546,6 +1363,14 @@ class Utility:
             raise AppException("Failed to validate recaptcha")
 
     @staticmethod
+    def validate_recaptcha_response(recaptcha_response: str = None, **kwargs):
+        request = kwargs.get('request')
+        remote_ip = request.headers.get('X-Forwarded-For')
+        secret = Utility.environment['security'].get('recaptcha_secret', None)
+        if Utility.environment['security']['validate_recaptcha'] and not Utility.check_empty_string(secret):
+            Utility.validate_recaptcha(recaptcha_response, remote_ip)
+
+    @staticmethod
     def compare_string_constant_time(val1: str, val2: str):
         if len(val1) != len(val2):
             return False
@@ -1840,3 +1665,269 @@ class StoryValidator:
                     raise AppException("Intent should be followed by an Action")
                 if len(list(story_graph.successors(story_node))) > 1:
                     raise AppException("Intent can only have one connection of action type")
+
+
+class MailUtility:
+
+    @staticmethod
+    async def format_and_send_mail(mail_type: str, email: str, first_name: str, url: str = None, **kwargs):
+        mail_actions_dict = {
+            'password_reset': MailUtility.__handle_password_reset,
+            'password_reset_confirmation': MailUtility.__handle_password_reset_confirmation,
+            'verification': MailUtility.__handle_verification,
+            'verification_confirmation': MailUtility.__handle_verification_confirmation,
+            'add_member': MailUtility.__handle_add_member,
+            'add_member_confirmation': MailUtility.__handle_add_member_confirmation,
+            'update_role_member_mail': MailUtility.__handle_update_role_member_mail,
+            'update_role_owner_mail': MailUtility.__handle_update_role_owner_mail,
+            'transfer_ownership_mail': MailUtility.__handle_transfer_ownership_mail,
+            'password_generated': MailUtility.__handle_password_generated,
+            'untrusted_login': MailUtility.__handle_untrusted_login,
+            'add_trusted_device': MailUtility.__handle_add_trusted_device,
+            'book_a_demo': MailUtility.__handle_book_a_demo
+        }
+        if not mail_actions_dict.get(mail_type):
+            logger.debug('Skipping sending mail as no template found for the mail type')
+            return
+        body, subject = mail_actions_dict[mail_type](first_name=first_name, url=url, **kwargs)
+        body = body.replace('FIRST_NAME', first_name)
+        body = body.replace('USER_EMAIL', email)
+        if url:
+            body = body.replace('VERIFICATION_LINK', url)
+        await MailUtility.validate_and_send_mail(email, subject, body)
+
+    @staticmethod
+    async def validate_and_send_mail(email: str, subject: str, body: str):
+        """
+        Used to validate the parameters of the mail to be sent
+
+        :param email: email id of the recipient
+        :param subject: subject of the mail
+        :param body: body or message of the mail
+        :return: None
+        """
+        if isinstance(mail_check(email), ValidationFailure):
+            raise AppException("Please check if email is valid")
+
+        if (
+                Utility.check_empty_string(subject)
+                or Utility.check_empty_string(body)
+        ):
+            raise ValidationError(
+                "Subject and body of the mail cannot be empty or blank space"
+            )
+        await MailUtility.trigger_smtp(email, subject, body)
+
+    @staticmethod
+    async def trigger_smtp(email: str, subject: str, body: str, content_type='html'):
+        """
+        Sends an email to the mail id of the recipient
+
+        :param email: the mail id of the recipient
+        :param subject: the subject of the mail
+        :param body: the body of the mail
+        :param content_type: "plain" or "html" content
+        :return: None
+        """
+        await MailUtility.trigger_email([email],
+                                        subject,
+                                        body,
+                                        content_type=content_type,
+                                        smtp_url=Utility.email_conf["email"]["sender"]["service"],
+                                        smtp_port=Utility.email_conf["email"]["sender"]["port"],
+                                        sender_email=Utility.email_conf["email"]["sender"]["email"],
+                                        smtp_userid=Utility.email_conf["email"]["sender"]["userid"],
+                                        smtp_password=Utility.email_conf["email"]["sender"]["password"],
+                                        tls=True)
+
+    @staticmethod
+    async def trigger_email(email: List[str],
+                            subject: str,
+                            body: str,
+                            smtp_url: str,
+                            smtp_port: int,
+                            sender_email: str,
+                            smtp_password: str,
+                            smtp_userid: str = None,
+                            tls: bool = False,
+                            content_type='html'):
+        """
+        Sends an email to the mail id of the recipient
+
+        :param smtp_userid:
+        :param sender_email:
+        :param tls:
+        :param smtp_port:
+        :param smtp_url:
+        :param email: the mail id of the recipient
+        :param smtp_password:
+        :param subject: the subject of the mail
+        :param body: the body of the mail
+        :param content_type: "plain" or "html" content
+        :return: None
+        """
+        smtp = SMTP(smtp_url, port=smtp_port, timeout=10)
+        smtp.connect(smtp_url, smtp_port)
+        if tls:
+            smtp.starttls()
+        smtp.login(smtp_userid if
+                   smtp_userid else
+                   sender_email,
+                   smtp_password)
+        from_addr = sender_email
+        body = MIMEText(body, content_type)
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = from_addr
+        msg['To'] = ",".join(email)
+        msg.attach(body)
+        smtp.sendmail(from_addr, email, msg.as_string())
+        smtp.quit()
+
+    @staticmethod
+    def __handle_password_reset(**kwargs):
+        first_name = kwargs.get('first_name')
+        body = Utility.email_conf['email']['templates']['password_reset']
+        body = body.replace('FIRST_NAME', first_name.capitalize())
+        subject = Utility.email_conf['email']['templates']['password_reset_subject']
+        return body, subject
+
+    @staticmethod
+    def __handle_password_reset_confirmation(**kwargs):
+        body = Utility.email_conf['email']['templates']['password_reset_confirmation']
+        subject = Utility.email_conf['email']['templates']['password_changed_subject']
+        return body, subject
+
+    @staticmethod
+    def __handle_verification(**kwargs):
+        first_name = kwargs.get('first_name')
+        body = Utility.email_conf['email']['templates']['verification']
+        body = body.replace('FIRST_NAME', first_name.capitalize())
+        subject = Utility.email_conf['email']['templates']['confirmation_subject']
+        return body, subject
+
+    @staticmethod
+    def __handle_verification_confirmation(**kwargs):
+        first_name = kwargs.get('first_name')
+        body = Utility.email_conf['email']['templates']['verification_confirmation']
+        body = body.replace('FIRST_NAME', first_name.capitalize())
+        subject = Utility.email_conf['email']['templates']['confirmed_subject']
+        return body, subject
+
+    @staticmethod
+    def __handle_add_member(**kwargs):
+        first_name = kwargs.get('first_name')
+        url = kwargs.get('url')
+        body = Utility.email_conf['email']['templates']['add_member_invitation']
+        body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        body = body.replace('BOT_OWNER_NAME', first_name.capitalize())
+        body = body.replace('ACCESS_TYPE', kwargs.get('role', ""))
+        body = body.replace('ACCESS_URL', url)
+        subject = Utility.email_conf['email']['templates']['add_member_subject']
+        subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        return body, subject
+
+    @staticmethod
+    def __handle_add_member_confirmation(**kwargs):
+        body = Utility.email_conf['email']['templates']['add_member_confirmation']
+        body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        body = body.replace('ACCESS_TYPE', kwargs.get('role', ""))
+        body = body.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
+        body = body.replace('NAME', kwargs.get('member_confirm', "").capitalize())
+        subject = Utility.email_conf['email']['templates']['add_member_confirmation_subject']
+        subject = subject.replace('INVITED_PERSON_NAME', kwargs.get('accessor_email', ""))
+        return body, subject
+
+    @staticmethod
+    def __handle_update_role_member_mail(**kwargs):
+        first_name = kwargs.get('first_name')
+        body = Utility.email_conf['email']['templates']['update_role']
+        body = body.replace('MAIL_BODY_HERE',
+                            Utility.email_conf['email']['templates']['update_role_member_mail_body'])
+        body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+        body = body.replace('STATUS', kwargs.get('status', ""))
+        body = body.replace('MODIFIER_NAME', first_name.capitalize())
+        body = body.replace('NAME', kwargs.get('member_name', "").capitalize())
+        subject = Utility.email_conf['email']['templates']['update_role_subject']
+        subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        return body, subject
+
+    @staticmethod
+    def __handle_update_role_owner_mail(**kwargs):
+        first_name = kwargs.get('first_name')
+        body = Utility.email_conf['email']['templates']['update_role']
+        body = body.replace('MAIL_BODY_HERE',
+                            Utility.email_conf['email']['templates']['update_role_owner_mail_body'])
+        body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
+        body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+        body = body.replace('STATUS', kwargs.get('status', ""))
+        body = body.replace('MODIFIER_NAME', first_name.capitalize())
+        body = body.replace('NAME', kwargs.get('owner_name', "").capitalize())
+        subject = Utility.email_conf['email']['templates']['update_role_subject']
+        subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        return body, subject
+
+    @staticmethod
+    def __handle_transfer_ownership_mail(**kwargs):
+        first_name = kwargs.get('first_name')
+        body = Utility.email_conf['email']['templates']['update_role']
+        body = body.replace('MAIL_BODY_HERE',
+                            Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])
+        body = body.replace('MEMBER_EMAIL', kwargs.get('member_email', ""))
+        body = body.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        body = body.replace('NEW_ROLE', kwargs.get('new_role', ""))
+        body = body.replace('MODIFIER_NAME', first_name.capitalize())
+        subject = Utility.email_conf['email']['templates']['update_role_subject']
+        subject = subject.replace('BOT_NAME', kwargs.get('bot_name', ""))
+        return body, subject
+
+    @staticmethod
+    def __handle_password_generated(**kwargs):
+        body = Utility.email_conf['email']['templates']['password_generated']
+        body = body.replace('PASSWORD', kwargs.get('password', ""))
+        subject = Utility.email_conf['email']['templates']['password_generated_subject']
+        return body, subject
+
+    @staticmethod
+    def __handle_untrusted_login(**kwargs):
+        url = kwargs.get('url')
+        geo_location = ""
+        reset_password_url = Utility.email_conf["app"]["url"] + "/reset_password"
+        body = Utility.email_conf['email']['templates']['untrusted_login']
+        for key, value in kwargs.items():
+            geo_location = f"{geo_location}<li>{key}: {value}</li>"
+        body = body.replace('GEO_LOCATION', geo_location)
+        body = body.replace('TRUST_DEVICE_URL', url)
+        body = body.replace('RESET_PASSWORD_URL', reset_password_url)
+        subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
+        return body, subject
+
+    @staticmethod
+    def __handle_add_trusted_device(**kwargs):
+        geo_location = ""
+        body = Utility.email_conf['email']['templates']['add_trusted_device']
+        for key, value in kwargs.items():
+            geo_location = f"{geo_location}<li>{key}: {value}</li>"
+        body = body.replace('GEO_LOCATION', geo_location)
+        subject = Utility.email_conf['email']['templates']['add_trusted_device']
+        return body, subject
+
+    @staticmethod
+    def __handle_book_a_demo(**kwargs):
+        from kairon.shared.plugins.factory import PluginFactory
+
+        request = kwargs.get('request')
+        data = kwargs.get('data')
+        ip = request.headers.get('X-Forwarded-For')
+        geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
+        data.update(geo_location)
+        user_details = f"Hi,\nFollowing demo has been requested for Kairon:\n"
+        body = Utility.email_conf['email']['templates']['custom_text_mail']
+        for key, value in data.items():
+            user_details = f"{user_details}<li>{key}: {value}</li>"
+        subject = Utility.email_conf['email']['templates']['book_a_demo_subject']
+        body = body.replace('CUSTOM_TEXT', user_details)
+        body = body.replace('SUBJECT', subject)
+        return body, subject

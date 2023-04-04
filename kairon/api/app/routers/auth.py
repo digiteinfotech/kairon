@@ -6,9 +6,10 @@ from starlette.requests import Request
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.organization.processor import OrgProcessor
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.auth import Authentication
-from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
+from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm, \
+    RecaptchaVerifiedDictData
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
@@ -38,6 +39,20 @@ async def login_for_access_token(
             "refresh_token": refresh_tkn, "refresh_token_expiry": refresh_tkn_exp
         }, "message": "User Authenticated",
     }
+
+
+@router.post("/demo", response_model=Response)
+async def book_a_demo(
+        background_tasks: BackgroundTasks, request: Request,
+        form_data: RecaptchaVerifiedDictData
+):
+    """
+    Books a Demo for the User
+    """
+    Utility.validate_recaptcha_response(form_data.recaptcha_response, request=request)
+    background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='book_a_demo', email=form_data.data['email'],
+                              first_name=form_data.data['first_name'], request=request, **form_data.dict())
+    return {"message": "Thank You for your interest in Kairon. We will reach out to you soon."}
 
 
 @router.get("/{bot}/token/refresh", response_model=Response)
@@ -161,7 +176,7 @@ async def sso_callback(
     existing_user, user_details, access_token = await Authentication.verify_and_process(request, sso_type)
     if not existing_user and Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(
-            Utility.format_and_send_mail, mail_type='password_generated', email=user_details['email'],
+            MailUtility.format_and_send_mail, mail_type='password_generated', email=user_details['email'],
             first_name=user_details['first_name'], password=user_details['password'].get_secret_value()
         )
     return {
