@@ -1792,6 +1792,15 @@ class Utility:
             raise AppException(f'Missing {"event_id", "bot", "user", "cron_exp"} all or any from request body!')
         return True
 
+    @staticmethod
+    def verify_email(email: Text):
+        from kairon.shared.verification.email import EmailVerficationFactory, Verification
+
+        if Utility.environment['verify']['email']['enable']:
+            ver = EmailVerficationFactory.get_instance()
+            if not ver.verify(email):
+                raise AppException("Invalid or disposable Email!")
+
 
 class StoryValidator:
 
