@@ -1479,7 +1479,7 @@ class Utility:
             logger.info(f"Event started: {http_url}")
             if request_method.lower() in ['get', 'delete']:
                 response = requests.request(
-                    request_method.upper(), http_url, data=request_body, headers=headers, timeout=kwargs.get('timeout')
+                    request_method.upper(), http_url, params=request_body, headers=headers, timeout=kwargs.get('timeout')
                 )
             elif request_method.lower() in ['post', 'put']:
                 response = requests.request(

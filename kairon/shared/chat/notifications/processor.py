@@ -97,6 +97,8 @@ class MessageBroadcastProcessor:
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         kwargs["bot"] = bot
+        start_idx = int(start_idx)
+        page_size = int(page_size)
         query_objects = MessageBroadcastLogs.objects(**kwargs)
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
         logs = query_objects.skip(start_idx).limit(page_size).exclude('id').to_json()

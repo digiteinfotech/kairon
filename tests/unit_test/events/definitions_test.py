@@ -1253,10 +1253,12 @@ class TestEventDefinitions:
         user = "test_user"
         setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True&bot={bot}&user={user}&event_id={setting_id}"
         responses.add(
             "DELETE", url,
-            json={"message": "Failed to delete event!", "success": False, "error_code": 0, "data": None}
+            json={"message": "Failed to delete event!", "success": False, "error_code": 0, "data": None},
+            match=[responses.matchers.query_param_matcher(
+                {"bot": bot, "user": user, "is_scheduled": True, "event_id": setting_id})],
         )
 
         event = MessageBroadcastEvent(bot, user)
@@ -1282,10 +1284,12 @@ class TestEventDefinitions:
         user = "test_user"
         setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True"
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True&bot={bot}&user={user}&event_id={setting_id}"
         responses.add(
             "DELETE", url,
-            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None},
+            match=[responses.matchers.query_param_matcher(
+                {"bot": bot, "user": user, "is_scheduled": True, "event_id": setting_id})],
         )
 
         event = MessageBroadcastEvent(bot, user)

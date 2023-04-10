@@ -166,14 +166,11 @@ async def delete_scheduled_message_broadcast(
 @router.get("/broadcast/message/logs", response_model=Response)
 async def retrieve_scheduled_message_broadcast_logs(
         request: Request,
-        start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Retrieves logs of scheduled/one time message broadcasts in a bot.
     """
     log_filters = request.query_params._dict.copy()
-    logs, total_count = MessageBroadcastProcessor.get_broadcast_logs(
-        current_user.get_bot(), start_idx, page_size, **log_filters
-    )
+    logs, total_count = MessageBroadcastProcessor.get_broadcast_logs(current_user.get_bot(), **log_filters)
     return Response(data={"logs": logs, "total_count": total_count})

@@ -5,7 +5,7 @@ from typing import Text, Dict, List, Any
 from loguru import logger
 from mongoengine import DoesNotExist
 
-from kairon import Utility
+from kairon.shared.utils import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
