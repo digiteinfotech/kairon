@@ -50,6 +50,7 @@ from kairon.shared.utils import Utility
 from kairon.shared.multilingual.utils.translator import Translator
 import json
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -259,6 +260,129 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
         )
         actual = response.json()
         assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
+
+@responses.activate
+def test_account_registation_temporary_email():
+    email = "test@temporay.com"
+    api_key = "test"
+    with patch.dict(Utility.environment,
+                         {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+        responses.add(responses.GET,
+                      "http://api.quickemailverification.com/v1/verify?" + urlencode({"apikey": api_key, "email": email}),
+                      json={
+                          "result": "valid",
+                          "reason": "rejected_email",
+                          "disposable": "true",
+                          "accept_all": "false",
+                          "role": "false",
+                          "free": "false",
+                          "email": email,
+                          "user": "test",
+                          "domain": "quickemailverification.com",
+                          "mx_record": "us2.mx1.mailhostbox.com",
+                          "mx_domain": "mailhostbox.com",
+                          "safe_to_send": "false",
+                          "did_you_mean": "",
+                          "success": "true",
+                          "message": None
+                      })
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "email": email,
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == [{'loc': ['body', 'email'], 'msg': 'Invalid or disposable Email!', 'type': 'value_error'}]
+
+@responses.activate
+def test_account_registation_invalid_email():
+    email = "test@temporay.com"
+    api_key = "test"
+    with patch.dict(Utility.environment,
+                    {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+        responses.add(responses.GET,
+                      "http://api.quickemailverification.com/v1/verify?" + urlencode(
+                          {"apikey": api_key, "email": email}),
+                      json={
+                          "result": "invalid",
+                          "reason": "rejected_email",
+                          "disposable": "false",
+                          "accept_all": "false",
+                          "role": "false",
+                          "free": "false",
+                          "email": email,
+                          "user": "test",
+                          "domain": "quickemailverification.com",
+                          "mx_record": "us2.mx1.mailhostbox.com",
+                          "mx_domain": "mailhostbox.com",
+                          "safe_to_send": "false",
+                          "did_you_mean": "",
+                          "success": "true",
+                          "message": None
+                      })
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "email": email,
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == [
+            {'loc': ['body', 'email'], 'msg': 'Invalid or disposable Email!', 'type': 'value_error'}]
+
+    @responses.activate
+    def test_account_registation_invalid_email():
+        email = "test@temporay.com"
+        api_key = "test"
+        with patch.dict(Utility.environment,
+                        {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+            responses.add(responses.GET,
+                          "http://api.quickemailverification.com/v1/verify?" + urlencode(
+                              {"apikey": api_key, "email": email}),
+                          json={
+                              "result": "valid",
+                              "reason": "rejected_email",
+                              "disposable": "false",
+                              "accept_all": "false",
+                              "role": "false",
+                              "free": "false",
+                              "email": email,
+                              "user": "test",
+                              "domain": "quickemailverification.com",
+                              "mx_record": "us2.mx1.mailhostbox.com",
+                              "mx_domain": "mailhostbox.com",
+                              "safe_to_send": "false",
+                              "did_you_mean": "",
+                              "success": "true",
+                              "message": None
+                          })
+            response = client.post(
+                "/api/account/registration",
+                json={
+                    "email": email,
+                    "first_name": "Email",
+                    "last_name": "Validation",
+                    "password": "Welcome@1",
+                    "confirm_password": "Welcome@1",
+                    "account": "email_validation",
+                    "bot": "email_validation",
+                },
+            )
+            actual = response.json()
+            assert actual["message"] == "Account Registered!"
 
 
 def test_account_registration(monkeypatch):

@@ -30,6 +30,8 @@ from email.mime.text import MIMEText
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 import json
+from kairon.shared.verification.email import QuickEmailVerification
+from urllib.parse import urlencode
 
 
 class TestUtility:
@@ -1826,3 +1828,92 @@ class TestUtility:
         current_utcnow = datetime(2023, 2, 12, 8, 00, 00, tzinfo=timezone.utc)
         result = Utility.convert_utcdate_with_timezone(current_utcnow, "Asia/Kolkata",dateformat)
         assert result == datetime(2023, 2, 12, 13, 30)
+
+
+    def test_verify_email_disable(self):
+        Utility.verify_email("test@test.com")
+
+    @responses.activate
+    def test_verify_email_enable_disposable_email(self):
+        email = "test@test.com"
+        api_key = "test"
+        with mock.patch.dict(Utility.environment, {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+            verification = QuickEmailVerification()
+            responses.add(responses.GET,
+                          verification.url + "?" + urlencode({"apikey": verification.key, "email": email}),
+                          json={
+                              "result": "valid",
+                              "reason": "rejected_email",
+                              "disposable": "true",
+                              "accept_all": "false",
+                              "role": "false",
+                              "free": "false",
+                              "email": "test@test.com",
+                              "user": "test",
+                              "domain": "quickemailverification.com",
+                              "mx_record": "us2.mx1.mailhostbox.com",
+                              "mx_domain": "mailhostbox.com",
+                              "safe_to_send": "false",
+                              "did_you_mean": "",
+                              "success": "true",
+                              "message": None
+                          })
+            with pytest.raises(AppException, match="Invalid or disposable Email!"):
+                Utility.verify_email(email)
+
+    @responses.activate
+    def test_verify_email_enable_invalid_email(self):
+        email = "test@test.com"
+        api_key = "test"
+        with mock.patch.dict(Utility.environment,
+                             {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+            verification = QuickEmailVerification()
+            responses.add(responses.GET,
+                          verification.url + "?" + urlencode({"apikey": verification.key, "email": email}),
+                          json={
+                              "result": "invalid",
+                              "reason": "rejected_email",
+                              "disposable": "false",
+                              "accept_all": "false",
+                              "role": "false",
+                              "free": "false",
+                              "email": "test@test.com",
+                              "user": "test",
+                              "domain": "quickemailverification.com",
+                              "mx_record": "us2.mx1.mailhostbox.com",
+                              "mx_domain": "mailhostbox.com",
+                              "safe_to_send": "false",
+                              "did_you_mean": "",
+                              "success": "true",
+                              "message": None
+                          })
+            with pytest.raises(AppException, match="Invalid or disposable Email!"):
+                Utility.verify_email(email)
+
+    @responses.activate
+    def test_verify_email_enable_valid_email(self):
+        email = "test@test.com"
+        api_key = "test"
+        with mock.patch.dict(Utility.environment,
+                             {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+            verification = QuickEmailVerification()
+            responses.add(responses.GET,
+                          verification.url + "?" + urlencode({"apikey": verification.key, "email": email}),
+                          json={
+                              "result": "valid",
+                              "reason": "rejected_email",
+                              "disposable": "false",
+                              "accept_all": "false",
+                              "role": "false",
+                              "free": "false",
+                              "email": "test@test.com",
+                              "user": "test",
+                              "domain": "quickemailverification.com",
+                              "mx_record": "us2.mx1.mailhostbox.com",
+                              "mx_domain": "mailhostbox.com",
+                              "safe_to_send": "false",
+                              "did_you_mean": "",
+                              "success": "true",
+                              "message": None
+                          })
+            Utility.verify_email(email)

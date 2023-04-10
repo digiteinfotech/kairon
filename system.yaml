@@ -175,3 +175,10 @@ llm:
 vector:
   db: ${VECTOR_DB:http://localhost:6333}
   key: ${VECTOR_DB_KEY}
+
+
+verify:
+  email:
+    enable: ${VERIFY_EMAIl_ENABLE:false}
+    type: ${VERIFY_EMAIl_TYPE:quickemail}
+    key: ${VERIFY_EMAIL_KEY}
