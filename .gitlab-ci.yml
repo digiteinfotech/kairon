@@ -51,6 +51,7 @@ build-dev:
     -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual-dev:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_logs -t kairon-delete-logs-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_message_broadcast -t kairon-broadcast-dev:latest .
 
 build-release:
   tags:
@@ -74,3 +75,4 @@ build-release:
     -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker:latest .
     -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_logs -t kairon-delete-logs:latest .
+    -  docker build -f ./docker/Dockerfile_task_message_broadcast -t kairon-broadcast:latest .
