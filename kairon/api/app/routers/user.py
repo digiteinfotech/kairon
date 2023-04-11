@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Path, Security
+from starlette.requests import Request
 
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
@@ -6,7 +7,7 @@ from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.account.processor import AccountProcessor
-from kairon.api.models import Response, BotAccessRequest, RecaptchaVerifiedTextData
+from kairon.api.models import Response, BotAccessRequest, RecaptchaVerifiedTextData, RecaptchaVerifiedDictData
 from kairon.shared.models import User
 from fastapi import Depends
 from fastapi import BackgroundTasks
@@ -31,6 +32,20 @@ async def list_access_for_roles(current_user: User = Security(Authentication.get
     Lists roles and what components they can have access to.
     """
     return Response(data=Utility.system_metadata["roles"])
+
+
+@router.post("/demo", response_model=Response)
+async def book_a_demo(
+        background_tasks: BackgroundTasks, request: Request,
+        form_data: RecaptchaVerifiedDictData
+):
+    """
+    Books a Demo for the User
+    """
+    Utility.validate_recaptcha_response(form_data.recaptcha_response, request=request)
+    background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='book_a_demo', email=form_data.data['email'],
+                              first_name=form_data.data['first_name'], request=request, **form_data.dict())
+    return {"message": "Thank You for your interest in Kairon. We will reach out to you soon."}
 
 
 @router.post("/{bot}/member", response_model=Response)
