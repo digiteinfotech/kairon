@@ -146,7 +146,7 @@ def test_book_a_demo(trigger_smtp_mock, validate_recaptcha_mock, monkeypatch):
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
         mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
         response = client.post(
-            "/api/auth/demo",
+            "/api/user/demo",
             json=form_data
         ).json()
     assert response['message'] == 'Thank You for your interest in Kairon. We will reach out to you soon.'
@@ -171,7 +171,7 @@ def test_book_a_demo_with_invalid_recaptcha_response(trigger_smtp_mock, monkeypa
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
         mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
         response = client.post(
-            "/api/auth/demo",
+            "/api/user/demo",
             json=form_data
         ).json()
     assert response['message'] == 'recaptcha_response is required'
@@ -196,7 +196,7 @@ def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock, monkeypat
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
         mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
         response = client.post(
-            "/api/auth/demo",
+            "/api/user/demo",
             json=form_data
         ).json()
     assert response['message'] == 'Failed to validate recaptcha'

@@ -1368,8 +1368,7 @@ class Utility:
     def validate_recaptcha_response(recaptcha_response: str = None, **kwargs):
         request = kwargs.get('request')
         remote_ip = request.headers.get('X-Forwarded-For')
-        secret = Utility.environment['security'].get('recaptcha_secret', None)
-        if Utility.environment['security']['validate_recaptcha'] and not Utility.check_empty_string(secret):
+        if Utility.environment['security']['validate_recaptcha']:
             Utility.validate_recaptcha(recaptcha_response, remote_ip)
 
     @staticmethod
