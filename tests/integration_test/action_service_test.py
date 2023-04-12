@@ -5279,7 +5279,7 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
+        request_object['tracker']['events'] = [{"event": "user", 'text': 'hello'},
                                                {'event': 'bot', "text": "how are you"}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
@@ -5291,15 +5291,12 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
-        assert mock_completion.call_args.kwargs[
-                   'messages'] == [
-                   {"role": "system",
-                    "content": DEFAULT_SYSTEM_PROMPT},
-                   {"role": "user",
-                    "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{bot_content}\n\n Q: {user_msg}\n A:"},
-                   {"role": "assistant",
-                    "content": "hello\nhow are you\n"}
-               ]
+        assert mock_completion.call_args.kwargs['messages'] == [
+            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
+            {'role': 'user', 'content': 'hello'},
+            {'role': 'assistant', 'content': 'how are you'},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs. \n\nContext:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\n\n Q: What kind of language is python?\n A:'}]
 
     @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)

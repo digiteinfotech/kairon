@@ -3073,3 +3073,33 @@ class TestActions:
                            search_engine_id='asdfg::123456', failure_response="", bot=bot, user=user)
         action.save()
         assert getattr(action, "failure_response") == 'I have failed to process your request.'
+
+    def test_prepare_bot_responses_empty(self):
+        events = []
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        assert ActionUtility.prepare_bot_responses(tracker, 5) == []
+
+    def test_prepare_bot_responses_bot_utterance_empty_and_jumbled(self):
+        events = Utility.read_yaml("tests/testing_data/history/tracker_events_multiple_actions_predicted.json")
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
+        assert bot_responses == [{'role': 'user', 'content': 'What is kairon simply?'},
+                                 {'role': 'assistant',
+                                  'content': 'Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.'},
+                                 {'role': 'user', 'content': 'Do you know any language other than English.'},
+                                 {'role': 'assistant', 'content': "I'm sorry, I didn't quite understand that. Could you rephrase?"},
+                                 {'role': 'user', 'content': 'How to add forms in kairon?'},
+                                 {'role': 'assistant',
+                                  'content': 'To add forms in Kairon, follow these steps:\n- Click on "View"\n- Click on "Add new" button on the top right corner\n- Click on the option "Forms"\n- Type in the desired title on the top left corner\n- Add the desired component from the mapped slots\n- Click on the added slots and type in the bot\'s reply for valid user response, invalid user response, and questions in the respective type boxes\n- To add the questions, press shift and enter keys together\n- Click on "Save" button on the top right corner\n- Retrain the bot to add the form successfully after adding the form.'},
+                                 {'role': 'assistant',
+                                  'content': 'Kairon uses two main approaches for training its chatbots: GPT-based models and Rasa-based models.'},
+                                 {'role': 'user', 'content': 'In how many ways can we train in kairon?'},
+                                 {'role': 'assistant', 'content': "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."}]

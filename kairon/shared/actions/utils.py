@@ -159,15 +159,20 @@ class ActionUtility:
     @staticmethod
     def prepare_bot_responses(tracker: Tracker, last_n):
         """
-        Retrieve bot responses from tracker events.
+        Retrieve user question and bot responses from tracker events and formats them
+        as required for GPT3 messages.
         """
-        message_trail = ""
+        message_trail = []
         for event in reversed(tracker.events):
-            if event.get('event') == 'bot':
-                message_trail = f"{event.get('text')}\n{message_trail}"
+            if event.get('event') == 'bot' and event.get("text"):
+                message_trail.insert(0, {"role": "assistant", "content": event.get('text')})
                 last_n -= 1
-            if last_n <= 0:
-                break
+            elif event.get('event') == 'user':
+                if message_trail and message_trail[0].get("role") == "user":
+                    message_trail.pop(0)
+                message_trail.insert(0, {"role": "user", "content": event.get('text')})
+                if last_n <= 0:
+                    break
         return message_trail
 
     @staticmethod
