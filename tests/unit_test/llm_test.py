@@ -289,7 +289,11 @@ class TestLLM:
 
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
-        k_faq_action_config = {"previous_bot_responses": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language."}
+        k_faq_action_config = {
+            "previous_bot_responses": [
+                {'role': 'user', 'content': 'hello'},
+                {'role': 'assistant', 'content': 'how are you'},
+            ]}
 
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(
@@ -318,15 +322,12 @@ class TestLLM:
         assert mock_completion.call_args.kwargs['api_key'] == "knupur"
         assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
                    gpt3.__answer_params__.keys())
-        assert mock_completion.call_args.kwargs[
-                   'messages'] == [
-                   {"role": "system",
-                    "content": DEFAULT_SYSTEM_PROMPT},
-                   {"role": "user",
-                    "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"},
-                    {"role": "assistant",
-                     "content": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language."}
-               ]
+        assert mock_completion.call_args.kwargs['messages'] == [
+            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
+            {'role': 'user', 'content': 'hello'},
+            {'role': 'assistant', 'content': 'how are you'},
+            {'role': 'user', 'content': 'Answer question based on the context below, if answer is not in the context go check previous logs. \n\nContext:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\n\n Q: What kind of language is python?\n A:'}
+        ]
 
     @responses.activate
     @mock.patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
