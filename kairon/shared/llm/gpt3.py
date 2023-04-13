@@ -70,10 +70,10 @@ class GPT3FAQEmbedding(LLMBase):
             query = self.__rephrase_query(query, system_prompt, query_prompt)
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"{context_prompt} \n\nContext:\n{context}\n\n Q: {query}\n A:"}
         ]
         if previous_bot_responses:
-            messages.append({"role": "assistant", "content": f"{previous_bot_responses}"})
+            messages.extend(previous_bot_responses)
+        messages.append({"role": "user", "content": f"{context_prompt} \n\nContext:\n{context}\n\n Q: {query}\n A:"})
 
         completion = openai.ChatCompletion.create(
             api_key=self.api_key,
