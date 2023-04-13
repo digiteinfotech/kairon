@@ -1,0 +1,2393 @@
+[
+  {
+    "event": "slot",
+    "timestamp": 1679564406.0117106,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564406.0119207,
+    "name": "action_session_start",
+    "policy": null,
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "session_started",
+    "timestamp": 1679564406.0119953,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679564406.0120163,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564406.0120194,
+    "name": "action_listen",
+    "policy": null,
+    "confidence": null,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "user",
+    "timestamp": 1679564406.054926,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "I am interested in Kairon and want to know what features it offers",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9999985694885254
+      },
+      "entities": [],
+      "text": "I am interested in Kairon and want to know what features it offers",
+      "message_id": "7716f3b96b0c41538211383fa9fb0361",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+        "text": {
+          "body": "I am interested in Kairon and want to know what features it offers"
+        },
+        "timestamp": "1679564404",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9999985694885254
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 8.110004614536592e-7
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 6.184782250784338e-7
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "7716f3b96b0c41538211383fa9fb0361"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679564410.0004952,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564410.000527,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679564410.0006871,
+    "text": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679564410.0006957,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564410.259588,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "user",
+    "timestamp": 1679564511.754209,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBqts9YCD82XqzLWTgu782e",
+      "text": {
+        "body": "What are some advantages of kairon"
+      },
+      "timestamp": "1679564510",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "What are some advantages of kairon",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9999861717224121
+      },
+      "entities": [],
+      "text": "What are some advantages of kairon",
+      "message_id": "22388462565448abb247de6f944f92b6",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhBqts9YCD82XqzLWTgu782e",
+        "text": {
+          "body": "What are some advantages of kairon"
+        },
+        "timestamp": "1679564510",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9999861717224121
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 0.000013383863915805705
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 4.36140936699303e-7
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "22388462565448abb247de6f944f92b6"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679564527.7790787,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564527.7791095,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679564527.7793202,
+    "text": "Some advantages of Kairon include its end-to-end lifecycle management feature, low-code/no-code interface, secure script injection, telemetry monitoring, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Kairon also provides digital assistants that can cater to the needs of various personas and industries, such as marketing teams in retail organizations and operations in FMCG companies. Additionally, Kairon is an AI-powered conversational digital transformation platform that can be used to develop chatbots for e-commerce purposes, providing businesses with a wide range of features and an easy-to-use interface.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679564527.779327,
+    "name": "kairon_action_response",
+    "value": "Some advantages of Kairon include its end-to-end lifecycle management feature, low-code/no-code interface, secure script injection, telemetry monitoring, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Kairon also provides digital assistants that can cater to the needs of various personas and industries, such as marketing teams in retail organizations and operations in FMCG companies. Additionally, Kairon is an AI-powered conversational digital transformation platform that can be used to develop chatbots for e-commerce purposes, providing businesses with a wide range of features and an easy-to-use interface."
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564527.9590447,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "user",
+    "timestamp": 1679564635.1845129,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhDldlvSpHPYFKQFaUjQOSeX",
+      "text": {
+        "body": "How can I use it?"
+      },
+      "timestamp": "1679564634",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "How can I use it?",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9981681704521179
+      },
+      "entities": [],
+      "text": "How can I use it?",
+      "message_id": "fb937c3732314ab7904bb88d2a5378cd",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhDldlvSpHPYFKQFaUjQOSeX",
+        "text": {
+          "body": "How can I use it?"
+        },
+        "timestamp": "1679564634",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9981681704521179
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 0.001329370541498065
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 0.0005024595302529633
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "fb937c3732314ab7904bb88d2a5378cd"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679564636.1565082,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564636.1565363,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679564636.1566718,
+    "text": "It depends on what \"it\" refers to. Can you please provide more context or specify what you are referring to?",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679564636.1566787,
+    "name": "kairon_action_response",
+    "value": "It depends on what \"it\" refers to. Can you please provide more context or specify what you are referring to?"
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564636.4192164,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "user",
+    "timestamp": 1679564655.5948956,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhA6OcGf7lnOWNWbVh01h5WS",
+      "text": {
+        "body": "How can I use kairon?"
+      },
+      "timestamp": "1679564654",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "How can I use kairon?",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9999837875366211
+      },
+      "entities": [],
+      "text": "How can I use kairon?",
+      "message_id": "b90c4efa1e124d8c9f4ec858e1935a0a",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhA6OcGf7lnOWNWbVh01h5WS",
+        "text": {
+          "body": "How can I use kairon?"
+        },
+        "timestamp": "1679564654",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9999837875366211
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 0.000008372480806428939
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 0.000007832282790332101
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "b90c4efa1e124d8c9f4ec858e1935a0a"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679564658.894166,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564658.8942018,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679564658.8944175,
+    "text": "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679564658.8944244,
+    "name": "kairon_action_response",
+    "value": "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564659.079882,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "user",
+    "timestamp": 1679565695.3071442,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBduVo4vxp-aERe4yOBX9I_",
+      "text": {
+        "body": "Is there any example for how can I use it?"
+      },
+      "timestamp": "1679565694",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "Is there any example for how can I use it?",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9997501969337463
+      },
+      "entities": [],
+      "text": "Is there any example for how can I use it?",
+      "message_id": "ae9a0dc93793459b983e312e9993069b",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhBduVo4vxp-aERe4yOBX9I_",
+        "text": {
+          "body": "Is there any example for how can I use it?"
+        },
+        "timestamp": "1679565694",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9997501969337463
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 0.00019436281581874937
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 0.00005541897189687006
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "ae9a0dc93793459b983e312e9993069b"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679565698.3966925,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679565698.396723,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679565698.396852,
+    "text": "Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679565698.3968568,
+    "name": "kairon_action_response",
+    "value": "Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world."
+  },
+  {
+    "event": "action",
+    "timestamp": 1679565698.700323,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "user",
+    "timestamp": 1679566016.0066643,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhClX-8ixvAqBl9A8ey5NDKf",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679566014",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "I am interested in Kairon and want to know what features it offers",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9999874830245972
+      },
+      "entities": [],
+      "text": "I am interested in Kairon and want to know what features it offers",
+      "message_id": "7cb13f95e34f4741aa84e625cf3a9de4",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhClX-8ixvAqBl9A8ey5NDKf",
+        "text": {
+          "body": "I am interested in Kairon and want to know what features it offers"
+        },
+        "timestamp": "1679566014",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9999874830245972
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 0.000011775782695622183
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 7.924285228000372e-7
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "7cb13f95e34f4741aa84e625cf3a9de4"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679566019.5394416,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679566019.5394776,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679566019.5396323,
+    "text": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679566019.5396392,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "action",
+    "timestamp": 1679566019.7242827,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3216972,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+      "text": {
+        "body": "What is kairon simply?"
+      },
+      "timestamp": "1679889668",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1679889669.3237414,
+    "name": "action_session_start",
+    "policy": null,
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "session_started",
+    "timestamp": 1679889669.3241785,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+      "text": {
+        "body": "What is kairon simply?"
+      },
+      "timestamp": "1679889668",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3242092,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3242137,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3242161,
+    "name": "kairon_action_response",
+    "value": "Some advantages of Kairon include its end-to-end lifecycle management feature, low-code/no-code interface, secure script injection, telemetry monitoring, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Kairon also provides digital assistants that can cater to the needs of various personas and industries, such as marketing teams in retail organizations and operations in FMCG companies. Additionally, Kairon is an AI-powered conversational digital transformation platform that can be used to develop chatbots for e-commerce purposes, providing businesses with a wide range of features and an easy-to-use interface."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3242183,
+    "name": "kairon_action_response",
+    "value": "It depends on what \"it\" refers to. Can you please provide more context or specify what you are referring to?"
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3242204,
+    "name": "kairon_action_response",
+    "value": "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3242226,
+    "name": "kairon_action_response",
+    "value": "Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3242242,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889669.3242264,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+      "text": {
+        "body": "What is kairon simply?"
+      },
+      "timestamp": "1679889668",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1679889669.3242497,
+    "name": "action_listen",
+    "policy": null,
+    "confidence": null,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "user",
+    "timestamp": 1679889669.363396,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+      "text": {
+        "body": "What is kairon simply?"
+      },
+      "timestamp": "1679889668",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "What is kairon simply?",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9999988079071045
+      },
+      "entities": [],
+      "text": "What is kairon simply?",
+      "message_id": "03242f8f76fb49afbe61c53f1dad969b",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+        "text": {
+          "body": "What is kairon simply?"
+        },
+        "timestamp": "1679889668",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9999988079071045
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 8.185486422007671e-7
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 3.547320091001893e-7
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "03242f8f76fb49afbe61c53f1dad969b"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679889672.653305,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679889672.6533384,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679889672.6535022,
+    "text": "Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679889672.6535084,
+    "name": "kairon_action_response",
+    "value": "Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise."
+  },
+  {
+    "event": "action",
+    "timestamp": 1679889672.9930058,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.4820902,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhATbaSH9_ZuuowALFLmguJ1",
+      "text": {
+        "body": "Do you know any language other than English."
+      },
+      "timestamp": "1679982955",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1679982956.482375,
+    "name": "action_session_start",
+    "policy": null,
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "session_started",
+    "timestamp": 1679982956.482468,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhATbaSH9_ZuuowALFLmguJ1",
+      "text": {
+        "body": "Do you know any language other than English."
+      },
+      "timestamp": "1679982955",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.4824922,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.4824977,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.482501,
+    "name": "kairon_action_response",
+    "value": "Some advantages of Kairon include its end-to-end lifecycle management feature, low-code/no-code interface, secure script injection, telemetry monitoring, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Kairon also provides digital assistants that can cater to the needs of various personas and industries, such as marketing teams in retail organizations and operations in FMCG companies. Additionally, Kairon is an AI-powered conversational digital transformation platform that can be used to develop chatbots for e-commerce purposes, providing businesses with a wide range of features and an easy-to-use interface."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.4825041,
+    "name": "kairon_action_response",
+    "value": "It depends on what \"it\" refers to. Can you please provide more context or specify what you are referring to?"
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.4825072,
+    "name": "kairon_action_response",
+    "value": "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.482511,
+    "name": "kairon_action_response",
+    "value": "Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.4825146,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.4825184,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+      "text": {
+        "body": "What is kairon simply?"
+      },
+      "timestamp": "1679889668",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.4825227,
+    "name": "kairon_action_response",
+    "value": "Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.482526,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhATbaSH9_ZuuowALFLmguJ1",
+      "text": {
+        "body": "Do you know any language other than English."
+      },
+      "timestamp": "1679982955",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1679982956.4825296,
+    "name": "action_listen",
+    "policy": null,
+    "confidence": null,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "user",
+    "timestamp": 1679982956.5233872,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhATbaSH9_ZuuowALFLmguJ1",
+      "text": {
+        "body": "Do you know any language other than English."
+      },
+      "timestamp": "1679982955",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "Do you know any language other than English.",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "1123748885324247259"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.999868631362915
+      },
+      "entities": [],
+      "text": "Do you know any language other than English.",
+      "message_id": "ca11402043934b5c81cd03f2519d07df",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhATbaSH9_ZuuowALFLmguJ1",
+        "text": {
+          "body": "Do you know any language other than English."
+        },
+        "timestamp": "1679982955",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "1123748885324247259"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.999868631362915
+        },
+        {
+          "id": {
+            "$numberLong": "4014452847990303986"
+          },
+          "name": "goodbye",
+          "confidence": 0.00010633693455019966
+        },
+        {
+          "id": {
+            "$numberLong": "-8033430228687700116"
+          },
+          "name": "greet",
+          "confidence": 0.0000250728026003344
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "ca11402043934b5c81cd03f2519d07df"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679982956.5712128,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679982956.5712543,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679982956.571848,
+    "text": "I'm sorry, I didn't quite understand that. Could you rephrase?",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679982956.5718577,
+    "name": "kairon_action_response",
+    "value": "I'm sorry, I didn't quite understand that. Could you rephrase?"
+  },
+  {
+    "event": "action",
+    "timestamp": 1679982956.8275292,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "action",
+    "timestamp": 1680068032.701063,
+    "name": "action_session_start",
+    "policy": null,
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7006834,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBBQECW1fngxBqkEr0qoHvB",
+      "text": {
+        "body": "How to add forms in kairon?"
+      },
+      "timestamp": "1680068024",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012362,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012448,
+    "name": "kairon_action_response",
+    "value": "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.701257,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012908,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012966,
+    "name": "kairon_action_response",
+    "value": "Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068037.7333596,
+    "name": "kairon_action_response",
+    "value": "To add forms in Kairon, follow these steps:\n- Click on \"View\"\n- Click on \"Add new\" button on the top right corner\n- Click on the option \"Forms\"\n- Type in the desired title on the top left corner\n- Add the desired component from the mapped slots\n- Click on the added slots and type in the bot's reply for valid user response, invalid user response, and questions in the respective type boxes\n- To add the questions, press shift and enter keys together\n- Click on \"Save\" button on the top right corner\n- Retrain the bot to add the form successfully after adding the form."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012513,
+    "name": "kairon_action_response",
+    "value": "It depends on what \"it\" refers to. Can you please provide more context or specify what you are referring to?"
+  },
+  {
+    "event": "action",
+    "timestamp": 1680068038.063459,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012625,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhATbaSH9_ZuuowALFLmguJ1",
+      "text": {
+        "body": "Do you know any language other than English."
+      },
+      "timestamp": "1679982955",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.701269,
+    "name": "kairon_action_response",
+    "value": "Some advantages of Kairon include its end-to-end lifecycle management feature, low-code/no-code interface, secure script injection, telemetry monitoring, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Kairon also provides digital assistants that can cater to the needs of various personas and industries, such as marketing teams in retail organizations and operations in FMCG companies. Additionally, Kairon is an AI-powered conversational digital transformation platform that can be used to develop chatbots for e-commerce purposes, providing businesses with a wide range of features and an easy-to-use interface."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012749,
+    "name": "kairon_action_response",
+    "value": "Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012808,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+      "text": {
+        "body": "What is kairon simply?"
+      },
+      "timestamp": "1679889668",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7012854,
+    "name": "kairon_action_response",
+    "value": "I'm sorry, I didn't quite understand that. Could you rephrase?"
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680068032.7013023,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBBQECW1fngxBqkEr0qoHvB",
+      "text": {
+        "body": "How to add forms in kairon?"
+      },
+      "timestamp": "1680068024",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1680068037.7330966,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "session_started",
+    "timestamp": 1680068032.701203,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBBQECW1fngxBqkEr0qoHvB",
+      "text": {
+        "body": "How to add forms in kairon?"
+      },
+      "timestamp": "1680068024",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1680068032.7013075,
+    "name": "action_listen",
+    "policy": null,
+    "confidence": null,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "user",
+    "timestamp": 1680068032.754974,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBBQECW1fngxBqkEr0qoHvB",
+      "text": {
+        "body": "How to add forms in kairon?"
+      },
+      "timestamp": "1680068024",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "How to add forms in kairon?",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "2180325963026900543"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.999997615814209
+      },
+      "entities": [],
+      "text": "How to add forms in kairon?",
+      "message_id": "0f62a74a1b8347e9a36f7f92b74b0f04",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhBBQECW1fngxBqkEr0qoHvB",
+        "text": {
+          "body": "How to add forms in kairon?"
+        },
+        "timestamp": "1680068024",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "2180325963026900543"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.999997615814209
+        },
+        {
+          "id": {
+            "$numberLong": "7862325313088520237"
+          },
+          "name": "greet",
+          "confidence": 0.0000018923375364465755
+        },
+        {
+          "id": {
+            "$numberLong": "-7032391271770645183"
+          },
+          "name": "goodbye",
+          "confidence": 4.6460490921163e-7
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "0f62a74a1b8347e9a36f7f92b74b0f04"
+  },
+  {
+    "event": "action",
+    "timestamp": 1680068037.733142,
+    "name": "kairon_faq_action",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1680068037.7333508,
+    "text": "To add forms in Kairon, follow these steps:\n- Click on \"View\"\n- Click on \"Add new\" button on the top right corner\n- Click on the option \"Forms\"\n- Type in the desired title on the top left corner\n- Add the desired component from the mapped slots\n- Click on the added slots and type in the bot's reply for valid user response, invalid user response, and questions in the respective type boxes\n- To add the questions, press shift and enter keys together\n- Click on \"Save\" button on the top right corner\n- Retrain the bot to add the form successfully after adding the form.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6575866,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhATbaSH9_ZuuowALFLmguJ1",
+      "text": {
+        "body": "Do you know any language other than English."
+      },
+      "timestamp": "1679982955",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6576009,
+    "name": "kairon_action_response",
+    "value": "I'm sorry, I didn't quite understand that. Could you rephrase?"
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6576114,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBBQECW1fngxBqkEr0qoHvB",
+      "text": {
+        "body": "How to add forms in kairon?"
+      },
+      "timestamp": "1680068024",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6576147,
+    "name": "kairon_action_response",
+    "value": "To add forms in Kairon, follow these steps:\n- Click on \"View\"\n- Click on \"Add new\" button on the top right corner\n- Click on the option \"Forms\"\n- Type in the desired title on the top left corner\n- Add the desired component from the mapped slots\n- Click on the added slots and type in the bot's reply for valid user response, invalid user response, and questions in the respective type boxes\n- To add the questions, press shift and enter keys together\n- Click on \"Save\" button on the top right corner\n- Retrain the bot to add the form successfully after adding the form."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159111.091488,
+    "name": "kairon_action_response",
+    "value": "Kairon uses two main approaches for training its chatbots: GPT-based models and Rasa-based models."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.656933,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhAaebBX66Q2432YC3Ae4gUu",
+      "text": {
+        "body": "In how many ways can we train in kairon?"
+      },
+      "timestamp": "1680159108",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "session_started",
+    "timestamp": 1680159109.6575205,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhAaebBX66Q2432YC3Ae4gUu",
+      "text": {
+        "body": "In how many ways can we train in kairon?"
+      },
+      "timestamp": "1680159108",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6575747,
+    "name": "kairon_action_response",
+    "value": "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.657594,
+    "name": "kairon_action_response",
+    "value": "Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world."
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1680159111.0912256,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "bot",
+    "timestamp": 1680159111.0914779,
+    "text": "Kairon uses two main approaches for training its chatbots: GPT-based models and Rasa-based models.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "action",
+    "timestamp": 1680159109.65735,
+    "name": "action_session_start",
+    "policy": null,
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6575654,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6575792,
+    "name": "kairon_action_response",
+    "value": "It depends on what \"it\" refers to. Can you please provide more context or specify what you are referring to?"
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6575904,
+    "name": "kairon_action_response",
+    "value": "Some advantages of Kairon include its end-to-end lifecycle management feature, low-code/no-code interface, secure script injection, telemetry monitoring, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Kairon also provides digital assistants that can cater to the needs of various personas and industries, such as marketing teams in retail organizations and operations in FMCG companies. Additionally, Kairon is an AI-powered conversational digital transformation platform that can be used to develop chatbots for e-commerce purposes, providing businesses with a wide range of features and an easy-to-use interface."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6576045,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "user",
+    "timestamp": 1680159109.7159824,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhAaebBX66Q2432YC3Ae4gUu",
+      "text": {
+        "body": "In how many ways can we train in kairon?"
+      },
+      "timestamp": "1680159108",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "In how many ways can we train in kairon?",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "2180325963026900543"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9999990463256836
+      },
+      "entities": [],
+      "text": "In how many ways can we train in kairon?",
+      "message_id": "d5375269a5ec4434a22311d700a9a0d8",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhAaebBX66Q2432YC3Ae4gUu",
+        "text": {
+          "body": "In how many ways can we train in kairon?"
+        },
+        "timestamp": "1680159108",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "2180325963026900543"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9999990463256836
+        },
+        {
+          "id": {
+            "$numberLong": "-7032391271770645183"
+          },
+          "name": "goodbye",
+          "confidence": 8.555491604056442e-7
+        },
+        {
+          "id": {
+            "$numberLong": "7862325313088520237"
+          },
+          "name": "greet",
+          "confidence": 1.5273958808847965e-7
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "d5375269a5ec4434a22311d700a9a0d8"
+  },
+  {
+    "event": "action",
+    "timestamp": 1680159111.0912719,
+    "name": "kairon_faq_action",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6575828,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6575975,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+      "text": {
+        "body": "What is kairon simply?"
+      },
+      "timestamp": "1679889668",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.657608,
+    "name": "kairon_action_response",
+    "value": "Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1680159109.6576178,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhAaebBX66Q2432YC3Ae4gUu",
+      "text": {
+        "body": "In how many ways can we train in kairon?"
+      },
+      "timestamp": "1680159108",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1680159109.6576211,
+    "name": "action_listen",
+    "policy": null,
+    "confidence": null,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1680159111.305178,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5490565,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhDXyonN4v3FN0LWDmeuaodr",
+      "text": {
+        "body": "Kairon pricing"
+      },
+      "timestamp": "1681190166",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1681190167.5493474,
+    "name": "action_session_start",
+    "policy": null,
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "session_started",
+    "timestamp": 1681190167.549436,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhDXyonN4v3FN0LWDmeuaodr",
+      "text": {
+        "body": "Kairon pricing"
+      },
+      "timestamp": "1681190166",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494606,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhATbaSH9_ZuuowALFLmguJ1",
+      "text": {
+        "body": "Do you know any language other than English."
+      },
+      "timestamp": "1679982955",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.549464,
+    "name": "kairon_action_response",
+    "value": "I'm sorry, I didn't quite understand that. Could you rephrase?"
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494664,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBBQECW1fngxBqkEr0qoHvB",
+      "text": {
+        "body": "How to add forms in kairon?"
+      },
+      "timestamp": "1680068024",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494685,
+    "name": "kairon_action_response",
+    "value": "To add forms in Kairon, follow these steps:\n- Click on \"View\"\n- Click on \"Add new\" button on the top right corner\n- Click on the option \"Forms\"\n- Type in the desired title on the top left corner\n- Add the desired component from the mapped slots\n- Click on the added slots and type in the bot's reply for valid user response, invalid user response, and questions in the respective type boxes\n- To add the questions, press shift and enter keys together\n- Click on \"Save\" button on the top right corner\n- Retrain the bot to add the form successfully after adding the form."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494704,
+    "name": "kairon_action_response",
+    "value": "Kairon uses two main approaches for training its chatbots: GPT-based models and Rasa-based models."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494728,
+    "name": "kairon_action_response",
+    "value": "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494745,
+    "name": "kairon_action_response",
+    "value": "Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494769,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494788,
+    "name": "kairon_action_response",
+    "value": "It depends on what \"it\" refers to. Can you please provide more context or specify what you are referring to?"
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494807,
+    "name": "kairon_action_response",
+    "value": "Some advantages of Kairon include its end-to-end lifecycle management feature, low-code/no-code interface, secure script injection, telemetry monitoring, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Kairon also provides digital assistants that can cater to the needs of various personas and industries, such as marketing teams in retail organizations and operations in FMCG companies. Additionally, Kairon is an AI-powered conversational digital transformation platform that can be used to develop chatbots for e-commerce purposes, providing businesses with a wide range of features and an easy-to-use interface."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494826,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494845,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494866,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhD74OFv0cvTfRtvq0Ivn4qY",
+      "text": {
+        "body": "What is kairon simply?"
+      },
+      "timestamp": "1679889668",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494885,
+    "name": "kairon_action_response",
+    "value": "Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise."
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494907,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhAaebBX66Q2432YC3Ae4gUu",
+      "text": {
+        "body": "In how many ways can we train in kairon?"
+      },
+      "timestamp": "1680159108",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190167.5494928,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhDXyonN4v3FN0LWDmeuaodr",
+      "text": {
+        "body": "Kairon pricing"
+      },
+      "timestamp": "1681190166",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1681190167.5494947,
+    "name": "action_listen",
+    "policy": null,
+    "confidence": null,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "user",
+    "timestamp": 1681190167.5899122,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhDXyonN4v3FN0LWDmeuaodr",
+      "text": {
+        "body": "Kairon pricing"
+      },
+      "timestamp": "1681190166",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "Kairon pricing",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-7766622270626668138"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9996970891952515
+      },
+      "entities": [],
+      "text": "Kairon pricing",
+      "message_id": "6f25d534f4b145fb824cc3e37e5b4a47",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhDXyonN4v3FN0LWDmeuaodr",
+        "text": {
+          "body": "Kairon pricing"
+        },
+        "timestamp": "1681190166",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-7766622270626668138"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9996970891952515
+        },
+        {
+          "id": {
+            "$numberLong": "7550911111551871840"
+          },
+          "name": "goodbye",
+          "confidence": 0.000267524883383885
+        },
+        {
+          "id": {
+            "$numberLong": "-2045517579813769175"
+          },
+          "name": "book_demo",
+          "confidence": 0.000023161743229138665
+        },
+        {
+          "id": {
+            "$numberLong": "3162013405374656803"
+          },
+          "name": "catalog_poc",
+          "confidence": 0.000006894041234772885
+        },
+        {
+          "id": {
+            "$numberLong": "-4143347653878542157"
+          },
+          "name": "greet",
+          "confidence": 0.000005275974217511248
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "6f25d534f4b145fb824cc3e37e5b4a47"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1681190173.4086654,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1681190173.40869,
+    "name": "kairon_faq_action",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1681190173.408878,
+    "text": "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1681190173.4088879,
+    "name": "kairon_action_response",
+    "value": "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."
+  },
+  {
+    "event": "action",
+    "timestamp": 1681190173.6725779,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  }
+]
