@@ -68,7 +68,24 @@ class KMongoTrackerStore(TrackerStore):
         additional_events = self._additional_events(tracker)
         sender_id = tracker.sender_id
         conversation_id = uuid7().hex
-        data = [{"sender_id": sender_id, "conversation_id": conversation_id, "event": e.as_dict()} for e in additional_events]
+        flattened_conversation = {"type": "flattened", "conversation_id": conversation_id, "data": {}}
+        actions_predicted = []
+        data = []
+        for event in additional_events:
+            event = event.as_dict()
+            data.append({"sender_id": sender_id, "conversation_id": conversation_id, "event": event})
+            if event['event'] == 'user':
+                flattened_conversation['timestamp'] = event.get('timestamp')
+                flattened_conversation["data"]['user_input'] = event.get('text')
+                flattened_conversation["data"]['intent'] = event['parse_data']['intent']['name']
+                flattened_conversation["data"]['confidence'] = event['parse_data']['intent']['confidence']
+            elif event['event'] == 'action':
+                actions_predicted.append(event.get('name'))
+            elif event['event'] == 'bot':
+                flattened_conversation["data"]['bot_response_text'] = event.get('text')
+                flattened_conversation["data"]['bot_response_data'] = event.get('data')
+        flattened_conversation["data"]['action'] = actions_predicted
+        data.append(flattened_conversation)
         if data:
             self.conversations.insert_many(data)
 

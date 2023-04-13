@@ -1,0 +1,228 @@
+[
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678651620,
+    "data": {
+      "user_input": "There is a black spot",
+      "intent": "blackspot",
+      "confidence": 0.99,
+      "action": [
+        "utter_yesblackspot",
+        "utter_eyeshapedvideo",
+        "utter_eyeshapedmedia"
+      ],
+      "bot_response_text": "Thank you for bringing this symptom of eye-shaped spots with a dark-brown dot in the center to our attention, which is caused by Brown Spot Disease. The disease is common in poor soils and spreads rapidly in the presence of rainfall. To manage this disease, here are some actions that you can take:\n1. Apply adequate and balanced nutrition to the crop.\n2. Spray Tilt (Propiconazole) or Contaf (Hexaconazole) @ 2500 ml on your 5 acre rice farm.",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678651560,
+    "data": {
+      "user_input": "Black spot",
+      "intent": "blackspotno",
+      "confidence": 0.89,
+      "action": [
+        "utter_noblackspot"
+      ],
+      "bot_response_text": "I appreciate your input, if you come across this symptom, please contact our agronomist Mr Mahesh as soon as possible to resolve the issue. You can reach out to him at +91-8095103022 for further guidance.",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678651500,
+    "data": {
+      "user_input": "Hi",
+      "intent": "greet",
+      "confidence": 1.0,
+      "action": [
+        "utter_help_with",
+        "utter_list_of_services"
+      ],
+      "bot_response_text": "Hello, I'm your Digital Farming Saathi for this season. Here are a few things I can help you with regarding activities to be performed in your field based on the package of practices.",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678650600,
+    "data": {
+      "user_input": "There is a black spot",
+      "intent": "blackspot",
+      "confidence": 0.99,
+      "action": [
+        "utter_yesblackspot",
+        "utter_eyeshapedvideo",
+        "utter_eyeshapedmedia"
+      ],
+      "bot_response_text": "Thank you for bringing this symptom of eye-shaped spots with a dark-brown dot in the center to our attention, which is caused by Brown Spot Disease. The disease is common in poor soils and spreads rapidly in the presence of rainfall. To manage this disease, here are some actions that you can take:\n1. Apply adequate and balanced nutrition to the crop.\n2. Spray Tilt (Propiconazole) or Contaf (Hexaconazole) @ 2500 ml on your 5 acre rice farm.",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678607160,
+    "data": {
+      "user_input": "/orderdap",
+      "intent": "orderdap",
+      "confidence": 1.0,
+      "action": [
+        "generate_dealer_request_dap"
+      ],
+      "bot_response_text": "",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "user_input": "/currentweek",
+    "timestamp": 1678607160,
+    "intent": "currentweek",
+    "confidence": 1.0,
+    "action": [
+      "utter_response1",
+      "utter_purchase",
+      "utter_purchase_options"
+    ],
+    "bot_response_text": "This is the 1st week after transplantation. Here is the list of activities to be completed between 6th March and 11th March 2023.\n1. Apply Urea: \nApply the first dose as a basal dose of 250 kilograms of Urea for your 5 acres of tomato field\n2. Apply Phosphorous (DAP):\nApply a basal dose of 125 kilograms of DAP for your 5 acres of tomato field.\n3. Apply Potash (MOP):\nApply a basal dose of 62.5 Kg of MOP for your 5 acres of tomato field.\nWould you like to purchase any of these inputs?",
+    "bot_response_data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678650360,
+    "data": {
+      "user_input": "Hi",
+      "intent": "greet",
+      "confidence": 1.0,
+      "action": [
+        "utter_help_with",
+        "utter_list_of_services"
+      ],
+      "bot_response_text": "Hello, I'm your Digital Farming Saathi for this season. Here are a few things I can help you with regarding activities to be performed in your field based on the package of practices.",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678650060,
+    "data": {
+      "user_input": "Hi",
+      "intent": "greet",
+      "confidence": 0.99,
+      "action": [
+        "utter_greet"
+      ],
+      "bot_response_text": "Hi, I'm your ElectricPe Digital Assistant - let's rev up your day with some electrically charged assistance!",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678639860,
+    "data": {
+      "user_input": "Hi",
+      "intent": "nlu_fallback",
+      "confidence": 0.70,
+      "action": [
+        "utter_please_rephrase"
+      ],
+      "bot_response_text": "Sorry, I did not get you!",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "type": "flattened",
+    "sender_id": "mathew.anil@digite.com",
+    "timestamp": 1678639560,
+    "data": {
+      "user_input": "Hi",
+      "intent": "nlu_fallback",
+      "confidence": 0.70,
+      "action": [
+        "utter_please_rephrase"
+      ],
+      "bot_response_text": "Sorry, I did not get you!",
+      "bot_response_data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  }
+]

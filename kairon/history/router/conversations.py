@@ -18,12 +18,11 @@ router = APIRouter()
 async def flat_conversations(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        sort_by_date: bool = Query(default=True),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the flattened conversation data of the bot for previous months."""
     flat_data, message = HistoryProcessor.flatten_conversations(
-        collection, from_date, to_date, sort_by_date
+        collection, from_date, to_date
     )
     return {"data": flat_data, "message": message}
 
@@ -33,11 +32,10 @@ async def download_conversations(
         background_tasks: BackgroundTasks,
         from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        sort_by_date: bool = Query(default=True),
         collection: str = Depends(Authentication.authenticate_and_get_collection),
 ):
     """Downloads conversation history of the bot, for the specified months."""
-    conversation_data, _ = HistoryProcessor.flatten_conversations(collection, from_date, to_date, sort_by_date)
+    conversation_data, _ = HistoryProcessor.flatten_conversations(collection, from_date, to_date)
     file, temp_path = Utility.download_csv(conversation_data.get("conversation_data"))
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
