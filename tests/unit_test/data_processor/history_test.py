@@ -26,7 +26,19 @@ def load_history_data():
     return db_url, client
 
 
+def load_flattened_history_data():
+    db_url = "mongodb://test_kairon:27016/conversation"
+    client = mongomock.MongoClient(db_url)
+    collection = client.get_database().get_collection("tests_flattened")
+    items = json.load(open("./tests/testing_data/history/flattened_conversations.json", "r"))
+    for item in items:
+        item['timestamp'] = time.time()
+    collection.insert_many(items)
+    return db_url, client
+
+
 db_url, mongoclient = load_history_data()
+db_url_flattened, mongoclient_flattened = load_flattened_history_data()
 
 
 class TestHistory:
@@ -351,7 +363,7 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_flatten_conversation_range(self, mock_client):
-        mock_client.return_value = mongomock.MongoClient(Utility.environment['tracker']['url'])
+        mock_client.return_value = mongoclient_flattened
         f_count, message = HistoryProcessor.flatten_conversations("tests")
         assert f_count["conversation_data"] == []
         assert message is None
