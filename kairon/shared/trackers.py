@@ -68,7 +68,7 @@ class KMongoTrackerStore(TrackerStore):
         additional_events = self._additional_events(tracker)
         sender_id = tracker.sender_id
         conversation_id = uuid7().hex
-        flattened_conversation = {"type": "flattened", "conversation_id": conversation_id, "data": {}}
+        flattened_conversation = {"type": "flattened", "sender_id": sender_id, "conversation_id": conversation_id, "data": {}}
         actions_predicted = []
         data = []
         for event in additional_events:

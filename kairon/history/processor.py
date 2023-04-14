@@ -834,7 +834,7 @@ class HistoryProcessor:
                                           "bot_response_data": "$data.bot_response_data", "sender_id": "$sender_id"
                                           }},
                             {"$sort": {"timestamp": -1}},
-                            {"$project": {"_id": 0, "user_input": 1, "intent": 1, "confidence": 1, "action": 1,
+                            {"$project": {"_id": "$sender_id", "user_input": 1, "intent": 1, "confidence": 1, "action": 1,
                                           "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
                                           "bot_response_text": 1, "bot_response_data": 1}}
                          ], allowDiskUse=True))
