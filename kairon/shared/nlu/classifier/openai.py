@@ -20,8 +20,8 @@ if typing.TYPE_CHECKING:
     pass
 
 
-class OpenAIIntentClassifier(IntentClassifier):
-    """Intent classifier using the OpenAI Completion framework"""
+class OpenAIClassifier(IntentClassifier):
+    """Intent and Entity classifier using the OpenAI Completion framework"""
 
     defaults = {
         "bot_id": None,
@@ -32,6 +32,8 @@ class OpenAIIntentClassifier(IntentClassifier):
         "temperature": 0.0,
         "max_tokens": 50,
     }
+
+    system_prompt = "You are an intent classifier. Based on the users prompt, you will classify the prompt to one of the intent if it is not from one of the stories you will classify it as nlu_fallback. Also provide the explanation why particular intent is classified."
 
     def __init__(
             self,
@@ -63,7 +65,7 @@ class OpenAIIntentClassifier(IntentClassifier):
             self.api_key = os.environ.get("OPENAI_API_KEY")
         else:
             raise KeyError(
-                f"either set bot_id'in GPTPromptIntentClassifier config or set OPENAI_API_KEY in environment variables"
+                f"either set bot_id'in OpenAIClassifier config or set OPENAI_API_KEY in environment variables"
             )
 
     def get_embeddings(self, text):
@@ -94,7 +96,7 @@ class OpenAIIntentClassifier(IntentClassifier):
     def prepare_context(self, embeddings, text):
         dist, indx = self.vector.search(np.asarray([embeddings], dtype=np.float32), k=self.component_config.get("top_k", 5))
         messages = [
-            {"role": "system", "content": 'You are an intent classifier. Based on the users prompt, you will classify the prompt to one of the intent, if not from one of the stories you will classify it as nlu_fallback.'},
+            {"role": "system", "content": self.system_prompt},
         ]
         for i in indx[0]:
             messages.append({"role": "user", "content": f"text: {self.data[i]['text']}"})
@@ -113,11 +115,13 @@ class OpenAIIntentClassifier(IntentClassifier):
             top_p=1,
             frequency_penalty=0,
             presence_penalty=0,
-            stop=["\n", "\n\n"],
+            stop=["\n\n"],
             api_key=self.api_key
         )
-        intent = response.choices[0]['message']['content'].split(':')[1].strip()
-        return intent, None
+        intent_str, explanation_str = response.choices[0]['message']['content'].split('\n')
+        intent = intent_str.split(':')[1].strip()
+        explanation = explanation_str.split(':')[1].strip()
+        return intent, explanation
 
     def process(self, message: Message, **kwargs: Any) -> None:
         """Return the most likely intent and its probability for a message."""
