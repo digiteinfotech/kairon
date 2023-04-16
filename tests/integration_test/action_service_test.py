@@ -5406,6 +5406,73 @@ class TestActionServer(AsyncHTTPTestCase):
     @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_streaming_enabled(self, mock_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = GPT_LLM_FAQ
+        bot = "5f50k90a56b698ca10d35d2e"
+        user = "udit.pandeyy"
+        value = "keyvalue"
+        user_msg = "What kind of language is python?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+
+        def mock_get_streaming_llm_response(*args, **kwargs):
+            response = [OpenAIResponse({'data': {'choices': [{'delta': {'role': 'assistant'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': 'Python'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' is'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' dynamically'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' typed'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' garbage-collected'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' high'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' level'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}},{}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' general'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' purpose'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' programming'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {'content': '.'}, 'index': 0, 'finish_reason': None}]}}, {}),
+                        OpenAIResponse({'data': {'choices': [{'delta': {}, 'index': 0, 'finish_reason': 'stop'}]}}, {})]
+            return (
+                convert_to_openai_object(line)
+                for line in response
+            )
+
+        mock_completion.return_value = mock_get_streaming_llm_response()
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_search.return_value = {
+            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        hyperparameters = Utility.get_llm_hyper_parameters().copy()
+        hyperparameters['stream'] = True
+        KaironFaqAction(bot=bot, user=user, hyperparameters=hyperparameters).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+              'response': None, 'image': None, 'attachment': None}
+             ])
+
+    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_failure(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object

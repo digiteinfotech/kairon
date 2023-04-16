@@ -202,7 +202,7 @@ class TestMongoProcessor:
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
                            'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                            "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
-                           "use_bot_responses": False, "num_bot_responses": 5}]
+                           "use_bot_responses": False, "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyper_parameters()}]
 
     def test_add_kairon_faq_action_already_exist(self):
         processor = MongoProcessor()
@@ -231,14 +231,15 @@ class TestMongoProcessor:
         request = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
                    "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
-                   "num_bot_responses": 5}
+                   "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyper_parameters()}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
                            'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
                            "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": True,
-                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt"}]
+                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt",
+                           "hyperparameters": Utility.get_llm_hyper_parameters()}]
         request = {}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
@@ -246,7 +247,33 @@ class TestMongoProcessor:
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
                            'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                            "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
-                           "use_bot_responses": False, "num_bot_responses": 5}]
+                           "use_bot_responses": False, "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyper_parameters()}]
+
+    def test_edit_kairon_faq_action_with_less_hyperparameters(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+                   "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
+                   "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
+                   "num_bot_responses": 5, "hyperparameters": {"temperature": 0.0,
+                                                               "max_tokens": 300,
+                                                               "model": "gpt-3.5-turbo",
+                                                               "top_p": 0.0,
+                                                               "n": 1}}
+
+        processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
+        action = list(processor.get_kairon_faq_action(bot))
+        action[0].pop("_id")
+        assert action == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
+                           'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": True,
+                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt",
+                           "hyperparameters": {"temperature": 0.0,
+                                               "max_tokens": 300,
+                                               "model": "gpt-3.5-turbo",
+                                               "top_p": 0.0,
+                                               "n": 1}}]
 
     def test_get_kairon_faq_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -259,10 +286,13 @@ class TestMongoProcessor:
         bot = 'test_bot'
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
-        assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
-                           'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
-                           "use_bot_responses": False, "num_bot_responses": 5}]
+        print(action)
+        assert action ==  [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
+                            'context_prompt': 'updated_context_prompt', 'use_query_prompt': True,
+                            'query_prompt': 'updated_query_prompt', 'use_bot_responses': True,
+                            'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+                            'failure_message': 'updated_failure_message',
+                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1}}]
 
     def test_delete_kairon_faq_action(self):
         processor = MongoProcessor()

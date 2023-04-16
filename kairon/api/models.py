@@ -755,6 +755,7 @@ class KaironFaqConfigRequest(BaseModel):
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     top_results: int = 10
     similarity_threshold: float = 0.70
+    hyperparameters: dict = None
 
     @validator("system_prompt")
     def validate_system_prompt(cls, v, values, **kwargs):
@@ -788,6 +789,14 @@ class KaironFaqConfigRequest(BaseModel):
     def validate_num_bot_responses(cls, v, values, **kwargs):
         if v > 5:
             raise ValueError("num_bot_responses should not be greater than 5")
+        return v
+
+    @validator("hyperparameters")
+    def validate_hyperparameters(cls, v, values, **kwargs):
+        from kairon import Utility
+
+        if not v:
+            v = Utility.get_llm_hyper_parameters()
         return v
 
     @root_validator

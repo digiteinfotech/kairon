@@ -61,9 +61,8 @@ class ActionKaironFaq(ActionsBase):
             bot_response = k_faq_action_config.get('failure_message', DEFAULT_NLU_FALLBACK_RESPONSE)
             llm = LLMFactory.get_instance(self.bot, "faq")
             llm_response = llm.predict(user_msg, **k_faq_action_config)
+            bot_response = llm_response['content']
             llm_logs = llm.logs
-            if llm_response.get('content') != "I don't know.":
-                bot_response = llm_response['content']
         except Exception as e:
             logger.exception(e)
             logger.debug(e)

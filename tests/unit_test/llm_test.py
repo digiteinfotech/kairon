@@ -197,6 +197,7 @@ class TestLLM:
             )
 
             response = gpt3.predict(query)
+            hyperparameters = Utility.get_llm_hyper_parameters()
 
             assert response['content'] == generated_text
 
@@ -205,8 +206,8 @@ class TestLLM:
             assert mock_embedding.call_args.kwargs['input'] == query
 
             assert mock_completion.call_args.kwargs['api_key'] == "knupur"
-            assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
-                       gpt3.__answer_params__.keys())
+            assert all(mock_completion.call_args.kwargs[key] == hyperparameters[key] for key in
+                       hyperparameters.keys())
             assert mock_completion.call_args.kwargs[
                        'messages'] == [
             {"role": "system",
@@ -252,6 +253,7 @@ class TestLLM:
             )
 
             response = gpt3.predict(query, **k_faq_action_config)
+            hyperparameters = Utility.get_llm_hyper_parameters()
 
             assert response['content'] == generated_text
 
@@ -259,8 +261,8 @@ class TestLLM:
             assert mock_embedding.call_args.kwargs['input'] == query
 
             assert mock_completion.call_args.kwargs['api_key'] == "knupur"
-            assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
-                       gpt3.__answer_params__.keys())
+            assert all(mock_completion.call_args.kwargs[key] == hyperparameters[key] for key in
+                       hyperparameters.keys())
             assert mock_completion.call_args.kwargs[
                        'messages'] == [
                        {"role": "system",
@@ -312,6 +314,7 @@ class TestLLM:
         )
 
         response = gpt3.predict(query, **k_faq_action_config)
+        hyperparameters = Utility.get_llm_hyper_parameters()
 
         assert response['content'] == generated_text
 
@@ -320,8 +323,8 @@ class TestLLM:
         assert mock_embedding.call_args.kwargs['input'] == query
 
         assert mock_completion.call_args.kwargs['api_key'] == "knupur"
-        assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
-                   gpt3.__answer_params__.keys())
+        assert all(mock_completion.call_args.kwargs[key] == hyperparameters[key] for key in
+                   hyperparameters.keys())
         assert mock_completion.call_args.kwargs['messages'] == [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
             {'role': 'user', 'content': 'hello'},
@@ -376,6 +379,7 @@ class TestLLM:
         )
 
         response = gpt3.predict(query, **k_faq_action_config)
+        hyperparameters = Utility.get_llm_hyper_parameters()
 
         assert response['content'] == generated_text
 
@@ -384,8 +388,8 @@ class TestLLM:
         assert mock_embedding.call_args.kwargs['input'] == query
 
         assert mock_completion.call_args.kwargs['api_key'] == "knupur"
-        assert all(mock_completion.call_args_list[0].kwargs[key] == gpt3.__answer_params__[key] for key in
-                   gpt3.__answer_params__.keys())
+        assert all(mock_completion.call_args_list[0].kwargs[key] == hyperparameters[key] for key in
+                   hyperparameters.keys())
         assert mock_completion.call_args_list[0].kwargs[
                    'messages'] == [
                    {"role": "system",
@@ -393,8 +397,8 @@ class TestLLM:
                    {"role": "user",
                     "content": f"{k_faq_action_config['query_prompt']}\n\n Q: {query}\n A:"}
                ]
-        assert all(mock_completion.call_args_list[1].kwargs[key] == gpt3.__answer_params__[key] for key in
-                   gpt3.__answer_params__.keys())
+        assert all(mock_completion.call_args_list[1].kwargs[key] == hyperparameters[key] for key in
+                   hyperparameters.keys())
         assert mock_completion.call_args_list[1].kwargs[
                    'messages'] == [
                    {"role": "system",

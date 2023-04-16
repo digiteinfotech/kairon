@@ -500,6 +500,7 @@ class KaironFaqAction(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+    hyperparameters = DictField(default=Utility.get_llm_hyper_parameters)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.system_prompt):

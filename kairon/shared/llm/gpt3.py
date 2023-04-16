@@ -12,11 +12,6 @@ from loguru import logger as logging
 
 
 class GPT3FAQEmbedding(LLMBase):
-    __answer_params__ = {
-        "temperature": 0.0,
-        "max_tokens": 300,
-        "model": "gpt-3.5-turbo",
-    }
 
     __embedding__ = 1536
 
@@ -66,8 +61,10 @@ class GPT3FAQEmbedding(LLMBase):
         query_prompt = kwargs.get('query_prompt')
         use_query_prompt = kwargs.get('use_query_prompt')
         previous_bot_responses = kwargs.get('previous_bot_responses')
+        hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyper_parameters())
+
         if use_query_prompt and query_prompt:
-            query = self.__rephrase_query(query, system_prompt, query_prompt)
+            query = self.__rephrase_query(query, system_prompt, query_prompt, hyperparameters=hyperparameters)
         messages = [
             {"role": "system", "content": system_prompt},
         ]
@@ -78,27 +75,28 @@ class GPT3FAQEmbedding(LLMBase):
         completion = openai.ChatCompletion.create(
             api_key=self.api_key,
             messages=messages,
-            **self.__answer_params__
+            **hyperparameters
         )
 
-        response = ' '.join([choice['message']['content'] for choice in completion.to_dict_recursive()['choices']])
-        self.__logs.append({'messages': messages, 'raw_completion_response': completion.to_dict_recursive(),
-                          'type': 'answer_query', 'parameters': self.__answer_params__})
+        response, raw_response = Utility.format_llm_response(completion, hyperparameters.get('stream', False))
+        self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
+                          'type': 'answer_query', 'hyperparameters': hyperparameters})
         return response
 
-    def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text):
+    def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, **kwargs):
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{query_prompt}\n\n Q: {query}\n A:"}
         ]
+        hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyper_parameters())
         completion = openai.ChatCompletion.create(
             api_key=self.api_key,
             messages=messages,
-            **self.__answer_params__
+            **hyperparameters
         )
-        response = ' '.join([choice['message']['content'] for choice in completion.to_dict_recursive()['choices']])
-        self.__logs.append({'messages': messages, 'raw_completion_response': completion.to_dict_recursive(),
-                          'type': 'rephrase_query', 'parameters': self.__answer_params__})
+        response, raw_response = Utility.format_llm_response(completion, hyperparameters.get('stream', False))
+        self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
+                          'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return response
 
     def __create_collection__(self, collection_name: Text):

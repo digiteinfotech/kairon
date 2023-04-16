@@ -1801,6 +1801,26 @@ class Utility:
             if not ver.verify(email):
                 raise AppException("Invalid or disposable Email!")
 
+    @staticmethod
+    def get_llm_hyper_parameters():
+        if Utility.environment['llm']['faq'] in {"GPT3_FAQ_EMBED"}:
+            return Utility.system_metadata['llm']['gpt']
+
+    @staticmethod
+    def format_llm_response(response, is_streamed: bool = False):
+        formatted_response = ''
+        if is_streamed:
+            raw_response = []
+            for chunk in response:
+                for delta in chunk['data']['choices']:
+                    if delta['delta'].get('content'):
+                        formatted_response = f"{formatted_response}{delta['delta'].get('content')}"
+                raw_response.append(chunk.to_dict_recursive())
+        else:
+            formatted_response = ' '.join([choice['message']['content'] for choice in response.to_dict_recursive()['choices']])
+            raw_response = response.to_dict_recursive()
+        return formatted_response, raw_response
+
 
 class StoryValidator:
 
