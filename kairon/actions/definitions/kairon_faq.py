@@ -63,7 +63,7 @@ class ActionKaironFaq(ActionsBase):
             llm = LLMFactory.get_instance(self.bot, "faq")
             llm_response = llm.predict(user_msg, **k_faq_action_config)
             llm_logs = llm.logs
-            if llm_response['is_from_cache']:
+            if llm_response['is_from_cache'] and not isinstance(llm_response['content'], str):
                 recommendations, bot_response = ActionUtility.format_recommendations(llm_response, k_faq_action_config)
             else:
                 bot_response = llm_response['content']

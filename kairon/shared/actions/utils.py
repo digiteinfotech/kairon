@@ -750,7 +750,7 @@ class ActionUtility:
         recommendations = None
         if llm_response['content']['result']:
             recommendations = [
-                {"text": item['payload']['query'], "payload": item['payload']['response'], "type": "cached"}
+                {"text": item['payload']['query'], "payload": item['payload']['query']}
                 for item in llm_response['content']['result']
             ]
             bot_response = k_faq_action_config.get('failure_message', DEFAULT_NLU_FALLBACK_RESPONSE)
