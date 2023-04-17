@@ -1,5 +1,4 @@
 import os
-from unittest.mock import Mock
 from urllib.parse import urljoin
 
 import mock
@@ -78,10 +77,25 @@ class TestLLM:
             )
 
             responses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
+                adding_headers={}
+            )
+
+            responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
                 method="PUT",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': gpt3.bot + gpt3.cached_resp_suffix, 'vectors': gpt3.vector_config})],
                 status=200
             )
 
@@ -118,7 +132,6 @@ class TestLLM:
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
-
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_openai.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
 
@@ -129,6 +142,21 @@ class TestLLM:
                 "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
                 adding_headers={}
+            )
+
+            responses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': gpt3.bot + gpt3.cached_resp_suffix, 'vectors': gpt3.vector_config})],
+                status=200
             )
 
             responses.add(
@@ -196,6 +224,17 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'points': [{'id': Utility.create_uuid_from_string(query), 'vector': embedding,
+                                 'payload': {"query": query, "response": generated_text}}]})],
+                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+            )
+
             response = gpt3.predict(query)
 
             assert response['content'] == generated_text
@@ -251,6 +290,16 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'points': [{'id': Utility.create_uuid_from_string(query), 'vector': embedding,
+                                 'payload': {"query": query, "response": generated_text}}]})],
+                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+            )
+
             response = gpt3.predict(query, **k_faq_action_config)
 
             assert response['content'] == generated_text
@@ -270,6 +319,208 @@ class TestLLM:
                             f"Based on below context answer question, if answer not in context check previous logs."
                             f" \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
                    ]
+            assert gpt3.logs == [{'messages': [
+                {'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'},
+                {'role': 'user', 'content': 'Based on below context answer question, if answer not in context check previous logs. \n\nContext:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\n\n Q: What kind of language is python?\n A:'}],
+                'raw_completion_response': {'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.', 'role': 'assistant'}}]},
+                'type': 'answer_query', 'parameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo'}},
+                {'message': 'Response added to cache', 'type': 'response_cached'}]
+
+    @responses.activate
+    @mock.patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
+    @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    def test_gpt3_faq_embedding_predict_completion_connection_error(
+            self, mock_embedding, mock_completion
+    ):
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        test_content = BotContent(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            bot="test_embed_faq_predict", user="test").save()
+
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query = "What kind of language is python?"
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "top_results": 10, "similarity_threshold": 0.70}
+
+        def __mock_connection_error(*args, **kwargs):
+            import openai
+
+            raise openai.error.APIConnectionError("Connection reset by peer!")
+
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_completion.side_effect = __mock_connection_error
+
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
+            gpt3 = GPT3FAQEmbedding(test_content.bot)
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
+                json={'result': [
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 3, 'with_payload': True, 'score_threshold': 0.7})],
+                json={'result': [
+                    {'id': Utility.create_uuid_from_string(query), 'score': 0.80, "payload": {'query': query, "content": generated_text}}]}
+            )
+
+            response = gpt3.predict(query, **k_faq_action_config)
+
+            assert response == {'content': {'result': [
+                {'id': '5ec0694b-1c19-b8c6-c54d-1cdbff20ca64', 'score': 0.8,
+                 'payload': {'query': 'What kind of language is python?',
+                             'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}}]},
+                'is_from_cache': True}
+
+            assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
+            assert mock_embedding.call_args.kwargs['input'] == query
+
+            assert mock_completion.call_args.kwargs['api_key'] == "knupur"
+            assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
+                       gpt3.__answer_params__.keys())
+            assert mock_completion.call_args.kwargs[
+                       'messages'] == [
+                       {"role": "system",
+                        "content": "You are a personal assistant. Answer the question according to the below context"},
+                       {"role": "user",
+                        "content":
+                            f"Based on below context answer question, if answer not in context check previous logs."
+                            f" \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+                   ]
+            assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
+
+    @responses.activate
+    @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    def test_gpt3_faq_embedding_predict_embedding_connection_error(self, mock_embedding):
+        import openai
+
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        test_content = BotContent(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            bot="test_embed_faq_predict", user="test").save()
+
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query = "What kind of language is python?"
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "top_results": 10, "similarity_threshold": 0.70}
+
+        def mock_get_embedding(*args, **kwargs):
+            return convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+
+        mock_embedding.side_effect = [openai.error.APIConnectionError("Connection reset by peer!"), mock_get_embedding()]
+
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
+            gpt3 = GPT3FAQEmbedding(test_content.bot)
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 3, 'with_payload': True, 'score_threshold': 0.7})],
+                json={'result': [
+                    {'id': Utility.create_uuid_from_string(query), 'score': 0.80,
+                     "payload": {'query': query, "content": generated_text}}]}
+            )
+
+            response = gpt3.predict(query, **k_faq_action_config)
+            assert response == {'content': {'result': [
+                {'id': '5ec0694b-1c19-b8c6-c54d-1cdbff20ca64', 'score': 0.8,
+                 'payload': {'query': 'What kind of language is python?',
+                             'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}}]},
+                'is_from_cache': True}
+
+            assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
+            assert mock_embedding.call_args.kwargs['input'] == query
+            assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
+
+    @responses.activate
+    @mock.patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
+    @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    def test_gpt3_faq_embedding_predict_completion_connection_error_query_not_cached(
+            self, mock_embedding, mock_completion
+    ):
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        test_content = BotContent(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            bot="test_embed_faq_predict", user="test").save()
+
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query = "What kind of language is python?"
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "top_results": 10, "similarity_threshold": 0.70}
+
+        def __mock_connection_error(*args, **kwargs):
+            import openai
+
+            raise openai.error.APIConnectionError("Connection reset by peer!")
+
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_completion.side_effect = __mock_connection_error
+
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
+            gpt3 = GPT3FAQEmbedding(test_content.bot)
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
+                json={'result': [
+                    {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 3, 'with_payload': True, 'score_threshold': 0.7})],
+                json={'result': []}
+            )
+
+            response = gpt3.predict(query, **k_faq_action_config)
+
+            assert response == {'content': {'result': []}, 'is_from_cache': True}
+
+            assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
+            assert mock_embedding.call_args.kwargs['input'] == query
+
+            assert mock_completion.call_args.kwargs['api_key'] == "knupur"
+            assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
+                       gpt3.__answer_params__.keys())
+            assert mock_completion.call_args.kwargs[
+                       'messages'] == [
+                       {"role": "system",
+                        "content": "You are a personal assistant. Answer the question according to the below context"},
+                       {"role": "user",
+                        "content":
+                            f"Based on below context answer question, if answer not in context check previous logs."
+                            f" \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+                   ]
+            assert gpt3.logs == [
+                {'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
 
     @responses.activate
     @mock.patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
@@ -309,6 +560,16 @@ class TestLLM:
                 {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
             json={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+        )
+
+        responses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points"),
+            method="PUT",
+            adding_headers={},
+            match=[responses.matchers.json_params_matcher(
+                {'points': [{'id': Utility.create_uuid_from_string(query), 'vector': embedding,
+                             'payload': {"query": query, "response": generated_text}}]})],
+            json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
         )
 
         response = gpt3.predict(query, **k_faq_action_config)
@@ -373,6 +634,15 @@ class TestLLM:
                 {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
             json={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+        )
+        responses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points"),
+            method="PUT",
+            adding_headers={},
+            match=[responses.matchers.json_params_matcher(
+                {'points': [{'id': Utility.create_uuid_from_string(query), 'vector': embedding,
+                             'payload': {"query": query, "response": generated_text}}]})],
+            json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
         )
 
         response = gpt3.predict(query, **k_faq_action_config)

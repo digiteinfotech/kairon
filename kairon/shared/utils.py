@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import hashlib
 import html
 import json
 import os
@@ -7,6 +8,7 @@ import re
 import shutil
 import string
 import tempfile
+import uuid
 from datetime import datetime, timedelta, date
 from dateutil import tz
 import pytz
@@ -1800,6 +1802,11 @@ class Utility:
             ver = EmailVerficationFactory.get_instance()
             if not ver.verify(email):
                 raise AppException("Invalid or disposable Email!")
+
+    @staticmethod
+    def create_uuid_from_string(val: str):
+        hex_string = hashlib.md5(val.encode("UTF-8")).hexdigest()
+        return uuid.UUID(hex=hex_string).__str__()
 
 
 class StoryValidator:
