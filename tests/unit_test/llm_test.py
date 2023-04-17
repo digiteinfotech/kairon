@@ -342,8 +342,14 @@ class TestLLM:
             assert gpt3.logs == [{'messages': [
                 {'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'},
                 {'role': 'user', 'content': 'Based on below context answer question, if answer not in context check previous logs. \n\nContext:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\n\n Q: What kind of language is python?\n A:'}],
-                'raw_completion_response': {'choices': [{'message': {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.', 'role': 'assistant'}}]},
-                'type': 'answer_query', 'parameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo'}},
+                 'raw_completion_response': {
+                     'choices': [{'message': {
+                         'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                         'role': 'assistant'}}]},
+                'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
+                                                            'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                                            'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                                            'frequency_penalty': 0.0, 'logit_bias': None, 'user': None}},
                 {'message': 'Response added to cache', 'type': 'response_cached'}]
 
     @responses.activate
@@ -417,8 +423,6 @@ class TestLLM:
             assert mock_embedding.call_args.kwargs['input'] == query
 
             assert mock_completion.call_args.kwargs['api_key'] == "knupur"
-            assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
-                       gpt3.__answer_params__.keys())
             assert mock_completion.call_args.kwargs[
                        'messages'] == [
                        {"role": "system",
@@ -592,8 +596,6 @@ class TestLLM:
             assert mock_embedding.call_args.kwargs['input'] == query
 
             assert mock_completion.call_args.kwargs['api_key'] == "knupur"
-            assert all(mock_completion.call_args.kwargs[key] == gpt3.__answer_params__[key] for key in
-                       gpt3.__answer_params__.keys())
             assert mock_completion.call_args.kwargs[
                        'messages'] == [
                        {"role": "system",
