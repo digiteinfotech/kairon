@@ -474,6 +474,37 @@ class TestMongoProcessor:
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
         assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
 
+    def test_add_or_overwrite_gpt_classifier_config_with_bot_id(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./template/config/openai-classifier.yml')
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'en'
+        assert config['pipeline'] == [{'name': 'kairon.shared.nlu.classifier.openai.OpenAIClassifier', 'bot_id': bot}]
+        assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
+                                           {'core_fallback_action_name': 'action_default_fallback',
+                                            'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
+                                            'name': 'RulePolicy'}]
+
+    def test_add_or_overwrite_gpt_featurizer_config_with_bot_id(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./template/config/openai-featurizer.yml')
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'en'
+        assert config['pipeline'] == [{'name': 'WhitespaceTokenizer'}, {'name': 'CountVectorsFeaturizer',
+                                                                        'min_ngram': 1, 'max_ngram': 2},
+                                      {'name': 'kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer', 'bot_id': bot},
+                                      {'name': 'DIETClassifier', 'epochs': 50, 'constrain_similarities': True, 'entity_recognition': False},
+                                      {'name': 'FallbackClassifier', 'threshold': 0.8}]
+        assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
+                                      {'core_fallback_action_name': 'action_default_fallback',
+                                       'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False, 'name': 'RulePolicy'}]
+
     @pytest.mark.asyncio
     async def test_upload_case_insensitivity(self):
         processor = MongoProcessor()

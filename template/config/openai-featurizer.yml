@@ -1,0 +1,21 @@
+language: en
+pipeline:
+- name: WhitespaceTokenizer
+- name: CountVectorsFeaturizer
+  min_ngram: 1
+  max_ngram: 2
+- name: kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
+- name: DIETClassifier
+  epochs: 50
+  constrain_similarities: true
+  entity_recognition: false
+- name: FallbackClassifier
+  threshold: 0.80
+policies:
+- name: MemoizationPolicy
+- epochs: 200
+  name: TEDPolicy
+- core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.3
+  enable_fallback_prediction: false
+  name: RulePolicy
