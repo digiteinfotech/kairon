@@ -755,6 +755,7 @@ class KaironFaqConfigRequest(BaseModel):
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     top_results: int = 10
     similarity_threshold: float = 0.70
+    hyperparameters: dict = None
 
     @validator("system_prompt")
     def validate_system_prompt(cls, v, values, **kwargs):
@@ -794,9 +795,13 @@ class KaironFaqConfigRequest(BaseModel):
     def check(cls, values):
         from kairon.shared.utils import Utility
 
+        if not values.get('hyperparameters'):
+            values['hyperparameters'] = Utility.get_llm_hyperparameters()
+
         if values.get('use_query_prompt') and Utility.check_empty_string(values.get('query_prompt')):
             raise ValueError("query_prompt is required")
         return values
+
 
 
 class RazorpayActionRequest(BaseModel):

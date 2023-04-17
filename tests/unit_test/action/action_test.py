@@ -2143,7 +2143,13 @@ class TestActions:
                           'top_results': 10, 'similarity_threshold': 0.7,
                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                           'bot': 'test_action_server', "num_bot_responses": 5, "use_bot_responses": False,
-                          'use_query_prompt': False}
+                          'use_query_prompt': False, 'hyperparameters': {'temperature': 0.0,
+                                                                         'max_tokens': 300,
+                                                                         'model': 'gpt-3.5-turbo',
+                                                                         'top_p': 0.0, 'n': 1, 'stream': False,
+                                                                         'stop': None, 'presence_penalty': 0.0,
+                                                                         'frequency_penalty': 0.0, 'logit_bias': None,
+                                                                         'user': None}}
 
     def test_kairon_faq_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3044,10 +3050,12 @@ class TestActions:
         bot = "test_bot"
         bot_settings = ActionUtility.get_bot_settings(bot=bot)
         bot_settings.pop('timestamp')
+        print(bot_settings)
         assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
-                                'website_data_generator_depth_search_limit': 2, 'enable_gpt_llm_faq': False,
-                                'chat_token_expiry': 30, 'refresh_token_expiry': 60, 'whatsapp': 'meta',
-                                'bot': 'test_bot', 'status': True, 'notification_scheduling_limit': 4}
+                                'website_data_generator_depth_search_limit': 2,
+                                'enable_gpt_llm_faq': False, 'chat_token_expiry': 30,
+                                'refresh_token_expiry': 60, 'whatsapp': 'meta',
+                                'notification_scheduling_limit': 4, 'bot': 'test_bot', 'status': True}
 
     def test_get_faq_action_config(self):
         bot = "test_bot"
@@ -3059,7 +3067,10 @@ class TestActions:
                 'context_prompt': 'Answer question based on the context below, if answer is not in the '
                                   'context go check previous logs.',
                 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot',
-                "num_bot_responses": 5, "use_bot_responses": False, "use_query_prompt": False}
+                "num_bot_responses": 5, "use_bot_responses": False, "use_query_prompt": False,
+                'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                    'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                    'frequency_penalty': 0.0, 'logit_bias': None, 'user': None}}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
