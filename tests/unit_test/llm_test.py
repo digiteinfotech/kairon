@@ -197,7 +197,7 @@ class TestLLM:
             )
 
             response = gpt3.predict(query)
-            hyperparameters = Utility.get_llm_hyper_parameters()
+            hyperparameters = Utility.get_llm_hyperparameters()
 
             assert response['content'] == generated_text
 
@@ -253,7 +253,7 @@ class TestLLM:
             )
 
             response = gpt3.predict(query, **k_faq_action_config)
-            hyperparameters = Utility.get_llm_hyper_parameters()
+            hyperparameters = Utility.get_llm_hyperparameters()
 
             assert response['content'] == generated_text
 
@@ -314,7 +314,7 @@ class TestLLM:
         )
 
         response = gpt3.predict(query, **k_faq_action_config)
-        hyperparameters = Utility.get_llm_hyper_parameters()
+        hyperparameters = Utility.get_llm_hyperparameters()
 
         assert response['content'] == generated_text
 
@@ -379,7 +379,7 @@ class TestLLM:
         )
 
         response = gpt3.predict(query, **k_faq_action_config)
-        hyperparameters = Utility.get_llm_hyper_parameters()
+        hyperparameters = Utility.get_llm_hyperparameters()
 
         assert response['content'] == generated_text
 

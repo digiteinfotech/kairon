@@ -4724,7 +4724,7 @@ class MongoProcessor:
         action.query_prompt = request_data.get('query_prompt')
         action.use_bot_responses = request_data.get('use_bot_responses', False)
         action.num_bot_responses = request_data.get('num_bot_responses', 5)
-        action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyper_parameters())
+        action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyperparameters())
         action.timestamp = datetime.utcnow()
         action.user = user
         action.save()

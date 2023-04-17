@@ -1917,3 +1917,22 @@ class TestUtility:
                               "message": None
                           })
             Utility.verify_email(email)
+
+    def test_get_llm_hyperparameters(self):
+        hyperparameters = Utility.get_llm_hyperparameters()
+        assert hyperparameters == {'temperature': 0.0,
+                                    'max_tokens': 300,
+                                    'model': 'gpt-3.5-turbo',
+                                    'top_p': 0.0,
+                                    'n': 1,
+                                    'stream': False,
+                                    'stop': None,
+                                    'presence_penalty': 0.0,
+                                    'frequency_penalty': 0.0,
+                                    'logit_bias': None,
+                                    'user': None}
+
+    def test_get_llm_hyperparameters_not_found(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['llm'], 'faq', None)
+        with pytest.raises(AppException, match="Could not find any hyperparameters for configured LLM."):
+            Utility.get_llm_hyperparameters()

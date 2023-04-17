@@ -1802,9 +1802,11 @@ class Utility:
                 raise AppException("Invalid or disposable Email!")
 
     @staticmethod
-    def get_llm_hyper_parameters():
+    def get_llm_hyperparameters():
         if Utility.environment['llm']['faq'] in {"GPT3_FAQ_EMBED"}:
             return Utility.system_metadata['llm']['gpt']
+        raise AppException("Could not find any hyperparameters for configured LLM.")
+
 
     @staticmethod
     def format_llm_response(response, is_streamed: bool = False):

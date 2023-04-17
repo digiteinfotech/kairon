@@ -5449,7 +5449,7 @@ class TestActionServer(AsyncHTTPTestCase):
             'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        hyperparameters = Utility.get_llm_hyper_parameters().copy()
+        hyperparameters = Utility.get_llm_hyperparameters().copy()
         hyperparameters['stream'] = True
         KaironFaqAction(bot=bot, user=user, hyperparameters=hyperparameters).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()

@@ -791,21 +791,17 @@ class KaironFaqConfigRequest(BaseModel):
             raise ValueError("num_bot_responses should not be greater than 5")
         return v
 
-    @validator("hyperparameters")
-    def validate_hyperparameters(cls, v, values, **kwargs):
-        from kairon import Utility
-
-        if not v:
-            v = Utility.get_llm_hyper_parameters()
-        return v
-
     @root_validator
     def check(cls, values):
         from kairon.shared.utils import Utility
 
+        if not values.get('hyperparameters'):
+            values['hyperparameters'] = Utility.get_llm_hyperparameters()
+
         if values.get('use_query_prompt') and Utility.check_empty_string(values.get('query_prompt')):
             raise ValueError("query_prompt is required")
         return values
+
 
 
 class RazorpayActionRequest(BaseModel):

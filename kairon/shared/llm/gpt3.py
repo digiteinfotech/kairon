@@ -61,7 +61,7 @@ class GPT3FAQEmbedding(LLMBase):
         query_prompt = kwargs.get('query_prompt')
         use_query_prompt = kwargs.get('use_query_prompt')
         previous_bot_responses = kwargs.get('previous_bot_responses')
-        hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyper_parameters())
+        hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyperparameters())
 
         if use_query_prompt and query_prompt:
             query = self.__rephrase_query(query, system_prompt, query_prompt, hyperparameters=hyperparameters)
@@ -88,7 +88,7 @@ class GPT3FAQEmbedding(LLMBase):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{query_prompt}\n\n Q: {query}\n A:"}
         ]
-        hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyper_parameters())
+        hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyperparameters())
         completion = openai.ChatCompletion.create(
             api_key=self.api_key,
             messages=messages,
