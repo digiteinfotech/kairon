@@ -77,7 +77,7 @@ class ActionKaironBotResponse(ActionsBase):
         finally:
             ActionServerLogs(
                 type=ActionType.kairon_bot_response.value,
-                intent=tracker.get_intent_of_latest_message(),
+                intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=self.name,
                 sender=tracker.sender_id,
                 bot=self.bot,

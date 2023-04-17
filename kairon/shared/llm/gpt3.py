@@ -22,32 +22,52 @@ class GPT3FAQEmbedding(LLMBase):
         if Utility.environment['vector']['key']:
             self.headers = {"api-key": Utility.environment['vector']['key']}
         self.suffix = "_faq_embd"
+        self.cached_resp_suffix = "_cached_response_embd"
         self.vector_config = {'size': 1536, 'distance': 'Cosine'}
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
         self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:
         self.__create_collection__(self.bot + self.suffix)
+        self.__create_collection__(self.bot + self.cached_resp_suffix)
         points = [{'id': content.vector_id,
                    'vector': self.__get_embedding(content.data),
                    'payload': {"content": content.data}} for content in BotContent.objects(bot=self.bot)]
         if points:
-            self.__collection_upsert__(self.bot + self.suffix, {'points': points})
+            self.__collection_upsert__(self.bot + self.suffix, {'points': points}, err_msg="Unable to train faq! contact support")
         return {"faq": points.__len__()}
 
     def predict(self, query: Text, *args, **kwargs) -> Dict:
-        query_embedding = self.__get_embedding(query)
+        embeddings_created = False
+        query_embedding = None
+        try:
+            query_embedding = self.__get_embedding(query)
+            embeddings_created = True
 
-        limit = kwargs.get('top_results', 10)
-        score_threshold = kwargs.get('similarity_threshold', 0.70)
-        system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
-        context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
+            limit = kwargs.get('top_results', 10)
+            score_threshold = kwargs.get('similarity_threshold', 0.70)
+            system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
+            context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
 
-        search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
-                                                   limit=limit, score_threshold=score_threshold)
-        context = "\n".join([item['payload']['content'] for item in search_result['result']])
-        return {"content": self.__get_answer(query, context, system_prompt=system_prompt, context_prompt=context_prompt,
-                                             **kwargs)}
+            search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
+                                                       limit=limit, score_threshold=score_threshold)
+            context = "\n".join([item['payload']['content'] for item in search_result['result']])
+            response = {"content": self.__get_answer(query, context, system_prompt=system_prompt,
+                                                     context_prompt=context_prompt, **kwargs), "is_from_cache": False}
+            self.__cache_response(query, query_embedding, response["content"])
+        except openai.error.APIConnectionError as e:
+            logging.exception(e)
+            if embeddings_created:
+                failure_stage = "Retrieving chat completion for the provided query."
+            else:
+                failure_stage = "Creating a new embedding for the provided query."
+            self.__logs.append({'error': f"{failure_stage} {str(e)}"})
+            response = {"content": self.__search_cache(query, query_embedding, **kwargs), "is_from_cache": True}
+        except Exception as e:
+            logging.exception(e)
+            response = {"content": self.__search_cache(query, query_embedding, **kwargs), "is_from_cache": True}
+
+        return response
 
     def __get_embedding(self, text: Text) -> List[float]:
         result = openai.Embedding.create(
@@ -111,7 +131,7 @@ class GPT3FAQEmbedding(LLMBase):
                                      request_body={'name': collection_name, 'vectors': self.vector_config},
                                      return_json=False)
 
-    def __collection_upsert__(self, collection_name: Text, data: Union[List, Dict]):
+    def __collection_upsert__(self, collection_name: Text, data: Union[List, Dict], err_msg: Text, raise_err=True):
         response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points"),
                                                 request_method="PUT",
                                                 headers=self.headers,
@@ -120,7 +140,8 @@ class GPT3FAQEmbedding(LLMBase):
         if not response.get('result'):
             if "status" in response:
                 logging.exception(response['status'].get('error'))
-                raise AppException("Unable to train faq! contact support")
+                if raise_err:
+                    raise AppException(err_msg)
 
     def __collection_search__(self, collection_name: Text, vector: List, limit: int, score_threshold: float):
         response = Utility.execute_http_request(
@@ -134,3 +155,18 @@ class GPT3FAQEmbedding(LLMBase):
     @property
     def logs(self):
         return self.__logs
+
+    def __cache_response(self, query: Text, query_embedding: List, response: Text):
+        vector_id = Utility.create_uuid_from_string(query)
+        point = [{'id': vector_id, 'vector': query_embedding, 'payload': {"query": query, "response": response}}]
+        self.__collection_upsert__(self.bot + self.cached_resp_suffix, {'points': point},
+                                   err_msg="Unable to add response to cache!", raise_err=False)
+        self.__logs.append({"message": "Response added to cache", 'type': 'response_cached'})
+
+    def __search_cache(self, query: Text, query_embedding: List, **kwargs):
+        score_threshold = kwargs.get('similarity_threshold', 0.70)
+        if not query_embedding:
+            query_embedding = self.__get_embedding(query)
+        search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding, limit=3,
+                                                   score_threshold=score_threshold)
+        return search_result

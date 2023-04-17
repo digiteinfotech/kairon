@@ -1,5 +1,3 @@
-import html
-
 import mock
 from jira import JIRAError
 from tornado.test.testing_test import AsyncHTTPTestCase
@@ -5507,6 +5505,94 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': DEFAULT_NLU_FALLBACK_RESPONSE, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
                 'response': None, 'image': None, 'attachment': None}
              ])
+
+    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_connection_error_response_cached(self, mock_search, mock_embedding):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from openai import error
+        from uuid6 import uuid7
+
+        action_name = GPT_LLM_FAQ
+        failure_msg = "Did you mean any of the following?"
+        bot = "5f50fd0a56b698ca10d35d2eik"
+        user = "udit.pandey"
+        user_msg = "What kind of language is python?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        def __mock_get_embedding(*args, **kwargs):
+            return convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+
+        mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
+        mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': user_msg, "response": bot_content}},
+                                               {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "python?", "response": bot_content}},
+                                               {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "what is python?", "response": "It is a programming language."}}]}
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': failure_msg}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': failure_msg, 'buttons': [
+                {'text': user_msg, 'payload': bot_content, 'type': 'cached'},
+                {'text': 'python?', 'payload': bot_content, 'type': 'cached'},
+                {'text': 'what is python?', 'payload': 'It is a programming language.', 'type': 'cached'}],
+             'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
+
+    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_connection_error_caching_not_present(self, mock_search, mock_embedding):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from openai import error
+        from uuid6 import uuid7
+
+        action_name = GPT_LLM_FAQ
+        bot = "5f50fd0a56b698ca10d35d2eikh"
+        user = "udit.pandey"
+        user_msg = "What kind of language is python?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        def __mock_get_embedding(*args, **kwargs):
+            return convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+
+        mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
+        mock_search.return_value = {'result': []}
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, failure_message="Did you mean any of the following?").save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': DEFAULT_NLU_FALLBACK_RESPONSE}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [],
+              'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
 
     def test_kairon_faq_response_action_disabled(self):
         bot = "5f50fd0a56b698ca10d35d2efg"
