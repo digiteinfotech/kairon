@@ -5260,13 +5260,21 @@ class TestActionServer(AsyncHTTPTestCase):
         user_msg = "What kind of language is python?"
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        
+        def __mock_search_cache(*args, **kwargs):
+            return {'result': []}
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        def __mock_cache_result(*args, **kwargs):
+            return {'result': []}
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(
             OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
-        mock_search.return_value = {
-            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         KaironFaqAction(bot=bot, user=user, use_bot_responses=True, num_bot_responses=2).save()
@@ -5322,6 +5330,15 @@ class TestActionServer(AsyncHTTPTestCase):
         def mock_completion_for_answer(*args, **kwargs):
             return convert_to_openai_object(
             OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+        
+        def __mock_search_cache(*args, **kwargs):
+            return {'result': []}
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        def __mock_cache_result(*args, **kwargs):
+            return {'result': []}
 
         mock_completion.side_effect = [mock_completion_for_query_prompt(), mock_completion_for_answer()]
 
@@ -5329,8 +5346,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(
             OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
-        mock_search.return_value = {
-            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         KaironFaqAction(bot=bot, user=user, use_query_prompt=True, query_prompt=query_prompt).save()
@@ -5370,6 +5386,15 @@ class TestActionServer(AsyncHTTPTestCase):
         from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
+        def __mock_search_cache(*args, **kwargs):
+            return {'result': []}
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        def __mock_cache_result(*args, **kwargs):
+            return {'result': []}
+
         action_name = GPT_LLM_FAQ
         bot = "5f50fd0a56b698ca10d35d2e"
         user = "udit.pandey"
@@ -5380,7 +5405,7 @@ class TestActionServer(AsyncHTTPTestCase):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
-        mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score':0.80, 'payload':{'content': bot_content}}]}
+        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -5548,10 +5573,49 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(
             response_json['responses'],
             [{'text': failure_msg, 'buttons': [
-                {'text': user_msg, 'payload': bot_content, 'type': 'cached'},
-                {'text': 'python?', 'payload': bot_content, 'type': 'cached'},
-                {'text': 'what is python?', 'payload': 'It is a programming language.', 'type': 'cached'}],
+                {'text': user_msg, 'payload': user_msg},
+                {'text': 'python?', 'payload': 'python?'},
+                {'text': 'what is python?', 'payload': 'what is python?'}],
              'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
+
+    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_exact_match_cached_query(self, mock_search, mock_embedding):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = GPT_LLM_FAQ
+        failure_msg = "Did you mean any of the following?"
+        bot = "5f50fd0a56b698ca10d35d2eikjh"
+        user = "udit.pandey"
+        user_msg = "What kind of language is python?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_search.return_value = {'result': [
+            {'id': uuid7().__str__(), 'score': 1, 'payload': {'query': user_msg, "response": bot_content}}]}
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': bot_content}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': bot_content, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+              'image': None, 'attachment': None}])
 
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
@@ -5560,7 +5624,6 @@ class TestActionServer(AsyncHTTPTestCase):
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
         from openai import error
-        from uuid6 import uuid7
 
         action_name = GPT_LLM_FAQ
         bot = "5f50fd0a56b698ca10d35d2eikh"

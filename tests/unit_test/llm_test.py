@@ -225,6 +225,15 @@ class TestLLM:
             )
 
             responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                json={'result': []}
+            )
+
+            responses.add(
                 url=urljoin(Utility.environment['vector']['db'],
                             f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points"),
                 method="PUT",
@@ -289,6 +298,15 @@ class TestLLM:
                     {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
                 json={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                json={'result': []}
             )
 
             responses.add(
@@ -373,6 +391,15 @@ class TestLLM:
                 method="POST",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                json={'result': []}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
                     {'vector': embedding, 'limit': 3, 'with_payload': True, 'score_threshold': 0.7})],
                 json={'result': [
                     {'id': Utility.create_uuid_from_string(query), 'score': 0.80, "payload": {'query': query, "content": generated_text}}]}
@@ -405,6 +432,44 @@ class TestLLM:
 
     @responses.activate
     @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    def test_gpt3_faq_embedding_predict_exact_match(self, mock_embedding):
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+
+        test_content = BotContent(
+            data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
+            bot="test_embed_faq_predict", user="test").save()
+
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        query = "What kind of language is python?"
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "top_results": 10, "similarity_threshold": 0.70}
+
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
+            gpt3 = GPT3FAQEmbedding(test_content.bot)
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                json={'result': [{'id': '5ec0694b-1c19-b8c6-c54d-1cdbff20ca64', 'score': 1.0,
+                                  'payload': {'query': query, 'response': generated_text}}]}
+            )
+
+            response = gpt3.predict(query, **k_faq_action_config)
+            assert response == {'content': generated_text, 'is_from_cache': True}
+
+            assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
+            assert mock_embedding.call_args.kwargs['input'] == query
+            assert gpt3.logs == [{"message": "Found exact query match in cache."}]
+
+    @responses.activate
+    @mock.patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     def test_gpt3_faq_embedding_predict_embedding_connection_error(self, mock_embedding):
         import openai
 
@@ -430,8 +495,7 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot)
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'],
-                            f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
                 method="POST",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
@@ -439,6 +503,15 @@ class TestLLM:
                 json={'result': [
                     {'id': Utility.create_uuid_from_string(query), 'score': 0.80,
                      "payload": {'query': query, "content": generated_text}}]}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                json={'result': []}
             )
 
             response = gpt3.predict(query, **k_faq_action_config)
@@ -490,6 +563,15 @@ class TestLLM:
                     {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
                 json={'result': [
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+                method="POST",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                json={'result': []}
             )
 
             responses.add(
@@ -565,6 +647,15 @@ class TestLLM:
         )
 
         responses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+            method="POST",
+            adding_headers={},
+            match=[responses.matchers.json_params_matcher(
+                {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+            json={'result': []}
+        )
+
+        responses.add(
             url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points"),
             method="PUT",
             adding_headers={},
@@ -637,6 +728,14 @@ class TestLLM:
                 {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70})],
             json={'result': [
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
+        )
+        responses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
+            method="POST",
+            adding_headers={},
+            match=[responses.matchers.json_params_matcher(
+                {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+            json={'result': []}
         )
         responses.add(
             url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points"),

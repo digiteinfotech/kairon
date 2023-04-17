@@ -49,12 +49,16 @@ class GPT3FAQEmbedding(LLMBase):
             system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
 
-            search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
-                                                       limit=limit, score_threshold=score_threshold)
-            context = "\n".join([item['payload']['content'] for item in search_result['result']])
-            response = {"content": self.__get_answer(query, context, system_prompt=system_prompt,
-                                                     context_prompt=context_prompt, **kwargs), "is_from_cache": False}
-            self.__cache_response(query, query_embedding, response["content"])
+            cached_response, match_found = self.__search_exact_match(query_embedding)
+            if match_found:
+                response = {"content": cached_response, "is_from_cache": True}
+            else:
+                search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
+                                                           limit=limit, score_threshold=score_threshold)
+                context = "\n".join([item['payload']['content'] for item in search_result['result']])
+                response = {"content": self.__get_answer(query, context, system_prompt=system_prompt,
+                                                         context_prompt=context_prompt, **kwargs), "is_from_cache": False}
+                self.__cache_response(query, query_embedding, response["content"])
         except openai.error.APIConnectionError as e:
             logging.exception(e)
             if embeddings_created:
@@ -170,3 +174,14 @@ class GPT3FAQEmbedding(LLMBase):
         search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding, limit=3,
                                                    score_threshold=score_threshold)
         return search_result
+
+    def __search_exact_match(self, query_embedding: List):
+        is_match_found = False
+        search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding, limit=1,
+                                                   score_threshold=1)
+        response = search_result["result"]
+        if response:
+            is_match_found = True
+            response = search_result["result"][0]['payload']['response']
+            self.__logs.append({"message": "Found exact query match in cache."})
+        return response, is_match_found
