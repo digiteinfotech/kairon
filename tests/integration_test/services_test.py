@@ -1330,7 +1330,17 @@ def test_get_kairon_faq_action():
     assert actual["data"] == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
                                'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
                                "top_results": 9, "similarity_threshold": 0.50, 'use_bot_responses': False,
-                               "use_query_prompt": False, 'num_bot_responses': 5}]
+                               "use_query_prompt": False, 'num_bot_responses': 5, 'hyperparameters': {'temperature': 0.0,
+                                                                                                      'max_tokens': 300,
+                                                                                                      'model': 'gpt-3.5-turbo',
+                                                                                                      'top_p': 0.0,
+                                                                                                      'n': 1,
+                                                                                                      'stream': False,
+                                                                                                      'stop': None,
+                                                                                                      'presence_penalty': 0.0,
+                                                                                                      'frequency_penalty': 0.0,
+                                                                                                      'logit_bias': None,
+                                                                                                      'user': None}}]
 
 
 def test_delete_kairon_faq_action_not_exists():
