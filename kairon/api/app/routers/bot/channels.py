@@ -80,7 +80,7 @@ async def delete_channel_config(
 @router.post("/whatsapp/{bsp_type}/post_process", response_model=Response)
 async def refresh_bsp_credentials(
         bsp_type: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Recreate API key for 360Dialog and set webhook url.
@@ -96,7 +96,7 @@ async def initiate_platform_onboarding(
         request: Request,
         bsp_type: str = Path(default=None, description="Business service provider type",
                              example=WhatsappBSPTypes.bsp_360dialog.value),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     save the waba details
@@ -166,7 +166,7 @@ async def delete_scheduled_message_broadcast(
 @router.get("/broadcast/message/logs", response_model=Response)
 async def retrieve_scheduled_message_broadcast_logs(
         request: Request,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     Retrieves logs of scheduled/one time message broadcasts in a bot.
