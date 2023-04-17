@@ -5465,11 +5465,19 @@ class TestActionServer(AsyncHTTPTestCase):
                 for line in response
             )
 
+        def __mock_search_cache(*args, **kwargs):
+            return {'result': []}
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        def __mock_cache_result(*args, **kwargs):
+            return {'result': []}
+
         mock_completion.return_value = mock_get_streaming_llm_response()
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_search.return_value = {
-            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         hyperparameters = Utility.get_llm_hyperparameters().copy()
