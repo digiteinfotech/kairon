@@ -4211,7 +4211,7 @@ def test_get_config_templates():
 
     actual = response.json()
     templates = {template['name'] for template in actual['data']['config-templates']}
-    assert templates == {'long-answer', 'rasa-default', 'contextual', 'word-embedding', 'kairon-default', 'gpt-faq'}
+    assert templates == {'long-answer', 'rasa-default', 'contextual', 'word-embedding', 'kairon-default', 'gpt-faq', 'openai-classifier', 'openai-featurizer'}
     assert actual['error_code'] == 0
     assert actual['message'] is None
     assert actual['success']
