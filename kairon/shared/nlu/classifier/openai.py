@@ -146,9 +146,9 @@ class OpenAIClassifier(IntentClassifier):
             meta: Dict[Text, Any],
             model_dir: Text,
             model_metadata: Optional[Metadata] = None,
-            cached_component: Optional["GPTPromptIntentClassifier"] = None,
+            cached_component: Optional["OpenAIClassifier"] = None,
             **kwargs: Any,
-    ) -> "GPTPromptIntentClassifier":
+    ) -> "OpenAIClassifier":
         """Loads trained component (see parent class for full docstring)."""
 
         vector_file = os.path.join(model_dir, meta.get("vector"))
