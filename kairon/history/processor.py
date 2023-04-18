@@ -131,6 +131,7 @@ class HistoryProcessor:
                               .aggregate([{"$match": {"sender_id": sender_id, "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                                                                   "$lte": Utility.get_timestamp_from_date(to_date)}}},
                                           {"$match": {"event.event": {"$in": ["user", "bot", "action"]}}},
+                                          {"$sort": {"event.timestamp": 1}},
                                           {"$group": {"_id": None, "events": {"$push": "$event"}}},
                                           {"$project": {"_id": 0, "events": 1}}])
                               )
