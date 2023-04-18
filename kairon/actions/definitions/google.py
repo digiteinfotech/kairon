@@ -75,7 +75,7 @@ class ActionGoogleSearch(ActionsBase):
         finally:
             ActionServerLogs(
                 type=ActionType.google_search_action.value,
-                intent=tracker.get_intent_of_latest_message(),
+                intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=action_config['name'],
                 bot_response=bot_response,
                 sender=tracker.sender_id,

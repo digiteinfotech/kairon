@@ -62,7 +62,7 @@ class ActionSetSlot(ActionsBase):
 
         ActionServerLogs(
             type=ActionType.slot_set_action.value,
-            intent=tracker.get_intent_of_latest_message(),
+            intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
             action=action_config['name'],
             sender=tracker.sender_id,
             messages=message,

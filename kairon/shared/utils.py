@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import hashlib
 import html
 import json
 import os
@@ -7,6 +8,7 @@ import re
 import shutil
 import string
 import tempfile
+import uuid
 from datetime import datetime, timedelta, date
 from dateutil import tz
 import pytz
@@ -1810,7 +1812,6 @@ class Utility:
             return hyperparameters
         raise AppException("Could not find any hyperparameters for configured LLM.")
 
-
     @staticmethod
     def format_llm_response(response, is_streamed: bool = False):
         formatted_response = ''
@@ -1825,6 +1826,11 @@ class Utility:
             formatted_response = ' '.join([choice['message']['content'] for choice in response.to_dict_recursive()['choices']])
             raw_response = response.to_dict_recursive()
         return formatted_response, raw_response
+
+    @staticmethod
+    def create_uuid_from_string(val: str):
+        hex_string = hashlib.md5(val.encode("UTF-8")).hexdigest()
+        return uuid.UUID(hex=hex_string).__str__()
 
 
 class StoryValidator:
