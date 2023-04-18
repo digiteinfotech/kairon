@@ -14102,6 +14102,7 @@ def test_idp_callback(monkeypatch):
     assert result["data"]["token_type"] == "bearer"
     assert result["message"] == "User Authenticated"
 
+
 def test_api_login_with_SSO_only_flag():
     user = "idp_user@demo.in"
     organization = "new_test"
@@ -14118,3 +14119,14 @@ def test_api_login_with_SSO_only_flag():
     assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"
     assert actual["error_code"] == 422
     assert actual["success"] == False
+
+
+def test_list_system_metadata():
+    response = client.get(
+        url=f"/api/system/metadata", allow_redirects=False
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert len(actual["data"]) == 16
+

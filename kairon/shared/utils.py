@@ -1805,8 +1805,11 @@ class Utility:
 
     @staticmethod
     def get_llm_hyperparameters():
+        hyperparameters = {}
         if Utility.environment['llm']['faq'] in {"GPT3_FAQ_EMBED"}:
-            return Utility.system_metadata['llm']['gpt']
+            for key, value in Utility.system_metadata['llm']['gpt'].items():
+                hyperparameters[key] = value['default']
+            return hyperparameters
         raise AppException("Could not find any hyperparameters for configured LLM.")
 
     @staticmethod
