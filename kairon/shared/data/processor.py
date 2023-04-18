@@ -90,6 +90,8 @@ from .data_objects import (
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
 
+Utility.load_environment()
+
 
 class MongoProcessor:
     """
@@ -1211,8 +1213,8 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
-        self.__insert_bot_id(config_obj, bot, 'kairon.shared.nlu.classifier.openai.OpenAIClassifier')
-        self.__insert_bot_id(config_obj, bot, 'kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer')
+        for custom_component in Utility.environment['model']['pipeline']['custom']:
+            self.__insert_bot_id(config_obj, bot, custom_component)
         self.add_default_fallback_config(config_obj, bot, user)
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
 
