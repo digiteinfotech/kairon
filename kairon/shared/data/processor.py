@@ -90,6 +90,8 @@ from .data_objects import (
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
 
+Utility.load_environment()
+
 
 class MongoProcessor:
     """
