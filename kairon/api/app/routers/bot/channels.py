@@ -107,6 +107,22 @@ async def initiate_platform_onboarding(
     return Response(message='Channel added', data=channel_endpoint)
 
 
+@router.get("/whatsapp/templates/{bsp_type}/list", response_model=Response)
+async def retrieve_message_templates(
+        request: Request,
+        bsp_type: str = Path(default=None, description="Business service provider type",
+                             example=WhatsappBSPTypes.bsp_360dialog.value),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Retrieves all message templates for configured bsp account.
+    Query parameters passed are used as filters while retrieving these templates.
+    """
+    provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
+    templates = provider.list_templates(**request.query_params)
+    return Response(data={"templates": templates})
+
+
 @router.post("/broadcast/message", response_model=Response)
 async def add_message_broadcast_event(
         request: MessageBroadcastRequest,

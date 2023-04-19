@@ -11195,6 +11195,17 @@ def test_add_channel_config(monkeypatch):
     assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
 
 
+def test_list_whatsapp_templates_error():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Channel not found!"
+
+
 @responses.activate
 def test_initiate_bsp_onboarding_failure(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
@@ -11275,6 +11286,51 @@ def test_post_process(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["message"] == 'Credentials refreshed!'
     assert actual["data"].startswith(f"http://kairon-api.digite.com/api/bot/whatsapp/{pytest.bot}/e")
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.list_templates", autospec=True)
+def test_list_templates(mock_list_templates):
+    api_resp = {
+        "waba_templates": [
+            {
+                "category": "MARKETING",
+                "components": [
+                    {
+                        "example": {
+                            "body_text": [
+                                [
+                                    "Peter"
+                                ]
+                            ]
+                        },
+                        "text": "Hi {{1}},\n\nWe are thrilled to share that *kAIron* has now been integrated with WhatsApp through the *WhatsApp Business Solution Provide*r (BSP). \n\nThis integration will expand kAIron's ability to engage with a larger audience, increase sales acceleration, and provide better customer support.\n\nWith this integration, sending customized templates and broadcasting general, sales, or marketing information over WhatsApp will be much quicker and more efficient. \n\nStay tuned for more exciting updates from Team kAIron! ",
+                        "type": "BODY"
+                    }
+                ],
+                "id": "GVsEkeI2PIiARwVXQEDVWT",
+                "language": "en",
+                "modified_at": "2023-03-02T13:39:27Z",
+                "modified_by": {
+                    "user_id": "system",
+                    "user_name": "system"
+                },
+                "name": "kairon_new_features",
+                "namespace": "092819ec_f801_461b_b975_3a2d464f50a8",
+                "partner_id": "9Mg0AiPA",
+                "waba_account_id": "Cyih7GWA"
+            }
+        ]
+    }
+    mock_list_templates.return_value = api_resp["waba_templates"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["templates"] == api_resp["waba_templates"]
 
 
 def test_get_channel_endpoint(monkeypatch):

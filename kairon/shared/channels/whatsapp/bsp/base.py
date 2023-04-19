@@ -20,5 +20,9 @@ class WhatsappBusinessServiceProviderBase(ABC):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
+    def list_templates(self, **kwargs):
+        raise NotImplementedError("Provider not implemented")
+
+    @abstractmethod
     def validate(self, **kwargs):
         raise NotImplementedError("Provider not implemented")

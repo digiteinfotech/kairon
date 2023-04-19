@@ -329,15 +329,17 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
 
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id':'{template_id}'}}"
+        template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id': '{template_id}'}}&sort=business_templates.name"
         url = f"{base_url}{template_endpoint}"
         responses.add("GET", json=api_resp, url=url)
         template = BSP360Dialog(bot, "test").get_template(template_id)
-        assert template == {
-            "namespace": "092819ec_f801_461b_b975_3a2d464f50a8",
-            "name": "kairon_new_features",
-            "language": {"policy": "deterministic", "code": "en"}
-        }
+        assert template == [{'category': 'MARKETING', 'components': [{'example': {'body_text': [['Peter']]},
+                                                                      'text': "Hi {{1}},\n\nWe are thrilled to share that *kAIron* has now been integrated with WhatsApp through the *WhatsApp Business Solution Provide*r (BSP). \n\nThis integration will expand kAIron's ability to engage with a larger audience, increase sales acceleration, and provide better customer support.\n\nWith this integration, sending customized templates and broadcasting general, sales, or marketing information over WhatsApp will be much quicker and more efficient. \n\nStay tuned for more exciting updates from Team kAIron!\xa0",
+                                                                      'type': 'BODY'}], 'id': 'GVsEkeI2PIiARwVXQEDVWT',
+                             'language': 'en', 'modified_at': '2023-03-02T13:39:27Z',
+                             'modified_by': {'user_id': 'system', 'user_name': 'system'}, 'name': 'kairon_new_features',
+                             'namespace': '092819ec_f801_461b_b975_3a2d464f50a8', 'partner_id': '9Mg0AiPA',
+                             'waba_account_id': 'Cyih7GWA'}]
 
     @responses.activate
     def test_get_template_failure(self, monkeypatch):
@@ -351,7 +353,7 @@ class TestBusinessServiceProvider:
 
         monkeypatch.setattr(BSP360Dialog, 'get_partner_auth_token', _get_partners_auth_token)
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id':'{template_id}'}}"
+        template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id': '{template_id}'}}&sort=business_templates.name"
         url = f"{base_url}{template_endpoint}"
         responses.add("GET", json={}, url=url, status=500)
 
