@@ -1,0 +1,11 @@
+language: en
+pipeline:
+- name: kairon.shared.nlu.classifier.openai.OpenAIClassifier
+policies:
+- name: MemoizationPolicy
+- epochs: 200
+  name: TEDPolicy
+- core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.3
+  enable_fallback_prediction: false
+  name: RulePolicy

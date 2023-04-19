@@ -1448,8 +1448,7 @@ def test_get_kairon_faq_action():
                                                                                                       'stop': None,
                                                                                                       'presence_penalty': 0.0,
                                                                                                       'frequency_penalty': 0.0,
-                                                                                                      'logit_bias': None,
-                                                                                                      'user': None}}]
+                                                                                                      'logit_bias': {}}}]
 
 
 def test_delete_kairon_faq_action_not_exists():
@@ -4320,7 +4319,7 @@ def test_get_config_templates():
 
     actual = response.json()
     templates = {template['name'] for template in actual['data']['config-templates']}
-    assert templates == {'long-answer', 'rasa-default', 'contextual', 'word-embedding', 'kairon-default', 'gpt-faq'}
+    assert templates == {'long-answer', 'rasa-default', 'contextual', 'word-embedding', 'kairon-default', 'gpt-faq', 'openai-classifier', 'openai-featurizer'}
     assert actual['error_code'] == 0
     assert actual['message'] is None
     assert actual['success']

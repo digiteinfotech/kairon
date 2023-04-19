@@ -2148,8 +2148,7 @@ class TestActions:
                                                                          'model': 'gpt-3.5-turbo',
                                                                          'top_p': 0.0, 'n': 1, 'stream': False,
                                                                          'stop': None, 'presence_penalty': 0.0,
-                                                                         'frequency_penalty': 0.0, 'logit_bias': None,
-                                                                         'user': None}}
+                                                                         'frequency_penalty': 0.0, 'logit_bias': {}}}
 
     def test_kairon_faq_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3070,7 +3069,7 @@ class TestActions:
                 "num_bot_responses": 5, "use_bot_responses": False, "use_query_prompt": False,
                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                    'frequency_penalty': 0.0, 'logit_bias': None, 'user': None}}
+                                    'frequency_penalty': 0.0, 'logit_bias': {}}}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
