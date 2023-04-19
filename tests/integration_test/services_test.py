@@ -482,6 +482,23 @@ def test_account_registration(monkeypatch):
     response = client.post(
         "/api/account/registration",
         json={
+            "email": "INTEGRATIONTEST@DEMO.AI",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integrationtest",
+            "bot": "integrationtest",
+            "fingerprint": "asdfghj4567890"
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Account Registered!"
+
+    monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
+    response = client.post(
+        "/api/account/registration",
+        json={
             "email": "INTEGRATION2@DEMO.AI",
             "first_name": "Demo",
             "last_name": "User",
@@ -625,6 +642,21 @@ def test_api_login():
     assert response['data']['user']['account_name'] == 'integration'
     assert response['data']['user']['first_name'] == 'Demo'
     assert response['data']['user']['last_name'] == 'User'
+
+    email = "integrationtest@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert all(
+        [
+            True if actual["data"][key] else False
+            for key in ["access_token", "token_type"]
+        ]
+    )
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
     email = "integration2@demo.ai"
     response = client.post(
@@ -4545,6 +4577,15 @@ def test_add_member(monkeypatch):
     assert response['error_code'] == 0
     assert response['success']
 
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integrationtest@demo.ai", "role": "designer"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'An invitation has been sent to the user'
+    assert response['error_code'] == 0
+    assert response['success']
+
 
 def test_add_member_as_owner(monkeypatch):
     response = client.post(
@@ -4620,6 +4661,37 @@ def test_accept_bot_invite(monkeypatch):
     assert response['success']
 
 
+def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integrationtest@demo.ai", "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert all([True if actual["data"][key] else False for key in ["access_token", "token_type"]])
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        "/api/user/invites/active",
+        headers={"Authorization": actual['data']['token_type'] + " " + actual['data']['access_token']},
+    ).json()
+    assert response['data']['active_invites'][0]['accessor_email'] == "integrationtest@demo.ai"
+    assert response['data']['active_invites'][0]['role'] == 'designer'
+    assert response['data']['active_invites'][0]['bot_name'] == 'Hi-Hello'
+
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    Utility.email_conf["email"]["enable"] = True
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member/invite/accept",
+        headers={"Authorization": actual['data']['token_type'] + " " + actual['data']['access_token']},
+    ).json()
+    Utility.email_conf["email"]["enable"] = False
+    assert response['message'] == 'Invitation accepted'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
 def test_accept_bot_invite_logged_in_user():
     response = client.post(
         "/api/auth/login",
@@ -4684,9 +4756,12 @@ def test_list_members():
     assert response['data'][2]['accessor_email'] == 'integration2@demo.ai'
     assert response['data'][2]['role'] == 'designer'
     assert response['data'][2]['status']
-    assert response['data'][3]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][3]['accessor_email'] == 'integrationtest@demo.ai'
     assert response['data'][3]['role'] == 'designer'
     assert response['data'][3]['status']
+    assert response['data'][4]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][4]['role'] == 'designer'
+    assert response['data'][4]['status']
 
 
 def test_transfer_ownership(monkeypatch):
@@ -4716,9 +4791,12 @@ def test_transfer_ownership(monkeypatch):
     assert response['data'][2]['accessor_email'] == 'integration2@demo.ai'
     assert response['data'][2]['role'] == 'designer'
     assert response['data'][2]['status']
-    assert response['data'][3]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][3]['accessor_email'] == 'integrationtest@demo.ai'
     assert response['data'][3]['role'] == 'designer'
     assert response['data'][3]['status']
+    assert response['data'][4]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][4]['role'] == 'designer'
+    assert response['data'][4]['status']
 
 
 def test_list_members_2():
