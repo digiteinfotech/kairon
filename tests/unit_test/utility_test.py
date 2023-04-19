@@ -1929,8 +1929,7 @@ class TestUtility:
                                     'stop': None,
                                     'presence_penalty': 0.0,
                                     'frequency_penalty': 0.0,
-                                    'logit_bias': None,
-                                    'user': None}
+                                    'logit_bias': {}}
 
     def test_get_llm_hyperparameters_not_found(self, monkeypatch):
         monkeypatch.setitem(Utility.environment['llm'], 'faq', None)
