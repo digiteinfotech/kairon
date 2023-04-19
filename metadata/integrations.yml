@@ -106,7 +106,5 @@ llm:
       default: 0.0
     logit_bias:
       type: dict
-      default: null
-    user:
-      type: str
-      default: null
+      default: {}
+

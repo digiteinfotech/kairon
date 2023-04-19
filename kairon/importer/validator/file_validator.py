@@ -313,7 +313,9 @@ class TrainingDataValidator(Validator):
                 component_cfg = item['name']
                 if not (component_cfg in nlu_components or
                         component_cfg in ["custom.ner.SpacyPatternNER", "custom.fallback.FallbackIntentFilter",
-                                          "kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer"]):
+                                          "kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer"] or
+                        component_cfg in [custom_component for custom_component in Utility.environment['model']['pipeline']['custom']]
+                ):
                     config_errors.append("Invalid component " + component_cfg)
         else:
             config_errors.append("You didn't define any pipeline")
