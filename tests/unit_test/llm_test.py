@@ -349,7 +349,7 @@ class TestLLM:
                 'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
                                                             'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                                             'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                            'frequency_penalty': 0.0, 'logit_bias': None, 'user': None}},
+                                                            'frequency_penalty': 0.0, 'logit_bias': {}}},
                 {'message': 'Response added to cache', 'type': 'response_cached'}]
 
     @responses.activate
