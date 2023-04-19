@@ -804,7 +804,7 @@ class BotAssets(Auditlog):
     url = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow())
+    timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
 
@@ -814,7 +814,7 @@ class KeyVault(Auditlog):
     value = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow())
+    timestamp = DateTimeField(default=datetime.utcnow)
 
     @classmethod
     def pre_save_post_validation(cls, sender, document, **kwargs):
@@ -832,7 +832,7 @@ signals.pre_save_post_validation.connect(KeyVault.pre_save_post_validation, send
 class EventConfig(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow())
+    timestamp = DateTimeField(default=datetime.utcnow)
     ws_url = StringField(required=True)
     headers = StringField()
     method = StringField(choices=["POST", "GET", "PATCH"])
@@ -856,4 +856,4 @@ class UserOrgMappings(Document):
     organization = StringField(required=True)
     feature_type = StringField(required=True)
     value = DynamicField(default=False)
-    timestamp = DateTimeField(default=datetime.utcnow())
+    timestamp = DateTimeField(default=datetime.utcnow)

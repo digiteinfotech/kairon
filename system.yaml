@@ -1,5 +1,5 @@
 database:
-  url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
+  url: ${DATABASE_URL:"mongodb://192.168.100.38:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
 
 app:
@@ -119,7 +119,7 @@ events:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
 
 evaluator:
-  url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/evaluate"}
+  url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://192.168.100.109:8085/evaluate"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}

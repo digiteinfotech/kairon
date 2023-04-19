@@ -35,7 +35,7 @@ class ValidationLogs(DynamicDocument):
     files_received = ListField(default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
-    start_timestamp = DateTimeField(default=datetime.utcnow())
+    start_timestamp = DateTimeField(default=datetime.utcnow)
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
     event_status = StringField(default="COMPLETED")

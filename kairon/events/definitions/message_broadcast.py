@@ -152,7 +152,6 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             recipients = [number.strip() for number in config["recipients_config"]["recipients"].split(',')]
         else:
             recipients, eval_log = ActionUtility.evaluate_script(config["recipients_config"]["recipients"], data)
-            recipients = ast.literal_eval(recipients)
         if not isinstance(recipients, List):
             raise AppException(f"recipients evaluated to unexpected data type: {recipients}")
         MessageBroadcastProcessor.add_event_log(
@@ -167,7 +166,8 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         if template_params:
             if template_config["template_type"] == "dynamic":
                 template_params, eval_log = ActionUtility.evaluate_script(template_params, data)
-            template_params = ast.literal_eval(template_params)
+            else:
+                template_params = ast.literal_eval(template_params)
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, reference_id, template_params=template_params,
             status=EVENT_STATUS.EVALUATE_TEMPLATE.value, evaluation_log=eval_log
@@ -196,15 +196,17 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, reference_id, status=EVENT_STATUS.BROADCAST_STARTED.value
             )
+            # if there's no template body, pass params as None for all recipients
+            template_params = template_params if template_params else [template_params] * len(recipients)
 
-            for recipient in recipients:
+            for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-                    response = channel_client.send_template_message(namespace, template_id, recipient, components=template_params)
+                    response = channel_client.send_template_message(namespace, template_id, recipient, components=t_params)
                     status = "Failed" if response.get("errors") else "Success"
                     MessageBroadcastProcessor.add_event_log(
                         self.bot, MessageBroadcastLogType.send.value, reference_id, api_response=response, status=status,
-                        recipient=recipient, template_params=template_params
+                        recipient=recipient, template_params=t_params
                     )
 
     def __retrieve_config(self, doc_id: Text):

@@ -99,7 +99,7 @@ class MessageBroadcastProcessor:
         kwargs["bot"] = bot
         start_idx = int(start_idx)
         page_size = int(page_size)
-        query_objects = MessageBroadcastLogs.objects(**kwargs)
+        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp")
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
         logs = query_objects.skip(start_idx).limit(page_size).exclude('id').to_json()
         logs = json.loads(logs)

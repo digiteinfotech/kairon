@@ -1140,17 +1140,18 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
-        logs[0][0].pop("timestamp")
-        reference_id = logs[0][0].pop("reference_id")
-        logged_config = logs[0][0].pop("config")
+        logs[0][1].pop("timestamp")
+        reference_id = logs[0][1].pop("reference_id")
+        logged_config = logs[0][1].pop("config")
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
         assert logged_config == config
-        assert logs[0][0] == {'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
+        print(logs)
+        assert logs[0][1] == {'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
                               'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', '']}
-        logs[0][1].pop("timestamp")
-        assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send',
+        logs[0][0].pop("timestamp")
+        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send',
                               'bot': 'test_execute_message_broadcast', 'status': 'Success', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541', 'template_params': None}
@@ -1169,6 +1170,9 @@ class TestEventExecution:
     def test_execute_message_broadcast_with_dynamic_values(self, mock_is_exist, mock_channel_config, mock_get_bot_settings, mock_send):
         bot = 'test_execute_dynamic_message_broadcast'
         user = 'test_user'
+        params = [{"type": "header","parameters": [{"type": "document","document":
+            {"link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+             "filename": "Brochure.pdf"}}]}]
         config = {
             "name": "one_time_schedule",
             "connector_type": "whatsapp",
@@ -1185,7 +1189,7 @@ class TestEventExecution:
                     "template_type": "static",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                    "data": "[\n                {\n                    \"type\": \"header\",\n                    \"parameters\": [\n                        {\n                            \"type\": \"document\",\n                            \"document\": {\n                                \"link\": \"https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\",\n                                \"filename\": \"Brochure.pdf\"\n                            }\n                        }\n                    ]\n                }\n            ]"
+                    "data": str([params, params])
                 }
             ]
         }
@@ -1203,7 +1207,7 @@ class TestEventExecution:
         )
         responses.add(
             "POST", "http://localhost:8080/format",
-            json={"data": "[9876543210, 876543212345]", "success": True}
+            json={"data": [9876543210, 876543212345], "success": True}
         )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
@@ -1217,26 +1221,31 @@ class TestEventExecution:
         responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        print(logs)
         assert len(logs[0]) == logs[1] == 3
-        logs[0][0].pop("timestamp")
-        reference_id = logs[0][0].pop("reference_id")
-        logged_config = logs[0][0].pop("config")
+        logs[0][2].pop("timestamp")
+        reference_id = logs[0][2].pop("reference_id")
+        logged_config = logs[0][2].pop("config")
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
         config['data_extraction_config']["method"] = "GET"
         config['data_extraction_config']["request_body"] = {}
         assert logged_config == config
-        assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Completed', 'user': user, 'broadcast_id': event_id,
+        assert logs[0][2] == {'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
+                              'status': 'Completed', 'user': 'test_user', 'broadcast_id': event_id,
                               'data_extraction': {'url': 'http://kairon.local',
                                                   'headers': {'api_key': 'asdfghjkl', 'access_key': 'dsfghjkl'},
                                                   'method': 'GET',
                                                   'api_response': {'contacts': ['9876543210', '876543212345']}},
                               'recipients': [9876543210, 876543212345],
-                              'evaluation_log': "script: ${contacts} || data: {'contacts': ['9876543210', '876543212345']} || raise_err_on_failure: True || response: {'data': '[9876543210, 876543212345]', 'success': True}",
-                              'template_params': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                              'evaluation_log': "script: ${contacts} || data: {'contacts': ['9876543210', '876543212345']} || raise_err_on_failure: True || response: {'data': [9876543210, 876543212345], 'success': True}",
+                              'template_params': [[{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                                   'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                  'filename': 'Brochure.pdf'}}]}]}
+                                  'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
+                                  {'type': 'document', 'document': {
+                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                      'filename': 'Brochure.pdf'}}]}]]}
         logs[0][1].pop("timestamp")
         assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
@@ -1245,8 +1254,8 @@ class TestEventExecution:
                 {'type': 'document', 'document': {
                     'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                     'filename': 'Brochure.pdf'}}]}]}
-        logs[0][2].pop("timestamp")
-        assert logs[0][2] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+        logs[0][0].pop("timestamp")
+        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '876543212345', 'template_params': [{'type': 'header', 'parameters': [
@@ -1330,7 +1339,7 @@ class TestEventExecution:
                                                   'headers': {'api_key': 'asdfghjkl', 'access_key': 'dsfghjkl'},
                                                   'method': 'GET',
                                                   'api_response': {'contacts': ['9876543210', '876543212345']}},
-                              "exception": 'recipients evaluated to unexpected data type: (9876543210, 876543212345)'
+                              "exception": 'recipients evaluated to unexpected data type: 9876543210, 876543212345'
                               }
 
         with pytest.raises(AppException, match="Notification settings not found!"):
@@ -1498,7 +1507,7 @@ class TestEventExecution:
         )
         responses.add(
             "POST", "http://localhost:8080/format",
-            json={"data": "[{'body': 'Udit Pandey'}]", "success": True}
+            json={"data": [[{'body': 'Udit Pandey'}]], "success": True}
         )
         event = MessageBroadcastEvent(bot, user)
         event.validate()
@@ -1516,19 +1525,19 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
-        logs[0][0].pop("timestamp")
-        logs[0][0].pop("evaluation_log")
-        reference_id = logs[0][0].pop("reference_id")
-        logged_config = logs[0][0].pop("config")
+        logs[0][1].pop("timestamp")
+        logs[0][1].pop("evaluation_log")
+        reference_id = logs[0][1].pop("reference_id")
+        logged_config = logs[0][1].pop("config")
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
         assert logged_config == config
-        assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Completed',
+        assert logs[0][1] == {'log_type': 'common', 'bot': bot, 'status': 'Completed',
                               'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
-                              'template_params': [{'body': 'Udit Pandey'}]}
-        logs[0][1].pop("timestamp")
-        assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send',
+                              'template_params': [[{'body': 'Udit Pandey'}]]}
+        logs[0][0].pop("timestamp")
+        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send',
                               'bot': bot, 'status': 'Success', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541', 'template_params': [{'body': 'Udit Pandey'}]}

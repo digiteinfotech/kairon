@@ -11442,15 +11442,17 @@ def test_list_broadcast_logs():
     print(actual["data"])
     actual["data"]["logs"][0].pop("timestamp")
     actual["data"]["logs"][1].pop("timestamp")
-    assert actual["data"] == {'logs': [{'reference_id': ref_id, 'log_type': 'common', 'bot': pytest.bot,
-           'status': 'Completed', 'user': 'test_user', 'broadcast_id': pytest.first_scheduler_id,
-                                        'recipients': ['918958030541', '']},
-          {'reference_id': ref_id, 'log_type': 'send', 'bot': pytest.bot, 'status': 'Success',
-           'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-           'recipient': '9876543210', 'template_params': [{'type': 'header',
-                                                           'parameters': [{'type': 'document', 'document': {
-                                                               'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                                               'filename': 'Brochure.pdf'}}]}]}], 'total_count': 2}
+    assert actual["data"] == {'logs': [
+        {'reference_id': ref_id, 'log_type': 'send', 'bot': pytest.bot, 'status': 'Success',
+         'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+         'recipient': '9876543210', 'template_params': [{'type': 'header',
+                                                         'parameters': [{'type': 'document', 'document': {
+                                                             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                                             'filename': 'Brochure.pdf'}}]}]},
+        {'reference_id': ref_id, 'log_type': 'common', 'bot': pytest.bot,
+         'status': 'Completed', 'user': 'test_user', 'broadcast_id': pytest.first_scheduler_id,
+         'recipients': ['918958030541', '']},
+    ], 'total_count': 2}
 
 
 def test_get_bot_settings():

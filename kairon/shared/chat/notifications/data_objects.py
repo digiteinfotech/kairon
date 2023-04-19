@@ -100,7 +100,7 @@ class MessageBroadcastSettings(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
     status = BooleanField(default=True)
-    timestamp = DateTimeField(default=datetime.utcnow())
+    timestamp = DateTimeField(default=datetime.utcnow)
 
 
 @push_notification.apply
@@ -108,4 +108,4 @@ class MessageBroadcastLogs(DynamicDocument):
     reference_id = StringField(required=True)
     log_type = StringField(required=True, choices=[m.value for m in MessageBroadcastLogType])
     bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow())
+    timestamp = DateTimeField(default=datetime.utcnow)
