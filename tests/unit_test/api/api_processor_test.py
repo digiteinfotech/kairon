@@ -32,7 +32,7 @@ from kairon.shared.metering.data_object import Metering
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from kairon.exceptions import AppException
 import time
 from kairon.idp.data_objects import IdpConfig
@@ -971,32 +971,32 @@ class TestAccountProcessor:
         return None
 
     def test_validate_and_send_mail(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in', subject='test', body='test'))
+        loop.run_until_complete(MailUtility.validate_and_send_mail('demo@ac.in', subject='test', body='test'))
         assert True
 
     def test_send_false_email_id(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(Utility.validate_and_send_mail('..', subject='test', body="test"))
+            loop.run_until_complete(MailUtility.validate_and_send_mail('..', subject='test', body="test"))
 
     def test_send_empty_mail_subject(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in', subject=' ', body='test'))
+            loop.run_until_complete(MailUtility.validate_and_send_mail('demo@ac.in', subject=' ', body='test'))
 
     def test_send_empty_mail_body(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
-            loop.run_until_complete(Utility.validate_and_send_mail('demo@ac.in', subject='test', body=' '))
+            loop.run_until_complete(MailUtility.validate_and_send_mail('demo@ac.in', subject='test', body=' '))
 
     def test_format_and_send_mail_invalid_type(self):
         loop = asyncio.new_event_loop()
-        assert not loop.run_until_complete(Utility.format_and_send_mail('training_failure', 'demo@ac.in', 'udit'))
+        assert not loop.run_until_complete(MailUtility.format_and_send_mail('training_failure', 'demo@ac.in', 'udit'))
 
     def test_valid_token(self):
         token = Utility.generate_token('integ1@gmail.com')
@@ -1016,14 +1016,14 @@ class TestAccountProcessor:
             account=1,
             user="testAdmin",
         )
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('integ2@gmail.com')
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.confirm_email(token))
         assert True
 
     def test_user_already_confirmed(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         token = Utility.generate_token('integ2@gmail.com')
         with pytest.raises(Exception):
@@ -1043,7 +1043,7 @@ class TestAccountProcessor:
 
     def test_reset_link_with_mail(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         result = loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
         assert result[0] == 'integ2@gmail.com'
@@ -1054,7 +1054,7 @@ class TestAccountProcessor:
     def test_reset_link_with_mail_limit_exceeded(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
         monkeypatch.setitem(Utility.environment['user'], 'reset_password_request_limit', 2)
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         result = loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
         assert result[0] == 'integ2@gmail.com'
@@ -1067,7 +1067,7 @@ class TestAccountProcessor:
 
     def test_reset_link_with_empty_mail(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_reset_link(''))
@@ -1075,7 +1075,7 @@ class TestAccountProcessor:
 
     def test_reset_link_with_unregistered_mail(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_reset_link('sasha.41195@gmail.com'))
@@ -1083,20 +1083,20 @@ class TestAccountProcessor:
 
     def test_reset_link_with_unconfirmed_mail(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_reset_link('integration@demo.ai'))
         Utility.email_conf["email"]["enable"] = False
 
     def test_overwrite_password_with_invalid_token(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.overwrite_password('fgh', "asdfghj@1"))
 
     def test_overwrite_password_with_empty_password_string(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.overwrite_password(
@@ -1104,14 +1104,14 @@ class TestAccountProcessor:
                 " "))
 
     def test_overwrite_password_with_valid_entries(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('integ2@gmail.com')
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
         assert True
 
     def test_overwrite_password_limit_exceeded(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('integ2@gmail.com')
         loop = asyncio.new_event_loop()
         with pytest.raises(AppException, match='Password reset limit exhausted. Please come back in *'):
@@ -1119,7 +1119,7 @@ class TestAccountProcessor:
 
     def test_reset_link_not_within_cooldown_period(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(AppException, match='Password reset limit exhausted. Please come back in *'):
             loop.run_until_complete(AccountProcessor.send_reset_link('integ2@gmail.com'))
@@ -1135,7 +1135,7 @@ class TestAccountProcessor:
             user="testAdmin",
         )
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         loop.run_until_complete(AccountProcessor.send_confirmation_link('integ3@gmail.com'))
         Utility.email_conf["email"]["enable"] = False
@@ -1143,7 +1143,7 @@ class TestAccountProcessor:
 
     def test_send_confirmation_link_with_confirmed_id(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link('integ1@gmail.com'))
@@ -1151,7 +1151,7 @@ class TestAccountProcessor:
 
     def test_send_confirmation_link_with_invalid_id(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link(''))
@@ -1159,20 +1159,20 @@ class TestAccountProcessor:
 
     def test_send_confirmation_link_with_unregistered_id(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link('sasha.41195@gmail.com'))
         Utility.email_conf["email"]["enable"] = False
 
     def test_reset_link_with_mail_not_enabled(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_reset_link('integ1@gmail.com'))
 
     def test_send_confirmation_link_with_mail_not_enabled(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         with pytest.raises(Exception):
             loop.run_until_complete(AccountProcessor.send_confirmation_link('integration@demo.ai'))
@@ -2191,14 +2191,14 @@ class TestAccountProcessor:
             account=1,
             user="testAdmin",
         )
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('samepasswrd@gmail.com')
         loop = asyncio.new_event_loop()
         with pytest.raises(AppException, match='You have already used that password, try another'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@1"))
 
     def test_overwrite_password_with_same_password_again(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('samepasswrd@gmail.com')
         loop = asyncio.new_event_loop()
         Utility.environment['user']['reset_password_cooldown_period'] = 0
@@ -2208,7 +2208,7 @@ class TestAccountProcessor:
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))
 
     def test_overwrite_password_with_original_passwrd(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('samepasswrd@gmail.com')
         loop = asyncio.new_event_loop()
         Utility.environment['user']['reset_password_cooldown_period'] = 0
@@ -2217,7 +2217,7 @@ class TestAccountProcessor:
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@1"))
 
     def test_overwrite_password_with_successful_update(self, monkeypatch):
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('samepasswrd@gmail.com')
         loop = asyncio.new_event_loop()
         Utility.environment['user']['reset_password_cooldown_period'] = 0
@@ -2235,7 +2235,7 @@ class TestAccountProcessor:
             user="reuselink_acc",
         )
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         usertoken = Utility.generate_token('resuselink@gmail.com')
         loop.run_until_complete(AccountProcessor.confirm_email(usertoken))
@@ -2262,7 +2262,7 @@ class TestAccountProcessor:
 
     def test_reset_password_reuselink_check_uuid(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         loop = asyncio.new_event_loop()
         result = loop.run_until_complete(AccountProcessor.send_reset_link('resuselink@gmail.com'))
         token = str(result[2]).split("/")[2]
@@ -2499,7 +2499,7 @@ class TestAccountProcessor:
             user="reuse-link_acc",
         )
         Utility.email_conf["email"]["enable"] = True
-        monkeypatch.setattr(Utility, 'trigger_smtp', self.mock_smtp)
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         with pytest.raises(AppException, match="Error! The following user's mail is not verified"):
             await(AccountProcessor.send_reset_link('integration@2.com'))
         Utility.email_conf["email"]["enable"] = False

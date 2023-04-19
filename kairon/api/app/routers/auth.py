@@ -6,7 +6,7 @@ from starlette.requests import Request
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.organization.processor import OrgProcessor
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, IntegrationRequest, RecaptchaVerifiedOAuth2PasswordRequestForm
 from kairon.shared.authorization.processor import IntegrationProcessor
@@ -161,7 +161,7 @@ async def sso_callback(
     existing_user, user_details, access_token = await Authentication.verify_and_process(request, sso_type)
     if not existing_user and Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(
-            Utility.format_and_send_mail, mail_type='password_generated', email=user_details['email'],
+            MailUtility.format_and_send_mail, mail_type='password_generated', email=user_details['email'],
             first_name=user_details['first_name'], password=user_details['password'].get_secret_value()
         )
     return {
