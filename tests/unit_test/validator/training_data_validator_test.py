@@ -12,12 +12,14 @@ class TestTrainingDataValidator:
         TrainingDataValidator.validate_rasa_config(config)
 
     def test_config_validation_invalid_pipeline(self):
+        Utility.load_environment()
         config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
         config.get('pipeline').append({'name': "XYZ"})
         error = TrainingDataValidator.validate_rasa_config(config)
         assert error[0] == "Invalid component XYZ"
 
     def test_config_validation_invalid_config(self):
+        Utility.load_environment()
         config = Utility.load_yaml("./tests/testing_data/yml_training_files/config.yml")
         config.get('policies').append({'name': "XYZ"})
         error = TrainingDataValidator.validate_rasa_config(config)

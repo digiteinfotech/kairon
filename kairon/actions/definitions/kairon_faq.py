@@ -49,6 +49,7 @@ class ActionKaironFaq(ActionsBase):
         llm_response = None
         k_faq_action_config = None
         llm_logs = None
+        recommendations = None
         bot_response = "Faq feature is disabled for the bot! Please contact support."
         user_msg = tracker.latest_message.get('text')
         try:
@@ -58,11 +59,14 @@ class ActionKaironFaq(ActionsBase):
             if use_bot_responses:
                 previous_bot_responses = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
                 k_faq_action_config['previous_bot_responses'] = previous_bot_responses
-            bot_response = k_faq_action_config.get('failure_message', DEFAULT_NLU_FALLBACK_RESPONSE)
+            bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
             llm = LLMFactory.get_instance(self.bot, "faq")
             llm_response = llm.predict(user_msg, **k_faq_action_config)
-            bot_response = llm_response['content']
             llm_logs = llm.logs
+            if llm_response['is_from_cache'] and not isinstance(llm_response['content'], str):
+                recommendations, bot_response = ActionUtility.format_recommendations(llm_response, k_faq_action_config)
+            else:
+                bot_response = llm_response['content']
         except Exception as e:
             logger.exception(e)
             logger.debug(e)
@@ -71,11 +75,12 @@ class ActionKaironFaq(ActionsBase):
         finally:
             ActionServerLogs(
                 type=ActionType.kairon_faq_action.value,
-                intent=tracker.get_intent_of_latest_message(),
+                intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=self.name,
                 sender=tracker.sender_id,
                 bot=self.bot,
                 exception=exception,
+                recommendations=recommendations,
                 bot_response=bot_response,
                 status=status,
                 llm_response=llm_response,
@@ -83,5 +88,5 @@ class ActionKaironFaq(ActionsBase):
                 llm_logs=llm_logs,
                 user_msg=user_msg
             ).save()
-        dispatcher.utter_message(bot_response)
+        dispatcher.utter_message(text=bot_response, buttons=recommendations)
         return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}

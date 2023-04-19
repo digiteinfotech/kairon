@@ -1,0 +1,1013 @@
+[
+  {
+    "sender_id": "fshaikh@digite.com",
+    "active_loop": {},
+    "followup_action": null,
+    "latest_action": {
+      "action_name": "action_listen"
+    },
+    "latest_action_name": "action_listen",
+    "latest_event_time": 1669110625.3199089,
+    "latest_input_channel": null,
+    "latest_message": {
+      "intent": {
+        "id": -2174244021955424343,
+        "name": "train_bot",
+        "confidence": 0.8972293138504028
+      },
+      "entities": [],
+      "text": "what is bot",
+      "message_id": "fbd966f2c2d14374be4201822dd8811d",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "intent_ranking": [
+        {
+          "id": -2174244021955424343,
+          "name": "train_bot",
+          "confidence": 0.8972293138504028
+        },
+        {
+          "id": 6658695239124129422,
+          "name": "manage_member",
+          "confidence": 0.035017769783735275
+        },
+        {
+          "id": 8021587770270552910,
+          "name": "add_member",
+          "confidence": 0.02563616819679737
+        },
+        {
+          "id": -7128805605430783571,
+          "name": "add_slots",
+          "confidence": 0.015462097711861134
+        },
+        {
+          "id": 8454677438796581103,
+          "name": "chat_history",
+          "confidence": 0.007146755233407021
+        },
+        {
+          "id": 6443600450635136021,
+          "name": "intent_and_utterance",
+          "confidence": 0.005030840635299683
+        },
+        {
+          "id": 6545891166738309943,
+          "name": "add_integration_token",
+          "confidence": 0.004415853880345821
+        },
+        {
+          "id": -8036877169916700086,
+          "name": "add_forms",
+          "confidence": 0.004087295848876238
+        },
+        {
+          "id": 7783360638031829052,
+          "name": "add_actions",
+          "confidence": 0.003407369600608945
+        },
+        {
+          "id": 996142280631996014,
+          "name": "training_history",
+          "confidence": 0.00256651290692389
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0.0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "paused": false,
+    "slots": {
+      "kairon_action_response": null,
+      "bot": "6322ebbb3c62158dab4aee71",
+      "session_started_metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      }
+    },
+    "event": {
+      "event": "user",
+      "timestamp": "$currentDate()",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "text": "hi",
+      "parse_data": {
+        "intent": {
+          "name": "nlu_fallback",
+          "confidence": 0.75
+        },
+        "entities": [],
+        "text": "hi",
+        "message_id": "f87c6919a67b4cc593dc17b0b09df0de",
+        "metadata": {
+          "is_integration_user": true,
+          "bot": "6322ebbb3c62158dab4aee71",
+          "account": 41,
+          "channel_type": "chat_client"
+        },
+        "intent_ranking": [
+          {
+            "name": "nlu_fallback",
+            "confidence": 0.75
+          },
+          {
+            "id": -3693713600687410794,
+            "name": "add_q_and_a",
+            "confidence": 0.3762243688106537
+          },
+          {
+            "id": 6443600450635136021,
+            "name": "intent_and_utterance",
+            "confidence": 0.21132157742977142
+          },
+          {
+            "id": 7783360638031829052,
+            "name": "add_actions",
+            "confidence": 0.198694109916687
+          },
+          {
+            "id": -6441013993555436384,
+            "name": "add_del_utterance",
+            "confidence": 0.06633491069078445
+          },
+          {
+            "id": -7128805605430783571,
+            "name": "add_slots",
+            "confidence": 0.04085763916373253
+          },
+          {
+            "id": -3292056862521454916,
+            "name": "add_intent",
+            "confidence": 0.03807372227311134
+          },
+          {
+            "id": 6545891166738309943,
+            "name": "add_integration_token",
+            "confidence": 0.03238234296441078
+          },
+          {
+            "id": -7091697122068209837,
+            "name": "analytics",
+            "confidence": 0.019392279908061028
+          },
+          {
+            "id": -1459264515390095834,
+            "name": "add_rule",
+            "confidence": 0.01079612597823143
+          },
+          {
+            "id": -183990296654650746,
+            "name": "search_intent",
+            "confidence": 0.005922964308410883
+          }
+        ],
+        "response_selector": {
+          "all_retrieval_intents": [],
+          "default": {
+            "response": {
+              "id": null,
+              "responses": null,
+              "response_templates": null,
+              "confidence": 0.0,
+              "intent_response_key": null,
+              "utter_action": "utter_None",
+              "template_name": "utter_None"
+            },
+            "ranking": []
+          }
+        }
+      },
+      "input_channel": null,
+      "message_id": "f87c6919a67b4cc593dc17b0b09df0de"
+    }
+  },
+  {
+    "sender_id": "fshaikh@digite.com",
+    "active_loop": {},
+    "followup_action": null,
+    "latest_action": {
+      "action_name": "action_listen"
+    },
+    "latest_action_name": "action_listen",
+    "latest_event_time": 1669110625.3199089,
+    "latest_input_channel": null,
+    "latest_message": {
+      "intent": {
+        "id": -2174244021955424343,
+        "name": "train_bot",
+        "confidence": 0.8972293138504028
+      },
+      "entities": [],
+      "text": "what is bot",
+      "message_id": "fbd966f2c2d14374be4201822dd8811d",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "intent_ranking": [
+        {
+          "id": -2174244021955424343,
+          "name": "train_bot",
+          "confidence": 0.8972293138504028
+        },
+        {
+          "id": 6658695239124129422,
+          "name": "manage_member",
+          "confidence": 0.035017769783735275
+        },
+        {
+          "id": 8021587770270552910,
+          "name": "add_member",
+          "confidence": 0.02563616819679737
+        },
+        {
+          "id": -7128805605430783571,
+          "name": "add_slots",
+          "confidence": 0.015462097711861134
+        },
+        {
+          "id": 8454677438796581103,
+          "name": "chat_history",
+          "confidence": 0.007146755233407021
+        },
+        {
+          "id": 6443600450635136021,
+          "name": "intent_and_utterance",
+          "confidence": 0.005030840635299683
+        },
+        {
+          "id": 6545891166738309943,
+          "name": "add_integration_token",
+          "confidence": 0.004415853880345821
+        },
+        {
+          "id": -8036877169916700086,
+          "name": "add_forms",
+          "confidence": 0.004087295848876238
+        },
+        {
+          "id": 7783360638031829052,
+          "name": "add_actions",
+          "confidence": 0.003407369600608945
+        },
+        {
+          "id": 996142280631996014,
+          "name": "training_history",
+          "confidence": 0.00256651290692389
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0.0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "paused": false,
+    "slots": {
+      "kairon_action_response": null,
+      "bot": "6322ebbb3c62158dab4aee71",
+      "session_started_metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      }
+    },
+    "event": {
+      "event": "bot",
+      "timestamp": "$currentDate()",
+      "metadata": {
+        "utter_action": "utter_please_rephrase"
+      },
+      "text": "Sorry I could not get you! Can you please repeat?",
+      "data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": null
+      }
+    }
+  },
+  {
+    "sender_id": "fshaikh@digite.com",
+    "active_loop": {},
+    "followup_action": null,
+    "latest_action": {
+      "action_name": "action_listen"
+    },
+    "latest_action_name": "action_listen",
+    "latest_event_time": 1669110625.3199089,
+    "latest_input_channel": null,
+    "latest_message": {
+      "intent": {
+        "id": -2174244021955424343,
+        "name": "train_bot",
+        "confidence": 0.8972293138504028
+      },
+      "entities": [],
+      "text": "what is bot",
+      "message_id": "fbd966f2c2d14374be4201822dd8811d",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "intent_ranking": [
+        {
+          "id": -2174244021955424343,
+          "name": "train_bot",
+          "confidence": 0.8972293138504028
+        },
+        {
+          "id": 6658695239124129422,
+          "name": "manage_member",
+          "confidence": 0.035017769783735275
+        },
+        {
+          "id": 8021587770270552910,
+          "name": "add_member",
+          "confidence": 0.02563616819679737
+        },
+        {
+          "id": -7128805605430783571,
+          "name": "add_slots",
+          "confidence": 0.015462097711861134
+        },
+        {
+          "id": 8454677438796581103,
+          "name": "chat_history",
+          "confidence": 0.007146755233407021
+        },
+        {
+          "id": 6443600450635136021,
+          "name": "intent_and_utterance",
+          "confidence": 0.005030840635299683
+        },
+        {
+          "id": 6545891166738309943,
+          "name": "add_integration_token",
+          "confidence": 0.004415853880345821
+        },
+        {
+          "id": -8036877169916700086,
+          "name": "add_forms",
+          "confidence": 0.004087295848876238
+        },
+        {
+          "id": 7783360638031829052,
+          "name": "add_actions",
+          "confidence": 0.003407369600608945
+        },
+        {
+          "id": 996142280631996014,
+          "name": "training_history",
+          "confidence": 0.00256651290692389
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0.0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "paused": false,
+    "slots": {
+      "kairon_action_response": null,
+      "bot": "6322ebbb3c62158dab4aee71",
+      "session_started_metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      }
+    },
+    "event": {
+      "event": "user",
+      "timestamp": "$currentDate()",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "text": "what is story?",
+      "parse_data": {
+        "intent": {
+          "id": 6784116164758327528,
+          "name": "add_custom_story",
+          "confidence": 0.9023009538650513
+        },
+        "entities": [],
+        "text": "what is story?",
+        "message_id": "32d587a2498d47bc9ff5a48f159ae5fd",
+        "metadata": {
+          "is_integration_user": true,
+          "bot": "6322ebbb3c62158dab4aee71",
+          "account": 41,
+          "channel_type": "chat_client"
+        },
+        "intent_ranking": [
+          {
+            "id": 6784116164758327528,
+            "name": "add_custom_story",
+            "confidence": 0.9023009538650513
+          },
+          {
+            "id": 766080269829544582,
+            "name": "add_custom_story10",
+            "confidence": 0.07229922711849213
+          },
+          {
+            "id": 996142280631996014,
+            "name": "training_history",
+            "confidence": 0.01500274520367384
+          },
+          {
+            "id": 6658695239124129422,
+            "name": "manage_member",
+            "confidence": 0.005248558707535267
+          },
+          {
+            "id": 8454677438796581103,
+            "name": "chat_history",
+            "confidence": 0.0018815564690157771
+          },
+          {
+            "id": -3524439509465658954,
+            "name": "model_configuration",
+            "confidence": 0.00124366267118603
+          },
+          {
+            "id": 2258349375073289098,
+            "name": "upload_download_data10",
+            "confidence": 0.0007499633939005435
+          },
+          {
+            "id": 6443600450635136021,
+            "name": "intent_and_utterance",
+            "confidence": 0.00044905891991220415
+          },
+          {
+            "id": 7409645860049124103,
+            "name": "training_history10",
+            "confidence": 0.00044583185808733106
+          },
+          {
+            "id": -7327409228772197429,
+            "name": "add_actions10",
+            "confidence": 0.000378528144210577
+          }
+        ],
+        "response_selector": {
+          "all_retrieval_intents": [],
+          "default": {
+            "response": {
+              "id": null,
+              "responses": null,
+              "response_templates": null,
+              "confidence": 0.0,
+              "intent_response_key": null,
+              "utter_action": "utter_None",
+              "template_name": "utter_None"
+            },
+            "ranking": []
+          }
+        }
+      },
+      "input_channel": null,
+      "message_id": "32d587a2498d47bc9ff5a48f159ae5fd"
+    }
+  },
+  {
+    "sender_id": "fshaikh@digite.com",
+    "active_loop": {},
+    "followup_action": null,
+    "latest_action": {
+      "action_name": "action_listen"
+    },
+    "latest_action_name": "action_listen",
+    "latest_event_time": 1669110625.3199089,
+    "latest_input_channel": null,
+    "latest_message": {
+      "intent": {
+        "id": -2174244021955424343,
+        "name": "train_bot",
+        "confidence": 0.8972293138504028
+      },
+      "entities": [],
+      "text": "what is bot",
+      "message_id": "fbd966f2c2d14374be4201822dd8811d",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "intent_ranking": [
+        {
+          "id": -2174244021955424343,
+          "name": "train_bot",
+          "confidence": 0.8972293138504028
+        },
+        {
+          "id": 6658695239124129422,
+          "name": "manage_member",
+          "confidence": 0.035017769783735275
+        },
+        {
+          "id": 8021587770270552910,
+          "name": "add_member",
+          "confidence": 0.02563616819679737
+        },
+        {
+          "id": -7128805605430783571,
+          "name": "add_slots",
+          "confidence": 0.015462097711861134
+        },
+        {
+          "id": 8454677438796581103,
+          "name": "chat_history",
+          "confidence": 0.007146755233407021
+        },
+        {
+          "id": 6443600450635136021,
+          "name": "intent_and_utterance",
+          "confidence": 0.005030840635299683
+        },
+        {
+          "id": 6545891166738309943,
+          "name": "add_integration_token",
+          "confidence": 0.004415853880345821
+        },
+        {
+          "id": -8036877169916700086,
+          "name": "add_forms",
+          "confidence": 0.004087295848876238
+        },
+        {
+          "id": 7783360638031829052,
+          "name": "add_actions",
+          "confidence": 0.003407369600608945
+        },
+        {
+          "id": 996142280631996014,
+          "name": "training_history",
+          "confidence": 0.00256651290692389
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0.0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "paused": false,
+    "slots": {
+      "kairon_action_response": null,
+      "bot": "6322ebbb3c62158dab4aee71",
+      "session_started_metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      }
+    },
+    "event": {
+      "event": "bot",
+      "timestamp": "$currentDate()",
+      "metadata": {
+        "utter_action": "utter_add_custom_story"
+      },
+      "text": null,
+      "data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": {
+          "data": [
+            {
+              "type": "video",
+              "url": "https://www.youtube.com/watch?v=I3naB184ZgQ",
+              "children": [
+                {
+                  "text": ""
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "text": ""
+                }
+              ]
+            }
+          ],
+          "type": "video"
+        }
+      }
+    }
+  },
+  {
+    "sender_id": "fshaikh@digite.com",
+    "active_loop": {},
+    "followup_action": null,
+    "latest_action": {
+      "action_name": "action_listen"
+    },
+    "latest_action_name": "action_listen",
+    "latest_event_time": 1669110625.3199089,
+    "latest_input_channel": null,
+    "latest_message": {
+      "intent": {
+        "id": -2174244021955424343,
+        "name": "train_bot",
+        "confidence": 0.8972293138504028
+      },
+      "entities": [],
+      "text": "what is bot",
+      "message_id": "fbd966f2c2d14374be4201822dd8811d",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "intent_ranking": [
+        {
+          "id": -2174244021955424343,
+          "name": "train_bot",
+          "confidence": 0.8972293138504028
+        },
+        {
+          "id": 6658695239124129422,
+          "name": "manage_member",
+          "confidence": 0.035017769783735275
+        },
+        {
+          "id": 8021587770270552910,
+          "name": "add_member",
+          "confidence": 0.02563616819679737
+        },
+        {
+          "id": -7128805605430783571,
+          "name": "add_slots",
+          "confidence": 0.015462097711861134
+        },
+        {
+          "id": 8454677438796581103,
+          "name": "chat_history",
+          "confidence": 0.007146755233407021
+        },
+        {
+          "id": 6443600450635136021,
+          "name": "intent_and_utterance",
+          "confidence": 0.005030840635299683
+        },
+        {
+          "id": 6545891166738309943,
+          "name": "add_integration_token",
+          "confidence": 0.004415853880345821
+        },
+        {
+          "id": -8036877169916700086,
+          "name": "add_forms",
+          "confidence": 0.004087295848876238
+        },
+        {
+          "id": 7783360638031829052,
+          "name": "add_actions",
+          "confidence": 0.003407369600608945
+        },
+        {
+          "id": 996142280631996014,
+          "name": "training_history",
+          "confidence": 0.00256651290692389
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0.0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "paused": false,
+    "slots": {
+      "kairon_action_response": null,
+      "bot": "6322ebbb3c62158dab4aee71",
+      "session_started_metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      }
+    },
+    "event": {
+      "event": "user",
+      "timestamp": "$currentDate()",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "text": "what is bot",
+      "parse_data": {
+        "intent": {
+          "id": -2174244021955424343,
+          "name": "train_bot",
+          "confidence": 0.8972293138504028
+        },
+        "entities": [],
+        "text": "what is bot",
+        "message_id": "fbd966f2c2d14374be4201822dd8811d",
+        "metadata": {
+          "is_integration_user": true,
+          "bot": "6322ebbb3c62158dab4aee71",
+          "account": 41,
+          "channel_type": "chat_client"
+        },
+        "intent_ranking": [
+          {
+            "id": -2174244021955424343,
+            "name": "train_bot",
+            "confidence": 0.8972293138504028
+          },
+          {
+            "id": 6658695239124129422,
+            "name": "manage_member",
+            "confidence": 0.035017769783735275
+          },
+          {
+            "id": 8021587770270552910,
+            "name": "add_member",
+            "confidence": 0.02563616819679737
+          },
+          {
+            "id": -7128805605430783571,
+            "name": "add_slots",
+            "confidence": 0.015462097711861134
+          },
+          {
+            "id": 8454677438796581103,
+            "name": "chat_history",
+            "confidence": 0.007146755233407021
+          },
+          {
+            "id": 6443600450635136021,
+            "name": "intent_and_utterance",
+            "confidence": 0.005030840635299683
+          },
+          {
+            "id": 6545891166738309943,
+            "name": "add_integration_token",
+            "confidence": 0.004415853880345821
+          },
+          {
+            "id": -8036877169916700086,
+            "name": "add_forms",
+            "confidence": 0.004087295848876238
+          },
+          {
+            "id": 7783360638031829052,
+            "name": "add_actions",
+            "confidence": 0.003407369600608945
+          },
+          {
+            "id": 996142280631996014,
+            "name": "training_history",
+            "confidence": 0.00256651290692389
+          }
+        ],
+        "response_selector": {
+          "all_retrieval_intents": [],
+          "default": {
+            "response": {
+              "id": null,
+              "responses": null,
+              "response_templates": null,
+              "confidence": 0.0,
+              "intent_response_key": null,
+              "utter_action": "utter_None",
+              "template_name": "utter_None"
+            },
+            "ranking": []
+          }
+        }
+      },
+      "input_channel": null,
+      "message_id": "fbd966f2c2d14374be4201822dd8811d"
+    }
+  },
+  {
+    "sender_id": "fshaikh@digite.com",
+    "active_loop": {},
+    "followup_action": null,
+    "latest_action": {
+      "action_name": "action_listen"
+    },
+    "latest_action_name": "action_listen",
+    "latest_event_time": 1669110625.3199089,
+    "latest_input_channel": null,
+    "latest_message": {
+      "intent": {
+        "id": -2174244021955424343,
+        "name": "train_bot",
+        "confidence": 0.8972293138504028
+      },
+      "entities": [],
+      "text": "what is bot",
+      "message_id": "fbd966f2c2d14374be4201822dd8811d",
+      "metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      },
+      "intent_ranking": [
+        {
+          "id": -2174244021955424343,
+          "name": "train_bot",
+          "confidence": 0.8972293138504028
+        },
+        {
+          "id": 6658695239124129422,
+          "name": "manage_member",
+          "confidence": 0.035017769783735275
+        },
+        {
+          "id": 8021587770270552910,
+          "name": "add_member",
+          "confidence": 0.02563616819679737
+        },
+        {
+          "id": -7128805605430783571,
+          "name": "add_slots",
+          "confidence": 0.015462097711861134
+        },
+        {
+          "id": 8454677438796581103,
+          "name": "chat_history",
+          "confidence": 0.007146755233407021
+        },
+        {
+          "id": 6443600450635136021,
+          "name": "intent_and_utterance",
+          "confidence": 0.005030840635299683
+        },
+        {
+          "id": 6545891166738309943,
+          "name": "add_integration_token",
+          "confidence": 0.004415853880345821
+        },
+        {
+          "id": -8036877169916700086,
+          "name": "add_forms",
+          "confidence": 0.004087295848876238
+        },
+        {
+          "id": 7783360638031829052,
+          "name": "add_actions",
+          "confidence": 0.003407369600608945
+        },
+        {
+          "id": 996142280631996014,
+          "name": "training_history",
+          "confidence": 0.00256651290692389
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0.0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "paused": false,
+    "slots": {
+      "kairon_action_response": null,
+      "bot": "6322ebbb3c62158dab4aee71",
+      "session_started_metadata": {
+        "is_integration_user": true,
+        "bot": "6322ebbb3c62158dab4aee71",
+        "account": 41,
+        "channel_type": "chat_client"
+      }
+    },
+    "event": {
+      "event": "bot",
+      "timestamp": "$currentDate()",
+      "metadata": {
+        "utter_action": "utter_train_bot"
+      },
+      "text": null,
+      "data": {
+        "elements": null,
+        "quick_replies": null,
+        "buttons": null,
+        "attachment": null,
+        "image": null,
+        "custom": {
+          "data": [
+            {
+              "type": "video",
+              "url": "https://www.youtube.com/watch?v=CL64mID3VMY",
+              "children": [
+                {
+                  "text": ""
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "text": ""
+                }
+              ]
+            }
+          ],
+          "type": "video"
+        }
+      }
+    }
+  }
+]
