@@ -17,19 +17,19 @@ It also deals with the post processing and maintenance of these bots such metric
 
 Kairon is open-source. It is a Conversational digital transformation platform: Kairon is a platform that allows companies to create and deploy digital assistants to interact with customers in a conversational manner.
 
-End-to-end lifecycle management: Kairon takes care of the entire digital assistant lifecycle, from creation to deployment and monitoring, freeing up company resources to focus on other tasks.
+**End-to-end lifecycle management**: Kairon takes care of the entire digital assistant lifecycle, from creation to deployment and monitoring, freeing up company resources to focus on other tasks.
 Tethered digital assistants: Kairon’s digital assistants are tethered to the platform, which allows for real-time monitoring of their performance and easy maintenance and updates as needed.
 
-Low-code/no-code interface: Kairon’s interface is designed to be easy for functional users, such as marketing teams or product management, to define how the digital assistant responds to user queries without needing extensive coding skills.
+**Low-code/no-code interface:** Kairon’s interface is designed to be easy for functional users, such as marketing teams or product management, to define how the digital assistant responds to user queries without needing extensive coding skills.
 Secure script injection: Kairon’s digital assistants can be easily deployed on websites and SAAS products through secure script injection, enabling organizations to offer better customer service and support.
 
-Kairon Telemetry: Kairon’s telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience.
+**Kairon Telemetry:** Kairon’s telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience.
 Chat client designer: Kairon’s chat client designer feature allows organizations to create customized chat clients for their digital assistants, which can enhance the user experience and help build brand loyalty.
 
-Analytics module: Kairon’s analytics module provides insights into how users are interacting with the digital assistant, enabling organizations to optimize their performance and provide better service to customers.
+**Analytics module:** Kairon’s analytics module provides insights into how users are interacting with the digital assistant, enabling organizations to optimize their performance and provide better service to customers.
 Robust integration suite: Kairon’s integration suite allows digital assistants to be served in an omni-channel, multi-lingual manner, improving accessibility and expanding the reach of the digital assistant.
 
-Realtime struggle analytics: Kairon’s digital assistants use real-time struggle analytics to proactively intervene when users are facing friction on the product/website where Kairon has been injected, improving user satisfaction and reducing churn.
+**Realtime struggle analytics:** Kairon’s digital assistants use real-time struggle analytics to proactively intervene when users are facing friction on the product/website where Kairon has been injected, improving user satisfaction and reducing churn.
 This website can be found at [Kairon](https://kairon.nimblework.com/) and is hosted by NimbleWork Inc. 
 
 **Who uses it ?**
