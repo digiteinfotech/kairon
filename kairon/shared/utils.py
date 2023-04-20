@@ -1284,6 +1284,7 @@ class Utility:
         :param headers: header for the HTTP request
         :param return_json: return api output as json
         :param kwargs:
+            timeout: How many seconds to wait for the server to send data before giving up
             validate_status: To validate status_code in response. False by default.
             expected_status_code: 200 by default
             err_msg: error message to be raised in case expected status code not received

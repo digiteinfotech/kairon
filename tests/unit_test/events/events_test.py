@@ -1149,7 +1149,8 @@ class TestEventExecution:
         assert logged_config == config
         print(logs)
         assert logs[0][1] == {'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
-                              'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', '']}
+                              'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
+                              'failure_cnt': 0, 'total': 2}
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send',
                               'bot': 'test_execute_message_broadcast', 'status': 'Success', 'api_response': {
@@ -1245,7 +1246,7 @@ class TestEventExecution:
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}]]}
+                                      'filename': 'Brochure.pdf'}}]}]], 'failure_cnt': 0, 'total': 2}
         logs[0][1].pop("timestamp")
         assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
@@ -1415,7 +1416,100 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_recipient_evaluation_failure(self, mock_is_exist, mock_get_bot_settings):
+        bot = 'test_execute_message_broadcast_expression_evaluation_failure'
+        user = 'test_user'
+        config = {
+            "name": "one_time_schedule",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "dynamic",
+                "recipients": "${contacts}"
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                    "data": "[\n                {\n                    \"type\": \"header\",\n                    \"parameters\": [\n                        {\n                            \"type\": \"document\",\n                            \"document\": {\n                                \"link\": \"https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\",\n                                \"filename\": \"Brochure.pdf\"\n                            }\n                        }\n                    ]\n                }\n            ]"
+                }
+            ]
+        }
 
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        responses.start()
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "POST", "http://localhost:8080/format",
+            json={"data": "9876543210, 876543212345", "success": False}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+        event.execute(event_id)
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 1
+        exception = logs[0][0].pop("exception")
+        assert exception.startswith('Failed to evaluate dynamic recipients expression: ')
+        responses.reset()
+
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_expression_evaluation_failure(self, mock_is_exist, mock_get_bot_settings, mock_channel_config):
+        bot = 'test_execute_message_broadcast_expression_evaluation_failure'
+        user = 'test_user'
+        config = {
+            "name": "one_time_schedule",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipient_type": "static",
+                "recipients": "918958030541"
+            },
+            "template_config": [
+                {
+                    "template_type": "static",
+                    "template_id": "brochure_pdf",
+                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                    "data": "[{type: body, parameters: [{type: text, text: Udit}]}]"
+                }
+            ]
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        responses.start()
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "POST", "http://localhost:8080/format",
+            json={"data": "9876543210, 876543212345", "success": False}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+        event.execute(event_id)
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 1
+        exception = logs[0][0].pop("exception")
+        assert exception.startswith('Failed to evaluate static template expression: ')
+        responses.reset()
 
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
@@ -1472,7 +1566,7 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         assert logged_config == config
         exception = logs[0][0].pop("exception")
-        assert exception.startswith("whatsapp channel config not found!")
+        assert exception.startswith("Whatsapp channel config not found!")
         assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'broadcast_id': event_id,
                               'recipients': ['918958030541']}
 
@@ -1535,7 +1629,7 @@ class TestEventExecution:
         assert logged_config == config
         assert logs[0][1] == {'log_type': 'common', 'bot': bot, 'status': 'Completed',
                               'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
-                              'template_params': [[{'body': 'Udit Pandey'}]]}
+                              'template_params': [[{'body': 'Udit Pandey'}]], 'failure_cnt': 0, 'total': 2}
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send',
                               'bot': bot, 'status': 'Success', 'api_response': {
@@ -1547,7 +1641,7 @@ class TestEventExecution:
 
         settings = list(MessageBroadcastProcessor.list_settings(bot, status=False, name="one_time_schedule"))
         assert len(settings) == 1
-        assert settings[0]["status"] == False
+        assert settings[0]["status"] is False
 
     def test_base_scheduler_class(self):
         with pytest.raises(AppException, match=f"'model_training' is not a valid event server request!"):

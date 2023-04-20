@@ -94,6 +94,7 @@ class EVENT_STATUS(str, Enum):
     SKIP_IMPORT = "Skipping importing data to kairon"
     TRIGGER_TRAINING = "Triggering model training"
     EVALUATE_RECIPIENTS = "Recipients evaluated"
+    TRIGGERED_API = "Triggered API, waiting for response"
     EVALUATE_TEMPLATE = "Templates evaluated"
     BROADCAST_STARTED = "Initiated broadcast to recipients"
     DATA_EXTRACTED = "Broadcast data extracted"

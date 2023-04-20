@@ -1,9 +1,6 @@
 from abc import ABC
 from typing import Text
 
-from mongoengine import DoesNotExist
-
-from kairon.exceptions import AppException
 from kairon.live_agent.base import LiveAgentBase
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
 
