@@ -150,7 +150,6 @@ async def update_message_broadcast_event(
     Updates a scheduled message broadcast.
     """
     event = MessageBroadcastEvent(current_user.get_bot(), current_user.get_user())
-    event.validate()
     event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=msg_broadcast_id, config=request.dict())
     return Response(message="Broadcast updated!")
 
