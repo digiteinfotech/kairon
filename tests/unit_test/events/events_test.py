@@ -1419,7 +1419,7 @@ class TestEventExecution:
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_execute_message_broadcast_recipient_evaluation_failure(self, mock_is_exist, mock_get_bot_settings):
-        bot = 'test_execute_message_broadcast_expression_evaluation_failure'
+        bot = 'test_execute_message_broadcast_recipient_evaluation_failure'
         user = 'test_user'
         config = {
             "name": "one_time_schedule",
