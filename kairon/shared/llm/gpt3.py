@@ -178,7 +178,7 @@ class GPT3FAQEmbedding(LLMBase):
     def __search_exact_match(self, query_embedding: List):
         is_match_found = False
         search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding, limit=1,
-                                                   score_threshold=1)
+                                                   score_threshold=0.99)
         response = search_result["result"]
         if response:
             is_match_found = True

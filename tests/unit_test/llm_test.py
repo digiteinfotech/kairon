@@ -229,7 +229,7 @@ class TestLLM:
                 method="POST",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
-                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 0.99})],
                 json={'result': []}
             )
 
@@ -305,7 +305,7 @@ class TestLLM:
                 method="POST",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
-                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 0.99})],
                 json={'result': []}
             )
 
@@ -397,7 +397,7 @@ class TestLLM:
                 method="POST",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
-                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 0.99})],
                 json={'result': []}
             )
 
@@ -460,7 +460,7 @@ class TestLLM:
                 method="POST",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
-                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 0.99})],
                 json={'result': [{'id': '5ec0694b-1c19-b8c6-c54d-1cdbff20ca64', 'score': 1.0,
                                   'payload': {'query': query, 'response': generated_text}}]}
             )
@@ -514,7 +514,7 @@ class TestLLM:
                 method="POST",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
-                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 0.99})],
                 json={'result': []}
             )
 
@@ -574,7 +574,7 @@ class TestLLM:
                 method="POST",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
-                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                    {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 0.99})],
                 json={'result': []}
             )
 
@@ -653,7 +653,7 @@ class TestLLM:
             method="POST",
             adding_headers={},
             match=[responses.matchers.json_params_matcher(
-                {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 0.99})],
             json={'result': []}
         )
 
@@ -736,7 +736,7 @@ class TestLLM:
             method="POST",
             adding_headers={},
             match=[responses.matchers.json_params_matcher(
-                {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 1})],
+                {'vector': embedding, 'limit': 1, 'with_payload': True, 'score_threshold': 0.99})],
             json={'result': []}
         )
         responses.add(
