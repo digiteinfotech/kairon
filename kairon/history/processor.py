@@ -831,13 +831,12 @@ class HistoryProcessor:
                             {"$project": {"user_input": "$data.user_input", "intent": "$data.intent",
                                           "confidence": "$data.confidence", "action": "$data.action",
                                           "timestamp": {"$toDate": {"$multiply": ["$timestamp", 1000]}},
-                                          "bot_response_text": "$data.bot_response_text",
-                                          "bot_response_data": "$data.bot_response_data", "sender_id": "$sender_id"
+                                          "bot_response": "$data.bot_response", "sender_id": "$sender_id"
                                           }},
                             {"$sort": {"timestamp": -1}},
-                            {"$project": {"_id": "$sender_id", "user_input": 1, "intent": 1, "confidence": 1, "action": 1,
+                            {"$project": {"_id": "$sender_id", "user_input": 1, "intent": 1, "confidence": 1,
                                           "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
-                                          "bot_response_text": 1, "bot_response_data": 1}}
+                                          "action": 1, "bot_response": 1}}
                          ], allowDiskUse=True))
 
         except Exception as e:

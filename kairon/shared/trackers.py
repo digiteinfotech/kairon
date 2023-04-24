@@ -70,6 +70,7 @@ class KMongoTrackerStore(TrackerStore):
         conversation_id = uuid7().hex
         flattened_conversation = {"type": "flattened", "sender_id": sender_id, "conversation_id": conversation_id, "data": {}}
         actions_predicted = []
+        bot_responses = []
         data = []
         for event in additional_events:
             event = event.as_dict()
@@ -82,9 +83,9 @@ class KMongoTrackerStore(TrackerStore):
             elif event['event'] == 'action':
                 actions_predicted.append(event.get('name'))
             elif event['event'] == 'bot':
-                flattened_conversation["data"]['bot_response_text'] = event.get('text')
-                flattened_conversation["data"]['bot_response_data'] = event.get('data')
+                bot_responses.append({"text": event.get('text'), "data": event.get('data')})
         flattened_conversation["data"]['action'] = actions_predicted
+        flattened_conversation["data"]['bot_response'] = bot_responses
         data.append(flattened_conversation)
         if data:
             self.conversations.insert_many(data)
