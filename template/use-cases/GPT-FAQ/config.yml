@@ -1,17 +1,17 @@
 language: en
 pipeline:
-- name: kairon.shared.nlu.classifier.openai.OpenAIClassifier
-#- name: WhitespaceTokenizer
-#- name: CountVectorsFeaturizer
-#  min_ngram: 1
-#  max_ngram: 2
-#- name: kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
-#- name: DIETClassifier
-#  epochs: 50
-#  constrain_similarities: true
-#  entity_recognition: false
-#- name: FallbackClassifier
-#  threshold: 0.80
+#- name: kairon.shared.nlu.classifier.openai.OpenAIClassifier
+- name: WhitespaceTokenizer
+- name: CountVectorsFeaturizer
+  min_ngram: 1
+  max_ngram: 2
+- name: kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
+- name: DIETClassifier
+  epochs: 50
+  constrain_similarities: true
+  entity_recognition: false
+- name: FallbackClassifier
+  threshold: 0.80
 policies:
 - name: MemoizationPolicy
 - epochs: 200

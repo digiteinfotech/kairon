@@ -120,8 +120,6 @@ class OpenAIFeaturizer(DenseFeaturizer):
             need to be computed.
             attribute: Property of message to be processed, one of ``TEXT`` or
             ``RESPONSE``.
-            inference_mode: Whether the call is during inference or during training.
-
 
         Returns:
             List of language model docs for each message in batch.
@@ -197,7 +195,7 @@ class OpenAIFeaturizer(DenseFeaturizer):
             if message.get(attribute):
                 self._set_lm_features(
                     self._get_docs_for_batch(
-                        [message], attribute=attribute, inference_mode=True
+                        [message], attribute=attribute
                     )[0],
                     message,
                     attribute,
