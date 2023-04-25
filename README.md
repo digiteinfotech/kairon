@@ -77,7 +77,7 @@ and set google analytics tracking id
 
 ## Installation
 
-1. Kairon requires [python3.6.9+ or 3.7](https://www.python.org/downloads/) and [mongo 4.0+](https://www.mongodb.com/download-center/community)
+1. Kairon requires [python 3.8](https://www.python.org/downloads/) and [mongo 4.0+](https://www.mongodb.com/download-center/community)
 
 2. Then clone this repo
 
@@ -92,8 +92,7 @@ and set google analytics tracking id
 
    **Windows**
    ```
-   setup.bat
-   ```
+   setup.bat   ```
 
    **No Matching distribution found tensorflow-text** - remove the dependency from requirements.txt file, as **window version is not available** [#44](https://github.com/tensorflow/text/issues/44)
 
