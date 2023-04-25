@@ -107,20 +107,31 @@ class OpenAIClassifier(IntentClassifier):
     def predict(self, text):
         embedding = self.get_embeddings(text)
         messages = self.prepare_context(embedding, text)
-        response = openai.ChatCompletion.create(
-            model=self.component_config.get("prediction_model", "gpt-4"),
-            messages=messages,
-            temperature=self.component_config.get("temperature", 0.0),
-            max_tokens=self.component_config.get("max_tokens", 50),
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stop=["\n\n"],
-            api_key=self.api_key
-        )
-        intent_str, explanation_str = response.choices[0]['message']['content'].split('\n')
-        intent = intent_str.split(':')[1].strip()
-        explanation = explanation_str.split(':')[1].strip()
+        retry = 0
+        intent = None
+        explanation = None
+        while retry < 3:
+            try:
+                response = openai.ChatCompletion.create(
+                    model=self.component_config.get("prediction_model", "gpt-4"),
+                    messages=messages,
+                    temperature=self.component_config.get("temperature", 0.0),
+                    max_tokens=self.component_config.get("max_tokens", 50),
+                    top_p=1,
+                    frequency_penalty=0,
+                    presence_penalty=0,
+                    stop=["\n\n"],
+                    api_key=self.api_key
+                )
+                intent_str, explanation_str = response.choices[0]['message']['content'].split('\n')
+                intent = intent_str.split(':')[1].strip()
+                explanation = explanation_str.split(':')[1].strip()
+                break
+            except Exception as e:
+                logger.error(e)
+                retry += 1
+                if retry == 3:
+                    raise e
         return intent, explanation
 
     def process(self, message: Message, **kwargs: Any) -> None:
