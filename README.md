@@ -257,11 +257,17 @@ python -m black bot_trainer
 
 
 ## Authors
-The repository is being maintained and supported by **Digite Inc.**
-* **Digite,Inc.** - [Digite](https://digite.com)
+The repository is being maintained and supported by **NimbleWork Inc.**
+* **NimbleWork.Inc** - [NimbleWork](https://www.nimblework.com/)
 * [Fahad Ali Shaikh](https://github.com/sfahad1414)
 * [Deepak Naik](https://github.com/deenaik)
 * [Nirmal Parwate](https://github.com/nirmal495)
+* [Adurthi Ashwin Swarup]
+* [Udit Pandey}
+* [Rohan Patwardhan]
+* [Hitesh Ghuge]
+* [Sushant Patade}
+* [Mitesh Gupta]
 
 See also the list of [contributors](https://github.com/digiteinfotech/kairon/graphs/contributors) who participated in this project.
 
