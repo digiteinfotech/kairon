@@ -4586,6 +4586,41 @@ def test_add_member(monkeypatch):
     assert response['success']
 
 
+def test_add_member_invalid_email():
+    api_key = "test"
+    email = "integration@demo.ai"
+    with patch.dict(Utility.environment,
+                         {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+        responses.add(responses.GET,
+                      "http://api.quickemailverification.com/v1/verify?" + urlencode({"apikey": api_key, "email": email}),
+                      json={
+                          "result": "valid",
+                          "reason": "rejected_email",
+                          "disposable": "true",
+                          "accept_all": "false",
+                          "role": "false",
+                          "free": "false",
+                          "email": email,
+                          "user": "test",
+                          "domain": "quickemailverification.com",
+                          "mx_record": "us2.mx1.mailhostbox.com",
+                          "mx_domain": "mailhostbox.com",
+                          "safe_to_send": "false",
+                          "did_you_mean": "",
+                          "success": "true",
+                          "message": None
+                      })
+
+        response = client.post(
+            f"/api/user/{pytest.add_member_bot}/member",
+            json={"email": email, "role": "tester"},
+            headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+        ).json()
+        assert response['message'] == [{'loc': ['body', 'email'], 'msg': 'Invalid or disposable Email!', 'type': 'value_error'}]
+        assert response['error_code'] == 422
+        assert response['success']
+
+
 def test_add_member_as_owner(monkeypatch):
     response = client.post(
         f"/api/user/{pytest.add_member_bot}/member",
@@ -14264,7 +14299,6 @@ def test_allowed_origin(monkeypatch):
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == "User does not exist!"
-    print(response.headers)
     assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
                                 'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
                                 'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
