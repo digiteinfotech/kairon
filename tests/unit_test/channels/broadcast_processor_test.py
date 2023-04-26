@@ -57,7 +57,8 @@ class TestMessageBroadcastProcessor:
             "connector_type": "whatsapp",
             "scheduler_config": {
                 "expression_type": "cron",
-                "schedule": "57 22 * * *"
+                "schedule": "57 22 * * *",
+                "timezone": "Asia/Kolkata"
             },
             "recipients_config": {
                 "recipient_type": "static",
@@ -165,7 +166,8 @@ class TestMessageBroadcastProcessor:
             "connector_type": "whatsapp",
             "scheduler_config": {
                 "expression_type": "cron",
-                "schedule": "30 22 5 * *"
+                "schedule": "30 22 5 * *",
+                "timezone": "Asia/Kolkata"
             },
             "recipients_config": {
                 "recipient_type": "static",
@@ -240,11 +242,14 @@ class TestMessageBroadcastProcessor:
         settings[0].pop("timestamp")
         settings[1].pop("timestamp")
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
-                             'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *'},
+                             'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *',
+                                                  "timezone": "Asia/Kolkata"},
                              'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
                              'template_config': [{'template_type': 'dynamic', 'template_id': 'brochure_pdf',
+                                                  'language': "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': ''},
                                                  {'template_type': 'static', 'template_id': 'brochure_pdf',
+                                                  "language": "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True},
                             {'name': 'second_scheduler', 'connector_type': 'slack',
@@ -253,6 +258,7 @@ class TestMessageBroadcastProcessor:
                                                                     'request': 'from app'}, 'request_body': {}},
                              'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
                              'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                                  "language": "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
 
@@ -265,6 +271,7 @@ class TestMessageBroadcastProcessor:
                                                                     'request': 'from app'}, 'request_body': {}},
                              'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
                              'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                                  "language": "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}
 
@@ -290,6 +297,7 @@ class TestMessageBroadcastProcessor:
                                                                     'request': 'from app'}, 'request_body': {}},
                              'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
                              'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
+                                                  "language": "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
 
@@ -298,11 +306,13 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
-                             'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *'},
+                             'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *', "timezone": "Asia/Kolkata"},
                              'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
                              'template_config': [{'template_type': 'dynamic', 'template_id': 'brochure_pdf',
+                                                  "language": "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': ''},
                                                  {'template_type': 'static', 'template_id': 'brochure_pdf',
+                                                  "language": "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': False}]
 

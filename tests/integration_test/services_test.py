@@ -4618,7 +4618,7 @@ def test_add_member_invalid_email():
         ).json()
         assert response['message'] == [{'loc': ['body', 'email'], 'msg': 'Invalid or disposable Email!', 'type': 'value_error'}]
         assert response['error_code'] == 422
-        assert response['success']
+        assert not response['success']
 
 
 def test_add_member_as_owner(monkeypatch):
@@ -11508,7 +11508,7 @@ def test_broadcast_config_error():
 
     config["scheduler_config"]["schedule"] = {
             "expression_type": "cron",
-            "schedule": "* * */3 * *"
+            "schedule": "57 22 * * *",
         }
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/broadcast/message",
@@ -11672,16 +11672,18 @@ def test_list_broadcast_logs():
     from kairon.shared.chat.notifications.data_objects import MessageBroadcastLogs
 
     ref_id = ObjectId().__str__()
+    timestamp = datetime.utcnow()
     MessageBroadcastLogs(**{'reference_id': ref_id, 'log_type': 'common', 'bot': pytest.bot, 'status': 'Completed',
                               'user': 'test_user', 'broadcast_id': pytest.first_scheduler_id,
-                            'recipients': ['918958030541', '']}).save()
+                            'recipients': ['918958030541', ''], "timestamp": timestamp}).save()
+    timestamp = timestamp + timedelta(minutes=2)
     MessageBroadcastLogs(**{'reference_id': ref_id, 'log_type': 'send', 'bot': pytest.bot,
                             'status': 'Success', 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '9876543210', 'template_params': [{'type': 'header', 'parameters': [
                 {'type': 'document', 'document': {
                     'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                    'filename': 'Brochure.pdf'}}]}]}).save()
+                    'filename': 'Brochure.pdf'}}]}], "timestamp": timestamp}).save()
     response = client.get(
         f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?log_type=common",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},

@@ -5444,22 +5444,22 @@ class TestActionServer(AsyncHTTPTestCase):
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
 
         def mock_get_streaming_llm_response(*args, **kwargs):
-            response = [OpenAIResponse({'data': {'choices': [{'delta': {'role': 'assistant'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': 'Python'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' is'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' dynamically'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' typed'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' garbage-collected'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' high'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' level'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}},{}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' general'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' purpose'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': ' programming'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {'content': '.'}, 'index': 0, 'finish_reason': None}]}}, {}),
-                        OpenAIResponse({'data': {'choices': [{'delta': {}, 'index': 0, 'finish_reason': 'stop'}]}}, {})]
+            response = [OpenAIResponse({'choices': [{'delta': {'role': 'assistant'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': 'Python'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' is'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' dynamically'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' typed'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' garbage-collected'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' high'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' level'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]},{}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' general'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' purpose'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': ' programming'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {'content': '.'}, 'index': 0, 'finish_reason': None}]}, {}),
+                        OpenAIResponse({'choices': [{'delta': {}, 'index': 0, 'finish_reason': 'stop'}]}, {})]
             return (
                 convert_to_openai_object(line)
                 for line in response

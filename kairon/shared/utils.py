@@ -1643,7 +1643,7 @@ class Utility:
         if is_streamed:
             raw_response = []
             for chunk in response:
-                for delta in chunk['data']['choices']:
+                for delta in chunk['choices']:
                     if delta['delta'].get('content'):
                         formatted_response = f"{formatted_response}{delta['delta'].get('content')}"
                 raw_response.append(chunk.to_dict_recursive())

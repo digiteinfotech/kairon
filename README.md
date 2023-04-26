@@ -262,10 +262,10 @@ The repository is being maintained and supported by **NimbleWork Inc.**
 * [Deepak Naik](https://github.com/deenaik)
 * [Nirmal Parwate](https://github.com/nirmal495)
 * [Adurthi Ashwin Swarup]
-* [Udit Pandey}
+* [Udit Pandey](https://github.com/udit-pandey)
 * [Rohan Patwardhan]
 * [Hitesh Ghuge]
-* [Sushant Patade}
+* [Sushant Patade]
 * [Mitesh Gupta]
 
 See also the list of [contributors](https://github.com/digiteinfotech/kairon/graphs/contributors) who participated in this project.
