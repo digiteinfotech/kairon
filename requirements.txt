@@ -70,3 +70,4 @@ boto3==1.26.100
 APScheduler
 croniter
 faiss-cpu
+urllib3==1.26.15
