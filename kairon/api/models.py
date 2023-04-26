@@ -162,6 +162,15 @@ class BotAccessRequest(RecaptchaVerifiedRequest):
     role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value
     activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INACTIVE.value
 
+    @validator("email")
+    def validate_email(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+        try:
+            Utility.verify_email(v)
+        except AppException as e:
+            raise ValueError(str(e))
+        return v
+
     @validator("role")
     def validate_role(cls, v, values, **kwargs):
         if v == ACCESS_ROLES.OWNER.value:

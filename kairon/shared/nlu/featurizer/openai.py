@@ -24,6 +24,7 @@ from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.nlu.components import Component
 import os
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ class OpenAIFeaturizer(DenseFeaturizer):
         """
         sentence_embeddings = []
         sequence_embeddings = []
-        for example in batch_examples:
+        for example in tqdm(batch_examples):
             text = example.get(attribute)
             tokens = example.get(TOKENS_NAMES[attribute])
 
@@ -120,8 +121,6 @@ class OpenAIFeaturizer(DenseFeaturizer):
             need to be computed.
             attribute: Property of message to be processed, one of ``TEXT`` or
             ``RESPONSE``.
-            inference_mode: Whether the call is during inference or during training.
-
 
         Returns:
             List of language model docs for each message in batch.
@@ -167,7 +166,6 @@ class OpenAIFeaturizer(DenseFeaturizer):
             )
 
             batch_start_index = 0
-
             while batch_start_index < len(non_empty_examples):
 
                 batch_end_index = min(
@@ -181,6 +179,7 @@ class OpenAIFeaturizer(DenseFeaturizer):
                 batch_docs = self._get_docs_for_batch(batch_messages, attribute)
 
                 for index, ex in enumerate(batch_messages):
+                    print(index)
                     self._set_lm_features(batch_docs[index], ex, attribute)
                 batch_start_index += batch_size
 
@@ -197,7 +196,7 @@ class OpenAIFeaturizer(DenseFeaturizer):
             if message.get(attribute):
                 self._set_lm_features(
                     self._get_docs_for_batch(
-                        [message], attribute=attribute, inference_mode=True
+                        [message], attribute=attribute
                     )[0],
                     message,
                     attribute,

@@ -13,6 +13,7 @@ import os
 from rasa.shared.nlu.constants import TEXT, INTENT
 import openai
 import numpy as np
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class OpenAIClassifier(IntentClassifier):
         "top_k": 5,
         "temperature": 0.0,
         "max_tokens": 50,
+        "retry": 3
     }
 
     system_prompt = "You are an intent classifier. Based on the users prompt, you will classify the prompt to one of the intent if it is not from one of the stories you will classify it as nlu_fallback. Also provide the explanation why particular intent is classified."
@@ -85,7 +87,7 @@ class OpenAIClassifier(IntentClassifier):
         """Train the intent classifier on a data set."""
         data_map = []
         vector_map = []
-        for example in training_data.intent_examples:
+        for example in tqdm(training_data.intent_examples):
             vector_map.append(self.get_embeddings(example.get(TEXT)))
             data_map.append({'text': example.get(TEXT), 'intent': example.get(INTENT)})
         np_vector = np.asarray(vector_map, dtype=np.float32)
@@ -107,20 +109,34 @@ class OpenAIClassifier(IntentClassifier):
     def predict(self, text):
         embedding = self.get_embeddings(text)
         messages = self.prepare_context(embedding, text)
-        response = openai.ChatCompletion.create(
-            model=self.component_config.get("prediction_model", "gpt-4"),
-            messages=messages,
-            temperature=self.component_config.get("temperature", 0.0),
-            max_tokens=self.component_config.get("max_tokens", 50),
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stop=["\n\n"],
-            api_key=self.api_key
-        )
-        intent_str, explanation_str = response.choices[0]['message']['content'].split('\n')
-        intent = intent_str.split(':')[1].strip()
-        explanation = explanation_str.split(':')[1].strip()
+        retry = 0
+        intent = None
+        explanation = None
+        while retry < self.component_config.get("retry", 3):
+            try:
+                response = openai.ChatCompletion.create(
+                    model=self.component_config.get("prediction_model", "gpt-4"),
+                    messages=messages,
+                    temperature=self.component_config.get("temperature", 0.0),
+                    max_tokens=self.component_config.get("max_tokens", 50),
+                    top_p=1,
+                    frequency_penalty=0,
+                    presence_penalty=0,
+                    stop=["\n\n"],
+                    api_key=self.api_key
+                )
+                intent = None
+                explanation = None
+                responses = response.choices[0]['message']['content'].split('\n')
+                intent = responses[0].split(':')[1].strip()
+                if len(responses) == 2:
+                    explanation = responses[1].split(':')[1].strip()
+                break
+            except TimeoutError as e:
+                logger.error(e)
+                retry += 1
+                if retry == 3:
+                    raise e
         return intent, explanation
 
     def process(self, message: Message, **kwargs: Any) -> None:
