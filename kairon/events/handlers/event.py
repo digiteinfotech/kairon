@@ -25,8 +25,8 @@ class EventHandler(BaseHandler, ABC):
             logger.info(f"query_arguments={self.request.query_arguments}")
             if is_scheduled == "True" and Utility.is_valid_event_request(event_class, body):
                 bot, user, event_id = body.get("bot"), body.get("user"), body.get("event_id")
-                cron_exp = body.pop("cron_exp")
-                KScheduler(bot, user).add_job(event_id, cron_exp, event_class, body)
+                cron_exp, timezone = body.pop("cron_exp"), body.pop("timezone", None)
+                KScheduler(bot, user).add_job(event_id, cron_exp, event_class, body, timezone)
                 message = "Event Scheduled!"
             else:
                 response = ExecutorFactory.get_executor().execute_task(event_class, body)
@@ -49,8 +49,8 @@ class EventHandler(BaseHandler, ABC):
             logger.info(f"query_arguments={self.request.query_arguments}")
             if is_scheduled == "True" and Utility.is_valid_event_request(event_class, body):
                 bot, user, event_id = body.get("bot"), body.get("user"), body.get("event_id")
-                cron_exp = body.pop("cron_exp")
-                KScheduler(bot, user).update_job(event_id, cron_exp, event_class, body)
+                cron_exp, timezone = body.pop("cron_exp"), body.pop("timezone", None)
+                KScheduler(bot, user).update_job(event_id, cron_exp, event_class, body, timezone)
                 message = "Scheduled event updated!"
             else:
                 raise AppException("Updating non-scheduled event not supported!")

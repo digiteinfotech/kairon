@@ -237,7 +237,8 @@ class TestEventServer(AsyncHTTPTestCase):
     @patch('kairon.events.scheduler.kscheduler.KScheduler.update_job', autospec=True)
     def test_update_scheduled_event_request(self, mock_update_job):
         request_body = json.dumps(
-            {"bot": "test", "user": "test_user", "cron_exp": "* * * * *", "event_id": "6543212345678909876543"}).encode(
+            {"bot": "test", "user": "test_user", "cron_exp": "* * * * *", "event_id": "6543212345678909876543",
+             "timezone": "Asia/Kolkata"}).encode(
             'utf-8')
         response = self.fetch(f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True", method="PUT",
                               body=request_body)

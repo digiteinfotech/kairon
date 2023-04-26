@@ -23,17 +23,17 @@ class KScheduler(EventSchedulerBase):
         self.bot = bot
         self.user = user
 
-    def add_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict):
+    def add_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict, timezone=None):
         func = ExecutorFactory.get_executor().execute_task
         args = (event_class, body,)
-        trigger = CronTrigger.from_crontab(cron_exp)
+        trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
         KScheduler.__scheduler.add_job(func, trigger, args, id=event_id, name=func.__name__, jobstore=KScheduler.__job_store_name)
 
-    def update_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict):
+    def update_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict, timezone=None):
         try:
             func = ExecutorFactory.get_executor().execute_task
             args = (event_class, body,)
-            trigger = CronTrigger.from_crontab(cron_exp)
+            trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
             changes = {
                 "func": func, "trigger": trigger, "args": args, "name": func.__name__
             }

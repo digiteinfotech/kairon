@@ -86,7 +86,9 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         try:
             msg_broadcast_id = MessageBroadcastProcessor.add_scheduled_task(self.bot, self.user, config)
             cron_exp = config["scheduler_config"]["schedule"]
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id, "cron_exp": cron_exp}
+            timezone = config["scheduler_config"]["timezone"]
+            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id,
+                       "cron_exp": cron_exp, "timezone": timezone}
             Utility.request_event_server(EventClass.message_broadcast, payload, is_scheduled=True)
             return msg_broadcast_id
         except Exception as e:
@@ -105,7 +107,9 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             MessageBroadcastProcessor.update_scheduled_task(msg_broadcast_id, self.bot, self.user, config)
             settings_updated = True
             cron_exp = config["scheduler_config"]["schedule"]
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id, "cron_exp": cron_exp}
+            timezone = config["scheduler_config"]["timezone"]
+            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id,
+                       "cron_exp": cron_exp, "timezone": timezone}
             Utility.request_event_server(EventClass.message_broadcast, payload, method="PUT", is_scheduled=True)
         except Exception as e:
             logger.error(e)

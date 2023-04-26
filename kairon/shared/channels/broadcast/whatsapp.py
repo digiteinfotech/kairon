@@ -41,18 +41,24 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
         failure_cnt = 0
         total = len(recipients)
 
-        for template_config in self.config['template_config']:
+        for i, template_config in enumerate(self.config['template_config']):
             template_id = template_config["template_id"]
             namespace = template_config["namespace"]
+            lang = template_config["language"]
             template_params = self._get_template_parameters(template_config, data)
 
             # if there's no template body, pass params as None for all recipients
             template_params = template_params if template_params else [template_params] * len(recipients)
+            num_msg = len(list(zip(recipients, template_params)))
+            evaluation_log = {
+                f"Template {i + 1}": f"There are {total} recipients and {len(template_params)} template bodies. "
+                                     f"Sending {num_msg} messages to {num_msg} recipients."
+            }
 
             for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-                    response = channel_client.send_template_message(namespace, template_id, recipient, components=t_params)
+                    response = channel_client.send_template_message(namespace, template_id, recipient, lang, t_params)
                     status = "Failed" if response.get("errors") else "Success"
                     if status == "Failed":
                         failure_cnt = failure_cnt + 1
@@ -61,7 +67,8 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
                         status=status, recipient=recipient, template_params=t_params
                     )
             MessageBroadcastProcessor.add_event_log(
-                self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total
+                self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
+                **evaluation_log
             )
 
     def __get_client(self):

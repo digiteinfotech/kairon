@@ -44,7 +44,7 @@ class TestMessageBroadcastProcessor:
         scheduler = KScheduler(bot, user)
 
         with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
-            scheduler.add_job(event_id, cron_exp, EventClass.message_broadcast.value, body)
+            scheduler.add_job(event_id, cron_exp, EventClass.message_broadcast.value, body, "Asia/Kolkata")
 
             assert mock_jobstore.call_args.args[1].args[0] == 'message_broadcast'
             mock_jobstore.call_args.args[1].args[1].pop("event_id")
@@ -54,6 +54,7 @@ class TestMessageBroadcastProcessor:
                        1].func_ref == 'kairon.events.executors.lamda:LambdaExecutor.execute_task'
             assert mock_jobstore.call_args.args[1].id
             assert mock_jobstore.call_args.args[1].trigger
+            assert mock_jobstore.call_args.args[1].trigger.timezone.zone == 'Asia/Kolkata'
 
     @patch("pymongo.collection.Collection.find")
     def test_list_jobs(self, mock_jobstore):

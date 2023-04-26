@@ -34,6 +34,7 @@ class ChannelRequest(BaseModel):
 class SchedulerConfiguration(BaseModel):
     expression_type: str = "cron"
     schedule: str
+    timezone: str = None
 
     @root_validator
     def validate_config(cls, values):
@@ -45,6 +46,8 @@ class SchedulerConfiguration(BaseModel):
             min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
             if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
                 raise ValueError(f"recurrence interval must be at least {min_trigger_interval} seconds!")
+            if Utility.check_empty_string(values.get("timezone")):
+                raise ValueError(f"timezone is required for cron expressions!")
 
         return values
 
@@ -63,6 +66,7 @@ class TemplateConfiguration(BaseModel):
     template_type: str
     template_id: str
     namespace: str
+    language: str = "en"
     data: str = None
 
 

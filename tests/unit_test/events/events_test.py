@@ -1112,6 +1112,7 @@ class TestEventExecution:
             },
             "template_config": [
                 {
+                    'language': 'hi',
                     "template_type": "static",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
@@ -1150,7 +1151,9 @@ class TestEventExecution:
         print(logs)
         assert logs[0][1] == {'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
                               'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
-                              'failure_cnt': 0, 'total': 2}
+                              'failure_cnt': 0, 'total': 2,
+                              'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
+                              }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send',
                               'bot': 'test_execute_message_broadcast', 'status': 'Success', 'api_response': {
@@ -1187,6 +1190,7 @@ class TestEventExecution:
             },
             "template_config": [
                 {
+                    'language': 'hi',
                     "template_type": "static",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
@@ -1246,12 +1250,16 @@ class TestEventExecution:
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}]], 'failure_cnt': 0, 'total': 2}
+                                      'filename': 'Brochure.pdf'}}]}]], 'failure_cnt': 0, 'total': 2,
+                              'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
+                              }
         logs[0][1].pop("timestamp")
+        logs[0][1].pop("recipient")
+        logs[0][0].pop("recipient")
         assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'recipient': '9876543210', 'template_params': [{'type': 'header', 'parameters': [
+                              'template_params': [{'type': 'header', 'parameters': [
                 {'type': 'document', 'document': {
                     'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                     'filename': 'Brochure.pdf'}}]}]}
@@ -1259,12 +1267,20 @@ class TestEventExecution:
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
                               'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'recipient': '876543212345', 'template_params': [{'type': 'header', 'parameters': [
+                              'template_params': [{'type': 'header', 'parameters': [
                 {'type': 'document', 'document': {
                     'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                     'filename': 'Brochure.pdf'}}]}]}
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
+
+        assert mock_send.call_args[0][1] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
+        assert mock_send.call_args[0][2] == 'brochure_pdf'
+        assert mock_send.call_args[0][3] == '876543212345'
+        assert mock_send.call_args[0][4] == 'hi'
+        assert mock_send.call_args[0][5] == [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+            'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+            'filename': 'Brochure.pdf'}}]}]
 
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
@@ -1287,6 +1303,7 @@ class TestEventExecution:
             },
             "template_config": [
                 {
+                    'language': 'hi',
                     "template_type": "static",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
@@ -1367,6 +1384,7 @@ class TestEventExecution:
             },
             "template_config": [
                 {
+                    'language': 'hi',
                     "template_type": "static",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
@@ -1526,6 +1544,7 @@ class TestEventExecution:
             },
             "template_config": [
                 {
+                    'language': 'hi',
                     "template_type": "static",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
@@ -1586,6 +1605,7 @@ class TestEventExecution:
             },
             "template_config": [
                 {
+                    'language': 'hi',
                     "template_type": "dynamic",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
@@ -1629,7 +1649,9 @@ class TestEventExecution:
         assert logged_config == config
         assert logs[0][1] == {'log_type': 'common', 'bot': bot, 'status': 'Completed',
                               'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
-                              'template_params': [[{'body': 'Udit Pandey'}]], 'failure_cnt': 0, 'total': 2}
+                              'template_params': [[{'body': 'Udit Pandey'}]], 'failure_cnt': 0, 'total': 2,
+                              'Template 1': 'There are 2 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+                              }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send',
                               'bot': bot, 'status': 'Success', 'api_response': {

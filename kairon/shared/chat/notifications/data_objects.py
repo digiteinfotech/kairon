@@ -16,6 +16,7 @@ class SchedulerConfiguration(EmbeddedDocument):
     """
     expression_type = StringField(default="cron", choices=["cron"])
     schedule = StringField(required=True)
+    timezone = StringField()
 
     def validate(self, clean=True):
         if clean:
@@ -29,6 +30,8 @@ class SchedulerConfiguration(EmbeddedDocument):
             min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
             if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
                 raise ValidationError(f"recurrence interval must be at least {min_trigger_interval} seconds!")
+            if Utility.check_empty_string(self.timezone):
+                raise ValidationError("timezone is required for cron expressions!")
 
     def clean(self):
         self.schedule = self.schedule.strip()
@@ -78,6 +81,7 @@ class TemplateConfiguration(EmbeddedDocument):
     template_type = StringField(required=True, choices=["static", "dynamic"])
     template_id = StringField(required=True)
     namespace = StringField(required=True)
+    language = StringField(default="en")
     data = StringField()
 
     def validate(self, clean=True):

@@ -11378,7 +11378,8 @@ def test_add_scheduled_broadcast(mock_event_server):
         "connector_type": "whatsapp",
         "scheduler_config": {
             "expression_type": "cron",
-            "schedule": "57 22 * * *"
+            "schedule": "57 22 * * *",
+            "timezone": "UTC"
         },
         "recipients_config": {
             "recipient_type": "static",
@@ -11445,7 +11446,8 @@ def test_broadcast_config_error():
         "connector_type": "whatsapp",
         "scheduler_config": {
             "expression_type": "cron",
-            "schedule": "* * * * *"
+            "schedule": "* * * * *",
+            "timezone": "UTC"
         },
         "recipients_config": {
             "recipient_type": "static",
@@ -11469,6 +11471,21 @@ def test_broadcast_config_error():
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'recurrence interval must be at least 86340 seconds!', 'type': 'value_error'}]
 
+    config["scheduler_config"]["schedule"] = {
+            "expression_type": "cron",
+            "schedule": "* * */3 * *"
+        }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'timezone is required for cron expressions!', 'type': 'value_error'}]
+
     config["scheduler_config"]["schedule"] = ""
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/broadcast/message",
@@ -11488,7 +11505,8 @@ def test_update_broadcast(mock_event_server):
         "connector_type": "whatsapp",
         "scheduler_config": {
             "expression_type": "cron",
-            "schedule": "21 11 * * *"
+            "schedule": "21 11 * * *",
+            "timezone": "Asia/Kolkata"
         },
         "recipients_config": {
             "recipient_type": "dynamic",
@@ -11563,14 +11581,14 @@ def test_list_broadcast_config():
     actual["data"]['schedules'][1].pop("user")
     assert actual["data"] == {'schedules': [
         {'name': 'first_scheduler', 'connector_type': 'whatsapp',
-         'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *'},
+         'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *', "timezone": "Asia/Kolkata"},
          'data_extraction_config': {'method': 'GET', 'url': 'http://kairon.remote', 'headers': {}, 'request_body': {}},
          'recipients_config': {'recipient_type': 'dynamic', 'recipients': '918958030541,'}, 'template_config': [
-            {'template_type': 'dynamic', 'template_id': 'brochure_pdf',
+            {'template_type': 'dynamic', 'template_id': 'brochure_pdf', "language": "en",
              'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': '${response.data}'}], 'status': True},
         {'name': 'one_time_schedule', 'connector_type': 'whatsapp',
          'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
-            {'template_type': 'static', 'template_id': 'brochure_pdf',
+            {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
              'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'status': True}]}
 
 
@@ -11611,7 +11629,7 @@ def test_list_broadcast_():
     assert actual["data"] == {'schedules': [
         {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
          'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
-            {'template_type': 'static', 'template_id': 'brochure_pdf',
+            {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
              'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'bot': pytest.bot, 'status': True,}]}
 
 
