@@ -31,6 +31,7 @@ class OpenAIClassifier(IntentClassifier):
         "top_k": 5,
         "temperature": 0.0,
         "max_tokens": 50,
+        "retry": 3
     }
 
     system_prompt = "You are an intent classifier. Based on the users prompt, you will classify the prompt to one of the intent if it is not from one of the stories you will classify it as nlu_fallback. Also provide the explanation why particular intent is classified."
@@ -110,7 +111,7 @@ class OpenAIClassifier(IntentClassifier):
         retry = 0
         intent = None
         explanation = None
-        while retry < 3:
+        while retry < self.component_config.get("retry", 3):
             try:
                 response = openai.ChatCompletion.create(
                     model=self.component_config.get("prediction_model", "gpt-4"),
@@ -123,11 +124,14 @@ class OpenAIClassifier(IntentClassifier):
                     stop=["\n\n"],
                     api_key=self.api_key
                 )
-                intent_str, explanation_str = response.choices[0]['message']['content'].split('\n')
-                intent = intent_str.split(':')[1].strip()
-                explanation = explanation_str.split(':')[1].strip()
+                intent = None
+                explanation = None
+                responses = response.choices[0]['message']['content'].split('\n')
+                intent = responses[0].split(':')[1].strip()
+                if len(responses) == 2:
+                    explanation = responses[1].split(':')[1].strip()
                 break
-            except Exception as e:
+            except TimeoutError as e:
                 logger.error(e)
                 retry += 1
                 if retry == 3:
