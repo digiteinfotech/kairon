@@ -13,6 +13,7 @@ import os
 from rasa.shared.nlu.constants import TEXT, INTENT
 import openai
 import numpy as np
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ class OpenAIClassifier(IntentClassifier):
         """Train the intent classifier on a data set."""
         data_map = []
         vector_map = []
-        for example in training_data.intent_examples:
+        for example in tqdm(training_data.intent_examples):
             vector_map.append(self.get_embeddings(example.get(TEXT)))
             data_map.append({'text': example.get(TEXT), 'intent': example.get(INTENT)})
         np_vector = np.asarray(vector_map, dtype=np.float32)
