@@ -11506,7 +11506,7 @@ def test_broadcast_config_error():
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'recurrence interval must be at least 86340 seconds!', 'type': 'value_error'}]
 
-    config["scheduler_config"]["schedule"] = {
+    config["scheduler_config"] = {
             "expression_type": "cron",
             "schedule": "57 22 * * *",
         }
