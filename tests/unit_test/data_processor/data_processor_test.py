@@ -202,7 +202,7 @@ class TestMongoProcessor:
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
                            'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                            "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
-                           "use_bot_responses": False, "num_bot_responses": 5}]
+                           "use_bot_responses": False, "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters()}]
 
     def test_add_kairon_faq_action_already_exist(self):
         processor = MongoProcessor()
@@ -231,14 +231,15 @@ class TestMongoProcessor:
         request = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
                    "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
-                   "num_bot_responses": 5}
+                   "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters()}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
                            'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
                            "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": True,
-                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt"}]
+                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt",
+                           "hyperparameters": Utility.get_llm_hyperparameters()}]
         request = {}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
@@ -246,7 +247,33 @@ class TestMongoProcessor:
         assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
                            'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                            "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
-                           "use_bot_responses": False, "num_bot_responses": 5}]
+                           "use_bot_responses": False, "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters()}]
+
+    def test_edit_kairon_faq_action_with_less_hyperparameters(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+                   "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
+                   "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
+                   "num_bot_responses": 5, "hyperparameters": {"temperature": 0.0,
+                                                               "max_tokens": 300,
+                                                               "model": "gpt-3.5-turbo",
+                                                               "top_p": 0.0,
+                                                               "n": 1}}
+
+        processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
+        action = list(processor.get_kairon_faq_action(bot))
+        action[0].pop("_id")
+        assert action == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
+                           'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
+                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": True,
+                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt",
+                           "hyperparameters": {"temperature": 0.0,
+                                               "max_tokens": 300,
+                                               "model": "gpt-3.5-turbo",
+                                               "top_p": 0.0,
+                                               "n": 1}}]
 
     def test_get_kairon_faq_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -259,10 +286,13 @@ class TestMongoProcessor:
         bot = 'test_bot'
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
-        assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
-                           'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
-                           "use_bot_responses": False, "num_bot_responses": 5}]
+        print(action)
+        assert action ==  [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
+                            'context_prompt': 'updated_context_prompt', 'use_query_prompt': True,
+                            'query_prompt': 'updated_query_prompt', 'use_bot_responses': True,
+                            'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+                            'failure_message': 'updated_failure_message',
+                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1}}]
 
     def test_delete_kairon_faq_action(self):
         processor = MongoProcessor()
@@ -443,6 +473,37 @@ class TestMongoProcessor:
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot, status=True).get()
         assert Responses.objects(name__iexact='utter_default', bot=bot, status=True).get()
+
+    def test_add_or_overwrite_gpt_classifier_config_with_bot_id(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./template/config/openai-classifier.yml')
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'en'
+        assert config['pipeline'] == [{'name': 'kairon.shared.nlu.classifier.openai.OpenAIClassifier', 'bot_id': bot}]
+        assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
+                                           {'core_fallback_action_name': 'action_default_fallback',
+                                            'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
+                                            'name': 'RulePolicy'}]
+
+    def test_add_or_overwrite_gpt_featurizer_config_with_bot_id(self):
+        bot = 'test_config'
+        user = 'test_config'
+        processor = MongoProcessor()
+        config = Utility.read_yaml('./template/config/openai-featurizer.yml')
+        processor.add_or_overwrite_config(config, bot, user)
+        config = Configs.objects().get(bot=bot).to_mongo().to_dict()
+        assert config['language'] == 'en'
+        assert config['pipeline'] == [{'name': 'WhitespaceTokenizer'}, {'name': 'CountVectorsFeaturizer',
+                                                                        'min_ngram': 1, 'max_ngram': 2},
+                                      {'name': 'kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer', 'bot_id': bot},
+                                      {'name': 'DIETClassifier', 'epochs': 50, 'constrain_similarities': True, 'entity_recognition': False},
+                                      {'name': 'FallbackClassifier', 'threshold': 0.8}]
+        assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
+                                      {'core_fallback_action_name': 'action_default_fallback',
+                                       'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False, 'name': 'RulePolicy'}]
 
     @pytest.mark.asyncio
     async def test_upload_case_insensitivity(self):
@@ -1969,7 +2030,7 @@ class TestMongoProcessor:
             responses.POST,
             "http://localhost/train",
             status=200,
-            match=[responses.json_params_matcher({"bot": "test_event", "user": "testUser", "token": None})],
+            match=[responses.matchers.json_params_matcher({"bot": "test_event", "user": "testUser", "token": None})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
         model_path = start_training("test_event", "testUser")
@@ -1982,7 +2043,7 @@ class TestMongoProcessor:
             responses.POST,
             "http://localhost/train",
             status=200,
-            match=[responses.json_params_matcher({"bot": "test_event_with_token", "user": "testUser", "token": token})],
+            match=[responses.matchers.json_params_matcher({"bot": "test_event_with_token", "user": "testUser", "token": token})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
         model_path = start_training("test_event_with_token", "testUser", token)
@@ -7128,15 +7189,14 @@ class TestMongoProcessor:
             RazorpayAction.objects(name='razorpay_action', status=True, bot=bot).get()
 
     @responses.activate
-    def test_push_notifications_enabled_message_type_event(self):
+    def test_push_notifications_enabled_message_type_event(self, monkeypatch):
         Utility.environment['notifications']['enable'] = True
         bot = "test"
         user = 'test'
         url = "http://localhost/events"
-        Utility.environment['notifications']['server_endpoint'] = url
-
+        monkeypatch.setitem(Utility.environment['notifications'], 'server_endpoint', url)
         responses.add(
-            'POST'
+            'POST',
             f'{url}/test',
             json={'message': 'Event in progress'}
         )

@@ -1211,8 +1211,17 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
+        for custom_component in Utility.environment['model']['pipeline']['custom']:
+            self.__insert_bot_id(config_obj, bot, custom_component)
         self.add_default_fallback_config(config_obj, bot, user)
         return config_obj.save().to_mongo().to_dict()["_id"].__str__()
+
+    def __insert_bot_id(self, config_obj: dict, bot: Text, component_name: Text):
+        gpt_classifier = next((
+            comp for comp in config_obj['pipeline'] if comp['name'] == component_name), None
+        )
+        if gpt_classifier:
+            gpt_classifier['bot_id'] = bot
 
     def save_component_properties(self, configs: dict, bot: Text, user: Text):
         """
@@ -3486,10 +3495,11 @@ class MongoProcessor:
             (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
         if not property_idx:
             property_idx = next(
-                (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"))
-            fallback = {'name': 'FallbackClassifier', 'threshold': 0.7}
-            config_obj['pipeline'].insert(property_idx + 1, fallback)
-            self.add_default_fallback_data(bot, user, True, False)
+                (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"), None)
+            if property_idx:
+                fallback = {'name': 'FallbackClassifier', 'threshold': 0.7}
+                config_obj['pipeline'].insert(property_idx + 1, fallback)
+                self.add_default_fallback_data(bot, user, True, False)
 
     @staticmethod
     def fetch_nlu_fallback_action(bot: Text):
@@ -4724,6 +4734,7 @@ class MongoProcessor:
         action.query_prompt = request_data.get('query_prompt')
         action.use_bot_responses = request_data.get('use_bot_responses', False)
         action.num_bot_responses = request_data.get('num_bot_responses', 5)
+        action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyperparameters())
         action.timestamp = datetime.utcnow()
         action.user = user
         action.save()

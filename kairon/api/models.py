@@ -119,7 +119,15 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     account: str
     fingerprint: str = None
 
-    # file deepcode ignore E0213: Method definition is predefined
+    @validator("email")
+    def validate_email(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+        try:
+            Utility.verify_email(v)
+        except AppException as e:
+            raise ValueError(str(e))
+        return v
+
     @validator("password")
     def validate_password(cls, v, values, **kwargs):
         from kairon.shared.utils import Utility
@@ -143,7 +151,8 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     def validate_fingerprint(cls, values):
         from kairon.shared.utils import Utility
 
-        if Utility.environment['user']['validate_trusted_device'] and Utility.check_empty_string(values.get('fingerprint')):
+        if Utility.environment['user']['validate_trusted_device'] and Utility.check_empty_string(
+                values.get('fingerprint')):
             raise ValueError("fingerprint is required")
         return values
 
@@ -152,6 +161,15 @@ class BotAccessRequest(RecaptchaVerifiedRequest):
     email: constr(to_lower=True, strip_whitespace=True)
     role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value
     activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INACTIVE.value
+
+    @validator("email")
+    def validate_email(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+        try:
+            Utility.verify_email(v)
+        except AppException as e:
+            raise ValueError(str(e))
+        return v
 
     @validator("role")
     def validate_role(cls, v, values, **kwargs):
@@ -254,7 +272,8 @@ class HttpActionParameters(BaseModel):
         if values.get('parameter_type') == ActionParameterType.slot and Utility.check_empty_string(values.get('value')):
             raise ValueError("Provide name of the slot as value")
 
-        if values.get('parameter_type') == ActionParameterType.key_vault and Utility.check_empty_string(values.get('value')):
+        if values.get('parameter_type') == ActionParameterType.key_vault and Utility.check_empty_string(
+                values.get('value')):
             raise ValueError("Provide key from key vault as value")
 
         if values.get('parameter_type') == ActionParameterType.key_vault:
@@ -415,7 +434,8 @@ class StoryRequest(BaseModel):
                 raise ValueError(f"Only {StoryStepType.form_end} step type can have empty name")
         if 'type' in values:
             if values['type'] == StoryType.rule and intents > 1:
-                raise ValueError(f"""Found rules '{values['name']}' that contain more than intent.\nPlease use stories for this case""")
+                raise ValueError(
+                    f"""Found rules '{values['name']}' that contain more than intent.\nPlease use stories for this case""")
         return v
 
 
@@ -489,6 +509,10 @@ class SynonymRequest(BaseModel):
 
 class DictData(BaseModel):
     data: dict
+
+
+class RecaptchaVerifiedDictData(DictData):
+    recaptcha_response: str = None
 
 
 class RegexRequest(BaseModel):
@@ -621,7 +645,8 @@ class CustomActionParameter(BaseModel):
 
     @validator("parameter_type")
     def validate_parameter_type(cls, v, values, **kwargs):
-        allowed_values = {ActionParameterType.value, ActionParameterType.slot, ActionParameterType.key_vault, ActionParameterType.sender_id}
+        allowed_values = {ActionParameterType.value, ActionParameterType.slot, ActionParameterType.key_vault,
+                          ActionParameterType.sender_id}
         if v not in allowed_values:
             raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
         return v
@@ -633,7 +658,8 @@ class CustomActionParameter(BaseModel):
         if values.get('parameter_type') == ActionParameterType.slot and Utility.check_empty_string(values.get('value')):
             raise ValueError("Provide name of the slot as value")
 
-        if values.get('parameter_type') == ActionParameterType.key_vault and Utility.check_empty_string(values.get('value')):
+        if values.get('parameter_type') == ActionParameterType.key_vault and Utility.check_empty_string(
+                values.get('value')):
             raise ValueError("Provide key from key vault as value")
 
         return values
@@ -742,6 +768,7 @@ class KaironFaqConfigRequest(BaseModel):
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     top_results: int = 10
     similarity_threshold: float = 0.70
+    hyperparameters: dict = None
 
     @validator("system_prompt")
     def validate_system_prompt(cls, v, values, **kwargs):
@@ -781,9 +808,13 @@ class KaironFaqConfigRequest(BaseModel):
     def check(cls, values):
         from kairon.shared.utils import Utility
 
+        if not values.get('hyperparameters'):
+            values['hyperparameters'] = Utility.get_llm_hyperparameters()
+
         if values.get('use_query_prompt') and Utility.check_empty_string(values.get('query_prompt')):
             raise ValueError("query_prompt is required")
         return values
+
 
 
 class RazorpayActionRequest(BaseModel):

@@ -5,7 +5,7 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon.shared.utils import Utility
+from kairon.shared.utils import MailUtility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, EmailActionConfig
 from kairon.shared.actions.exception import ActionFailure
@@ -66,16 +66,16 @@ class ActionEmail(ActionsBase):
                     body = ActionUtility.prepare_email_body(tracker_data[ActionParameterType.chat_log.value], action_config['subject'], mail)
                 else:
                     body = ActionUtility.prepare_email_text(custom_text, tracker_data, action_config['subject'], mail)
-                await Utility.trigger_email(email=[mail],
-                                            subject=f"{tracker.sender_id} {action_config['subject']}",
-                                            body=body,
-                                            smtp_url=action_config['smtp_url'],
-                                            smtp_port=action_config['smtp_port'],
-                                            sender_email=action_config['from_email'],
-                                            smtp_password=password,
-                                            smtp_userid=userid,
-                                            tls=action_config['tls']
-                                            )
+                await MailUtility.trigger_email(email=[mail],
+                                                subject=f"{tracker.sender_id} {action_config['subject']}",
+                                                body=body,
+                                                smtp_url=action_config['smtp_url'],
+                                                smtp_port=action_config['smtp_port'],
+                                                sender_email=action_config['from_email'],
+                                                smtp_password=password,
+                                                smtp_userid=userid,
+                                                tls=action_config['tls']
+                                                )
 
         except Exception as e:
             logger.exception(e)
@@ -86,7 +86,7 @@ class ActionEmail(ActionsBase):
         finally:
             ActionServerLogs(
                 type=ActionType.email_action.value,
-                intent=tracker.get_intent_of_latest_message(),
+                intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=action_config['action_name'],
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),

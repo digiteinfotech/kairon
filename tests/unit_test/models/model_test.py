@@ -6,9 +6,9 @@ from rasa.shared.core.training_data.structures import STORY_START
 
 from kairon import Utility
 from kairon.api.models import HttpActionConfigRequest, HttpActionParameters, ActionResponseEvaluation
-from kairon.shared.actions.data_objects import SetSlots, HttpActionRequestBody, KaironTwoStageFallbackAction
-from kairon.shared.data.data_objects import Slots, SlotMapping, Entity, StoryEvents, StepFlowEvent, \
-    MultiflowStoryEvents, MultiflowStories
+from kairon.shared.actions.data_objects import SetSlots, HttpActionRequestBody
+from kairon.shared.data.data_objects import Slots, SlotMapping, Entity, StoryEvents, MultiflowStoryEvents, \
+    MultiflowStories
 
 
 class TestBotModels:

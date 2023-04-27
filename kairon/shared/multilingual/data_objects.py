@@ -19,7 +19,7 @@ class BotReplicationLogs(Auditlog):
     translate_responses = BooleanField(default=True)
     translate_actions = BooleanField(default=False)
     exception = StringField(default="")
-    start_timestamp = DateTimeField(default=datetime.utcnow())
+    start_timestamp = DateTimeField(default=datetime.utcnow)
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
     event_status = StringField(default="COMPLETED")

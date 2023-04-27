@@ -73,7 +73,7 @@ class ActionHubspotForms(ActionsBase):
             ActionServerLogs(
                 type=ActionType.hubspot_forms_action.value,
                 request_params=request_body,
-                intent=tracker.get_intent_of_latest_message(),
+                intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=action_config['name'],
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),

@@ -244,7 +244,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)],
+            match=[responses.matchers.json_params_matcher(request_params)],
             headers={"Authorization": auth_token}
         )
 
@@ -265,7 +265,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)]
+            match=[responses.matchers.json_params_matcher(request_params)]
         )
 
         response = ActionUtility.execute_http_request(headers=None, http_url=http_url,
@@ -286,7 +286,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)],
+            match=[responses.matchers.json_params_matcher(request_params)],
             headers={"Authorization": auth_token}
         )
 
@@ -307,7 +307,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)]
+            match=[responses.matchers.json_params_matcher(request_params)]
         )
 
         response = ActionUtility.execute_http_request(headers=None, http_url=http_url,
@@ -328,7 +328,7 @@ class TestActions:
             url=http_url,
             body=resp_msg,
             status=200,
-            match=[responses.json_params_matcher(request_params)],
+            match=[responses.matchers.json_params_matcher(request_params)],
             headers={"Authorization": auth_token}
         )
 
@@ -370,7 +370,7 @@ class TestActions:
             body=resp_msg,
             status=500,
             match=[
-                responses.json_params_matcher(request_params)
+                responses.matchers.json_params_matcher(request_params)
             ]
         )
 
@@ -390,7 +390,7 @@ class TestActions:
             body=resp_msg,
             status=200,
             match=[
-                responses.json_params_matcher(request_params)
+                responses.matchers.json_params_matcher(request_params)
             ]
         )
 
@@ -1314,6 +1314,7 @@ class TestActions:
         except ActionFailure as e:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''
 
+    @responses.activate
     @pytest.mark.asyncio
     async def test_run_get_with_parameters(self, monkeypatch):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
@@ -1344,23 +1345,11 @@ class TestActions:
             }
         }
 
-        class MockResponse(object):
-            def __init__(self, url, headers):
-                self.status_code = 200
-                self.url = url
-                self.headers = headers
+        responses.add(
+            responses.GET, http_url, json=resp_msg,
+            match=[responses.matchers.urlencoded_params_matcher({'key1': 'value1', 'key2': 'value2'})],
+        )
 
-            def json(self):
-                return resp_msg
-
-            def text(self):
-                return json.dumps(resp_msg)
-
-        def mock_get(url, headers):
-            if headers and url == http_url + '?' + urllib.parse.urlencode({'key1': 'value1', 'key2': 'value2'}):
-                return MockResponse(url, headers)
-
-        monkeypatch.setattr(requests, "get", mock_get)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -1375,6 +1364,7 @@ class TestActions:
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
+    @responses.activate
     @pytest.mark.asyncio
     async def test_run_get_with_parameters_2(self, monkeypatch):
         action = HttpActionConfig(
@@ -1403,23 +1393,10 @@ class TestActions:
             }
         }
 
-        class MockResponse(object):
-            def __init__(self, url, headers):
-                self.status_code = 200
-                self.url = url
-                self.headers = headers
+        responses.add(
+            responses.GET, http_url, json=resp_msg
+        )
 
-            def json(self):
-                return resp_msg
-
-            def text(self):
-                return json.dumps(resp_msg)
-
-        def mock_get(url, headers):
-            if url == http_url:
-                return MockResponse(url, headers)
-
-        monkeypatch.setattr(requests, "get", mock_get)
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -2166,7 +2143,12 @@ class TestActions:
                           'top_results': 10, 'similarity_threshold': 0.7,
                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                           'bot': 'test_action_server', "num_bot_responses": 5, "use_bot_responses": False,
-                          'use_query_prompt': False}
+                          'use_query_prompt': False, 'hyperparameters': {'temperature': 0.0,
+                                                                         'max_tokens': 300,
+                                                                         'model': 'gpt-3.5-turbo',
+                                                                         'top_p': 0.0, 'n': 1, 'stream': False,
+                                                                         'stop': None, 'presence_penalty': 0.0,
+                                                                         'frequency_penalty': 0.0, 'logit_bias': {}}}
 
     def test_kairon_faq_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -2539,7 +2521,7 @@ class TestActions:
             'POST',
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
-            match=[responses.json_params_matcher({'ticket': {'id': None, 'subject': 'new ticket', 'comment': {'id': None}}})]
+            match=[responses.matchers.json_params_matcher({'ticket': {'id': None, 'subject': 'new ticket', 'comment': {'id': None}}})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket')
 
@@ -2547,7 +2529,7 @@ class TestActions:
             'POST',
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
-            match=[responses.json_params_matcher(
+            match=[responses.matchers.json_params_matcher(
                 {'ticket': {'description': 'ticket described', 'id': None, 'subject': 'new ticket',
                             'tags': ['kairon', 'bot'], 'comment': {'id': None, 'html_body': 'html comment'}}})]
         )
@@ -2821,7 +2803,7 @@ class TestActions:
             json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': script,
                      'data': data})],
         )
@@ -2839,7 +2821,7 @@ class TestActions:
             json={"success": False, "data": "['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': script,
                      'data': data})],
         )
@@ -2856,7 +2838,7 @@ class TestActions:
             json={"success": False},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': script,
                      'data': data})],
         )
@@ -2864,6 +2846,7 @@ class TestActions:
         assert result is None
         assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: False || response: {\'success\': False}'
 
+    @responses.activate
     def test_prepare_email_text(self):
         custom_text = "The user with ${sender_id} has message ${user_message}."
         tracker_data = {'slot': {"email": "udit.pandey@digite.com", "firstname": "udit"},
@@ -2876,7 +2859,7 @@ class TestActions:
             json={"success": True, "data": "The user with 987654321 has message hello."},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': custom_text,
                      'data': tracker_data})],
         )
@@ -2896,7 +2879,7 @@ class TestActions:
             json={"success": False, "data": "The user with 987654321 has message hello."},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': custom_text,
                      'data': tracker_data})],
         )
@@ -2923,7 +2906,7 @@ class TestActions:
             json={"success": False},
             status=200,
             match=[
-                responses.json_params_matcher(
+                responses.matchers.json_params_matcher(
                     {'script': custom_text,
                      'data': tracker_data})],
         )
@@ -2961,7 +2944,7 @@ class TestActions:
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
             status=200,
-            match=[responses.json_params_matcher({'script': script, 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
         )
         result, log = ActionUtility.compose_response(response_config, http_response)
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
@@ -2977,7 +2960,7 @@ class TestActions:
             url=Utility.environment['evaluator']['url'],
             json={"success": False},
             status=200,
-            match=[responses.json_params_matcher({'script': script, 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
         )
         with pytest.raises(ActionFailure, match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
             ActionUtility.compose_response(response_config, http_response)
@@ -3000,14 +2983,14 @@ class TestActions:
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": ['red', 'buggy', 'bumpers']},
             status=200,
-            match=[responses.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
         )
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": 2},
             status=200,
-            match=[responses.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
         )
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
@@ -3026,14 +3009,14 @@ class TestActions:
             url=Utility.environment['evaluator']['url'],
             json={"success": False},
             status=200,
-            match=[responses.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
         )
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": 2},
             status=200,
-            match=[responses.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
         )
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': None, 'score': 2, "percentage": "30"}
@@ -3066,10 +3049,12 @@ class TestActions:
         bot = "test_bot"
         bot_settings = ActionUtility.get_bot_settings(bot=bot)
         bot_settings.pop('timestamp')
+        print(bot_settings)
         assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
-                                'website_data_generator_depth_search_limit': 2, 'enable_gpt_llm_faq': False,
-                                'chat_token_expiry': 30, 'refresh_token_expiry': 60, 'whatsapp': 'meta',
-                                'bot': 'test_bot', 'status': True}
+                                'website_data_generator_depth_search_limit': 2,
+                                'enable_gpt_llm_faq': False, 'chat_token_expiry': 30,
+                                'refresh_token_expiry': 60, 'whatsapp': 'meta',
+                                'notification_scheduling_limit': 4, 'bot': 'test_bot', 'status': True}
 
     def test_get_faq_action_config(self):
         bot = "test_bot"
@@ -3081,7 +3066,10 @@ class TestActions:
                 'context_prompt': 'Answer question based on the context below, if answer is not in the '
                                   'context go check previous logs.',
                 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot',
-                "num_bot_responses": 5, "use_bot_responses": False, "use_query_prompt": False}
+                "num_bot_responses": 5, "use_bot_responses": False, "use_query_prompt": False,
+                'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
+                                    'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                    'frequency_penalty': 0.0, 'logit_bias': {}}}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):
@@ -3095,3 +3083,33 @@ class TestActions:
                            search_engine_id='asdfg::123456', failure_response="", bot=bot, user=user)
         action.save()
         assert getattr(action, "failure_response") == 'I have failed to process your request.'
+
+    def test_prepare_bot_responses_empty(self):
+        events = []
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        assert ActionUtility.prepare_bot_responses(tracker, 5) == []
+
+    def test_prepare_bot_responses_bot_utterance_empty_and_jumbled(self):
+        events = Utility.read_yaml("tests/testing_data/history/tracker_events_multiple_actions_predicted.json")
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
+        assert bot_responses == [{'role': 'user', 'content': 'What is kairon simply?'},
+                                 {'role': 'assistant',
+                                  'content': 'Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.'},
+                                 {'role': 'user', 'content': 'Do you know any language other than English.'},
+                                 {'role': 'assistant', 'content': "I'm sorry, I didn't quite understand that. Could you rephrase?"},
+                                 {'role': 'user', 'content': 'How to add forms in kairon?'},
+                                 {'role': 'assistant',
+                                  'content': 'To add forms in Kairon, follow these steps:\n- Click on "View"\n- Click on "Add new" button on the top right corner\n- Click on the option "Forms"\n- Type in the desired title on the top left corner\n- Add the desired component from the mapped slots\n- Click on the added slots and type in the bot\'s reply for valid user response, invalid user response, and questions in the respective type boxes\n- To add the questions, press shift and enter keys together\n- Click on "Save" button on the top right corner\n- Retrain the bot to add the form successfully after adding the form.'},
+                                 {'role': 'assistant',
+                                  'content': 'Kairon uses two main approaches for training its chatbots: GPT-based models and Rasa-based models.'},
+                                 {'role': 'user', 'content': 'In how many ways can we train in kairon?'},
+                                 {'role': 'assistant', 'content': "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."}]

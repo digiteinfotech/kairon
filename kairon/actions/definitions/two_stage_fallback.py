@@ -90,7 +90,7 @@ class ActionTwoStageFallback(ActionsBase):
             dispatcher.utter_message(response=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME)
         ActionServerLogs(
             type=ActionType.two_stage_fallback.value,
-            intent=tracker.get_intent_of_latest_message(),
+            intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
             action=self.name,
             sender=tracker.sender_id,
             bot=tracker.get_slot("bot"),

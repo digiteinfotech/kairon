@@ -8,9 +8,11 @@ from io import BytesIO
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
+import mock
 import pytest
 import responses
 from botocore.exceptions import ClientError
+from bson import ObjectId
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect
@@ -45,10 +47,11 @@ from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.multilingual.utils.translator import Translator
 import json
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -124,6 +127,82 @@ def test_api_wrong_login():
     assert value[0]["metric_type"] == "invalid_login"
     assert value[0]["timestamp"]
     assert len(value) == 1
+
+
+@mock.patch("kairon.shared.utils.Utility.validate_recaptcha", autospec=True)
+@mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
+def test_book_a_demo(trigger_smtp_mock, validate_recaptcha_mock, monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+    data = {
+        "first_name": "sample",
+        "last_name": 'test',
+        "email": "sampletest@gmail.com",
+        "contact": "9876543210",
+        "additional_info": "Thank You"
+    }
+    form_data = {"data": data, "recaptcha_response": "1234567890"}
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/user/demo",
+            json=form_data
+        ).json()
+    assert response['message'] == 'Thank You for your interest in Kairon. We will reach out to you soon.'
+    assert not response['data']
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+@mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
+def test_book_a_demo_with_invalid_recaptcha_response(trigger_smtp_mock, monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+    data = {
+        "first_name": "sample",
+        "last_name": 'test',
+        "email": "sampletest@gmail.com",
+        "contact": "9876543210",
+        "additional_info": "Thank You"
+    }
+    form_data = {"data": data, "recaptcha_response": ""}
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/user/demo",
+            json=form_data
+        ).json()
+    assert response['message'] == 'recaptcha_response is required'
+    assert not response['data']
+    assert response['error_code'] == 422
+    assert not response['success']
+
+
+@mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
+def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock, monkeypatch):
+    monkeypatch.setitem(Utility.environment['security'], 'validate_recaptcha', True)
+    monkeypatch.setitem(Utility.environment['security'], 'recaptcha_secret', 'asdfghjkl1234567890')
+    data = {
+        "first_name": "sample",
+        "last_name": 'test',
+        "email": "sampletest@gmail.com",
+        "contact": "9876543210",
+        "additional_info": "Thank You"
+    }
+    form_data = {"data": data, "recaptcha_response": "1234567890"}
+
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
+        mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.post(
+            "/api/user/demo",
+            json=form_data
+        ).json()
+    assert response['message'] == 'Failed to validate recaptcha'
+    assert not response['data']
+    assert response['error_code'] == 422
+    assert not response['success']
 
 
 def test_account_registration_error():
@@ -259,6 +338,129 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
         actual = response.json()
         assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
 
+@responses.activate
+def test_account_registation_temporary_email():
+    email = "test@temporay.com"
+    api_key = "test"
+    with patch.dict(Utility.environment,
+                         {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+        responses.add(responses.GET,
+                      "http://api.quickemailverification.com/v1/verify?" + urlencode({"apikey": api_key, "email": email}),
+                      json={
+                          "result": "valid",
+                          "reason": "rejected_email",
+                          "disposable": "true",
+                          "accept_all": "false",
+                          "role": "false",
+                          "free": "false",
+                          "email": email,
+                          "user": "test",
+                          "domain": "quickemailverification.com",
+                          "mx_record": "us2.mx1.mailhostbox.com",
+                          "mx_domain": "mailhostbox.com",
+                          "safe_to_send": "false",
+                          "did_you_mean": "",
+                          "success": "true",
+                          "message": None
+                      })
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "email": email,
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == [{'loc': ['body', 'email'], 'msg': 'Invalid or disposable Email!', 'type': 'value_error'}]
+
+@responses.activate
+def test_account_registation_invalid_email():
+    email = "test@temporay.com"
+    api_key = "test"
+    with patch.dict(Utility.environment,
+                    {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+        responses.add(responses.GET,
+                      "http://api.quickemailverification.com/v1/verify?" + urlencode(
+                          {"apikey": api_key, "email": email}),
+                      json={
+                          "result": "invalid",
+                          "reason": "rejected_email",
+                          "disposable": "false",
+                          "accept_all": "false",
+                          "role": "false",
+                          "free": "false",
+                          "email": email,
+                          "user": "test",
+                          "domain": "quickemailverification.com",
+                          "mx_record": "us2.mx1.mailhostbox.com",
+                          "mx_domain": "mailhostbox.com",
+                          "safe_to_send": "false",
+                          "did_you_mean": "",
+                          "success": "true",
+                          "message": None
+                      })
+        response = client.post(
+            "/api/account/registration",
+            json={
+                "email": email,
+                "first_name": "Demo",
+                "last_name": "User",
+                "password": "Welcome@1",
+                "confirm_password": "Welcome@1",
+                "account": "integration",
+                "bot": "integration",
+            },
+        )
+        actual = response.json()
+        assert actual["message"] == [
+            {'loc': ['body', 'email'], 'msg': 'Invalid or disposable Email!', 'type': 'value_error'}]
+
+    @responses.activate
+    def test_account_registation_invalid_email():
+        email = "test@temporay.com"
+        api_key = "test"
+        with patch.dict(Utility.environment,
+                        {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+            responses.add(responses.GET,
+                          "http://api.quickemailverification.com/v1/verify?" + urlencode(
+                              {"apikey": api_key, "email": email}),
+                          json={
+                              "result": "valid",
+                              "reason": "rejected_email",
+                              "disposable": "false",
+                              "accept_all": "false",
+                              "role": "false",
+                              "free": "false",
+                              "email": email,
+                              "user": "test",
+                              "domain": "quickemailverification.com",
+                              "mx_record": "us2.mx1.mailhostbox.com",
+                              "mx_domain": "mailhostbox.com",
+                              "safe_to_send": "false",
+                              "did_you_mean": "",
+                              "success": "true",
+                              "message": None
+                          })
+            response = client.post(
+                "/api/account/registration",
+                json={
+                    "email": email,
+                    "first_name": "Email",
+                    "last_name": "Validation",
+                    "password": "Welcome@1",
+                    "confirm_password": "Welcome@1",
+                    "account": "email_validation",
+                    "bot": "email_validation",
+                },
+            )
+            actual = response.json()
+            assert actual["message"] == "Account Registered!"
+
 
 def test_account_registration(monkeypatch):
     response = client.post(
@@ -271,6 +473,23 @@ def test_account_registration(monkeypatch):
             "confirm_password": "Welcome@1",
             "account": "integration",
             "bot": "integration",
+        },
+    )
+    actual = response.json()
+    assert actual["message"] == "Account Registered!"
+
+    monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": "INTEGRATIONTEST@DEMO.AI",
+            "first_name": "Demo",
+            "last_name": "User",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": "integrationtest",
+            "bot": "integrationtest",
+            "fingerprint": "asdfghj4567890"
         },
     )
     actual = response.json()
@@ -424,6 +643,21 @@ def test_api_login():
     assert response['data']['user']['first_name'] == 'Demo'
     assert response['data']['user']['last_name'] == 'User'
 
+    email = "integrationtest@demo.ai"
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert all(
+        [
+            True if actual["data"][key] else False
+            for key in ["access_token", "token_type"]
+        ]
+    )
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
     email = "integration2@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -503,7 +737,7 @@ def test_augment_questions():
     responses.add(
         responses.POST,
         url="http://localhost:8000/questions",
-        match=[responses.json_params_matcher({"data": "TESTING TEXTDATA"})],
+        match=[responses.matchers.json_params_matcher({"data": "TESTING TEXTDATA"})],
         json={
             "success": True,
             "data": {
@@ -568,7 +802,7 @@ def test_add_trusted_device_on_signup_error(monkeypatch):
 
 def test_add_trusted_device_disabled(monkeypatch):
     monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     response = client.post(
         "/api/account/device/trusted",
         json={"data": "0987654321234567890"},
@@ -584,7 +818,7 @@ def test_add_trusted_device(monkeypatch):
     monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
     monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
 
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
         mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
@@ -1205,7 +1439,16 @@ def test_get_kairon_faq_action():
     assert actual["data"] == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
                                'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
                                "top_results": 9, "similarity_threshold": 0.50, 'use_bot_responses': False,
-                               "use_query_prompt": False, 'num_bot_responses': 5}]
+                               "use_query_prompt": False, 'num_bot_responses': 5, 'hyperparameters': {'temperature': 0.0,
+                                                                                                      'max_tokens': 300,
+                                                                                                      'model': 'gpt-3.5-turbo',
+                                                                                                      'top_p': 0.0,
+                                                                                                      'n': 1,
+                                                                                                      'stream': False,
+                                                                                                      'stop': None,
+                                                                                                      'presence_penalty': 0.0,
+                                                                                                      'frequency_penalty': 0.0,
+                                                                                                      'logit_bias': {}}}]
 
 
 def test_delete_kairon_faq_action_not_exists():
@@ -1455,7 +1698,7 @@ def test_upload_using_event_append(monkeypatch):
         json={"success": True},
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '', 'event_type': EventClass.data_importer})],
     )
 
@@ -3653,7 +3896,7 @@ def test_augment_paraphrase_gpt():
     responses.add(
         responses.POST,
         url="http://localhost:8000/paraphrases/gpt",
-        match=[responses.json_params_matcher(
+        match=[responses.matchers.json_params_matcher(
             {"api_key": "MockKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75,
              "max_tokens": 100, "num_responses": 10})],
         json={
@@ -3717,7 +3960,7 @@ def test_augment_paraphrase_gpt_fail():
     responses.add(
         responses.POST,
         url="http://localhost:8000/paraphrases/gpt",
-        match=[responses.json_params_matcher(
+        match=[responses.matchers.json_params_matcher(
             {"api_key": "InvalidKey", "data": ["Where is digite located?"], "engine": "davinci", "temperature": 0.75,
              "max_tokens": 100, "num_responses": 10})],
         json={
@@ -3763,7 +4006,7 @@ def test_augment_paraphrase():
             "error_code": 0,
         },
         status=200,
-        match=[responses.json_params_matcher(["where is digite located?"])]
+        match=[responses.matchers.json_params_matcher(["where is digite located?"])]
     )
     response = client.post(
         "/api/augment/paraphrases",
@@ -4076,7 +4319,7 @@ def test_get_config_templates():
 
     actual = response.json()
     templates = {template['name'] for template in actual['data']['config-templates']}
-    assert templates == {'long-answer', 'rasa-default', 'contextual', 'word-embedding', 'kairon-default', 'gpt-faq'}
+    assert templates == {'long-answer', 'rasa-default', 'contextual', 'word-embedding', 'kairon-default', 'gpt-faq', 'openai-classifier', 'openai-featurizer'}
     assert actual['error_code'] == 0
     assert actual['message'] is None
     assert actual['success']
@@ -4237,7 +4480,7 @@ def test_api_login_with_account_not_verified():
 
 
 def test_account_registration_with_confirmation(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/account/registration",
@@ -4312,7 +4555,7 @@ def test_invalid_token_for_confirmation():
 
 
 def test_add_member(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
 
     response = client.post(
@@ -4332,6 +4575,50 @@ def test_add_member(monkeypatch):
     assert response['message'] == 'An invitation has been sent to the user'
     assert response['error_code'] == 0
     assert response['success']
+
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member",
+        json={"email": "integrationtest@demo.ai", "role": "designer"},
+        headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+    ).json()
+    assert response['message'] == 'An invitation has been sent to the user'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_add_member_invalid_email():
+    api_key = "test"
+    email = "integration@demo.ai"
+    with patch.dict(Utility.environment,
+                         {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+        responses.add(responses.GET,
+                      "http://api.quickemailverification.com/v1/verify?" + urlencode({"apikey": api_key, "email": email}),
+                      json={
+                          "result": "valid",
+                          "reason": "rejected_email",
+                          "disposable": "true",
+                          "accept_all": "false",
+                          "role": "false",
+                          "free": "false",
+                          "email": email,
+                          "user": "test",
+                          "domain": "quickemailverification.com",
+                          "mx_record": "us2.mx1.mailhostbox.com",
+                          "mx_domain": "mailhostbox.com",
+                          "safe_to_send": "false",
+                          "did_you_mean": "",
+                          "success": "true",
+                          "message": None
+                      })
+
+        response = client.post(
+            f"/api/user/{pytest.add_member_bot}/member",
+            json={"email": email, "role": "tester"},
+            headers={"Authorization": pytest.add_member_token_type + " " + pytest.add_member_token},
+        ).json()
+        assert response['message'] == [{'loc': ['body', 'email'], 'msg': 'Invalid or disposable Email!', 'type': 'value_error'}]
+        assert response['error_code'] == 422
+        assert not response['success']
 
 
 def test_add_member_as_owner(monkeypatch):
@@ -4396,13 +4683,44 @@ def test_accept_bot_invite(monkeypatch):
         return {"mail_id" : "integration@demo.ai"}
 
     monkeypatch.setattr(Utility, 'verify_token', __mock_verify_token)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     monkeypatch.setattr(AccountProcessor, 'get_user_details', mock_smtp)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
     response = client.post(
         f"/api/user/{pytest.add_member_bot}/invite/accept",
         json={"data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoidXNlckBrYWlyb24uY"}
     ).json()
+    assert response['message'] == 'Invitation accepted'
+    assert response['error_code'] == 0
+    assert response['success']
+
+
+def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integrationtest@demo.ai", "password": "Welcome@1"},
+    )
+    actual = response.json()
+    assert all([True if actual["data"][key] else False for key in ["access_token", "token_type"]])
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        "/api/user/invites/active",
+        headers={"Authorization": actual['data']['token_type'] + " " + actual['data']['access_token']},
+    ).json()
+    assert response['data']['active_invites'][0]['accessor_email'] == "integrationtest@demo.ai"
+    assert response['data']['active_invites'][0]['role'] == 'designer'
+    assert response['data']['active_invites'][0]['bot_name'] == 'Hi-Hello'
+
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    Utility.email_conf["email"]["enable"] = True
+    response = client.post(
+        f"/api/user/{pytest.add_member_bot}/member/invite/accept",
+        headers={"Authorization": actual['data']['token_type'] + " " + actual['data']['access_token']},
+    ).json()
+    Utility.email_conf["email"]["enable"] = False
     assert response['message'] == 'Invitation accepted'
     assert response['error_code'] == 0
     assert response['success']
@@ -4472,14 +4790,17 @@ def test_list_members():
     assert response['data'][2]['accessor_email'] == 'integration2@demo.ai'
     assert response['data'][2]['role'] == 'designer'
     assert response['data'][2]['status']
-    assert response['data'][3]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][3]['accessor_email'] == 'integrationtest@demo.ai'
     assert response['data'][3]['role'] == 'designer'
     assert response['data'][3]['status']
+    assert response['data'][4]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][4]['role'] == 'designer'
+    assert response['data'][4]['status']
 
 
 def test_transfer_ownership(monkeypatch):
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/owner/change",
         json={"data": "integration@demo.ai"},
@@ -4504,9 +4825,12 @@ def test_transfer_ownership(monkeypatch):
     assert response['data'][2]['accessor_email'] == 'integration2@demo.ai'
     assert response['data'][2]['role'] == 'designer'
     assert response['data'][2]['status']
-    assert response['data'][3]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][3]['accessor_email'] == 'integrationtest@demo.ai'
     assert response['data'][3]['role'] == 'designer'
     assert response['data'][3]['status']
+    assert response['data'][4]['accessor_email'] == 'integration_email_false@demo.ai'
+    assert response['data'][4]['role'] == 'designer'
+    assert response['data'][4]['status']
 
 
 def test_list_members_2():
@@ -4575,7 +4899,7 @@ def test_update_member_role(monkeypatch):
     assert actual["message"] == "Account Registered!"
 
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     response = client.put(
         f"/api/user/{pytest.add_member_bot}/member",
         json={"email": "integration_email_false@demo.ai", "role": "admin", "status": "inactive"},
@@ -4877,7 +5201,7 @@ def test_list_bots_for_different_user():
 
 
 def test_reset_password_for_valid_id(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/account/password/reset",
@@ -4930,7 +5254,7 @@ def test_list_bots_for_different_user_2():
 
 
 def test_send_link_for_valid_id(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.post("/api/account/email/confirmation/link",
                            json={
@@ -7355,7 +7679,7 @@ def test_chat(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": {'response': [{'bot': 'Hi'}]}, 'message': None}
     )
@@ -7377,7 +7701,7 @@ def test_chat_user(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": {'response': [{'bot': 'Hi'}]}, 'message': None}
     )
@@ -7399,7 +7723,7 @@ def test_chat_augment_user(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": {'response': [{'bot': 'Hi'}]}, 'message': None}
     )
@@ -7565,7 +7889,7 @@ def test_get_client_config_using_uid(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
     )
@@ -7609,7 +7933,7 @@ def test_get_client_config_refresh(monkeypatch):
         f"http://localhost/api/bot/{pytest.bot}/chat",
         status=200,
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 chat_json)],
         json={'success': True, 'error_code': 0, "data": None, 'message': "Bot has not been trained yet!"}
     )
@@ -9758,7 +10082,7 @@ def test_trigger_mail_on_new_signup_with_sso(monkeypatch):
         return False, {'email': 'new_user@digite.com', 'first_name': 'new', 'password': SecretStr('123456789')}, token
 
     monkeypatch.setattr(Authentication, 'verify_and_process', __mock_verify_and_process)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.get(
         url=f"/api/auth/login/sso/callback/google?code=123456789", allow_redirects=False
@@ -10906,6 +11230,17 @@ def test_add_channel_config(monkeypatch):
     assert actual["data"].startswith(f"http://localhost:5056/api/bot/slack/{pytest.bot}/e")
 
 
+def test_list_whatsapp_templates_error():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Channel not found!"
+
+
 @responses.activate
 def test_initiate_bsp_onboarding_failure(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
@@ -10988,6 +11323,51 @@ def test_post_process(monkeypatch):
     assert actual["data"].startswith(f"http://kairon-api.digite.com/api/bot/whatsapp/{pytest.bot}/e")
 
 
+@patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.list_templates", autospec=True)
+def test_list_templates(mock_list_templates):
+    api_resp = {
+        "waba_templates": [
+            {
+                "category": "MARKETING",
+                "components": [
+                    {
+                        "example": {
+                            "body_text": [
+                                [
+                                    "Peter"
+                                ]
+                            ]
+                        },
+                        "text": "Hi {{1}},\n\nWe are thrilled to share that *kAIron* has now been integrated with WhatsApp through the *WhatsApp Business Solution Provide*r (BSP). \n\nThis integration will expand kAIron's ability to engage with a larger audience, increase sales acceleration, and provide better customer support.\n\nWith this integration, sending customized templates and broadcasting general, sales, or marketing information over WhatsApp will be much quicker and more efficient. \n\nStay tuned for more exciting updates from Team kAIron! ",
+                        "type": "BODY"
+                    }
+                ],
+                "id": "GVsEkeI2PIiARwVXQEDVWT",
+                "language": "en",
+                "modified_at": "2023-03-02T13:39:27Z",
+                "modified_by": {
+                    "user_id": "system",
+                    "user_name": "system"
+                },
+                "name": "kairon_new_features",
+                "namespace": "092819ec_f801_461b_b975_3a2d464f50a8",
+                "partner_id": "9Mg0AiPA",
+                "waba_account_id": "Cyih7GWA"
+            }
+        ]
+    }
+    mock_list_templates.return_value = api_resp["waba_templates"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["templates"] == api_resp["waba_templates"]
+
+
 def test_get_channel_endpoint(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost:5056")
     response = client.get(
@@ -11026,6 +11406,320 @@ def test_get_channels_config():
                     'bsp_type': '360dialog'}, 'meta_config': {}}]
 
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_scheduled_broadcast(mock_event_server):
+    config = {
+        "name": "first_scheduler",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "57 22 * * *",
+            "timezone": "UTC"
+        },
+        "recipients_config": {
+            "recipient_type": "static",
+            "recipients": "918958030541, "
+        },
+        "data_extraction_config": {
+            "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
+            "url": "http://kairon.local",
+        },
+        "template_config": [
+            {
+                "template_type": "static",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.first_scheduler_id = actual["data"]["msg_broadcast_id"]
+    assert pytest.first_scheduler_id
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_broadcast(mock_event_server):
+    config = {
+        "name": "one_time_schedule",
+        "connector_type": "whatsapp",
+        "recipients_config": {
+            "recipient_type": "static",
+            "recipients": "918958030541,"
+        },
+        "template_config": [
+            {
+                "template_type": "static",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.one_time_schedule_id = actual["data"]["msg_broadcast_id"]
+    assert pytest.one_time_schedule_id
+
+
+def test_broadcast_config_error():
+    config = {
+        "name": "one_time_schedule",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "* * * * *",
+            "timezone": "UTC"
+        },
+        "recipients_config": {
+            "recipient_type": "static",
+            "recipients": "918958030541,"
+        },
+        "template_config": [
+            {
+                "template_type": "static",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'recurrence interval must be at least 86340 seconds!', 'type': 'value_error'}]
+
+    config["scheduler_config"] = {
+            "expression_type": "cron",
+            "schedule": "57 22 * * *",
+        }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'timezone is required for cron expressions!', 'type': 'value_error'}]
+
+    config["scheduler_config"]["schedule"] = ""
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'scheduler_config', '__root__'], 'msg': f"Invalid cron expression: ''", 'type': 'value_error'}]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_broadcast(mock_event_server):
+    config = {
+        "name": "first_scheduler",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "21 11 * * *",
+            "timezone": "Asia/Kolkata"
+        },
+        "recipients_config": {
+            "recipient_type": "dynamic",
+            "recipients": "918958030541, "
+        },
+        "data_extraction_config": {
+            "url": "http://kairon.remote",
+        },
+        "template_config": [
+            {
+                "template_type": "dynamic",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+                "data": "${response.data}"
+            }
+        ]
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
+
+
+def test_update_one_time_broadcast():
+    config = {
+        "name": "one_time_schedule",
+        "connector_type": "whatsapp",
+        "recipients_config": {
+            "recipient_type": "static",
+            "recipients": "918958030541,"
+        },
+        "template_config": [
+            {
+                "template_type": "static",
+                "template_id": "brochure_pdf",
+                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
+            }
+        ]
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "scheduler_config is required!"
+
+
+def test_list_broadcast_config():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    actual["data"]['schedules'][0].pop("_id")
+    actual["data"]['schedules'][0].pop("timestamp")
+    actual["data"]['schedules'][0].pop("bot")
+    actual["data"]['schedules'][0].pop("user")
+    actual["data"]['schedules'][1].pop("_id")
+    actual["data"]['schedules'][1].pop("timestamp")
+    actual["data"]['schedules'][1].pop("bot")
+    actual["data"]['schedules'][1].pop("user")
+    assert actual["data"] == {'schedules': [
+        {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+         'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *', "timezone": "Asia/Kolkata"},
+         'data_extraction_config': {'method': 'GET', 'url': 'http://kairon.remote', 'headers': {}, 'request_body': {}},
+         'recipients_config': {'recipient_type': 'dynamic', 'recipients': '918958030541,'}, 'template_config': [
+            {'template_type': 'dynamic', 'template_id': 'brochure_pdf', "language": "en",
+             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': '${response.data}'}], 'status': True},
+        {'name': 'one_time_schedule', 'connector_type': 'whatsapp',
+         'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
+            {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
+             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'status': True}]}
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_delete_broadcast(mock_event_server):
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast removed!"
+
+
+def test_delete_broadcast_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Notification settings not found!"
+
+
+def test_list_broadcast_():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    actual["data"]["schedules"][0].pop("timestamp")
+    actual["data"]["schedules"][0].pop("user")
+    assert actual["data"] == {'schedules': [
+        {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
+         'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
+            {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
+             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'bot': pytest.bot, 'status': True,}]}
+
+
+def test_list_broadcast_logs():
+    from kairon.shared.chat.notifications.data_objects import MessageBroadcastLogs
+
+    ref_id = ObjectId().__str__()
+    timestamp = datetime.utcnow()
+    MessageBroadcastLogs(**{'reference_id': ref_id, 'log_type': 'common', 'bot': pytest.bot, 'status': 'Completed',
+                              'user': 'test_user', 'broadcast_id': pytest.first_scheduler_id,
+                            'recipients': ['918958030541', ''], "timestamp": timestamp}).save()
+    timestamp = timestamp + timedelta(minutes=2)
+    MessageBroadcastLogs(**{'reference_id': ref_id, 'log_type': 'send', 'bot': pytest.bot,
+                            'status': 'Success', 'api_response': {
+                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+                              'recipient': '9876543210', 'template_params': [{'type': 'header', 'parameters': [
+                {'type': 'document', 'document': {
+                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                    'filename': 'Brochure.pdf'}}]}], "timestamp": timestamp}).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?log_type=common",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["logs"][0].pop("timestamp")
+    assert actual["data"]["logs"] == [
+        {'reference_id':  ref_id, 'log_type': 'common', 'bot': pytest.bot, 'status': 'Completed', 'user': 'test_user',
+         'broadcast_id': pytest.first_scheduler_id, 'recipients': ['918958030541', '']}]
+    assert actual["data"]["total_count"] == 1
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs?reference_id={ref_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    print(actual["data"])
+    actual["data"]["logs"][0].pop("timestamp")
+    actual["data"]["logs"][1].pop("timestamp")
+    assert actual["data"] == {'logs': [
+        {'reference_id': ref_id, 'log_type': 'send', 'bot': pytest.bot, 'status': 'Success',
+         'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+         'recipient': '9876543210', 'template_params': [{'type': 'header',
+                                                         'parameters': [{'type': 'document', 'document': {
+                                                             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                                             'filename': 'Brochure.pdf'}}]}]},
+        {'reference_id': ref_id, 'log_type': 'common', 'bot': pytest.bot,
+         'status': 'Completed', 'user': 'test_user', 'broadcast_id': pytest.first_scheduler_id,
+         'recipients': ['918958030541', '']},
+    ], 'total_count': 2}
+
+
 def test_get_bot_settings():
     response = client.get(
         f"/api/bot/{pytest.bot}/settings",
@@ -11041,7 +11735,7 @@ def test_get_bot_settings():
     actual["data"].pop("status")
     assert actual['data'] == {
         "ignore_utterances": False, "force_import": False, "rephrase_response": False,
-        "website_data_generator_depth_search_limit": 2, "chat_token_expiry": 30,
+        "website_data_generator_depth_search_limit": 2, "chat_token_expiry": 30, 'notification_scheduling_limit': 4,
         "refresh_token_expiry": 60, 'enable_gpt_llm_faq': False, 'whatsapp': 'meta'
     }
 
@@ -12818,7 +13512,7 @@ def test_multilingual_translate():
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
                   'translate_responses': "", 'translate_actions': ""})],
     )
@@ -12909,7 +13603,7 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         status=200,
         json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher(
+            responses.matchers.json_params_matcher(
                 {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
                   'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'})],
     )
@@ -12988,7 +13682,7 @@ def test_data_generation_from_website(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher({
+            responses.matchers.json_params_matcher({
                 'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
                 'website_url': 'website.com', 'depth': 1
             })],
@@ -13059,6 +13753,7 @@ def test_data_generation_limit_exceeded(monkeypatch):
     assert not response["success"]
 
 
+@responses.activate
 def test_data_generation_in_progress(monkeypatch):
     monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
 
@@ -13067,7 +13762,7 @@ def test_data_generation_in_progress(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.json_params_matcher({
+            responses.matchers.json_params_matcher({
                 'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
                 'website_url': 'website.com', 'depth': 0
             })],
@@ -13426,7 +14121,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
         return token
 
     monkeypatch.setattr(Authentication, "create_access_token", get_token)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     passwrd_change_response = client.post(
         "/api/account/password/change",
         json={
@@ -13457,7 +14152,7 @@ def test_create_access_token_with_iat():
 
 
 def test_overwrite_password_for_matching_passwords(monkeypatch):
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     response = client.post(
         "/api/account/password/change",
         json={
@@ -13521,7 +14216,7 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
         return token
 
     monkeypatch.setattr(Authentication, "create_access_token", get_token)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     Utility.environment['user']['reset_password_cooldown_period'] = 0
     passwrd_change_response = client.post(
         "/api/account/password/change",
@@ -13556,7 +14251,7 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
         return token
 
     monkeypatch.setattr(Authentication, "create_access_token", get_token)
-    monkeypatch.setattr(Utility, 'trigger_smtp', mock_smtp)
+    monkeypatch.setattr(MailUtility, 'trigger_smtp', mock_smtp)
     passwrd_change_response = client.post(
         "/api/account/password/change",
         json={
@@ -13624,7 +14319,6 @@ def test_allowed_origin(monkeypatch):
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == "User does not exist!"
-    print(response.headers)
     assert response.headers == {'content-length': '79', 'content-type': 'application/json', 'server': 'Secure',
                                 'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
                                 'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
@@ -13674,6 +14368,7 @@ def test_idp_callback(monkeypatch):
     assert result["data"]["token_type"] == "bearer"
     assert result["message"] == "User Authenticated"
 
+
 def test_api_login_with_SSO_only_flag():
     user = "idp_user@demo.in"
     organization = "new_test"
@@ -13690,3 +14385,14 @@ def test_api_login_with_SSO_only_flag():
     assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"
     assert actual["error_code"] == 422
     assert actual["success"] == False
+
+
+def test_list_system_metadata():
+    response = client.get(
+        url=f"/api/system/metadata", allow_redirects=False
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert len(actual["data"]) == 16
+

@@ -131,6 +131,7 @@ class HistoryProcessor:
                               .aggregate([{"$match": {"sender_id": sender_id, "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                                                                   "$lte": Utility.get_timestamp_from_date(to_date)}}},
                                           {"$match": {"event.event": {"$in": ["user", "bot", "action"]}}},
+                                          {"$sort": {"event.timestamp": 1}},
                                           {"$group": {"_id": None, "events": {"$push": "$event"}}},
                                           {"$project": {"_id": 0, "events": 1}}])
                               )
@@ -805,14 +806,13 @@ class HistoryProcessor:
 
     @staticmethod
     def flatten_conversations(collection: Text, from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-                              to_date: date = datetime.utcnow().date(), sort_by_date: bool = True):
+                              to_date: date = datetime.utcnow().date()):
 
         """
         Retrieves the flattened conversation data of the bot
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param sort_by_date: This flag sorts the records by timestamp if set to True
         :return: dictionary of the bot users and their conversation data
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -825,76 +825,25 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 user_data = list(
                     conversations.aggregate(
-                        [{"$match": { "$and": [
-                                                {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                     "$lte": Utility.get_timestamp_from_date(to_date)}},
-                                                {"$or": [{"event.event": {"$in": ['bot', 'user']}},
-                                                         {"$and": [{"event.event": "action"},
-                                                                   {"event.name": {"$nin": ['action_session_start', 'action_listen']}}]}]}
-                                              ]
-                                    }
-                          },
-                         {"$sort": {"event.timestamp": 1}},
-                         {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
-                                     "allevents": {"$push": "$event"}}},
-                         {"$unwind": "$events"},
-                         {"$match": {"events.event": 'user'}},
-                         {"$group": {"_id": "$_id", "events": {"$push": "$events"}, "user_array":
-                             {"$push": "$events"}, "all_events": {"$first": "$allevents"}}},
-                         {"$unwind": "$events"},
-                         {"$project": {"user_input": "$events.text", "intent": "$events.parse_data.intent.name",
-                                       "message_id": "$events.message_id",
-                                       "timestamp": "$events.timestamp",
-                                       "confidence": "$events.parse_data.intent.confidence",
-                                       "action_bot_array": {
-                                           "$cond": [{"$gte": [{"$indexOfArray": ["$all_events", {"$arrayElemAt":
-                                                                                                      ["$user_array", {
-                                                                                                          "$add": [{
-                                                                                                                       "$indexOfArray": [
-                                                                                                                           "$user_array",
-                                                                                                                           "$events"]},
-                                                                                                                   1]}]}]},
-                                                               {"$indexOfArray": ["$all_events", "$events"]}]},
-                                                     {"$slice": ["$all_events", {
-                                                         "$add": [{"$indexOfArray": ["$all_events", "$events"]}, 1]},
-                                                                 {"$subtract": [{"$subtract": [
-                                                                     {"$indexOfArray": ["$all_events", {"$arrayElemAt":
-                                                                                                            [
-                                                                                                                "$user_array",
-                                                                                                                {
-                                                                                                                    "$add": [
-                                                                                                                        {
-                                                                                                                            "$indexOfArray": [
-                                                                                                                                "$user_array",
-                                                                                                                                "$events"]},
-                                                                                                                        1]}]}]},
-                                                                     {"$indexOfArray": ["$all_events", "$events"]}]},
-                                                                                1]}]}, {"$slice": ["$all_events",
-                                                                                                   {"$add": [{
-                                                                                                                 "$indexOfArray": [
-                                                                                                                     "$all_events",
-                                                                                                                     "$events"]},
-                                                                                                             1]},
-                                                                                                   100]}]}}},
-                         {"$addFields": {"t_stamp": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}},
-                         {"$project": {"user_input": 1, "intent": 1, "confidence": 1, "action": "$action_bot_array.name"
-                             , "timestamp": "$t_stamp", "bot_response_text": "$action_bot_array.text",
-                                       "bot_response_data": "$action_bot_array.data",
-                                       "sort": {"$cond": {"if": sort_by_date, "then": "$t_stamp", "else": "_id"}}}},
-                         {"$sort": {"sort": -1}},
-                         {"$project": {"user_input": 1, "intent": 1, "confidence": 1, "action": 1,
-                                       "timestamp": {
-                                           '$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
-                                       "bot_response_text": 1, "bot_response_data": 1}}
+                        [{"$match": {"type": "flattened",
+                                     "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                   "$lte": Utility.get_timestamp_from_date(to_date)}}},
+                            {"$project": {"user_input": "$data.user_input", "intent": "$data.intent",
+                                          "confidence": "$data.confidence", "action": "$data.action",
+                                          "timestamp": {"$toDate": {"$multiply": ["$timestamp", 1000]}},
+                                          "bot_response": "$data.bot_response", "sender_id": "$sender_id"
+                                          }},
+                            {"$sort": {"timestamp": -1}},
+                            {"$project": {"_id": "$sender_id", "user_input": 1, "intent": 1, "confidence": 1,
+                                          "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
+                                          "action": 1, "bot_response": 1}}
                          ], allowDiskUse=True))
+
         except Exception as e:
             logger.error(e)
             message = str(e)
 
-        return (
-            {"conversation_data": user_data},
-            message
-        )
+        return {"conversation_data": user_data}, message
 
     @staticmethod
     def total_conversation_range(collection: Text,

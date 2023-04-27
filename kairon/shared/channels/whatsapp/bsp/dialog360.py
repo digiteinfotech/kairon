@@ -75,23 +75,23 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         return ChatDataProcessor.save_channel_config(conf, self.bot, self.user)
 
     def get_template(self, template_id: Text):
+        return self.list_templates(id=template_id)
+
+    def list_templates(self, **kwargs):
+        filters = {}
         try:
+            if kwargs:
+                filters.update(kwargs)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             account_id = config.get("config", {}).get("waba_account_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
             partner_id = config.get("config", {}).get("partner_id", Utility.environment["channels"]["360dialog"]["partner_id"])
-            template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id':'{template_id}'}}"
+            template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={filters}&sort=business_templates.name"
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{template_endpoint}"
             resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers,
                                                 validate_status=True, err_msg="Failed to get template: ")
-            templace_data = resp.get("waba_templates")[0]
-            template = {
-                "namespace": templace_data.get("namespace"),
-                "name": templace_data.get("name"),
-                "language": {"policy": "deterministic", "code": templace_data.get("language")}
-            }
-            return template
+            return resp.get("waba_templates")
         except DoesNotExist as e:
             logger.exception(e)
             raise AppException("Channel not found!")

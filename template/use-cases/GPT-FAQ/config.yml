@@ -1,27 +1,17 @@
 language: en
 pipeline:
+#- name: kairon.shared.nlu.classifier.openai.OpenAIClassifier
 - name: WhitespaceTokenizer
-- case_sensitive: false
-  name: RegexFeaturizer
-- name: LexicalSyntacticFeaturizer
-- alias: cvf-word
-  name: CountVectorsFeaturizer
-- alias: cvf-char
-  analyzer: char_wb
-  max_ngram: 4
+- name: CountVectorsFeaturizer
   min_ngram: 1
-  name: CountVectorsFeaturizer
-- from_pt: true
-  model_name: bert
-  model_weights: google/bert_uncased_L-4_H-512_A-8
-  name: kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer
-- epochs: 180
-  name: DIETClassifier
+  max_ngram: 2
+- name: kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
+- name: DIETClassifier
+  epochs: 50
+  constrain_similarities: true
+  entity_recognition: false
 - name: FallbackClassifier
-  threshold: 0.75
-- name: EntitySynonymMapper
-- epochs: 100
-  name: ResponseSelector
+  threshold: 0.80
 policies:
 - name: MemoizationPolicy
 - epochs: 200

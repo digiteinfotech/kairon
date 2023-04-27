@@ -44,6 +44,7 @@ RUN python -m pip install pymongo==3.12.1
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install openpyxl
 RUN python -m pip install uuid6
+RUN python -m pip install croniter
 
 RUN mkdir ssl
 RUN mkdir data_generator
@@ -53,6 +54,7 @@ RUN mkdir models
 RUN chmod 777 -R /tmp
 
 COPY kairon/api ${RASA_NLU_HOME}/kairon/api
+COPY kairon/chat ${RASA_NLU_HOME}/kairon/chat
 COPY kairon/idp ${RASA_NLU_HOME}/kairon/idp
 COPY kairon/importer ${RASA_NLU_HOME}/kairon/importer
 COPY kairon/shared ${RASA_NLU_HOME}/kairon/shared

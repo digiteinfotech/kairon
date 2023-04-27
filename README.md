@@ -3,9 +3,13 @@
 [![Coverage Status](https://coveralls.io/repos/github/digiteinfotech/kairon/badge.svg)](https://coveralls.io/github/digiteinfotech/kairon)
 
 
-# Kairon
 
-Kairon is envisioned as a web based microservices driven suite that helps train Rasa contextual AI assistants at scale. It is designed to make the lives of those who work with ai-assistants easy, by giving them a no-coding web interface to adapt , train , test and maintain such assistants .
+
+# Kairon : You can directly converse with Kairon on Whatsapp
+
+![qrcode](https://user-images.githubusercontent.com/7289292/233619670-4b9adad4-b736-4a18-ad38-0b9e58d506ea.jpeg)
+
+Kairon is now envisioned as a conversational digital transformation platform that helps build LLM based digital assistants at scale. It is designed to make the lives of those who work with ai-assistants easy, by giving them a no-coding web interface to adapt , train , test and maintain such assistants . We are now enhancing the backbone of Kairon with a full fledged context management system to build proactive digital assistants . 
 
 **What is Kairon?**
 
@@ -15,20 +19,27 @@ It also deals with the post processing and maintenance of these bots such metric
 
 **What can it do?**
 
-Kairon is open-source. 
-One of the biggest problems for users is adapting contextual AI assistants to specific domain is one of the bigger problems adopting chatbots within organizations. This means extensive work creating intents by going through documentation, testing accuracy of responses, etc. Kairon’s aim is to provide a no-coding self service framework that helps users achieve this.
-These are the features in the 0.1 version with many more features incoming!
--	Easy to use UI for adding – editing Intents, Questions and Responses
--	Question augmentation to auto generate questions and enrich training data
--	Model Training and Deployment from Interface.
--	Metrics for model performance.
-This website can be found at [Kairon](https://kairon.digite.com/) and is hosted by Digite Inc. 
+Kairon is open-source. It is a Conversational digital transformation platform: Kairon is a platform that allows companies to create and deploy digital assistants to interact with customers in a conversational manner.
+
+**End-to-end lifecycle management**: Kairon takes care of the entire digital assistant lifecycle, from creation to deployment and monitoring, freeing up company resources to focus on other tasks.
+Tethered digital assistants: Kairon’s digital assistants are tethered to the platform, which allows for real-time monitoring of their performance and easy maintenance and updates as needed.
+
+**Low-code/no-code interface:** Kairon’s interface is designed to be easy for functional users, such as marketing teams or product management, to define how the digital assistant responds to user queries without needing extensive coding skills.
+Secure script injection: Kairon’s digital assistants can be easily deployed on websites and SAAS products through secure script injection, enabling organizations to offer better customer service and support.
+
+**Kairon Telemetry:** Kairon’s telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience.
+Chat client designer: Kairon’s chat client designer feature allows organizations to create customized chat clients for their digital assistants, which can enhance the user experience and help build brand loyalty.
+
+**Analytics module:** Kairon’s analytics module provides insights into how users are interacting with the digital assistant, enabling organizations to optimize their performance and provide better service to customers.
+Robust integration suite: Kairon’s integration suite allows digital assistants to be served in an omni-channel, multi-lingual manner, improving accessibility and expanding the reach of the digital assistant.
+
+**Realtime struggle analytics:** Kairon’s digital assistants use real-time struggle analytics to proactively intervene when users are facing friction on the product/website where Kairon has been injected, improving user satisfaction and reducing churn.
+This website can be found at [Kairon](https://kairon.nimblework.com/) and is hosted by NimbleWork Inc. 
 
 **Who uses it ?**
 
 Kairon is built for two personas 
-Teams and Individuals who want an easy no-coding interface to create, train, test and deploy chatbots. One can directly access these features from our hosted website.
-Teams who want to host the chatbot trainer in-house. They can build it using docker compose. 
+Teams and Individuals who want an easy no-coding interface to create, train, test and deploy digital assistants . One can directly access these features from our hosted website. Teams who want to host the chatbot trainer in-house. They can build it using docker compose. 
 Our teams current focus within NLP is Knowledge Graphs – Do let us know if you are interested. 
 
 
@@ -66,7 +77,7 @@ and set google analytics tracking id
 
 ## Installation
 
-1. Kairon requires [python3.6.9+ or 3.7](https://www.python.org/downloads/) and [mongo 4.0+](https://www.mongodb.com/download-center/community)
+1. Kairon requires [python 3.8](https://www.python.org/downloads/) and [mongo 4.0+](https://www.mongodb.com/download-center/community)
 
 2. Then clone this repo
 
@@ -81,8 +92,7 @@ and set google analytics tracking id
 
    **Windows**
    ```
-   setup.bat
-   ```
+   setup.bat   ```
 
    **No Matching distribution found tensorflow-text** - remove the dependency from requirements.txt file, as **window version is not available** [#44](https://github.com/tensorflow/text/issues/44)
 
@@ -246,11 +256,17 @@ python -m black bot_trainer
 
 
 ## Authors
-The repository is being maintained and supported by **Digite Inc.**
-* **Digite,Inc.** - [Digite](https://digite.com)
+The repository is being maintained and supported by **NimbleWork Inc.**
+* **NimbleWork.Inc** - [NimbleWork](https://www.nimblework.com/)
 * [Fahad Ali Shaikh](https://github.com/sfahad1414)
 * [Deepak Naik](https://github.com/deenaik)
 * [Nirmal Parwate](https://github.com/nirmal495)
+* [Adurthi Ashwin Swarup]
+* [Udit Pandey](https://github.com/udit-pandey)
+* [Rohan Patwardhan]
+* [Hitesh Ghuge]
+* [Sushant Patade]
+* [Mitesh Gupta]
 
 See also the list of [contributors](https://github.com/digiteinfotech/kairon/graphs/contributors) who participated in this project.
 

@@ -23,13 +23,15 @@ from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import TemplateType
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from unittest.mock import patch
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 import json
+from kairon.shared.verification.email import QuickEmailVerification
+from urllib.parse import urlencode
 
 
 class TestUtility:
@@ -543,6 +545,280 @@ class TestUtility:
             Utility.is_model_file_exists('invalid_bot')
 
     @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_password_reset(self, validate_and_send_mail_mock):
+        mail_type = 'password_reset'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+
+        Utility.email_conf['email']['templates']['password_reset'] = open('template/emails/passwordReset.html',
+                                                                          'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['password_reset']
+        expected_body = expected_body.replace('FIRST_NAME', first_name.capitalize()).replace('FIRST_NAME', first_name)\
+            .replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['password_reset_subject']
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_password_reset_confirmation(self, validate_and_send_mail_mock):
+        mail_type = 'password_reset_confirmation'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        Utility.email_conf['email']['templates']['password_reset_confirmation'] = open(
+            'template/emails/passwordResetConfirmation.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['password_reset_confirmation']
+        expected_body = expected_body.replace('FIRST_NAME', first_name).replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['password_changed_subject']
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_verification(self, validate_and_send_mail_mock):
+        mail_type = 'verification'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        Utility.email_conf['email']['templates']['verification'] = open('template/emails/verification.html',
+                                                                        'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['verification']
+        expected_body = expected_body.replace('FIRST_NAME', first_name.capitalize()).replace('FIRST_NAME', first_name)\
+            .replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['confirmation_subject']
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_verification_confirmation(self, validate_and_send_mail_mock):
+        mail_type = 'verification_confirmation'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        Utility.email_conf['email']['templates']['verification_confirmation'] = open(
+            'template/emails/verificationConfirmation.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['verification_confirmation']
+        expected_body = expected_body.replace('FIRST_NAME', first_name.capitalize()).replace('FIRST_NAME', first_name)\
+            .replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['confirmed_subject']
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_add_member(self, validate_and_send_mail_mock):
+        mail_type = 'add_member'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        url = "https://www.testurl.com"
+        bot_name = "test_bot"
+        role = "test_role"
+        Utility.email_conf['email']['templates']['add_member_invitation'] = open(
+            'template/emails/memberAddAccept.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['add_member_invitation']
+        expected_body = expected_body.replace('BOT_NAME', bot_name).replace('BOT_OWNER_NAME', first_name.capitalize()) \
+            .replace('ACCESS_TYPE', role).replace('ACCESS_URL', url).replace('FIRST_NAME', first_name) \
+            .replace('USER_EMAIL', email).replace('VERIFICATION_LINK', url)
+        expected_subject = Utility.email_conf['email']['templates']['add_member_subject']
+        expected_subject = expected_subject.replace('BOT_NAME', bot_name)
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name, url=url,
+                                               bot_name=bot_name, role=role)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_add_member_confirmation(self, validate_and_send_mail_mock):
+        mail_type = 'add_member_confirmation'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        bot_name = "test_bot"
+        role = "test_role"
+        accessor_email = "test@gmail.com"
+        member_confirm = "test_name"
+        Utility.email_conf['email']['templates']['add_member_confirmation'] = open(
+            'template/emails/memberAddConfirmation.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['add_member_confirmation']
+        expected_body = expected_body.replace('BOT_NAME', bot_name).replace('ACCESS_TYPE', role)\
+            .replace('INVITED_PERSON_NAME', accessor_email).replace('NAME', member_confirm.capitalize())\
+            .replace('FIRST_NAME', first_name).replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['add_member_confirmation_subject']
+        expected_subject = expected_subject.replace('INVITED_PERSON_NAME', accessor_email)
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name,
+                                               bot_name=bot_name, role=role, accessor_email=accessor_email,
+                                               member_confirm=member_confirm)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_update_role_member_mail(self, validate_and_send_mail_mock):
+        mail_type = 'update_role_member_mail'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        bot_name = "test_bot"
+        new_role = "test_role"
+        status = "test_status"
+        member_name = "test_name"
+        Utility.email_conf['email']['templates']['update_role'] = open(
+            'template/emails/memberUpdateRole.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['update_role']
+        expected_body = expected_body\
+            .replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_member_mail_body'])\
+            .replace('BOT_NAME', bot_name).replace('NEW_ROLE', new_role).replace('STATUS', status)\
+            .replace('MODIFIER_NAME', first_name.capitalize()).replace('NAME', member_name.capitalize())\
+            .replace('FIRST_NAME', first_name).replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['update_role_subject']
+        expected_subject = expected_subject.replace('BOT_NAME', bot_name)
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name, status=status,
+                                               bot_name=bot_name, new_role=new_role, member_name=member_name)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_update_role_owner_mail(self, validate_and_send_mail_mock):
+        mail_type = 'update_role_owner_mail'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        bot_name = "test_bot"
+        new_role = "test_role"
+        status = "test_status"
+        owner_name = "test_name"
+        member_email = "test@gmail.com"
+        Utility.email_conf['email']['templates']['update_role'] = open(
+            'template/emails/memberUpdateRole.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['update_role']
+        expected_body = expected_body\
+            .replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['update_role_owner_mail_body'])\
+            .replace('MEMBER_EMAIL', member_email).replace('BOT_NAME', bot_name).replace('NEW_ROLE', new_role)\
+            .replace('STATUS', status).replace('MODIFIER_NAME', first_name.capitalize())\
+            .replace('NAME', owner_name.capitalize()).replace('FIRST_NAME', first_name).replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['update_role_subject']
+        expected_subject = expected_subject.replace('BOT_NAME', bot_name)
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name, status=status,
+                                               bot_name=bot_name, new_role=new_role, owner_name=owner_name,
+                                               member_email=member_email)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_transfer_ownership_mail(self, validate_and_send_mail_mock):
+        mail_type = 'transfer_ownership_mail'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        bot_name = "test_bot"
+        new_role = "test_role"
+        member_email = "test@gmail.com"
+        Utility.email_conf['email']['templates']['update_role'] = open(
+            'template/emails/memberUpdateRole.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['update_role']
+        expected_body = expected_body\
+            .replace('MAIL_BODY_HERE', Utility.email_conf['email']['templates']['transfer_ownership_mail_body'])\
+            .replace('MEMBER_EMAIL', member_email).replace('BOT_NAME', bot_name).replace('NEW_ROLE', new_role)\
+            .replace('MODIFIER_NAME', first_name.capitalize()).replace('FIRST_NAME', first_name)\
+            .replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['update_role_subject']
+        expected_subject = expected_subject.replace('BOT_NAME', bot_name)
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name,
+                                               bot_name=bot_name, new_role=new_role, member_email=member_email)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_password_generated(self, validate_and_send_mail_mock):
+        mail_type = 'password_generated'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        password = "test@123"
+        Utility.email_conf['email']['templates']['password_generated'] = open(
+            'template/emails/passwordGenerated.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['password_generated']
+        expected_body = expected_body.replace('PASSWORD', password).replace('FIRST_NAME', first_name)\
+            .replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['password_generated_subject']
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name,
+                                               password=password)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_untrusted_login(self, validate_and_send_mail_mock):
+        mail_type = 'untrusted_login'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        url = "https://www.testurl.com"
+        geo_location = {'City': 'Mumbai', 'Network': 'CATO'}
+        reset_password_url = Utility.email_conf["app"]["url"] + "/reset_password"
+        Utility.email_conf['email']['templates']['untrusted_login'] = open(
+            'template/emails/untrustedLogin.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['untrusted_login']
+        expected_geo_location = "<li>first_name: sample</li><li>url: https://www.testurl.com</li>" \
+                                "<li>City: Mumbai</li><li>Network: CATO</li>"
+        expected_body = expected_body.replace('GEO_LOCATION', expected_geo_location).replace('TRUST_DEVICE_URL', url)\
+            .replace('RESET_PASSWORD_URL', reset_password_url).replace('FIRST_NAME', first_name)\
+            .replace('USER_EMAIL', email).replace('VERIFICATION_LINK', url)
+        expected_subject = Utility.email_conf['email']['templates']['untrusted_login_subject']
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name, url=url,
+                                               **geo_location)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_add_trusted_device(self, validate_and_send_mail_mock):
+        mail_type = 'add_trusted_device'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        geo_location = {'City': 'Mumbai', 'Network': 'CATO'}
+        Utility.email_conf['email']['templates']['add_trusted_device'] = open(
+            'template/emails/untrustedLogin.html', 'rb').read().decode()
+        expected_body = Utility.email_conf['email']['templates']['add_trusted_device']
+        expected_geo_location = "<li>first_name: sample</li><li>url: None</li>" \
+                                "<li>City: Mumbai</li><li>Network: CATO</li>"
+        expected_body = expected_body.replace('GEO_LOCATION', expected_geo_location).replace('FIRST_NAME', first_name)\
+            .replace('USER_EMAIL', email)
+        expected_subject = Utility.email_conf['email']['templates']['add_trusted_device']
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name, **geo_location)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_book_a_demo(self, validate_and_send_mail_mock):
+        mail_type = 'book_a_demo'
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        request = mock.Mock()
+        request.headers = {'X-Forwarded-For': '58.0.127.89'}
+        data = {
+            "first_name": "sample",
+            "last_name": 'test',
+            "email": "sampletest@gmail.com",
+            "contact": "9876543210",
+            "additional_info": "Thank You"
+        }
+        Utility.email_conf['email']['templates']['custom_text_mail'] = open(
+            'template/emails/custom_text_mail.html', 'rb').read().decode()
+        user_details = "Hi,\nFollowing demo has been requested for Kairon:\n<li>first_name: sample</li>" \
+                       "<li>last_name: test</li><li>email: sampletest@gmail.com</li><li>contact: 9876543210</li>" \
+                       "<li>additional_info: Thank You</li>"
+        expected_subject = Utility.email_conf['email']['templates']['book_a_demo_subject']
+        expected_body = Utility.email_conf['email']['templates']['custom_text_mail']
+        expected_body = expected_body.replace('CUSTOM_TEXT', user_details).replace('SUBJECT', expected_subject)\
+            .replace('FIRST_NAME', first_name).replace('USER_EMAIL', email)
+
+        await MailUtility.format_and_send_mail(mail_type=mail_type, email=email, first_name=first_name, request=request,
+                                               data=data)
+        validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
+
+    @pytest.mark.asyncio
     async def test_trigger_email(self):
         with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
             content_type = "html"
@@ -556,16 +832,16 @@ class TestUtility:
             smtp_userid = None
             tls = False
 
-            await Utility.trigger_email([to_email],
-                                        subject,
-                                        body,
-                                        content_type=content_type,
-                                        smtp_url=smtp_url,
-                                        smtp_port=smtp_port,
-                                        sender_email=sender_email,
-                                        smtp_userid=smtp_userid,
-                                        smtp_password=smtp_password,
-                                        tls=tls)
+            await MailUtility.trigger_email([to_email],
+                                            subject,
+                                            body,
+                                            content_type=content_type,
+                                            smtp_url=smtp_url,
+                                            smtp_port=smtp_port,
+                                            sender_email=sender_email,
+                                            smtp_userid=smtp_userid,
+                                            smtp_password=smtp_password,
+                                            tls=tls)
 
             mbody = MIMEText(body, content_type)
             msg = MIMEMultipart('alternative')
@@ -613,16 +889,16 @@ class TestUtility:
             smtp_userid = None
             tls = True
 
-            await Utility.trigger_email([to_email],
-                                        subject,
-                                        body,
-                                        content_type=content_type,
-                                        smtp_url=smtp_url,
-                                        smtp_port=smtp_port,
-                                        sender_email=sender_email,
-                                        smtp_userid=smtp_userid,
-                                        smtp_password=smtp_password,
-                                        tls=tls)
+            await MailUtility.trigger_email([to_email],
+                                            subject,
+                                            body,
+                                            content_type=content_type,
+                                            smtp_url=smtp_url,
+                                            smtp_port=smtp_port,
+                                            sender_email=sender_email,
+                                            smtp_userid=smtp_userid,
+                                            smtp_password=smtp_password,
+                                            tls=tls)
 
             name, args, kwargs = mock.method_calls.pop(0)
             assert name == '().connect'
@@ -667,16 +943,16 @@ class TestUtility:
             smtp_userid = "test_user"
             tls = True
 
-            await Utility.trigger_email([to_email],
-                                        subject,
-                                        body,
-                                        content_type=content_type,
-                                        smtp_url=smtp_url,
-                                        smtp_port=smtp_port,
-                                        sender_email=sender_email,
-                                        smtp_userid=smtp_userid,
-                                        smtp_password=smtp_password,
-                                        tls=tls)
+            await MailUtility.trigger_email([to_email],
+                                            subject,
+                                            body,
+                                            content_type=content_type,
+                                            smtp_url=smtp_url,
+                                            smtp_port=smtp_port,
+                                            sender_email=sender_email,
+                                            smtp_userid=smtp_userid,
+                                            smtp_password=smtp_password,
+                                            tls=tls)
 
             name, args, kwargs = mock.method_calls.pop(0)
             assert name == '().connect'
@@ -728,7 +1004,7 @@ class TestUtility:
             smtp_password = "changeit"
             smtp_port = 587
 
-            await Utility.trigger_smtp(to_email,
+            await MailUtility.trigger_smtp(to_email,
                                         subject,
                                         body,
                                         content_type=content_type)
@@ -1826,3 +2102,110 @@ class TestUtility:
         current_utcnow = datetime(2023, 2, 12, 8, 00, 00, tzinfo=timezone.utc)
         result = Utility.convert_utcdate_with_timezone(current_utcnow, "Asia/Kolkata",dateformat)
         assert result == datetime(2023, 2, 12, 13, 30)
+
+
+    def test_verify_email_disable(self):
+        Utility.verify_email("test@test.com")
+
+    @responses.activate
+    def test_verify_email_enable_disposable_email(self):
+        email = "test@test.com"
+        api_key = "test"
+        with mock.patch.dict(Utility.environment, {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+            verification = QuickEmailVerification()
+            responses.add(responses.GET,
+                          verification.url + "?" + urlencode({"apikey": verification.key, "email": email}),
+                          json={
+                              "result": "valid",
+                              "reason": "rejected_email",
+                              "disposable": "true",
+                              "accept_all": "false",
+                              "role": "false",
+                              "free": "false",
+                              "email": "test@test.com",
+                              "user": "test",
+                              "domain": "quickemailverification.com",
+                              "mx_record": "us2.mx1.mailhostbox.com",
+                              "mx_domain": "mailhostbox.com",
+                              "safe_to_send": "false",
+                              "did_you_mean": "",
+                              "success": "true",
+                              "message": None
+                          })
+            with pytest.raises(AppException, match="Invalid or disposable Email!"):
+                Utility.verify_email(email)
+
+    @responses.activate
+    def test_verify_email_enable_invalid_email(self):
+        email = "test@test.com"
+        api_key = "test"
+        with mock.patch.dict(Utility.environment,
+                             {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+            verification = QuickEmailVerification()
+            responses.add(responses.GET,
+                          verification.url + "?" + urlencode({"apikey": verification.key, "email": email}),
+                          json={
+                              "result": "invalid",
+                              "reason": "rejected_email",
+                              "disposable": "false",
+                              "accept_all": "false",
+                              "role": "false",
+                              "free": "false",
+                              "email": "test@test.com",
+                              "user": "test",
+                              "domain": "quickemailverification.com",
+                              "mx_record": "us2.mx1.mailhostbox.com",
+                              "mx_domain": "mailhostbox.com",
+                              "safe_to_send": "false",
+                              "did_you_mean": "",
+                              "success": "true",
+                              "message": None
+                          })
+            with pytest.raises(AppException, match="Invalid or disposable Email!"):
+                Utility.verify_email(email)
+
+    @responses.activate
+    def test_verify_email_enable_valid_email(self):
+        email = "test@test.com"
+        api_key = "test"
+        with mock.patch.dict(Utility.environment,
+                             {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+            verification = QuickEmailVerification()
+            responses.add(responses.GET,
+                          verification.url + "?" + urlencode({"apikey": verification.key, "email": email}),
+                          json={
+                              "result": "valid",
+                              "reason": "rejected_email",
+                              "disposable": "false",
+                              "accept_all": "false",
+                              "role": "false",
+                              "free": "false",
+                              "email": "test@test.com",
+                              "user": "test",
+                              "domain": "quickemailverification.com",
+                              "mx_record": "us2.mx1.mailhostbox.com",
+                              "mx_domain": "mailhostbox.com",
+                              "safe_to_send": "false",
+                              "did_you_mean": "",
+                              "success": "true",
+                              "message": None
+                          })
+            Utility.verify_email(email)
+
+    def test_get_llm_hyperparameters(self):
+        hyperparameters = Utility.get_llm_hyperparameters()
+        assert hyperparameters == {'temperature': 0.0,
+                                    'max_tokens': 300,
+                                    'model': 'gpt-3.5-turbo',
+                                    'top_p': 0.0,
+                                    'n': 1,
+                                    'stream': False,
+                                    'stop': None,
+                                    'presence_penalty': 0.0,
+                                    'frequency_penalty': 0.0,
+                                    'logit_bias': {}}
+
+    def test_get_llm_hyperparameters_not_found(self, monkeypatch):
+        monkeypatch.setitem(Utility.environment['llm'], 'faq', None)
+        with pytest.raises(AppException, match="Could not find any hyperparameters for configured LLM."):
+            Utility.get_llm_hyperparameters()

@@ -26,7 +26,31 @@ def load_history_data():
     return db_url, client
 
 
+def load_jumbled_events_data():
+    db_url = "mongodb://test_kairon:27016/conversation"
+    client = mongomock.MongoClient(db_url)
+    collection = client.get_database().get_collection("tests")
+    items = json.load(open("./tests/testing_data/history/jumbled_events.json", "r"))
+    for item in items:
+        item['event']['timestamp'] = time.time()
+    collection.insert_many(items)
+    return db_url, client
+
+
+def load_flattened_history_data():
+    db_url = "mongodb://test_kairon:27016/conversation"
+    client = mongomock.MongoClient(db_url)
+    collection = client.get_database().get_collection("tests_flattened")
+    items = json.load(open("./tests/testing_data/history/flattened_conversations.json", "r"))
+    for item in items:
+        item['timestamp'] = time.time()
+    collection.insert_many(items)
+    return db_url, client
+
+
 db_url, mongoclient = load_history_data()
+db_url_flattened, mongoclient_flattened = load_flattened_history_data()
+db_url_jumbled_events, mongoclient_jumbled_events = load_jumbled_events_data()
 
 
 class TestHistory:
@@ -140,6 +164,46 @@ class TestHistory:
         assert history[0]["intent"]
         assert history[0]["confidence"]
         assert message is None
+
+    @mock.patch('kairon.history.processor.MongoClient', autospec=True)
+    def test_fetch_chat_history_with_history_data(self, mock_client):
+        mock_client.return_value = mongoclient_jumbled_events
+
+        history, message = HistoryProcessor.fetch_chat_history(
+            sender="fshaikh@digite.com", collection="tests"
+        )
+        assert len(history) == 6
+        assert history[0]["event"]
+        assert history[0]["time"]
+        assert history[0]["date"]
+        assert history[0]["text"]
+        assert history[0]["intent"]
+        assert history[0]["confidence"]
+        assert message is None
+
+        assert history[0]['event'] == "user"
+        assert history[0]['text'] == "hi"
+        assert history[0]['intent'] == "nlu_fallback"
+
+        assert history[1]['event'] == "bot"
+        assert history[1]['text'] == "Sorry I could not get you! Can you please repeat?"
+        assert history[1]['action'] == "utter_please_rephrase"
+
+        assert history[2]['event'] == "user"
+        assert history[2]['text'] == "what is story?"
+        assert history[2]['intent'] == "add_custom_story"
+
+        assert history[3]['event'] == "bot"
+        assert history[3]['data'] == {'elements': None, 'quick_replies': None, 'buttons': None, 'attachment': None, 'image': None, 'custom': {'data': [{'type': 'video', 'url': 'https://www.youtube.com/watch?v=I3naB184ZgQ', 'children': [{'text': ''}]}, {'type': 'paragraph', 'children': [{'text': ''}]}], 'type': 'video'}}
+        assert history[3]['action'] == "utter_add_custom_story"
+
+        assert history[4]['event'] == "user"
+        assert history[4]['text'] == "what is bot"
+        assert history[4]['intent'] == "train_bot"
+
+        assert history[5]['event'] == "bot"
+        assert history[5]['data'] == {'elements': None, 'quick_replies': None, 'buttons': None, 'attachment': None, 'image': None, 'custom': {'data': [{'type': 'video', 'url': 'https://www.youtube.com/watch?v=CL64mID3VMY', 'children': [{'text': ''}]}, {'type': 'paragraph', 'children': [{'text': ''}]}], 'type': 'video'}}
+        assert history[5]['action'] == "utter_train_bot"
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_error(self, mock_client):
@@ -351,7 +415,7 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_flatten_conversation_range(self, mock_client):
-        mock_client.return_value = mongomock.MongoClient(Utility.environment['tracker']['url'])
+        mock_client.return_value = mongoclient_flattened
         f_count, message = HistoryProcessor.flatten_conversations("tests")
         assert f_count["conversation_data"] == []
         assert message is None

@@ -17,7 +17,7 @@ from .models import SlotValidationOperators, LogicalOperators, ActionParameterTy
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes
-from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER
+from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..utils import Utility
@@ -159,15 +159,20 @@ class ActionUtility:
     @staticmethod
     def prepare_bot_responses(tracker: Tracker, last_n):
         """
-        Retrieve bot responses from tracker events.
+        Retrieve user question and bot responses from tracker events and formats them
+        as required for GPT3 messages.
         """
-        message_trail = ""
+        message_trail = []
         for event in reversed(tracker.events):
-            if event.get('event') == 'bot':
-                message_trail = f"{event.get('text')}\n{message_trail}"
+            if event.get('event') == 'bot' and event.get("text"):
+                message_trail.insert(0, {"role": "assistant", "content": event.get('text')})
                 last_n -= 1
-            if last_n <= 0:
-                break
+            elif event.get('event') == 'user':
+                if message_trail and message_trail[0].get("role") == "user":
+                    message_trail.pop(0)
+                message_trail.insert(0, {"role": "user", "content": event.get('text')})
+                if last_n <= 0:
+                    break
         return message_trail
 
     @staticmethod
@@ -739,6 +744,19 @@ class ActionUtility:
             raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
             rephrased_message = Utility.retrieve_gpt_response(raw_resp)
         return raw_resp, rephrased_message
+
+    @staticmethod
+    def format_recommendations(llm_response, k_faq_action_config):
+        recommendations = None
+        if llm_response['content']['result']:
+            recommendations = [
+                {"text": item['payload']['query'], "payload": item['payload']['query']}
+                for item in llm_response['content']['result']
+            ]
+            bot_response = k_faq_action_config.get('failure_message', DEFAULT_NLU_FALLBACK_RESPONSE)
+        else:
+            bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
+        return recommendations, bot_response
 
 
 class ExpressionEvaluator:

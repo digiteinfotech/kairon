@@ -37,12 +37,16 @@ class WhatsappCloud(object):
 
         self.access_token = access_token
         self.from_phone_number_id = kwargs.get('from_phone_number_id')
-        if Utility.check_empty_string(self.from_phone_number_id):
+        if self.client_type == "meta" and Utility.check_empty_string(self.from_phone_number_id):
             raise AppException("missing parameter 'from_phone_number_id'")
         self.session = kwargs.get('session', requests.Session())
         self.api_version = kwargs.get('api_version', DEFAULT_API_VERSION)
         self.app = 'https://graph.facebook.com/v{api_version}'.format(api_version=self.api_version)
         self.app_secret = kwargs.get('app_secret')
+
+    @property
+    def client_type(self):
+        return "meta"
 
     @property
     def auth_args(self):

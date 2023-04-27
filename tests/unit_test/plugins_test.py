@@ -86,7 +86,7 @@ class TestUtility:
             "POST",
             Utility.environment["plugins"]["gpt"]["url"],
             status=200, json=gpt_response,
-            match=[responses.json_params_matcher(
+            match=[responses.matchers.json_params_matcher(
                 {'model': 'text-davinci-003', 'prompt': prompt, 'temperature': 0.7, 'max_tokens': 40})],
         )
         response = PluginFactory.get_instance(PluginTypes.gpt).execute(
@@ -103,7 +103,7 @@ class TestUtility:
             "POST",
             Utility.environment["plugins"]["gpt"]["url"],
             status=400, json=gpt_response,
-            match=[responses.json_params_matcher(
+            match=[responses.matchers.json_params_matcher(
                 {'model': 'text-davinci-003', 'prompt': prompt, 'temperature': 0.7, 'max_tokens': 40})],
         )
         response = PluginFactory.get_instance(PluginTypes.gpt).execute(

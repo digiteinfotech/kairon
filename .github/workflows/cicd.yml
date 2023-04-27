@@ -45,8 +45,9 @@ jobs:
         coveralls --service=github
     - name: Generate Sphinx files
       run: |
-        pip install -U sphinx
-        pip install sphinx_rtd_theme
+        python -m pip install --upgrade pip
+        python -m pip install -U sphinx
+        python -m pip install sphinx_rtd_theme
         cd docs
         # sphinx-quickstart
         # set system_file=../system.yaml

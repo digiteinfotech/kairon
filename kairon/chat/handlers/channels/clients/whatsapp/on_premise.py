@@ -1,5 +1,5 @@
 import logging
-from typing import Text
+from typing import Text, Dict
 
 import requests
 
@@ -74,7 +74,7 @@ class WhatsappOnPremise(WhatsappCloud):
         logger.debug(resp)
         return resp
 
-    def send_template_message(self, namespace: Text, name: Text, to_phone_number, language_code: Text = "en"):
+    def send_template_message(self, namespace: Text, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None):
         payload = {
             "namespace": namespace,
             "language": {
@@ -83,4 +83,6 @@ class WhatsappOnPremise(WhatsappCloud):
             },
             "name": name
         }
-        self.send(payload, to_phone_number, messaging_type="template")
+        if components:
+            payload.update({"components": components})
+        return self.send(payload, to_phone_number, messaging_type="template")
