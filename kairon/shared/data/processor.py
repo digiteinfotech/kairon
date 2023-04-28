@@ -42,7 +42,8 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
-    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, KaironFaqAction
+    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, KaironFaqAction, \
+    LlmPrompt
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType
@@ -4703,15 +4704,6 @@ class MongoProcessor:
         self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
         return id
 
-    def __add_default_kairon_faq_action(self, bot: Text, user: Text):
-        if not Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, raise_error=False):
-            action = KaironFaqAction(bot=bot, user=user).save()
-            id = (
-                action.save().to_mongo().to_dict()["_id"].__str__()
-            )
-            self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
-            return id
-
     def edit_kairon_faq_action(self, faq_action_id: str, request_data: dict, bot: Text, user: Text):
         """
         Edit Kairon FAQ Action
@@ -4725,16 +4717,12 @@ class MongoProcessor:
                                 raise_error=False):
             raise AppException('Action not found')
         action = KaironFaqAction.objects(id=faq_action_id, name__iexact=KAIRON_FAQ_ACTION, bot=bot).get()
-        action.context_prompt = request_data.get("context_prompt")
-        action.system_prompt = request_data.get("system_prompt")
         action.failure_message = request_data.get("failure_message")
         action.top_results = request_data.get("top_results")
         action.similarity_threshold = request_data.get("similarity_threshold")
-        action.use_query_prompt = request_data.get('use_query_prompt', False)
-        action.query_prompt = request_data.get('query_prompt')
-        action.use_bot_responses = request_data.get('use_bot_responses', False)
         action.num_bot_responses = request_data.get('num_bot_responses', 5)
         action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyperparameters())
+        action.llm_prompts = [LlmPrompt(**prompt) for prompt in request_data.get('llm_prompts', [])]
         action.timestamp = datetime.utcnow()
         action.user = user
         action.save()
@@ -5057,7 +5045,6 @@ class MongoProcessor:
         id = (
             content_obj.save().to_mongo().to_dict()["_id"].__str__()
         )
-        self.__add_default_kairon_faq_action(bot=bot, user=user)
         return id
 
     def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
@@ -5080,8 +5067,6 @@ class MongoProcessor:
         try:
             content = BotContent.objects(bot=bot, id=content_id).get()
             content.delete()
-            if self.get_row_count(BotContent, bot) <= 0:
-                self.delete_action(KAIRON_FAQ_ACTION, bot, user)
         except DoesNotExist:
             raise AppException("Text does not exists!")
 

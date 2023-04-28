@@ -8,14 +8,10 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
-from pydantic import SecretStr
-from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
-from starlette.datastructures import Headers, URL
-from starlette.requests import Request
-
 import pytest
 import responses
 from elasticmock import elasticmock
@@ -24,35 +20,44 @@ from jira import JIRAError, JIRA
 from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
+from openai.openai_response import OpenAIResponse
+from openai.util import convert_to_openai_object
 from pipedrive.exceptions import UnauthorizedError
+from pydantic import SecretStr
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, RuleStep, Checkpoint
 from rasa.shared.importers.rasa import Domain, RasaFileImporter
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
-
-from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.data_objects import BotSecrets
-from kairon.shared.chat.data_objects import Channels
-from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.data_object import Metering
-from kairon.shared.test.data_objects import ModelTestingLogs
+from starlette.datastructures import Headers
+from starlette.requests import Request
 
 from kairon.api import models
-from kairon.shared.auth import Authentication
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
     SetSlotsUsingActionResponse
-from kairon.shared.account.processor import AccountProcessor
 from kairon.chat.agent_processor import AgentProcessor
+from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
+    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
+    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction
+from kairon.shared.actions.models import ActionType
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.auth import Authentication
+from kairon.shared.chat.data_objects import Channels
+from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
-    DEFAULT_LLM_FALLBACK_RULE, DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT, KAIRON_FAQ_ACTION
+    DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT, \
+    KAIRON_FAQ_ACTION
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -68,23 +73,17 @@ from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
-from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
-    FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
-    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction
-from kairon.shared.actions.models import ActionType
-from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.data.utils import DataUtility
 from kairon.shared.importer.processor import DataImporterLogProcessor
+from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.data_object import Metering
 from kairon.shared.models import StoryEventType, HttpContentType
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
+from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
-from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 from kairon.shared.utils import Utility
-from kairon.shared.data.constant import ENDPOINT_TYPE
-from unittest.mock import patch
-from openai.util import convert_to_openai_object
-from openai.openai_response import OpenAIResponse
-from kairon.shared.data.utils import DataUtility
+from kairon.train import train_model_for_bot, start_training, train_model_from_mongo
 
 
 class TestMongoProcessor:
@@ -135,9 +134,29 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70,
-                   "num_bot_responses": 5}
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 10,
+                   'similarity_threshold': 1.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="similarity_threshold should be within 0.3 and 1"):
             processor.add_kairon_faq_action(request, bot, user)
 
@@ -145,9 +164,29 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70,
-                   "num_bot_responses": 5}
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 40,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="top_results should not be greater than 30"):
             processor.add_kairon_faq_action(request, bot, user)
 
@@ -155,60 +194,306 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'history', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'history', 'is_enabled': True}],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
-                   "use_query_prompt": True, "query_prompt": "", "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="query_prompt is required"):
+                   "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="Query prompt must have static source!"):
             processor.add_kairon_faq_action(request, bot, user)
 
     def test_add_kairon_with_invalid_num_bot_responses(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
-                   "use_query_prompt": False, "query_prompt": "", "num_bot_responses": 15}
+                   "num_bot_responses": 15}
         with pytest.raises(ValidationError, match="num_bot_responses should not be greater than 5"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_empty_system_prompt(self):
+    def test_add_kairon_with_invalid_system_prompt_source(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {"system_prompt": "", "context_prompt": DEFAULT_CONTEXT_PROMPT,
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'history',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="system_prompt name is required"):
+        with pytest.raises(ValidationError, match="System prompt must have static source!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_empty_context_prompt(self):
+    def test_add_kairon_with_multiple_system_prompt(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": "",
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="context_prompt name is required"):
+        with pytest.raises(ValidationError, match="Only one system prompt can be present!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_empty_llm_prompt_name(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="Name cannot be empty!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_empty_data_for_static_prompt(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': '', 'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="data is required for static prompts!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_empty_llm_prompt_instructions(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': '', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="instructions are required!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_multiple_history_source_prompts(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="Only one history source can be present!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_multiple_bot_content_source_prompts(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Another Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                                   ],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="Only one bot_content source can be present!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_no_system_prompts(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'llm_prompts': [
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+
+                                   {'name': 'Another Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                                   ],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="System prompt is required!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_empty_llm_prompts(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': []}
+        with pytest.raises(ValidationError, match="llm_prompts are required!"):
             processor.add_kairon_faq_action(request, bot, user)
 
     def test_add_kairon_faq_action_with_default_values(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {}
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                              'instructions': 'Answer question based on the context below.', 'type': 'system',
+                              'source': 'static',
+                              'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         pytest.action_id = processor.add_kairon_faq_action(request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
-        assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
-                           'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
-                           "use_bot_responses": False, "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters()}]
+
+        assert action == [
+            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}}, 'llm_prompts': [],
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                              'instructions': 'Answer question based on the context below.', 'type': 'system',
+                              'source': 'static',
+                              'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+             ]
+             }
+        ]
 
     def test_add_kairon_faq_action_already_exist(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Action already exists!"):
@@ -218,7 +503,21 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'invalid_bot'
         user = 'test_user'
-        request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Action not found"):
@@ -228,32 +527,84 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
                    "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
                    "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters()}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
-        assert action == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
-                           'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
-                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": True,
-                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt",
-                           "hyperparameters": Utility.get_llm_hyperparameters()}]
-        request = {}
+        assert action == [
+            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+             'failure_message': 'updated_failure_message',
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}}, 'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                 'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+                 'is_enabled': True},
+                {'name': 'Similarity Prompt',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True},
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context', 'type': 'query',
+                 'source': 'static', 'is_enabled': True}]}]
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static'}]}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
-        assert action == [{'name': 'kairon_faq_action', 'system_prompt': DEFAULT_SYSTEM_PROMPT,
-                           'context_prompt': DEFAULT_CONTEXT_PROMPT, 'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": False,
-                           "use_bot_responses": False, "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters()}]
+        assert action == [
+            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True}]}]
+
 
     def test_edit_kairon_faq_action_with_less_hyperparameters(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+        request = {'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                 'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+                 'is_enabled': True},
+                {'name': 'Similarity Prompt',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True},
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context', 'type': 'query',
+                 'source': 'static', 'is_enabled': True}],
                    "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
                    "num_bot_responses": 5, "hyperparameters": {"temperature": 0.0,
@@ -265,15 +616,24 @@ class TestMongoProcessor:
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
-        assert action == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
-                           'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
-                           "top_results": 10, "similarity_threshold": 0.70, "use_query_prompt": True,
-                           "use_bot_responses": True, "num_bot_responses": 5, "query_prompt": "updated_query_prompt",
-                           "hyperparameters": {"temperature": 0.0,
-                                               "max_tokens": 300,
-                                               "model": "gpt-3.5-turbo",
-                                               "top_p": 0.0,
-                                               "n": 1}}]
+        print(action)
+        assert action == [
+            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+             'failure_message': 'updated_failure_message',
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                              'instructions': 'Answer question based on the context below.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                            'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                                'source': 'static', 'is_enabled': True},
+                             {'name': 'Query Prompt',
+                              'data': 'If there is no specific query, assume that user is aking about java programming.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                              'is_enabled': True}]}]
+
 
     def test_get_kairon_faq_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -287,12 +647,22 @@ class TestMongoProcessor:
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
         print(action)
-        assert action ==  [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
-                            'context_prompt': 'updated_context_prompt', 'use_query_prompt': True,
-                            'query_prompt': 'updated_query_prompt', 'use_bot_responses': True,
-                            'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-                            'failure_message': 'updated_failure_message',
-                            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1}}]
+        assert action == [
+            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+             'failure_message': 'updated_failure_message',
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                              'instructions': 'Answer question based on the context below.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'Similarity Prompt','instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content','is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                             {'name': 'Query Prompt',
+                              'data': 'If there is no specific query, assume that user is aking about java programming.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                              'is_enabled': True}]}]
 
     def test_delete_kairon_faq_action(self):
         processor = MongoProcessor()
@@ -484,9 +854,9 @@ class TestMongoProcessor:
         assert config['language'] == 'en'
         assert config['pipeline'] == [{'name': 'kairon.shared.nlu.classifier.openai.OpenAIClassifier', 'bot_id': bot}]
         assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
-                                           {'core_fallback_action_name': 'action_default_fallback',
-                                            'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
-                                            'name': 'RulePolicy'}]
+                                      {'core_fallback_action_name': 'action_default_fallback',
+                                       'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
+                                       'name': 'RulePolicy'}]
 
     def test_add_or_overwrite_gpt_featurizer_config_with_bot_id(self):
         bot = 'test_config'
@@ -499,11 +869,13 @@ class TestMongoProcessor:
         assert config['pipeline'] == [{'name': 'WhitespaceTokenizer'}, {'name': 'CountVectorsFeaturizer',
                                                                         'min_ngram': 1, 'max_ngram': 2},
                                       {'name': 'kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer', 'bot_id': bot},
-                                      {'name': 'DIETClassifier', 'epochs': 50, 'constrain_similarities': True, 'entity_recognition': False},
+                                      {'name': 'DIETClassifier', 'epochs': 50, 'constrain_similarities': True,
+                                       'entity_recognition': False},
                                       {'name': 'FallbackClassifier', 'threshold': 0.8}]
         assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
                                       {'core_fallback_action_name': 'action_default_fallback',
-                                       'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False, 'name': 'RulePolicy'}]
+                                       'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
+                                       'name': 'RulePolicy'}]
 
     @pytest.mark.asyncio
     async def test_upload_case_insensitivity(self):
@@ -553,27 +925,45 @@ class TestMongoProcessor:
         actions = processor.load_http_action("test_upload_case_insensitivity")
         print(actions)
         assert actions == {'http_action': [
-            {'action_name': 'action_get_google_application',  'http_url': 'http://www.alphabet.com', 'content_type': 'json',
+            {'action_name': 'action_get_google_application', 'http_url': 'http://www.alphabet.com',
+             'content_type': 'json',
              'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
-             'request_method': 'GET', 'headers': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
-                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
-                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
-                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
-                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
-                                                  {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1',
-                                                   'parameter_type': 'slot', 'encrypt': False}],
-             'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]},
-            {'action_name': 'action_get_microsoft_application', 'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
+             'request_method': 'GET', 'headers': [
+                {'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log',
+                 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': '', 'parameter_type': 'user_message',
+                 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'testParam3', 'value': '', 'parameter_type': 'value',
+                 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': '', 'parameter_type': 'intent',
+                 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id',
+                 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1',
+                 'parameter_type': 'slot', 'encrypt': False}],
+             'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1',
+                              'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1',
+                              'parameter_type': 'slot', 'encrypt': False}]},
+            {'action_name': 'action_get_microsoft_application',
+             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
-             'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1', 'parameter_type': 'value', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam3', 'value': '', 'parameter_type': 'value', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': '', 'parameter_type': 'intent', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
-                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1', 'parameter_type': 'slot', 'encrypt': False}]}]}
+             'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1',
+                              'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1',
+                              'parameter_type': 'slot', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '',
+                              'parameter_type': 'chat_log', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': '',
+                              'parameter_type': 'user_message', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam3', 'value': '',
+                              'parameter_type': 'value', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': '',
+                              'parameter_type': 'intent', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam5', 'value': '',
+                              'parameter_type': 'sender_id', 'encrypt': False},
+                             {'_cls': 'HttpActionRequestBody', 'key': 'testParam4', 'value': 'testvalue1',
+                              'parameter_type': 'slot', 'encrypt': False}]}]}
         assert set(Utterances.objects(bot='test_upload_case_insensitivity').values_list('name')) == {'utter_goodbye',
                                                                                                      'utter_greet',
                                                                                                      'utter_default',
@@ -1356,7 +1746,7 @@ class TestMongoProcessor:
         responses = list(processor.get_response("utter_custom", "tests"))
         with pytest.raises(AppException, match="Utterance already exists!"):
             processor.edit_custom_response(responses[0]["_id"], jsondata, name="utter_happy", bot="tests",
-                                         user="testUser")
+                                           user="testUser")
 
     def test_edit_custom_responses_empty(self):
         processor = MongoProcessor()
@@ -1364,7 +1754,7 @@ class TestMongoProcessor:
         responses = list(processor.get_response("utter_custom", "tests"))
         with pytest.raises(ValidationError, match="Utterance must be dict type and must not be empty"):
             processor.edit_custom_response(responses[0]["_id"], jsondata, name="utter_custom", bot="tests",
-                                         user="testUser")
+                                           user="testUser")
 
     def test_edit_custom_responses(self):
         processor = MongoProcessor()
@@ -1435,7 +1825,7 @@ class TestMongoProcessor:
         user = "testUser"
         processor = MongoProcessor()
         list(processor.add_training_example(["How is the sky today?"], intent="query", bot=bot, user=user,
-                                           is_integration=False))
+                                            is_integration=False))
         list(processor.add_training_example(["Will it rain?"], intent="more_queries", bot=bot, user=user,
                                             is_integration=False))
         list(processor.add_training_example(["Bubye, will see you!"], intent="goodbye", bot=bot, user=user,
@@ -1445,27 +1835,33 @@ class TestMongoProcessor:
         processor.add_response({"text": "See you, Bye!"}, "utter_goodbye", bot, user)
         processor.add_response({"text": "No, it won't rain."}, "utter_more_queries", bot, user)
 
-
         steps = [
             {"step": {"name": "query", "type": "INTENT", "node_id": "1", "component_id": "61m96mPGu2VexybDeVg1dLyH"},
-                "connections": [{"name": "utter_query", "type": "BOT", "node_id": "2", "component_id": "61uaImwNrsJI1pVphl8mZh20"}]
-            },
+             "connections": [
+                 {"name": "utter_query", "type": "BOT", "node_id": "2", "component_id": "61uaImwNrsJI1pVphl8mZh20"}]
+             },
             {"step": {"name": "utter_query", "type": "BOT", "node_id": "2", "component_id": "61uaImwNrsJI1pVphl8mZh20"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "62By0VXVLpUNDNPqkr5vRRzm"},
-                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "62N9BCfSKVYOKoBivGhWDRHC"}]
-            },
+             "connections": [
+                 {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "62By0VXVLpUNDNPqkr5vRRzm"},
+                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "62N9BCfSKVYOKoBivGhWDRHC"}]
+             },
             {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "62N9BCfSKVYOKoBivGhWDRHC"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "62uzXd9Pj5a9tEbVBkMuVn3o"}]
-            },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "62uzXd9Pj5a9tEbVBkMuVn3o"},
-                "connections": None
-            },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "62ib6tlbgIGth8vBSwSYFvbS"},
+             "connections": [
+                 {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "62uzXd9Pj5a9tEbVBkMuVn3o"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5",
+                      "component_id": "62uzXd9Pj5a9tEbVBkMuVn3o"},
              "connections": None
-            },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "62By0VXVLpUNDNPqkr5vRRzm"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "62ib6tlbgIGth8vBSwSYFvbS"}]
-            }
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                      "component_id": "62ib6tlbgIGth8vBSwSYFvbS"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3",
+                      "component_id": "62By0VXVLpUNDNPqkr5vRRzm"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                              "component_id": "62ib6tlbgIGth8vBSwSYFvbS"}]
+             }
         ]
 
         story_dict = {'name': "story for training", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -1834,7 +2230,8 @@ class TestMongoProcessor:
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
-        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(encoding='utf-8')
+        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
+            encoding='utf-8')
 
         def _mock_bot_info(*args, **kwargs):
             return {
@@ -1895,23 +2292,28 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "63bLGgJEl8dz0axb9FvrWvHq"},
-             "connections": [{"name": "utter_hiii", "type": "BOT", "node_id": "2", "component_id": "63IjWdIIpHgT36sJXpqnS7Mx"}]
+             "connections": [
+                 {"name": "utter_hiii", "type": "BOT", "node_id": "2", "component_id": "63IjWdIIpHgT36sJXpqnS7Mx"}]
              },
             {"step": {"name": "utter_hiii", "type": "BOT", "node_id": "2", "component_id": "63IjWdIIpHgT36sJXpqnS7Mx"},
-             "connections": [{"name": "record", "type": "INTENT", "node_id": "3", "component_id": "634nMJ9hAAtbgr6Wn1Fhm89D"},
-                             {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "632o76BgDW2eo3JOqDGk9RQW"}]
+             "connections": [
+                 {"name": "record", "type": "INTENT", "node_id": "3", "component_id": "634nMJ9hAAtbgr6Wn1Fhm89D"},
+                 {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "632o76BgDW2eo3JOqDGk9RQW"}]
              },
             {"step": {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "632o76BgDW2eo3JOqDGk9RQW"},
-             "connections": [{"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "637d13it2UNSslxVSbWZjBqO"}]
+             "connections": [
+                 {"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "637d13it2UNSslxVSbWZjBqO"}]
              },
             {"step": {"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "637d13it2UNSslxVSbWZjBqO"},
              "connections": None
              },
-            {"step": {"name": "utter_record", "type": "BOT", "node_id": "6", "component_id": "63e63sU5PHRQnnINYPZitORt"},
+            {"step": {"name": "utter_record", "type": "BOT", "node_id": "6",
+                      "component_id": "63e63sU5PHRQnnINYPZitORt"},
              "connections": None
              },
             {"step": {"name": "record", "type": "INTENT", "node_id": "3", "component_id": "634nMJ9hAAtbgr6Wn1Fhm89D"},
-             "connections": [{"name": "utter_record", "type": "BOT", "node_id": "6", "component_id": "63e63sU5PHRQnnINYPZitORt"}]
+             "connections": [
+                 {"name": "utter_record", "type": "BOT", "node_id": "6", "component_id": "63e63sU5PHRQnnINYPZitORt"}]
              }
         ]
         story_dict = {"name": "a different story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -1922,19 +2324,24 @@ class TestMongoProcessor:
         assert stories[0]['name'] == 'a different story'
         assert stories[0]['type'] == 'MULTIFLOW'
         print(stories[0]['steps'])
-        assert stories[0]['steps'] == [{'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': '1', 'component_id': '63bLGgJEl8dz0axb9FvrWvHq'},
-                                        'connections': [{'name': 'utter_hiii', 'type': 'BOT', 'node_id': '2', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'}]},
-                                       {'step': {'name': 'utter_hiii', 'type': 'BOT', 'node_id': '2', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'},
-                                        'connections': [{'name': 'record', 'type': 'INTENT', 'node_id': '3', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
-                                                        {'name': 'id', 'type': 'INTENT', 'node_id': '4', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'}]},
-                                       {'step': {'name': 'id', 'type': 'INTENT', 'node_id': '4', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'},
-                                        'connections': [{'name': 'utter_id', 'type': 'BOT', 'node_id': '5', 'component_id': '637d13it2UNSslxVSbWZjBqO'}]},
-                                       {'step': {'name': 'utter_id', 'type': 'BOT', 'node_id': '5', 'component_id': '637d13it2UNSslxVSbWZjBqO'},
-                                        'connections': []}, {'step': {'name': 'utter_record', 'type': 'BOT', 'node_id': '6', 'component_id': '63e63sU5PHRQnnINYPZitORt'},
-                                                             'connections': []},
-                                       {'step': {'name': 'record', 'type': 'INTENT', 'node_id': '3', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
-                                        'connections': [{'name': 'utter_record', 'type': 'BOT', 'node_id': '6', 'component_id': '63e63sU5PHRQnnINYPZitORt'}]}]
-
+        assert stories[0]['steps'] == [
+            {'step': {'name': 'greeting', 'type': 'INTENT', 'node_id': '1', 'component_id': '63bLGgJEl8dz0axb9FvrWvHq'},
+             'connections': [
+                 {'name': 'utter_hiii', 'type': 'BOT', 'node_id': '2', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'}]},
+            {'step': {'name': 'utter_hiii', 'type': 'BOT', 'node_id': '2', 'component_id': '63IjWdIIpHgT36sJXpqnS7Mx'},
+             'connections': [
+                 {'name': 'record', 'type': 'INTENT', 'node_id': '3', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
+                 {'name': 'id', 'type': 'INTENT', 'node_id': '4', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'}]},
+            {'step': {'name': 'id', 'type': 'INTENT', 'node_id': '4', 'component_id': '632o76BgDW2eo3JOqDGk9RQW'},
+             'connections': [
+                 {'name': 'utter_id', 'type': 'BOT', 'node_id': '5', 'component_id': '637d13it2UNSslxVSbWZjBqO'}]},
+            {'step': {'name': 'utter_id', 'type': 'BOT', 'node_id': '5', 'component_id': '637d13it2UNSslxVSbWZjBqO'},
+             'connections': []}, {'step': {'name': 'utter_record', 'type': 'BOT', 'node_id': '6',
+                                           'component_id': '63e63sU5PHRQnnINYPZitORt'},
+                                  'connections': []},
+            {'step': {'name': 'record', 'type': 'INTENT', 'node_id': '3', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
+             'connections': [
+                 {'name': 'utter_record', 'type': 'BOT', 'node_id': '6', 'component_id': '63e63sU5PHRQnnINYPZitORt'}]}]
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -2043,7 +2450,8 @@ class TestMongoProcessor:
             responses.POST,
             "http://localhost/train",
             status=200,
-            match=[responses.matchers.json_params_matcher({"bot": "test_event_with_token", "user": "testUser", "token": token})],
+            match=[responses.matchers.json_params_matcher(
+                {"bot": "test_event_with_token", "user": "testUser", "token": token})],
         )
         monkeypatch.setitem(Utility.environment['model']['train'], "event_url", "http://localhost/train")
         model_path = start_training("test_event_with_token", "testUser", token)
@@ -2614,18 +3022,19 @@ class TestMongoProcessor:
 
     def test_save_http_action_already_exists(self):
         test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                       "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
-                                       "request_method": "GET", "response": {"value": "${RESPONSE}"}},
-                                      {"action_name": "test_save_http_action_already_exists",
-                                       "http_url": "http://f2724.kairon.io/",
-                                       "request_method": "GET", "response": {"value": "${RESPONSE}"}}
-                                      ]}
+                                      "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
+                                      "request_method": "GET", "response": {"value": "${RESPONSE}"}},
+                                     {"action_name": "test_save_http_action_already_exists",
+                                      "http_url": "http://f2724.kairon.io/",
+                                      "request_method": "GET", "response": {"value": "${RESPONSE}"}}
+                                     ]}
         HttpActionConfig(action_name="test_save_http_action_already_exists",
                          http_url='http://kairon.ai',
                          response=HttpActionResponse(value='response'),
                          request_method='GET',
                          bot='test', user='test').save()
-        Actions(name='test_save_http_action_already_exists', bot='test', user='test', status=True, type=ActionType.http_action.value).save()
+        Actions(name='test_save_http_action_already_exists', bot='test', user='test', status=True,
+                type=ActionType.http_action.value).save()
         processor = MongoProcessor()
         processor.save_integrated_actions(test_dict, 'test', 'test')
         action = HttpActionConfig.objects(bot='test', user='test', status=True).get(
@@ -2977,7 +3386,7 @@ class TestMongoProcessor:
 
         mongo_processor = MongoProcessor()
         mongo_processor.save_training_data(bot, user, config, domain, story_graph, nlu, http_actions,
-                                           chat_client_config, False, REQUIREMENTS.copy()-{"chat_client_config"})
+                                           chat_client_config, False, REQUIREMENTS.copy() - {"chat_client_config"})
 
         training_data = mongo_processor.load_nlu(bot)
         assert isinstance(training_data, TrainingData)
@@ -3442,7 +3851,6 @@ class TestMongoProcessor:
     async def test_download_data_files_with_chat_client_config(self, monkeypatch,
                                                                resource_save_and_validate_training_files):
         from zipfile import ZipFile
-        import yaml
 
         def _mock_bot_info(*args, **kwargs):
             return {
@@ -3718,7 +4126,8 @@ class TestMongoProcessor:
         shutil.rmtree(os.path.join('training_data', pytest.bot))
 
     @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_invalid_zip_actions_config(self, resource_validate_and_prepare_data_invalid_zip_actions_config):
+    async def test_validate_and_prepare_data_invalid_zip_actions_config(self,
+                                                                        resource_validate_and_prepare_data_invalid_zip_actions_config):
         processor = MongoProcessor()
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', [pytest.zip], True)
@@ -3738,7 +4147,8 @@ class TestMongoProcessor:
                         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
                             'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
                         assert non_event_validation_summary['summary'] == {
-                            'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [], 'email_actions': [],
+                            'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [],
+                            'email_actions': [],
                             'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [],
                             'pipedrive_leads_actions': []
                         }
@@ -3753,7 +4163,8 @@ class TestMongoProcessor:
                         assert non_event_validation_summary['validation_failed'] is False
                         assert files_received == {'actions'}
                         assert not is_event_data
-                        saved_actions = processor.load_action_configurations('test_validate_and_prepare_data_all_actions')
+                        saved_actions = processor.load_action_configurations(
+                            'test_validate_and_prepare_data_all_actions')
                         assert len(saved_actions['http_action']) == 4
                         assert len(saved_actions['slot_set_action']) == 3
                         assert len(saved_actions['form_validation_action']) == 4
@@ -3781,7 +4192,7 @@ class TestMongoProcessor:
         assert two_stage_fallback_action['name'] == "kairon_two_stage_fallback"
         assert two_stage_fallback_action['text_recommendations'] == {'count': 0, 'use_intent_ranking': True}
         assert two_stage_fallback_action['trigger_rules'] == [{'text': 'Hi', 'payload': 'greet',
-                                                                         'is_dynamic_msg': False}]
+                                                               'is_dynamic_msg': False}]
         assert two_stage_fallback_action['fallback_message'] \
                == "I could not understand you! Did you mean any of the suggestions below? " \
                   "Or else please rephrase your question."
@@ -3936,7 +4347,8 @@ class TestMongoProcessor:
         assert config == expected
 
     def test_save_component_properties_empty(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment["model"]["train"], "default_model_training_config_path", "./template/config/kairon-default.yml")
+        monkeypatch.setitem(Utility.environment["model"]["train"], "default_model_training_config_path",
+                            "./template/config/kairon-default.yml")
         processor = MongoProcessor()
         with pytest.raises(AppException) as e:
             processor.save_component_properties({}, 'test_properties_empty', 'test')
@@ -3972,7 +4384,7 @@ class TestMongoProcessor:
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
         expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
-                     'action_fallback_threshold': 0.5, 'ted_epochs': None, 'nlu_epochs': 50, 'response_epochs': 100}
+                    'action_fallback_threshold': 0.5, 'ted_epochs': None, 'nlu_epochs': 50, 'response_epochs': 100}
         processor = MongoProcessor()
         actual = processor.list_epoch_and_fallback_config('test_list_component_not_exists')
         assert actual == expected
@@ -5885,7 +6297,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        action = {'name': 'action_set_name_slot',
+                  'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
         processor.add_slot_set_action(action, bot, user)
         assert Actions.objects(name='action_set_name_slot', type=ActionType.slot_set_action.value,
                                bot=bot, user=user, status=True).get()
@@ -5896,7 +6309,8 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         Slots(name='location', type='text', bot=bot, user=user).save()
-        action = {'name': 'action_set_location_slot', 'set_slots': [{'name': 'location', 'type': SLOT_SET_TYPE.RESET_SLOT.value}]}
+        action = {'name': 'action_set_location_slot',
+                  'set_slots': [{'name': 'location', 'type': SLOT_SET_TYPE.RESET_SLOT.value}]}
         processor.add_slot_set_action(action, bot, user)
         assert Actions.objects(name='action_set_location_slot', type=ActionType.slot_set_action.value,
                                bot=bot, user=user, status=True).get()
@@ -5927,11 +6341,13 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_slot_name', 'set_slots': [{'name': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        action = {'name': 'action_set_slot_name',
+                  'set_slots': [{'name': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
         with pytest.raises(AppException, match='slot name cannot be empty or spaces'):
             processor.add_slot_set_action(action, bot, user)
 
-        action = {'name': 'action_set_slot_name', 'set_slots': [{'name': None, 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+        action = {'name': 'action_set_slot_name',
+                  'set_slots': [{'name': None, 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
         with pytest.raises(AppException, match='slot name cannot be empty or spaces'):
             processor.add_slot_set_action(action, bot, user)
 
@@ -5940,7 +6356,8 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         action = {'name': 'action_set_slot_non_existant', 'set_slots': [{'name': 'non_existant',
-                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+                                                                         'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                                                                         'value': '5'}]}
         with pytest.raises(AppException, match='Slot with name "non_existant" not found'):
             processor.add_slot_set_action(action, bot, user)
 
@@ -5950,7 +6367,8 @@ class TestMongoProcessor:
         user = 'test'
         Actions(name='action_trigger_some_api', bot=bot, user=user).save()
         action = {'name': 'action_trigger_some_api', 'set_slots': [{'name': 'some_api',
-                  'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '5'}]}
+                                                                    'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                                                                    'value': '5'}]}
         with pytest.raises(AppException, match='Action exists!'):
             processor.add_slot_set_action(action, bot, user)
 
@@ -5991,8 +6409,9 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         Slots(name='name_new', type='text', bot=bot, user=user).save()
-        action = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'name_new', 'type': SLOT_SET_TYPE.RESET_SLOT.value,
-                  'value': 'name'}]}
+        action = {'name': 'action_set_name_slot',
+                  'set_slots': [{'name': 'name_new', 'type': SLOT_SET_TYPE.RESET_SLOT.value,
+                                 'value': 'name'}]}
         processor.edit_slot_set_action(action, bot, user)
         assert Actions.objects(name='action_set_name_slot', type=ActionType.slot_set_action.value,
                                bot=bot, user=user, status=True).get()
@@ -6002,8 +6421,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_non_existant', 'set_slots': [{'name': 'name_new', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                  'value': 'name'}]}
+        action = {'name': 'action_non_existant',
+                  'set_slots': [{'name': 'name_new', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                                 'value': 'name'}]}
         with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
             processor.edit_slot_set_action(action, bot, user)
 
@@ -6011,8 +6431,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
-        action = {'name': 'action_set_name_slot', 'set_slots': [{'name': 'slot_non_existant', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                  'value': 'name'}]}
+        action = {'name': 'action_set_name_slot',
+                  'set_slots': [{'name': 'slot_non_existant', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
+                                 'value': 'name'}]}
         with pytest.raises(AppException, match=f'Slot with name "slot_non_existant" not found'):
             processor.edit_slot_set_action(action, bot, user)
 
@@ -6021,7 +6442,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         action = {'name': ' ', 'set_slots': [{'name': 'name', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                  'value': 'name'}]}
+                                              'value': 'name'}]}
         with pytest.raises(AppException, match=f'Slot setting action with name "{action["name"]}" not found'):
             processor.edit_slot_set_action(action, bot, user)
 
@@ -6030,7 +6451,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         action = {'name': 'action_set_name_slot', 'set_slots': [{'name': ' ', 'type': SLOT_SET_TYPE.FROM_VALUE.value,
-                  'value': 'name'}]}
+                                                                 'value': 'name'}]}
         with pytest.raises(AppException, match="slot name cannot be empty or spaces"):
             processor.edit_slot_set_action(action, bot, user)
 
@@ -6558,7 +6979,7 @@ class TestMongoProcessor:
         assert jira_actions == [
             {'name': 'jira_action', 'url': 'https://test-digite.atlassian.net', 'user_name': 'test@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
-                           'value': 'ASDFGHJKL', 'parameter_type':'value'}, 'project_key': 'HEL', 'issue_type': 'Bug',
+                           'value': 'ASDFGHJKL', 'parameter_type': 'value'}, 'project_key': 'HEL', 'issue_type': 'Bug',
              'summary': 'new user',
              'response': 'We have logged a ticket'}]
 
@@ -6869,7 +7290,8 @@ class TestMongoProcessor:
         assert zendesk_actions == [
             {'name': 'zendesk_action', 'subdomain': 'digite756', 'user_name': 'udit.pandey@digite.com',
              'api_token': {'_cls': 'CustomActionRequestParameters', 'key': 'api_token', 'encrypt': False,
-                           'value': '123456789999', 'parameter_type': 'value'}, 'subject': 'new ticket', 'response': 'ticket filed here'}]
+                           'value': '123456789999', 'parameter_type': 'value'}, 'subject': 'new ticket',
+             'response': 'ticket filed here'}]
 
     def test_delete_zendesk_action(self):
         processor = MongoProcessor()
@@ -6991,11 +7413,13 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_pipedrive_actions(bot))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': '12345678'}
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                                           'key': 'api_token', 'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['domain'] == 'https://digite751.pipedrive.com/'
         assert actions[0]['response'] == 'I have failed to create lead for you'
         assert actions[0]['title'] == 'new lead'
-        assert actions[0]['metadata'] == {'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'}
+        assert actions[0]['metadata'] == {'name': 'name', 'org_name': 'organization', 'email': 'email',
+                                          'phone': 'phone'}
 
     def test_edit_pipedrive_leads_action_not_exists(self):
         processor = MongoProcessor()
@@ -7032,7 +7456,8 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_pipedrive_actions(bot, False))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': 'asdfghjklertyui'}
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                                           'key': 'api_token', 'parameter_type': 'value', 'value': 'asdfghjklertyui'}
         assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
         assert actions[0]['response'] == 'Failed to create lead for you'
         assert actions[0]['title'] == 'new lead generated'
@@ -7040,7 +7465,8 @@ class TestMongoProcessor:
 
         actions = list(processor.list_pipedrive_actions(bot, True))
         assert actions[0]['name'] == 'pipedrive_leads'
-        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_token', 'parameter_type': 'value', 'value': 'asdfghjklertyui'}
+        assert actions[0]['api_token'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False,
+                                           'key': 'api_token', 'parameter_type': 'value', 'value': 'asdfghjklertyui'}
         assert actions[0]['domain'] == 'https://digite7.pipedrive.com/'
         assert actions[0]['response'] == 'Failed to create lead for you'
         assert actions[0]['title'] == 'new lead generated'
@@ -7136,7 +7562,21 @@ class TestMongoProcessor:
         actions = list(processor.get_razorpay_action_config(bot))
         actions[0].pop("timestamp")
         actions[0].pop("_id")
-        assert actions == [{'name': 'razorpay_action', 'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False, 'value': 'API_KEY', 'parameter_type': 'key_vault'}, 'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret', 'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'}, 'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False, 'value': 'amount', 'parameter_type': 'slot'}, 'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False, 'value': 'INR', 'parameter_type': 'value'}, 'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False, 'parameter_type': 'sender_id'}, 'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False, 'parameter_type': 'sender_id'}, 'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False, 'value': 'contact', 'parameter_type': 'slot'}}]
+        assert actions == [{'name': 'razorpay_action',
+                            'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
+                                        'value': 'API_KEY', 'parameter_type': 'key_vault'},
+                            'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret',
+                                           'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'},
+                            'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
+                                       'value': 'amount', 'parameter_type': 'slot'},
+                            'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
+                                         'value': 'INR', 'parameter_type': 'value'},
+                            'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False,
+                                         'parameter_type': 'sender_id'},
+                            'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
+                                      'parameter_type': 'sender_id'},
+                            'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
+                                        'value': 'contact', 'parameter_type': 'slot'}}]
 
     def test_list_razorpay_action_with_false(self):
         processor = MongoProcessor()
@@ -7144,7 +7584,21 @@ class TestMongoProcessor:
         actions = list(processor.get_razorpay_action_config(bot, False))
         actions[0].pop("timestamp")
         assert actions[0].get("_id") is None
-        assert actions == [{'name': 'razorpay_action', 'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False, 'value': 'API_KEY', 'parameter_type': 'key_vault'}, 'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret', 'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'}, 'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False, 'value': 'amount', 'parameter_type': 'slot'}, 'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False, 'value': 'INR', 'parameter_type': 'value'}, 'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False, 'parameter_type': 'sender_id'}, 'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False, 'parameter_type': 'sender_id'}, 'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False, 'value': 'contact', 'parameter_type': 'slot'}}]
+        assert actions == [{'name': 'razorpay_action',
+                            'api_key': {'_cls': 'CustomActionRequestParameters', 'key': 'api_key', 'encrypt': False,
+                                        'value': 'API_KEY', 'parameter_type': 'key_vault'},
+                            'api_secret': {'_cls': 'CustomActionRequestParameters', 'key': 'api_secret',
+                                           'encrypt': False, 'value': 'API_SECRET', 'parameter_type': 'kay_vault'},
+                            'amount': {'_cls': 'CustomActionRequestParameters', 'key': 'amount', 'encrypt': False,
+                                       'value': 'amount', 'parameter_type': 'slot'},
+                            'currency': {'_cls': 'CustomActionRequestParameters', 'key': 'currency', 'encrypt': False,
+                                         'value': 'INR', 'parameter_type': 'value'},
+                            'username': {'_cls': 'CustomActionRequestParameters', 'key': 'username', 'encrypt': False,
+                                         'parameter_type': 'sender_id'},
+                            'email': {'_cls': 'CustomActionRequestParameters', 'key': 'email', 'encrypt': False,
+                                      'parameter_type': 'sender_id'},
+                            'contact': {'_cls': 'CustomActionRequestParameters', 'key': 'contact', 'encrypt': False,
+                                        'value': 'contact', 'parameter_type': 'slot'}}]
 
     def test_edit_razorpay_action_not_exists(self):
         processor = MongoProcessor()
@@ -7383,12 +7837,17 @@ class TestMongoProcessor:
         actual_http_action.pop("timestamp")
         actual_http_action = json.loads(json.dumps(actual_http_action))
         assert actual_http_action is not None
-        assert actual_http_action == {'action_name': 'test_add_http_action_config_no_response', 'http_url': 'http://www.google.com',
+        assert actual_http_action == {'action_name': 'test_add_http_action_config_no_response',
+                                      'http_url': 'http://www.google.com',
                                       'request_method': 'GET', 'content_type': 'json', 'params_list': [
-                {'_cls': 'HttpActionRequestBody', 'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                {'_cls': 'HttpActionRequestBody', 'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}], 'headers': [
-                {'_cls': 'HttpActionRequestBody', 'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                {'_cls': 'HttpActionRequestBody', 'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': False}],
+                {'_cls': 'HttpActionRequestBody', 'key': 'param1', 'value': 'param1', 'parameter_type': 'slot',
+                 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'param2', 'value': 'value2', 'parameter_type': 'value',
+                 'encrypt': False}], 'headers': [
+                {'_cls': 'HttpActionRequestBody', 'key': 'param3', 'value': 'param1', 'parameter_type': 'slot',
+                 'encrypt': False},
+                {'_cls': 'HttpActionRequestBody', 'key': 'param4', 'value': 'value2', 'parameter_type': 'value',
+                 'encrypt': False}],
                                       'response': {'dispatch': False, 'evaluation_type': 'script'}, 'set_slots': [
                 {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                 {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
@@ -7425,7 +7884,8 @@ class TestMongoProcessor:
         config.pop("timestamp")
         config = json.loads(json.dumps(config))
         assert config == {'action_name': 'test_add_http_action_config_complete_data',
-                          'http_url': 'http://www.google.com', 'request_method': 'GET', 'content_type': 'application/x-www-form-urlencoded',
+                          'http_url': 'http://www.google.com', 'request_method': 'GET',
+                          'content_type': 'application/x-www-form-urlencoded',
                           'params_list': [
                               {'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
                               {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True}],
@@ -7489,7 +7949,8 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="response is required for dispatch"):
             processor.add_http_action_config(http_dict, user, bot)
         http_dict['response']['value'] = "Action executed"
-        http_dict['params_list'].append({"key": "Access_key", "value": "  ", "parameter_type":"key_vault", "encrypt": False})
+        http_dict['params_list'].append(
+            {"key": "Access_key", "value": "  ", "parameter_type": "key_vault", "encrypt": False})
         with pytest.raises(ValidationError, match="Provide key from key vault as value"):
             processor.add_http_action_config(http_dict, user, bot)
 
@@ -7757,13 +8218,14 @@ class TestMongoProcessor:
         config.pop("timestamp")
         config = json.loads(json.dumps(config))
         assert config == {'action_name': 'test_update_http_config', 'http_url': 'http://www.alphabet.com',
-                          'request_method': 'POST', 'content_type': 'application/x-www-form-urlencoded', 'params_list': [
-                {'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
-                {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True},
-                {'key': 'param5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
-                {'key': 'param6', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
-                {'key': 'param7', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
-                {'key': 'param8', 'value': '', 'parameter_type': 'intent', 'encrypt': False}],
+                          'request_method': 'POST', 'content_type': 'application/x-www-form-urlencoded',
+                          'params_list': [
+                              {'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
+                              {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True},
+                              {'key': 'param5', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
+                              {'key': 'param6', 'value': '', 'parameter_type': 'user_message', 'encrypt': False},
+                              {'key': 'param7', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
+                              {'key': 'param8', 'value': '', 'parameter_type': 'intent', 'encrypt': False}],
                           'headers': [{'key': 'param1', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
                                       {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True},
                                       {'key': 'param3', 'value': '', 'parameter_type': 'sender_id', 'encrypt': False},
@@ -7877,9 +8339,11 @@ class TestMongoProcessor:
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
         print(actions)
-        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
+        assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+                           'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
-                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'kairon_bot_response': [],
+                           'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
+                           'kairon_bot_response': [],
                            'razorpay_action': [], 'kairon_faq_action': ['gpt_llm_faq'],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
@@ -8017,24 +8481,31 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
-            },
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
-            },
+             "connections": [
+                 {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
             {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
-            },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
-                "connections": None
-            },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": [
+                 {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
              "connections": None
-            },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
-            }
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
         ]
 
         story_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -8077,7 +8548,8 @@ class TestMongoProcessor:
              }
         ]
 
-        story_dict = {'name': "story with same action name as intent", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "story with same action name as intent", 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, "test", "TestUser")
         story = MultiflowStories.objects(block_name="story with same action name as intent", bot="test").get()
         assert len(story.events) == 6
@@ -8086,27 +8558,35 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
-             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
              },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             "connections": [
+                 {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
             {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             "connections": [
+                 {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
              }
         ]
 
-        story_dict = {'name': "story with same flow events", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "story with same flow events", 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         with pytest.raises(AppException, match="Story flow already exists!"):
             processor.add_multiflow_story(story_dict, "test", "TestUser")
 
@@ -8114,33 +8594,44 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63sKhFlHTZCgTyY6aCi34T6P"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63ybbEJli191Ey3ek2XML6Po"}]
-            },
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63ybbEJli191Ey3ek2XML6Po"}]
+             },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63ybbEJli191Ey3ek2XML6Po"},
-                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "63LamdXLIvKT4A1Lo8Nrlgso"},
-                                {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "63jwAHaBHS7qMWZiGTOgX2V1"}]
-            },
-            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "63jwAHaBHS7qMWZiGTOgX2V1"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "63kn8FkXZajTdGwrSbOgVnpg"}]
-            },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "63kn8FkXZajTdGwrSbOgVnpg"},
-                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63ovTDWUJ7gP5IlhhRNmc327"}]
-            },
+             "connections": [
+                 {"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "63LamdXLIvKT4A1Lo8Nrlgso"},
+                 {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "63jwAHaBHS7qMWZiGTOgX2V1"}]
+             },
+            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "4",
+                      "component_id": "63jwAHaBHS7qMWZiGTOgX2V1"},
+             "connections": [
+                 {"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "63kn8FkXZajTdGwrSbOgVnpg"}]
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "5",
+                      "component_id": "63kn8FkXZajTdGwrSbOgVnpg"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                              "component_id": "63ovTDWUJ7gP5IlhhRNmc327"}]
+             },
             {"step": {"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "63LamdXLIvKT4A1Lo8Nrlgso"},
-             "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "7", "component_id": "63DVHaMnngGY70EUgG9ATwVF"}]
-            },
+             "connections": [
+                 {"name": "goodbye", "type": "INTENT", "node_id": "7", "component_id": "63DVHaMnngGY70EUgG9ATwVF"}]
+             },
             {"step": {"name": "goodbye", "type": "INTENT", "node_id": "7", "component_id": "63DVHaMnngGY70EUgG9ATwVF"},
-                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "8", "component_id": "632hGiC1QFwtD48CH5VWXOjH"}]
-            },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63ovTDWUJ7gP5IlhhRNmc327"},
+             "connections": [
+                 {"name": "utter_goodbye", "type": "BOT", "node_id": "8", "component_id": "632hGiC1QFwtD48CH5VWXOjH"}]
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                      "component_id": "63ovTDWUJ7gP5IlhhRNmc327"},
              "connections": None
-            },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "8", "component_id": "632hGiC1QFwtD48CH5VWXOjH"},
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "8",
+                      "component_id": "632hGiC1QFwtD48CH5VWXOjH"},
              "connections": None
-            }
+             }
         ]
 
-        story_dict = {'name': "story with multiple actions", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "story with multiple actions", 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, "test", "TestUser")
         story = MultiflowStories.objects(block_name="story with multiple actions", bot="test").get()
         assert len(story.events) == 8
@@ -8149,27 +8640,27 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ppooakak"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"}]
-            },
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"}]
+             },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
-                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
-                                {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"}]
-            },
+             "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+                             {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"}]
+             },
             {"step": {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"},
-                "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"}]
-            },
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"}]
+             },
             {"step": {"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"},
-                "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
-            },
+             "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
+             },
             {"step": {"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
              "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
-            },
+             },
             {"step": {"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"},
-                "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"}]
-            },
+             "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"}]
+             },
             {"step": {"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"},
              "connections": None
-            }
+             }
         ]
 
         with pytest.raises(AppException, match="Story cannot contain cycle!"):
@@ -8198,11 +8689,12 @@ class TestMongoProcessor:
              "connections": None
              },
             {"step": {"name": "more_queriesss", "type": "INTENT", "node_id": "4", "component_id": "ppooakak"},
-             "connections": [{"name": "utter_more_queriesss", "type": "BOT", "node_id": "7", "component_id": "ppooakak"}]
-            },
+             "connections": [
+                 {"name": "utter_more_queriesss", "type": "BOT", "node_id": "7", "component_id": "ppooakak"}]
+             },
             {"step": {"name": "utter_heyyy", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
              "connections": None
-            }
+             }
         ]
 
         with pytest.raises(AppException, match="Intent can only have one connection of action type"):
@@ -8214,27 +8706,34 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63ue2YkCdcVmnU0L7Q8wCjnc"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"}]
-            },
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"}]
+             },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"},
-                "connections": [{"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
-                                {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"}]
-            },
+             "connections": [
+                 {"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
+                 {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"}]
+             },
             {"step": {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"},
-                "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"}]
-            },
+             "connections": [
+                 {"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"}]
+             },
             {"step": {"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"},
-                "connections": [{"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
-            },
-            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"},
+             "connections": [
+                 {"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
+             },
+            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "6",
+                      "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"},
              "connections": None
-            },
+             },
             {"step": {"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
-                "connections": [{"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
-            }
+             "connections": [
+                 {"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
+             }
         ]
 
-        story_dict = {'name': "story with connected nodes", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "story with connected nodes", 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         pytest.multiflow_story_id = processor.add_multiflow_story(story_dict, "test", "TestUser")
         story = MultiflowStories.objects(block_name="story with connected nodes", bot="test").get()
         assert len(story.events) == 6
@@ -8270,39 +8769,41 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
-            },
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+             },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
-                "connections": None
-            },
+             "connections": None
+             },
             {"step": {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
-            },
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+             },
         ]
 
         with pytest.raises(AppException, match="Story cannot have multiple sources!"):
-            story_dict = {'name': 'story with multiple source node', 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            story_dict = {'name': 'story with multiple source node', 'steps': steps, 'type': 'MULTIFLOW',
+                          'template_type': 'CUSTOM'}
             processor.add_multiflow_story(story_dict, "tests", "testUser")
 
     def test_add_multiflow_story_connected_steps(self):
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
-                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
-            },
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+             },
             {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
-                "connections": None
-            },
+             "connections": None
+             },
             {"step": {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
-                "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"}]
-            },
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"}]
+             },
             {"step": {"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"},
              "connections": None
-            },
+             },
         ]
 
         with pytest.raises(AppException, match="All steps must be connected!"):
-            story_dict = {'name': 'story with no connected steps', 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            story_dict = {'name': 'story with no connected steps', 'steps': steps, 'type': 'MULTIFLOW',
+                          'template_type': 'CUSTOM'}
             processor.add_multiflow_story(story_dict, "tests", "testUser")
 
     def test_add_empty_multiflow_story_name(self):
@@ -8369,23 +8870,30 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63TARMJ08PO7uSpktNcGIY9l"},
-             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"}]
+             "connections": [
+                 {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"}]
              },
             {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"}]
+             "connections": [
+                 {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
+                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"}]
              },
             {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"}]
+             "connections": [
+                 {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5",
+                      "component_id": "63tmj2qy4zQX2tflE4Pbhby9"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                      "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3",
+                      "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                              "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"}]
              }
         ]
         story_dict = {'name': "updated_story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -8399,27 +8907,35 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63TARMJ08PO7uSpktNcGIY9l"},
-             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"}]
+             "connections": [
+                 {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"}]
              },
             {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "63GU3Xjvf2wYX1XBKXzZkuzK"},
-             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
-                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"}]
+             "connections": [
+                 {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
+                 {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"}]
              },
             {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "63gso6SSgHYX7vLF6ghdq0Zy"},
-             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"}]
+             "connections": [
+                 {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"}]
              },
-            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "63tmj2qy4zQX2tflE4Pbhby9"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5",
+                      "component_id": "63tmj2qy4zQX2tflE4Pbhby9"},
              "connections": None
              },
-            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"},
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                      "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"},
              "connections": None
              },
-            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
-             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"}]
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3",
+                      "component_id": "63YbD6G7rrqVrAFt3N1IaXRC"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6",
+                              "component_id": "63Ff9XE3qlHN4UKH6jCsaTC2"}]
              }
         ]
 
-        story_dict = {'name': "story update with same flow events", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "story update with same flow events", 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
         processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
 
     def test_update_multiflow_story_with_same_events_with_different_story_id(self):
@@ -8481,11 +8997,13 @@ class TestMongoProcessor:
              "connections": None
              },
             {"step": {"name": "some_more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
-             "connections": [{"name": "utter_some_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
+             "connections": [
+                 {"name": "utter_some_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
              }
         ]
         with pytest.raises(AppException, match="Flow does not exists"):
-            story_dict = {'name': "non existing story conditional", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+            story_dict = {'name': "non existing story conditional", 'steps': steps, 'type': 'MULTIFLOW',
+                          'template_type': 'CUSTOM'}
             processor.update_multiflow_story("5e564fbcdcf0d5fad89e3acd", story_dict, "test")
 
     def test_update_multiflow_story_with_invalid_event(self):
@@ -8635,23 +9153,28 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         steps = [
             {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63K8PA5su49O7HQBDmSrgJXz"},
-             "connections": [{"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "63OgU8uyVaj0649DWx5VOSAk"}]
+             "connections": [
+                 {"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "63OgU8uyVaj0649DWx5VOSAk"}]
              },
             {"step": {"name": "utter_hi", "type": "BOT", "node_id": "2", "component_id": "63OgU8uyVaj0649DWx5VOSAk"},
-             "connections": [{"name": "status", "type": "INTENT", "node_id": "3", "component_id": "63KWJCwd8MUGVpNQWlKWhiTa"},
-                             {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "63aLcDfR8mIfWaiVSUwNQLa6"}]
+             "connections": [
+                 {"name": "status", "type": "INTENT", "node_id": "3", "component_id": "63KWJCwd8MUGVpNQWlKWhiTa"},
+                 {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "63aLcDfR8mIfWaiVSUwNQLa6"}]
              },
             {"step": {"name": "id", "type": "INTENT", "node_id": "4", "component_id": "63aLcDfR8mIfWaiVSUwNQLa6"},
-             "connections": [{"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "636lABcKF5Y6hoRvYOC4xPbv"}]
+             "connections": [
+                 {"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "636lABcKF5Y6hoRvYOC4xPbv"}]
              },
             {"step": {"name": "utter_id", "type": "BOT", "node_id": "5", "component_id": "636lABcKF5Y6hoRvYOC4xPbv"},
              "connections": None
              },
-            {"step": {"name": "utter_status", "type": "BOT", "node_id": "6", "component_id": "63sQZwlPiuydd8eVgIQwAmXw"},
+            {"step": {"name": "utter_status", "type": "BOT", "node_id": "6",
+                      "component_id": "63sQZwlPiuydd8eVgIQwAmXw"},
              "connections": None
              },
             {"step": {"name": "status", "type": "INTENT", "node_id": "3", "component_id": "63KWJCwd8MUGVpNQWlKWhiTa"},
-             "connections": [{"name": "utter_status", "type": "BOT", "node_id": "6", "component_id": "63sQZwlPiuydd8eVgIQwAmXw"}]
+             "connections": [
+                 {"name": "utter_status", "type": "BOT", "node_id": "6", "component_id": "63sQZwlPiuydd8eVgIQwAmXw"}]
              }
         ]
         story_dict = {"name": "a story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
@@ -9262,7 +9785,7 @@ class TestMongoProcessor:
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
-                        "to_email": ["test@test.com","test1@test.com"],
+                        "to_email": ["test@test.com", "test1@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -9376,7 +9899,7 @@ class TestMongoProcessor:
                         "smtp_userid": None,
                         "smtp_password": {'value': "test"},
                         "from_email": "test@demo.com",
-                        "to_email": ["test@test.com","test1@test.com"],
+                        "to_email": ["test@test.com", "test1@test.com"],
                         "subject": "Test Subject",
                         "response": "Test Response",
                         "tls": False
@@ -9534,7 +10057,8 @@ class TestMongoProcessor:
         actions = list(processor.list_google_search_actions(bot))
         actions[0].pop('_id')
         assert actions[0]['name'] == 'google_custom_search'
-        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '12345678'}
+        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key',
+                                         'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['search_engine_id'] == 'asdfg:123456'
         assert actions[0]['failure_response'] == 'I have failed to process your request'
         assert actions[0]['num_results'] == 1
@@ -9574,7 +10098,8 @@ class TestMongoProcessor:
         actions = list(processor.list_google_search_actions(bot, False))
         assert actions[0].get('_id') is None
         assert actions[0]['name'] == 'google_custom_search'
-        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', 'value': '1234567889'}
+        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key',
+                                         'parameter_type': 'value', 'value': '1234567889'}
         assert actions[0]['search_engine_id'] == 'asdfg:12345689'
         assert actions[0]['failure_response'] == 'Failed to perform search'
         assert actions[0]['num_results'] == 1
@@ -9615,7 +10140,8 @@ class TestMongoProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "action_hubspot_forms", "type": "HUBSPOT_FORMS_ACTION"},
         ]
-        story_dict = {'name': "story with hubspot form action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_dict = {'name': "story with hubspot form action", 'steps': steps, 'type': 'STORY',
+                      'template_type': 'CUSTOM'}
         story_id = processor.add_complex_story(story_dict, bot, user)
         story = Stories.objects(block_name="story with hubspot form action", bot=bot,
                                 events__name='action_hubspot_forms', status=True).get()
@@ -9706,10 +10232,15 @@ class TestMongoProcessor:
         assert actions[0]['name'] == 'action_hubspot_forms'
         assert actions[0]['portal_id'] == '123456785787'
         assert actions[0]['form_guid'] == 'asdfg:12345678787'
-        assert actions[0]['fields'] == [{'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                        {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                        {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
-                                        {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
+        assert actions[0]['fields'] == [
+            {'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot',
+             'encrypt': False},
+            {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot',
+             'encrypt': False},
+            {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value',
+             'encrypt': False},
+            {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot',
+             'encrypt': False}]
         assert actions[0]['response'] == 'Hubspot Form submitted'
 
     def test_list_hubspot_forms_action_with_false(self):
@@ -9720,10 +10251,15 @@ class TestMongoProcessor:
         assert actions[0]['name'] == 'action_hubspot_forms'
         assert actions[0]['portal_id'] == '123456785787'
         assert actions[0]['form_guid'] == 'asdfg:12345678787'
-        assert actions[0]['fields'] == [{'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                        {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot', 'encrypt': False},
-                                        {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value', 'encrypt': False},
-                                        {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot', 'encrypt': False}]
+        assert actions[0]['fields'] == [
+            {'_cls': 'HttpActionRequestBody', 'key': 'email', 'value': 'email_slot', 'parameter_type': 'slot',
+             'encrypt': False},
+            {'_cls': 'HttpActionRequestBody', 'key': 'fullname', 'value': 'fullname_slot', 'parameter_type': 'slot',
+             'encrypt': False},
+            {'_cls': 'HttpActionRequestBody', 'key': 'company', 'value': 'digite', 'parameter_type': 'value',
+             'encrypt': False},
+            {'_cls': 'HttpActionRequestBody', 'key': 'phone', 'value': 'phone_slot', 'parameter_type': 'slot',
+             'encrypt': False}]
         assert actions[0]['response'] == 'Hubspot Form submitted'
 
     def test_delete_hubspot_forms_action(self):
@@ -9835,8 +10371,9 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {"fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
                                        " Or else please rephrase your question.",
-                   "trigger_rules": [{"text": "Mail me", "payload": "greet", "message": "my payload", "is_dynamic_msg": True},
-                                     {"text": "Contact me", "payload": "call", "message": None, "is_dynamic_msg": False}]}
+                   "trigger_rules": [
+                       {"text": "Mail me", "payload": "greet", "message": "my payload", "is_dynamic_msg": True},
+                       {"text": "Contact me", "payload": "call", "message": None, "is_dynamic_msg": False}]}
         processor.add_intent("greet", bot, user, False)
         processor.add_intent("call", bot, user, False)
         processor.add_two_stage_fallback_action(request, bot, user)
@@ -9887,8 +10424,9 @@ class TestMongoProcessor:
         user = 'test_user'
         request = {"fallback_message": "I could not understand you! Did you mean any of the suggestions below?"
                                        " Or else please rephrase your question.",
-                   "trigger_rules": [{"text": "Mail me", "payload": "send_mail", 'message': 'my payload', 'is_dynamic_msg': False},
-                                     {"text": "Contact me", "payload": "call", "is_dynamic_msg": True}]}
+                   "trigger_rules": [
+                       {"text": "Mail me", "payload": "send_mail", 'message': 'my payload', 'is_dynamic_msg': False},
+                       {"text": "Contact me", "payload": "call", "is_dynamic_msg": True}]}
         processor.add_intent("send_mail", bot, user, False)
         processor.add_intent("call", bot, user, False)
         processor.edit_two_stage_fallback_action(request, bot, user)
@@ -10075,14 +10613,16 @@ class TestMongoProcessor:
             bot=bot,
             user=user
         ).save()
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_http_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_http_action']")):
             processor.delete_secret(key, bot)
 
         action = HttpActionConfig.objects(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
         action.params_list = []
         action.headers = http_params_list
         action.save()
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_http_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_http_action']")):
             processor.delete_secret(key, bot)
 
         action = HttpActionConfig.objects(action_name="test_delete_secret_attached_to_http_action", bot=bot).get()
@@ -10115,7 +10655,8 @@ class TestMongoProcessor:
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True):
             processor.add_email_action(email_config, bot, user)
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
             processor.delete_secret(key, bot)
 
         action = EmailActionConfig.objects(action_name="test_delete_secret_attached_to_email_action", bot=bot).get()
@@ -10123,7 +10664,8 @@ class TestMongoProcessor:
         action.smtp_password = smtp_userid_list
         with patch("kairon.shared.utils.SMTP", autospec=True):
             action.save()
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_email_action']")):
             processor.delete_secret(key, bot)
 
         action = EmailActionConfig.objects(action_name="test_delete_secret_attached_to_email_action", bot=bot).get()
@@ -10150,7 +10692,8 @@ class TestMongoProcessor:
             'failure_response': 'I have failed to process your request',
         }
         processor.add_google_search_action(action, bot, user)
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_google_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_google_action']")):
             processor.delete_secret(key, bot)
 
         action = GoogleSearchAction.objects(name="test_delete_secret_attached_to_google_action", bot=bot).get()
@@ -10180,7 +10723,8 @@ class TestMongoProcessor:
 
         with patch('kairon.shared.actions.data_objects.JiraAction.validate', new=_mock_validation):
             processor.add_jira_action(action, bot, user)
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_jira_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_jira_action']")):
             processor.delete_secret(key, bot)
 
         action = JiraAction.objects(name="test_delete_secret_attached_to_jira_action", bot=bot).get()
@@ -10208,7 +10752,8 @@ class TestMongoProcessor:
 
         with patch('kairon.shared.actions.data_objects.ZendeskAction.validate', new=_mock_validation):
             processor.add_zendesk_action(action, bot, user)
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_zendesk_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_zendesk_action']")):
             processor.delete_secret(key, bot)
 
         action = ZendeskAction.objects(name="test_delete_secret_attached_to_zendesk_action", bot=bot).get()
@@ -10241,7 +10786,8 @@ class TestMongoProcessor:
 
         with patch('kairon.shared.actions.data_objects.PipedriveLeadsAction.validate', new=_mock_validation):
             processor.add_pipedrive_action(action, bot, user)
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_pipedrivelead_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_pipedrivelead_action']")):
             processor.delete_secret(key, bot)
 
         action = PipedriveLeadsAction.objects(name="test_delete_secret_attached_to_pipedrivelead_action", bot=bot).get()
@@ -10274,7 +10820,8 @@ class TestMongoProcessor:
 
         with patch('kairon.shared.actions.data_objects.HubspotFormsAction.validate', new=_mock_validation):
             processor.add_hubspot_forms_action(action, bot, user)
-        with pytest.raises(AppException, match=re.escape("Key is attached to action: ['test_delete_secret_attached_to_hubspot_action']")):
+        with pytest.raises(AppException, match=re.escape(
+                "Key is attached to action: ['test_delete_secret_attached_to_hubspot_action']")):
             processor.delete_secret(key, bot)
 
         action = HubspotFormsAction.objects(name="test_delete_secret_attached_to_hubspot_action", bot=bot).get()
@@ -10305,7 +10852,7 @@ class TestMongoProcessor:
             document_path='document/doc.pdf',
             status='Completed'
         )
-        log_one = processor.get_logs(bot,"training_data_generator", start_time, end_time)
+        log_one = processor.get_logs(bot, "training_data_generator", start_time, end_time)
         assert len(log_one) == 2
         ModelProcessor.set_training_status(bot, user, "Done")
         ModelProcessor.set_training_status(bot, user, "Done")
@@ -10356,7 +10903,8 @@ class TestMongoProcessor:
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            audit={"Bot_id": "test"}, user="test", timestamp=start_time - timedelta(days=366), action=AuditlogActions.SAVE.value,
+            audit={"Bot_id": "test"}, user="test", timestamp=start_time - timedelta(days=366),
+            action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
@@ -10377,8 +10925,10 @@ class TestMongoProcessor:
         file = UploadFile(filename="upload.csv", file=open("./tests/testing_data/upload_faq/upload.csv", "rb"))
         df = Utility.read_faq(file)
         component_count, error_summary = processor.save_faq(bot, user, df)
-        assert component_count == {'intents': 0, 'utterances': 5, 'stories': 0, 'rules': 0, 'training_examples': 5, 'domain': {'intents': 0, 'utterances': 0}}
-        assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces'], 'training_examples': ['Training Example cannot be empty or blank spaces:    ']}
+        assert component_count == {'intents': 0, 'utterances': 5, 'stories': 0, 'rules': 0, 'training_examples': 5,
+                                   'domain': {'intents': 0, 'utterances': 0}}
+        assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces'],
+                                 'training_examples': ['Training Example cannot be empty or blank spaces:    ']}
 
     def test_save_faq_xlsx(self):
         processor = MongoProcessor()
@@ -10387,8 +10937,11 @@ class TestMongoProcessor:
         file = UploadFile(filename="upload.xlsx", file=open("./tests/testing_data/upload_faq/upload.xlsx", "rb"))
         df = Utility.read_faq(file)
         component_count, error_summary = processor.save_faq(bot, user, df)
-        assert component_count == {'intents': 0, 'utterances': 5, 'stories': 0, 'rules': 0, 'training_examples': 5, 'domain': {'intents': 0, 'utterances': 0}}
-        assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces', 'Utterance already exists!'], 'training_examples': ['Training Example cannot be empty or blank spaces: ']}
+        assert component_count == {'intents': 0, 'utterances': 5, 'stories': 0, 'rules': 0, 'training_examples': 5,
+                                   'domain': {'intents': 0, 'utterances': 0}}
+        assert error_summary == {'intents': [], 'utterances': ['Utterance text cannot be empty or blank spaces',
+                                                               'Utterance already exists!'],
+                                 'training_examples': ['Training Example cannot be empty or blank spaces: ']}
 
     def test_save_faq_delete_data(self):
         processor = MongoProcessor()
@@ -10402,7 +10955,8 @@ class TestMongoProcessor:
         with patch("kairon.shared.data.processor.MongoProcessor.add_complex_story") as mock_failure:
             mock_failure.side_effect = __mock_exception
             component_count, error_summary = processor.save_faq(bot, user, df)
-        assert component_count == {'intents': 0, 'utterances': 1, 'stories': 0, 'rules': 0, 'training_examples': 1, 'domain': {'intents': 0, 'utterances': 0}}
+        assert component_count == {'intents': 0, 'utterances': 1, 'stories': 0, 'rules': 0, 'training_examples': 1,
+                                   'domain': {'intents': 0, 'utterances': 0}}
         assert error_summary == {'intents': [], 'utterances': ['Failed to add story'], 'training_examples': []}
 
     def test_validate_faq_training_file(self, monkeypatch):
@@ -10422,7 +10976,8 @@ class TestMongoProcessor:
         error_summary, component_count = DataUtility.validate_faq_training_data(bot, df)
         assert len(error_summary['utterances']) == 3
         assert len(error_summary['training_examples']) == 4
-        assert component_count == {'intents': 0, 'utterances': 8, 'stories': 0, 'rules': 0, 'training_examples': 10, 'domain': {'intents': 0, 'utterances': 0}}
+        assert component_count == {'intents': 0, 'utterances': 8, 'stories': 0, 'rules': 0, 'training_examples': 10,
+                                   'domain': {'intents': 0, 'utterances': 0}}
 
     def test_validate_faq_training_file_empty(self):
         bot = 'tests'
@@ -10537,7 +11092,6 @@ class TestMongoProcessor:
         content_id = '5349b4ddd2791d08c09890f3'
         with pytest.raises(AppException, match="Text already exists!"):
             processor.update_content(content_id, content, user, bot)
-        assert Actions.objects(name=KAIRON_FAQ_ACTION, bot=bot, type=ActionType.kairon_faq_action.value).get()
 
     def test_save_content_invalid(self):
         processor = MongoProcessor()
@@ -10604,8 +11158,9 @@ class TestMongoProcessor:
                   'application are tested in isolation to ensure that each unit functions as expected. '
         pytest.content_id = processor.save_content(content, user, bot)
         data = list(processor.get_content(bot))
-        assert data[0]['content'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
-                                    'software application are tested in isolation to ensure that each unit functions as expected. '
+        assert data[0][
+                   'content'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                                 'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['_id']
 
     def test_delete_content_for_action(self):
@@ -10613,8 +11168,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'testUser'
         processor.delete_content(pytest.content_id, user, bot)
-        with pytest.raises(DoesNotExist):
-            Actions.objects(bot=bot, type=ActionType.kairon_faq_action.value, status=True).get()
+
 
 class TestTrainingDataProcessor:
 
@@ -10941,7 +11495,6 @@ class TestModelProcessor:
         assert len(headers.keys()) == 1
         assert result.get("method") == "GET"
 
-
     def test_auditlog_for_chat_client_config(self):
         auditlog_data = list(AuditLogData.objects(audit__Bot_id='test', user='testUser', entity='ChatClientConfig'))
         assert len(auditlog_data) > 0
@@ -10951,15 +11504,17 @@ class TestModelProcessor:
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='save', entity='Intents'))
+        auditlog_data = list(
+            AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='save', entity='Intents'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
         assert auditlog_data[0].audit["Bot_id"] == "tests"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "Intents"
 
-        auditlog_data = list(AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='delete', entity='Intents'))
-        #No hard delete supported for intents
+        auditlog_data = list(
+            AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='delete', entity='Intents'))
+        # No hard delete supported for intents
         assert len(auditlog_data) == 0
 
     def test_get_auditlog_for_invalid_bot(self):
@@ -10979,7 +11534,8 @@ class TestModelProcessor:
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
         page_size = 100
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+                                                            page_size=page_size)
         assert len(auditlog_data) > 90
 
     def test_get_auditlog_for_bot_top_50(self):
@@ -10987,7 +11543,8 @@ class TestModelProcessor:
         from_date = datetime.utcnow().date() - timedelta(days=1)
         to_date = datetime.utcnow().date()
         page_size = 50
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+                                                            page_size=page_size)
         assert len(auditlog_data) == 50
 
     def test_get_auditlog_from_date_to_date_none(self):
@@ -10995,7 +11552,8 @@ class TestModelProcessor:
         from_date = None
         to_date = None
         page_size = 50
-        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date, page_size=page_size)
+        auditlog_data = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
+                                                            page_size=page_size)
         assert len(auditlog_data) == 50
 
     def test_edit_training_example_empty_or_blank(self):
@@ -11157,11 +11715,11 @@ class TestModelProcessor:
         processor.add_secret(key, value, bot, user)
 
         config = {
-             "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-             "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
-             "client_id": "3396830255712.3396861654876869879",
-             "client_secret": "cf92180a7634d90bf42a217408376878"
-         }
+            "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+            "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+            "client_id": "3396830255712.3396861654876869879",
+            "client_secret": "cf92180a7634d90bf42a217408376878"
+        }
         connector_type = "slack"
         meta_config = {}
 
