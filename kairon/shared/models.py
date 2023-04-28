@@ -80,3 +80,18 @@ class User(BaseModel):
         if self.is_integration_user:
             return True
         return False
+
+
+class LlmPromptSource(str, Enum):
+    static = "static"
+    slot = "slot"
+    action = "action"
+    history = "history"
+    tag = "tag"
+    bot_content = "bot_content"
+
+
+class LlmPromptType(str, Enum):
+    user = "user"
+    system = "system"
+    query = "query"

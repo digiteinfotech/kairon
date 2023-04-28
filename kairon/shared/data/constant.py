@@ -221,9 +221,12 @@ class LogType(str, Enum):
 class TrainingDataSourceType(str, Enum):
     website = "website"
     document = "document"
+
+
 class FeatureMappings(str, Enum):
     ONLY_SSO_LOGIN = "only_sso_login"
     CREATE_USER = "create_user"
+
 
 ORG_SETTINGS_MESSAGES = {
     "create_user": "User creation is blocked by your OrgAdmin from SSO",

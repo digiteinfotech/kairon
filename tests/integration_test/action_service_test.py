@@ -5260,6 +5260,17 @@ class TestActionServer(AsyncHTTPTestCase):
         user_msg = "What kind of language is python?"
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+            {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+             'type': 'query', 'source': 'static', 'is_enabled': False},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.', 'type': 'user', 'source': 'bot_content',
+             'is_enabled': True}
+        ]
         
         def __mock_search_cache(*args, **kwargs):
             return {'result': []}
@@ -5277,7 +5288,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, use_bot_responses=True, num_bot_responses=2).save()
+        KaironFaqAction(bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5297,12 +5308,12 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
+
         assert mock_completion.call_args.kwargs['messages'] == [
-            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
+            {'role': 'system', 'content': 'You are a personal assistant.\nAnswer question based on the context below.'},
             {'role': 'user', 'content': 'hello'},
             {'role': 'assistant', 'content': 'how are you'},
-            {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs. \n\nContext:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\n\n Q: What kind of language is python?\n A:'}]
+            {'role': 'user','content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: What kind of language is python?\n A:'}]
 
     @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
@@ -5320,8 +5331,20 @@ class TestActionServer(AsyncHTTPTestCase):
         user_msg = "What kind of language is python?"
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        query_prompt = "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language."
         rephrased_query = "Explain python is called high level programming language in laymen terms?"
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
+            {'name': 'Query Prompt',
+             'data': 'If there is no specific query, assume that user is aking about java programming.',
+             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}
+        ]
 
         def mock_completion_for_query_prompt(*args, **kwargs):
             return convert_to_openai_object(
@@ -5344,12 +5367,10 @@ class TestActionServer(AsyncHTTPTestCase):
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_completion.return_value = convert_to_openai_object(
-            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, use_query_prompt=True, query_prompt=query_prompt).save()
+        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5369,13 +5390,12 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
-        assert mock_completion.call_args.kwargs[
-                   'messages'] == [
-                   {"role": "system",
-                    "content": DEFAULT_SYSTEM_PROMPT},
-                   {"role": "user",
-                    "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{bot_content}\n\n Q: {rephrased_query}\n A:"}
-               ]
+        print(mock_completion.call_args.kwargs[
+                   'messages'])
+        assert mock_completion.call_args.kwargs['messages'] == [
+            {'role': 'system', 'content': 'You are a personal assistant.\nAnswer question based on the context below.'},
+            {'role': 'user',
+             'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}]
 
     @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
@@ -5442,6 +5462,12 @@ class TestActionServer(AsyncHTTPTestCase):
         user_msg = "What kind of language is python?"
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+        ]
 
         def mock_get_streaming_llm_response(*args, **kwargs):
             response = [OpenAIResponse({'choices': [{'delta': {'role': 'assistant'}, 'index': 0, 'finish_reason': None}]}, {}),
@@ -5482,7 +5508,7 @@ class TestActionServer(AsyncHTTPTestCase):
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         hyperparameters = Utility.get_llm_hyperparameters().copy()
         hyperparameters['stream'] = True
-        KaironFaqAction(bot=bot, user=user, hyperparameters=hyperparameters).save()
+        KaironFaqAction(bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5555,6 +5581,12 @@ class TestActionServer(AsyncHTTPTestCase):
         user_msg = "What kind of language is python?"
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+        ]
 
         def __mock_get_embedding(*args, **kwargs):
             return convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
@@ -5565,7 +5597,7 @@ class TestActionServer(AsyncHTTPTestCase):
                                                {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "what is python?", "response": "It is a programming language."}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg).save()
+        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5585,6 +5617,9 @@ class TestActionServer(AsyncHTTPTestCase):
                 {'text': 'python?', 'payload': 'python?'},
                 {'text': 'what is python?', 'payload': 'what is python?'}],
              'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="FAILURE").get()
+        assert log.exception == 'Connection reset by peer!'
+        assert log.is_from_cache
 
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
@@ -5601,13 +5636,19 @@ class TestActionServer(AsyncHTTPTestCase):
         user_msg = "What kind of language is python?"
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+        ]
 
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_search.return_value = {'result': [
             {'id': uuid7().__str__(), 'score': 1, 'payload': {'query': user_msg, "response": bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg).save()
+        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5637,8 +5678,13 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = "5f50fd0a56b698ca10d35d2eikh"
         user = "udit.pandey"
         user_msg = "What kind of language is python?"
-        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
+        ]
 
         def __mock_get_embedding(*args, **kwargs):
             return convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
@@ -5647,7 +5693,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_search.return_value = {'result': []}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message="Did you mean any of the following?").save()
+        KaironFaqAction(bot=bot, user=user, failure_message="Did you mean any of the following?", llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5690,7 +5736,7 @@ class TestActionServer(AsyncHTTPTestCase):
               'custom': {}, 'template': None,
                 'response': None, 'image': None, 'attachment': None}
              ])
-        log = ActionServerLogs.objects(type=ActionType.kairon_faq_action.value, status="FAILURE").get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="FAILURE").get()
         assert log['bot_response'] == 'Faq feature is disabled for the bot! Please contact support.'
         assert log['exception'] == 'Faq feature is disabled for the bot! Please contact support.'
 
@@ -5712,3 +5758,86 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(len(response_json['events']), 0)
         self.assertEqual(len(response_json['responses']), 0)
+
+    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_with_static_user_prompt(self, mock_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = KAIRON_FAQ_ACTION
+        bot = "5u80fd0a56b698ca10d35d2s"
+        user = "udit.pandey"
+        value = "keyvalue"
+        user_msg = "What kind of language is python?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Python Prompt',
+             'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Java Prompt',
+             'data': 'Java is a programming language and computing platform first released by Sun Microsystems in 1995.',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+             'is_enabled': True}
+        ]
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
+                OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        def __mock_search_cache(*args, **kwargs):
+            return {'result': []}
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        def __mock_cache_result(*args, **kwargs):
+            return {'result': []}
+
+        mock_completion.return_value = mock_completion_for_answer()
+
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_completion.return_value = convert_to_openai_object(
+            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
+                                               {'event': 'bot', "text": "how are you"}]
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+              'response': None, 'image': None, 'attachment': None}
+             ])
+        print(mock_completion.call_args.kwargs[
+                  'messages'])
+        assert mock_completion.call_args.kwargs['messages'] == [
+            {'role': 'system', 'content': 'You are a personal assistant.\nAnswer question based on the context below.'},
+            {'role': 'user',
+             'content': 'Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\n\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: What kind of language is python?\n A:'}]
+
