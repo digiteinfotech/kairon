@@ -35,7 +35,7 @@ class OpenAIClassifier(IntentClassifier):
         "retry": 3
     }
 
-    system_prompt = "You are an intent classifier. Based on the users prompt, you will classify the prompt to one of the intent if it is not from one of the stories you will classify it as nlu_fallback. Also provide the explanation why particular intent is classified."
+    system_prompt = "You are an intent classifier. Based on the users text, you will classify the text to one of the intent if it is not from one of the intent you will classify it as nlu_fallback, also provide the explanation for the classification."
 
     def __init__(
             self,
@@ -100,10 +100,8 @@ class OpenAIClassifier(IntentClassifier):
         messages = [
             {"role": "system", "content": self.system_prompt},
         ]
-        for i in indx[0]:
-            messages.append({"role": "user", "content": f"text: {self.data[i]['text']}"})
-            messages.append({"role": "assistant", "content": f"intent: {self.data[i]['intent']}"})
-        messages.append({"role": "user", "content": f"text: {text}"})
+        context = "\n\n".join( f"text: {self.data[i]['text']}\nintent: {self.data[i]['intent']}" for i in indx[0])
+        messages.append({"role": "user", "content": f"{self.system_prompt}\n\n{context}\n\ntext: {text}"})
         return messages
 
     def predict(self, text):
