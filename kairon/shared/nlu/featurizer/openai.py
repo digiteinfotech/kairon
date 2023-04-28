@@ -100,7 +100,7 @@ class OpenAIFeaturizer(DenseFeaturizer):
         """
         sentence_embeddings = []
         sequence_embeddings = []
-        for example in tqdm(batch_examples):
+        for example in batch_examples:
             text = example.get(attribute)
             tokens = example.get(TOKENS_NAMES[attribute])
 
@@ -166,22 +166,26 @@ class OpenAIFeaturizer(DenseFeaturizer):
             )
 
             batch_start_index = 0
-            while batch_start_index < len(non_empty_examples):
+            with tqdm(
+                    total=len(non_empty_examples),
+                    desc=f"Computing language model features for attribute '{attribute}'",
+            ) as pbar:
+                while batch_start_index < len(non_empty_examples):
 
-                batch_end_index = min(
-                    batch_start_index + batch_size, len(non_empty_examples)
-                )
-                # Collect batch examples
-                batch_messages = non_empty_examples[batch_start_index:batch_end_index]
+                    batch_end_index = min(
+                        batch_start_index + batch_size, len(non_empty_examples)
+                    )
+                    # Collect batch examples
+                    batch_messages = non_empty_examples[batch_start_index:batch_end_index]
 
-                # Construct a doc with relevant features
-                # extracted(tokens, dense_features)
-                batch_docs = self._get_docs_for_batch(batch_messages, attribute)
+                    # Construct a doc with relevant features
+                    # extracted(tokens, dense_features)
+                    batch_docs = self._get_docs_for_batch(batch_messages, attribute)
 
-                for index, ex in enumerate(batch_messages):
-                    print(index)
-                    self._set_lm_features(batch_docs[index], ex, attribute)
-                batch_start_index += batch_size
+                    for index, ex in enumerate(batch_messages):
+                        self._set_lm_features(batch_docs[index], ex, attribute)
+                        pbar.update(1)
+                    batch_start_index += batch_size
 
     def process(self, message: Message, **kwargs: Any) -> None:
         """Process an incoming message by computing its tokens and dense features.
