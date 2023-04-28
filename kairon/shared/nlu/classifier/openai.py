@@ -1,3 +1,4 @@
+import json
 import logging
 import typing
 from typing import Any, Dict, List, Optional, Text
@@ -35,7 +36,7 @@ class OpenAIClassifier(IntentClassifier):
         "retry": 3
     }
 
-    system_prompt = "You are an intent classifier. Based on the users text, you will classify the text to one of the intent if it is not from one of the intent you will classify it as nlu_fallback, also provide the explanation for the classification."
+    system_prompt = "You are an intent classifier. Based on the users text, you will classify the text to one of the intent if it is not from one of the intent you will classify it as nlu_fallback, also provide the explanation for the classification. Provide output in json format with the following keys intent, explanation, text."
 
     def __init__(
             self,
@@ -123,12 +124,10 @@ class OpenAIClassifier(IntentClassifier):
                     stop=["\n\n"],
                     api_key=self.api_key
                 )
-                intent = None
-                explanation = None
-                responses = response.choices[0]['message']['content'].split('\n')
-                intent = responses[0].split(':')[1].strip()
-                if len(responses) == 2:
-                    explanation = responses[1].split(':')[1].strip()
+                logger.debug(response)
+                responses = json.loads(response.choices[0]['message']['content'])
+                intent = responses['intent'] if "intent" in responses.keys() else None
+                explanation = responses['explanation'] if "explanation" in responses.keys() else None
                 break
             except TimeoutError as e:
                 logger.error(e)
