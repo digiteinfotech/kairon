@@ -489,7 +489,8 @@ class LlmPrompt(EmbeddedDocument):
     data = StringField()
     instructions = StringField()
     type = StringField(required=True, choices=[LlmPromptType.user.value, LlmPromptType.system.value, LlmPromptType.query.value])
-    source = StringField(choices=[LlmPromptSource.static.value, LlmPromptSource.history.value], default=LlmPromptSource.static.value)
+    source = StringField(choices=[LlmPromptSource.static.value, LlmPromptSource.history.value, LlmPromptSource.bot_content.value],
+                         default=LlmPromptSource.static.value)
     is_enabled = BooleanField(default=True)
 
     def validate(self, clean=True):

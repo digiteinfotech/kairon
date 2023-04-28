@@ -207,6 +207,12 @@ class TestLLM:
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         query = "What kind of language is python?"
 
+        k_faq_action_config = {
+            "system_prompt": "You are a personal assistant. Answer the question according to the below context",
+            "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
+            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+            'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.'}
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(
             OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
@@ -244,7 +250,7 @@ class TestLLM:
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
-            response = gpt3.predict(query)
+            response = gpt3.predict(query, **k_faq_action_config)
             hyperparameters = Utility.get_llm_hyperparameters()
 
             assert response['content'] == generated_text
@@ -258,9 +264,10 @@ class TestLLM:
                        hyperparameters.keys())
             assert mock_completion.call_args.kwargs[
                        'messages'] == [
-            {"role": "system",
-             "content": DEFAULT_SYSTEM_PROMPT},
-            {"role": "user", "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+                {'role': 'system',
+                 'content': 'You are a personal assistant. Answer the question according to the below context'},
+                {'role': 'user',
+                 'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}
         ]
 
     @responses.activate
@@ -281,7 +288,8 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70}
+            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.'}
 
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(
@@ -334,23 +342,21 @@ class TestLLM:
                        'messages'] == [
                        {"role": "system",
                         "content": "You are a personal assistant. Answer the question according to the below context"},
-                       {"role": "user",
-                        "content":
-                            f"Based on below context answer question, if answer not in context check previous logs."
-                            f" \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+                {'role': 'user',
+                 'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}
                    ]
-            assert gpt3.logs == [{'messages': [
-                {'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'},
-                {'role': 'user', 'content': 'Based on below context answer question, if answer not in context check previous logs. \n\nContext:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\n\n Q: What kind of language is python?\n A:'}],
-                 'raw_completion_response': {
-                     'choices': [{'message': {
-                         'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                         'role': 'assistant'}}]},
-                'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
-                                                            'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                                            'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                                            'frequency_penalty': 0.0, 'logit_bias': {}}},
-                {'message': 'Response added to cache', 'type': 'response_cached'}]
+            assert gpt3.logs == [{'messages': [{'role': 'system',
+                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
+                                               {'role': 'user',
+                                                'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}],
+                                  'raw_completion_response': {'choices': [{'message': {
+                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+                                      'role': 'assistant'}}]}, 'type': 'answer_query',
+                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                      'logit_bias': {}}},
+                                 {'message': 'Response added to cache', 'type': 'response_cached'}]
 
     @responses.activate
     @mock.patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
@@ -369,7 +375,8 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70}
+            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.'}
 
         def __mock_connection_error(*args, **kwargs):
             import openai
@@ -417,7 +424,7 @@ class TestLLM:
                 {'id': '5ec0694b-1c19-b8c6-c54d-1cdbff20ca64', 'score': 0.8,
                  'payload': {'query': 'What kind of language is python?',
                              'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}}]},
-                'is_from_cache': True}
+                'is_from_cache': True, 'exception': "Connection reset by peer!", 'is_failure': True}
 
             assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
             assert mock_embedding.call_args.kwargs['input'] == query
@@ -427,10 +434,8 @@ class TestLLM:
                        'messages'] == [
                        {"role": "system",
                         "content": "You are a personal assistant. Answer the question according to the below context"},
-                       {"role": "user",
-                        "content":
-                            f"Based on below context answer question, if answer not in context check previous logs."
-                            f" \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+                {'role': 'user',
+                 'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}
                    ]
             assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
 
@@ -448,7 +453,7 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70}
+            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True}
 
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
 
@@ -523,7 +528,7 @@ class TestLLM:
                 {'id': '5ec0694b-1c19-b8c6-c54d-1cdbff20ca64', 'score': 0.8,
                  'payload': {'query': 'What kind of language is python?',
                              'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}}]},
-                'is_from_cache': True}
+                'is_from_cache': True,  'exception': 'Connection reset by peer!', 'is_failure': True}
 
             assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
             assert mock_embedding.call_args.kwargs['input'] == query
@@ -546,7 +551,8 @@ class TestLLM:
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70}
+            "top_results": 10, "similarity_threshold": 0.70, 'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.', 'use_similarity_prompt': True}
 
         def __mock_connection_error(*args, **kwargs):
             import openai
@@ -590,7 +596,7 @@ class TestLLM:
 
             response = gpt3.predict(query, **k_faq_action_config)
 
-            assert response == {'content': {'result': []}, 'is_from_cache': True}
+            assert response == {'content': {'result': []}, 'is_from_cache': True,  'exception': 'Connection reset by peer!', 'is_failure': True}
 
             assert mock_embedding.call_args.kwargs['api_key'] == "knupur"
             assert mock_embedding.call_args.kwargs['input'] == query
@@ -600,10 +606,8 @@ class TestLLM:
                        'messages'] == [
                        {"role": "system",
                         "content": "You are a personal assistant. Answer the question according to the below context"},
-                       {"role": "user",
-                        "content":
-                            f"Based on below context answer question, if answer not in context check previous logs."
-                            f" \n\nContext:\n{test_content.data}\n\n Q: {query}\n A:"}
+                {'role': 'user',
+                 'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}
                    ]
             assert gpt3.logs == [
                 {'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
@@ -630,7 +634,8 @@ class TestLLM:
             "previous_bot_responses": [
                 {'role': 'user', 'content': 'hello'},
                 {'role': 'assistant', 'content': 'how are you'},
-            ]}
+            ], 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.'}
 
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(
@@ -683,7 +688,8 @@ class TestLLM:
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below'},
             {'role': 'user', 'content': 'hello'},
             {'role': 'assistant', 'content': 'how are you'},
-            {'role': 'user', 'content': 'Answer question based on the context below, if answer is not in the context go check previous logs. \n\nContext:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\n\n Q: What kind of language is python?\n A:'}
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}
         ]
 
     @responses.activate
@@ -706,7 +712,8 @@ class TestLLM:
         rephrased_query = "Explain python is called high level programming language in laymen terms?"
         k_faq_action_config = {
             "query_prompt": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-            "use_query_prompt": True
+            "use_query_prompt": True, 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.'
         }
 
         def mock_completion_for_query_prompt(*args, **kwargs):
@@ -774,6 +781,6 @@ class TestLLM:
                    'messages'] == [
                    {"role": "system",
                     "content": DEFAULT_SYSTEM_PROMPT},
-                   {"role": "user",
-                    "content": f"{DEFAULT_CONTEXT_PROMPT} \n\nContext:\n{test_content.data}\n\n Q: {rephrased_query}\n A:"}
+                    {'role': 'user',
+                        'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
                ]

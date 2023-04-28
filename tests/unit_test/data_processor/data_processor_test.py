@@ -412,6 +412,25 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only one bot_content source can be present!"):
             processor.add_kairon_faq_action(request, bot, user)
 
+    def test_add_kairon_with_no_system_prompts(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        request = {'llm_prompts': [
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+
+                                   {'name': 'Another Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                                   ],
+                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                   "similarity_threshold": 0.70, "num_bot_responses": 5}
+        with pytest.raises(ValidationError, match="System prompt is required!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
     def test_add_kairon_with_empty_llm_prompts(self):
         processor = MongoProcessor()
         bot = 'test_bot'

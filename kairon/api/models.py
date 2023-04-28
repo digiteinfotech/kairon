@@ -763,7 +763,7 @@ class LlmPromptRequest(BaseModel):
     data: str = None
     instructions: str = None
     type: LlmPromptType
-    source: LlmPromptSource 
+    source: LlmPromptSource
     is_enabled: bool = True
 
 

@@ -1433,11 +1433,9 @@ def test_add_kairon_with_empty_data_for_static_prompt():
 
 def test_add_kairon_with_empty_llm_prompt_instructions():
     action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': '', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+                                    'type': 'system', 'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'instructions': '',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',

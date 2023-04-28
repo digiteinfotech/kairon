@@ -1681,6 +1681,8 @@ class Utility:
                 bot_content_prompt_count += 1
         if system_prompt_count > 1:
             raise exception_class("Only one system prompt can be present!")
+        if system_prompt_count == 0:
+            raise exception_class("System prompt is required!")
         if history_prompt_count > 1:
             raise exception_class("Only one history source can be present!")
         if bot_content_prompt_count > 1:

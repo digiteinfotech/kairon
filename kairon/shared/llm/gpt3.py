@@ -191,8 +191,8 @@ class GPT3FAQEmbedding(LLMBase):
         use_similarity_prompt = kwargs.pop('use_similarity_prompt')
         similarity_prompt_name = kwargs.pop('similarity_prompt_name')
         similarity_prompt_instructions = kwargs.pop('similarity_prompt_instructions')
-        limit = kwargs.pop('top_results')
-        score_threshold = kwargs.pop('similarity_threshold')
+        limit = kwargs.pop('top_results', 10)
+        score_threshold = kwargs.pop('similarity_threshold', 0.70)
         if use_similarity_prompt:
             search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
                                                        limit=limit, score_threshold=score_threshold)
