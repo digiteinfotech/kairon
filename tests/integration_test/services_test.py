@@ -1180,7 +1180,21 @@ def test_get_kairon_faq_action_with_no_actions():
 
 
 def test_add_kairon_faq_action_with_invalid_similarity_threshold():
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
@@ -1188,15 +1202,30 @@ def test_add_kairon_faq_action_with_invalid_similarity_threshold():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', 'similarity_threshold'],
-                                  'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'similarity_threshold'], 'msg': 'similarity_threshold should be within 0.3 and 1',
+         'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
 
 
 def test_add_kairon_faq_action_with_invalid_top_results():
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
@@ -1204,6 +1233,7 @@ def test_add_kairon_faq_action_with_invalid_top_results():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'top_results'],
                                   'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1212,32 +1242,61 @@ def test_add_kairon_faq_action_with_invalid_top_results():
 
 
 def test_add_kairon_faq_action_with_invalid_query_prompt():
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
-              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
-              "use_query_prompt": True, "query_prompt": ""}
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'history', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'history', 'is_enabled': True}], 'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', '__root__'],
-                                  'msg': 'query_prompt is required', 'type': 'value_error'}]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
 
 
 def test_add_kairon_faq_action_with_invalid_num_bot_responses():
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
-              "use_query_prompt": False, "query_prompt": "", "num_bot_responses": 10}
+              "num_bot_responses": 10}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'num_bot_responses'],
                                   'msg': 'num_bot_responses should not be greater than 5', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1245,8 +1304,22 @@ def test_add_kairon_faq_action_with_invalid_num_bot_responses():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_empty_system_prompt():
-    action = {"system_prompt": "", "context_prompt": DEFAULT_CONTEXT_PROMPT,
+def test_add_kairon_faq_action_with_invalid_system_prompt_source():
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'history',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
@@ -1254,15 +1327,34 @@ def test_add_kairon_faq_action_with_empty_system_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', 'system_prompt'],
-                                  'msg': 'system_prompt is required', 'type': 'value_error'}]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'System prompt must have static source!', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_empty_context_prompt():
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": "",
+def test_add_kairon_faq_action_with_multiple_system_prompt():
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
@@ -1270,15 +1362,185 @@ def test_add_kairon_faq_action_with_empty_context_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', 'context_prompt'],
-                                  'msg': 'context_prompt is required', 'type': 'value_error'}]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'Only one system prompt can be present!', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_faq_action_with_empty_llm_prompt_name():
+    action = {'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'Name cannot be empty!', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_with_empty_data_for_static_prompt():
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': '', 'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'data is required for static prompts!', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_with_empty_llm_prompt_instructions():
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'type': 'system', 'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': '',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'instructions are required!', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_with_multiple_history_source_prompts():
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'Only one history source can be present!', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_kairon_with_multiple_bot_content_source_prompts():
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Another Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                                   ], 'num_bot_responses': 5,
+              "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'Only one bot_content source can be present!', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
 
 
 def test_add_kairon_faq_action_with_gpt_feature_disabled():
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
@@ -1297,7 +1559,21 @@ def test_add_kairon_faq_action(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
@@ -1305,6 +1581,7 @@ def test_add_kairon_faq_action(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == "Action Added Successfully"
     assert actual["data"]["_id"]
     pytest.action_id = actual["data"]["_id"]
@@ -1317,7 +1594,21 @@ def test_add_kairon_faq_action_already_exist(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/kairon_faq",
@@ -1325,6 +1616,7 @@ def test_add_kairon_faq_action_already_exist(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == "Action already exists!"
     assert not actual["data"]
     assert not actual["success"]
@@ -1332,7 +1624,21 @@ def test_add_kairon_faq_action_already_exist(monkeypatch):
 
 
 def test_update_kairon_faq_action_does_not_exist():
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/kairon_faq/61512cc2c6219f0aae7bba3d",
@@ -1340,6 +1646,7 @@ def test_update_kairon_faq_action_does_not_exist():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == "Action not found"
     assert not actual["data"]
     assert not actual["success"]
@@ -1347,7 +1654,21 @@ def test_update_kairon_faq_action_does_not_exist():
 
 
 def test_update_kairon_faq_action_with_invalid_similarity_threshold():
-    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 1.50}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
@@ -1355,6 +1676,7 @@ def test_update_kairon_faq_action_with_invalid_similarity_threshold():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'similarity_threshold'],
                                   'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1363,7 +1685,17 @@ def test_update_kairon_faq_action_with_invalid_similarity_threshold():
 
 
 def test_update_kairon_faq_action_with_invalid_top_results():
-    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming here.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
@@ -1371,6 +1703,7 @@ def test_update_kairon_faq_action_with_invalid_top_results():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'top_results'],
                                   'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1378,9 +1711,50 @@ def test_update_kairon_faq_action_with_invalid_top_results():
     assert actual["error_code"] == 422
 
 
+def test_update_kairon_faq_action_with_invalid_num_bot_responses():
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 50,
+              "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == [
+        {'loc': ['body', 'num_bot_responses'], 'msg': 'num_bot_responses should not be greater than 5',
+         'type': 'value_error'},
+        {'loc': ['body', 'top_results'], 'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
 def test_update_kairon_faq_action_with_invalid_query_prompt():
-    action = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'history', 'is_enabled': True},
+                                   ],
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
+              'num_bot_responses': 5,
               "use_query_prompt": True, "query_prompt": ""}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
@@ -1388,23 +1762,36 @@ def test_update_kairon_faq_action_with_invalid_query_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', '__root__'],
-                                  'msg': 'query_prompt is required', 'type': 'value_error'}]
+    print(actual["message"])
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
+                                  'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
 
 
 def test_update_kairon_faq_action_with_query_prompt_with_false():
-    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': False},
+                                   ],
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50,
-              "use_query_prompt": False, "query_prompt": ""}
+              'num_bot_responses': 5}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == 'Action updated!'
     assert not actual["data"]
     assert actual["success"]
@@ -1412,7 +1799,22 @@ def test_update_kairon_faq_action_with_query_prompt_with_false():
 
 
 def test_update_kairon_faq_action():
-    action = {"system_prompt": "updated_system_prompt", "context_prompt": "updated_context_prompt",
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+                                    'source': 'static',
+                                    'is_enabled': True},
+                                   {'name': 'Similarity_analytical Prompt',
+                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'If there is no specific query, assume that user is aking about java programming language,',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}],
+              'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
@@ -1420,6 +1822,7 @@ def test_update_kairon_faq_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["message"])
     assert actual["message"] == 'Action updated!'
     assert not actual["data"]
     assert actual["success"]
@@ -1436,19 +1839,27 @@ def test_get_kairon_faq_action():
     assert actual["error_code"] == 0
     assert not actual["message"]
     actual['data'][0].pop("_id")
-    assert actual["data"] == [{'name': 'kairon_faq_action', 'system_prompt': 'updated_system_prompt',
-                               'context_prompt': 'updated_context_prompt', 'failure_message': 'updated_failure_message',
-                               "top_results": 9, "similarity_threshold": 0.50, 'use_bot_responses': False,
-                               "use_query_prompt": False, 'num_bot_responses': 5, 'hyperparameters': {'temperature': 0.0,
-                                                                                                      'max_tokens': 300,
-                                                                                                      'model': 'gpt-3.5-turbo',
-                                                                                                      'top_p': 0.0,
-                                                                                                      'n': 1,
-                                                                                                      'stream': False,
-                                                                                                      'stop': None,
-                                                                                                      'presence_penalty': 0.0,
-                                                                                                      'frequency_penalty': 0.0,
-                                                                                                      'logit_bias': {}}}]
+    print(actual["data"])
+    assert actual["data"] == [
+        {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
+         'failure_message': 'updated_failure_message',
+         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                             'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                             'logit_bias': {}}, 'llm_prompts': [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity_analytical Prompt',
+              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Query Prompt',
+             'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Query Prompt',
+              'data': 'If there is no specific query, assume that user is aking about java programming language,',
+                'instructions': 'Answer according to the context', 'type': 'query',
+                 'source': 'static', 'is_enabled': True}]}]
 
 
 def test_delete_kairon_faq_action_not_exists():
@@ -9802,7 +10213,8 @@ def test_add_form_case_insensitivity():
 
 
 def test_add_slot_set_action_case_insensitivity():
-    request = {'name': 'CASE_INSENSITIVE_SLOT_SET_ACTION', 'set_slots': [{'name': 'name', 'type': 'from_value', 'value': 5}]}
+    request = {'name': 'CASE_INSENSITIVE_SLOT_SET_ACTION',
+               'set_slots': [{'name': 'name', 'type': 'from_value', 'value': 5}]}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/slotset",
         json=request,
@@ -10130,7 +10542,7 @@ def test_add_email_action_from_different_parameter_type(mock_smtp):
                "smtp_userid": None,
                "smtp_password": {'value': "test", "parameter_type": "slot"},
                "from_email": "test@demo.com",
-               "to_email": ["test@test.com","test1@test.com"],
+               "to_email": ["test@test.com", "test1@test.com"],
                "subject": "Test Subject",
                "response": "Test Response",
                "tls": False
@@ -11154,7 +11566,8 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', '__root__'], 'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config",
+        {'loc': ['body', '__root__'],
+         'msg': "Missing ['bot_user_oAuth_token', 'slack_signing_secret', 'client_id', 'client_secret'] all or any in config",
          'type': 'value_error'}]
 
     data = {"connector_type": "slack",
@@ -11504,7 +11917,9 @@ def test_broadcast_config_error():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'recurrence interval must be at least 86340 seconds!', 'type': 'value_error'}]
+    assert actual["message"] == [
+        {'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'recurrence interval must be at least 86340 seconds!',
+         'type': 'value_error'}]
 
     config["scheduler_config"] = {
             "expression_type": "cron",
@@ -11665,7 +12080,7 @@ def test_list_broadcast_():
         {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
          'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
             {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
-             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'bot': pytest.bot, 'status': True,}]}
+             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'bot': pytest.bot, 'status': True, }]}
 
 
 def test_list_broadcast_logs():
@@ -12802,7 +13217,8 @@ def test_get_fields_for_integrated_actions():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]['pipedrive'] == {'required_fields': ['name'], 'optional_fields': ['org_name', 'email', 'phone']}
+    assert actual["data"]['pipedrive'] == {'required_fields': ['name'],
+                                           'optional_fields': ['org_name', 'email', 'phone']}
 
 
 def test_channels_params():
@@ -12834,6 +13250,7 @@ def test_get_channel_endpoint_not_configured():
 def test_add_asset(monkeypatch):
     def __mock_file_upload(*args, **kwargs):
         return 'https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml'
+
     monkeypatch.setattr(CloudUtility, "upload_file", __mock_file_upload)
     monkeypatch.setitem(Utility.environment['storage']['assets'], 'allowed_extensions', ['.yml'])
 
@@ -13815,6 +14232,7 @@ def test_get_auditlog_for_user_1():
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
     assert actual["data"][0]["audit"]["Bot_id"] is not None
 
+
 def test_get_auditlog_for_bot():
     from_date = datetime.utcnow().date() - timedelta(days=1)
     to_date = datetime.utcnow().date() + timedelta(days=1)
@@ -14024,6 +14442,7 @@ def test_get_organization_after_update():
     assert result['data'] is not None
     assert result['data']["name"] == "updated_sample"
     assert result['data']["user"] == "integration1234567890@demo.ai"
+
 
 @responses.activate
 def test_delete_organization(monkeypatch):
@@ -14334,6 +14753,7 @@ def test_allowed_origin(monkeypatch):
                                 'access-control-expose-headers': 'content-disposition',
                                 }
 
+
 def test_allow_only_sso_login(monkeypatch):
     user = "test@demo.in"
     organization = "new_test"
@@ -14348,6 +14768,7 @@ def test_allow_only_sso_login(monkeypatch):
     actual = response.json()
     assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"
 
+
 def test_idp_callback(monkeypatch):
     def _validate_org_settings(*args, **kwargs):
         return
@@ -14356,6 +14777,7 @@ def test_idp_callback(monkeypatch):
         return {"email": "new_idp_user@demo.in",
                 "given_name": "test",
                 "family_name": "user"}
+
     monkeypatch.setattr(IDPProcessor, 'get_idp_token', _get_idp_token)
     monkeypatch.setattr(OrgProcessor, "validate_org_settings", _validate_org_settings)
 
@@ -14395,4 +14817,3 @@ def test_list_system_metadata():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert len(actual["data"]) == 16
-

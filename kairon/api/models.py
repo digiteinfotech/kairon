@@ -4,14 +4,14 @@ from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
-    INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE
+    INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import SlotValidationOperators, LogicalOperators, ActionParameterType, EvaluationType
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
-from ..shared.models import StoryStepType, StoryType, TemplateType, HttpContentType
+from ..shared.models import StoryStepType, StoryType, TemplateType, HttpContentType, LlmPromptSource, LlmPromptType
 
 
 class RecaptchaVerifiedRequest(BaseModel):
@@ -758,38 +758,34 @@ class TwoStageFallbackConfigRequest(BaseModel):
         return values
 
 
+class LlmPromptRequest(BaseModel):
+    name: str
+    data: str = None
+    instructions: str = None
+    type: LlmPromptType
+    source: LlmPromptSource
+    is_enabled: bool = True
+
+
 class KaironFaqConfigRequest(BaseModel):
-    system_prompt: str = DEFAULT_SYSTEM_PROMPT
-    context_prompt: str = DEFAULT_CONTEXT_PROMPT
-    use_query_prompt: bool = False
-    query_prompt: str = None
-    use_bot_responses: bool = False
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     top_results: int = 10
     similarity_threshold: float = 0.70
     hyperparameters: dict = None
-
-    @validator("system_prompt")
-    def validate_system_prompt(cls, v, values, **kwargs):
-        from kairon.shared.utils import Utility
-
-        if not v or Utility.check_empty_string(v):
-            raise ValueError("system_prompt is required")
-        return v
-
-    @validator("context_prompt")
-    def validate_context_prompt(cls, v, values, **kwargs):
-        from kairon.shared.utils import Utility
-
-        if not v or Utility.check_empty_string(v):
-            raise ValueError("context_prompt is required")
-        return v
+    llm_prompts: List[LlmPromptRequest]
 
     @validator("similarity_threshold")
     def validate_similarity_threshold(cls, v, values, **kwargs):
         if not 0.3 <= v <= 1:
             raise ValueError("similarity_threshold should be within 0.3 and 1")
+        return v
+
+    @validator("llm_prompts")
+    def validate_llm_prompts(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        Utility.validate_kairon_faq_llm_prompts([vars(value) for value in v], ValueError)
         return v
 
     @validator("top_results")
@@ -810,11 +806,7 @@ class KaironFaqConfigRequest(BaseModel):
 
         if not values.get('hyperparameters'):
             values['hyperparameters'] = Utility.get_llm_hyperparameters()
-
-        if values.get('use_query_prompt') and Utility.check_empty_string(values.get('query_prompt')):
-            raise ValueError("query_prompt is required")
         return values
-
 
 
 class RazorpayActionRequest(BaseModel):
