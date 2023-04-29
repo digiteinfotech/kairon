@@ -1671,7 +1671,7 @@ class Utility:
                 raise exception_class("Name cannot be empty!")
             if Utility.check_empty_string(prompt.get('data')) and prompt['source'] == LlmPromptSource.static.value:
                 raise exception_class("data is required for static prompts!")
-            if Utility.check_empty_string(prompt.get('instructions')) and prompt['source'] != LlmPromptSource.history.value:
+            if prompt['type'] != LlmPromptType.system.value and prompt['source'] != LlmPromptSource.history.value and Utility.check_empty_string(prompt.get('instructions')):
                 raise exception_class("instructions are required!")
             if prompt.get('type') == LlmPromptType.system.value:
                 system_prompt_count += 1

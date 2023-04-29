@@ -142,10 +142,8 @@ class TestMongoProcessor:
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
-                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -172,10 +170,8 @@ class TestMongoProcessor:
                                        'top_p': 0.0,
                                        'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
-                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -194,10 +190,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -218,10 +212,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -242,8 +234,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'history',
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -266,10 +257,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
                                     'source': 'static',
@@ -294,10 +283,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -318,10 +305,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -341,13 +326,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': '', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Similarity Prompt', 'instructions': '', 'type': 'user',
+                                    'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -365,10 +347,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -391,10 +371,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -451,10 +429,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                              'instructions': 'Answer question based on the context below.', 'type': 'system',
-                              'source': 'static',
-                              'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         pytest.action_id = processor.add_kairon_faq_action(request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
@@ -466,10 +442,8 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}}, 'llm_prompts': [],
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                              'instructions': 'Answer question based on the context below.', 'type': 'system',
-                              'source': 'static',
-                              'is_enabled': True},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
              ]
              }
@@ -479,10 +453,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -503,10 +475,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'invalid_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -527,10 +497,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -554,8 +522,7 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}}, 'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                 'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
                  'is_enabled': True},
                 {'name': 'Similarity Prompt',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -568,8 +535,7 @@ class TestMongoProcessor:
                  'data': 'If there is no specific query, assume that user is aking about java programming.',
                  'instructions': 'Answer according to the context', 'type': 'query',
                  'source': 'static', 'is_enabled': True}]}]
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static'}]}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
@@ -580,10 +546,8 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True}]}]
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True}]}]
 
 
     def test_edit_kairon_faq_action_with_less_hyperparameters(self):
@@ -591,8 +555,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                 'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
                  'is_enabled': True},
                 {'name': 'Similarity Prompt',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -621,8 +584,7 @@ class TestMongoProcessor:
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': 'updated_failure_message',
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                              'instructions': 'Answer question based on the context below.', 'type': 'system',
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -651,8 +613,7 @@ class TestMongoProcessor:
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': 'updated_failure_message',
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                              'instructions': 'Answer question based on the context below.', 'type': 'system',
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt','instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                'type': 'user', 'source': 'bot_content','is_enabled': True},

@@ -1180,10 +1180,8 @@ def test_get_kairon_faq_action_with_no_actions():
 
 
 def test_add_kairon_faq_action_with_invalid_similarity_threshold():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1211,10 +1209,8 @@ def test_add_kairon_faq_action_with_invalid_similarity_threshold():
 
 
 def test_add_kairon_faq_action_with_invalid_top_results():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1242,10 +1238,8 @@ def test_add_kairon_faq_action_with_invalid_top_results():
 
 
 def test_add_kairon_faq_action_with_invalid_query_prompt():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1273,10 +1267,8 @@ def test_add_kairon_faq_action_with_invalid_query_prompt():
 
 
 def test_add_kairon_faq_action_with_invalid_num_bot_responses():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1305,8 +1297,7 @@ def test_add_kairon_faq_action_with_invalid_num_bot_responses():
 
 
 def test_add_kairon_faq_action_with_invalid_system_prompt_source():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'history',
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -1336,10 +1327,8 @@ def test_add_kairon_faq_action_with_invalid_system_prompt_source():
 
 
 def test_add_kairon_faq_action_with_multiple_system_prompt():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
                                     'source': 'static',
@@ -1371,10 +1360,8 @@ def test_add_kairon_faq_action_with_multiple_system_prompt():
 
 
 def test_add_kairon_faq_action_with_empty_llm_prompt_name():
-    action = {'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1402,10 +1389,8 @@ def test_add_kairon_faq_action_with_empty_llm_prompt_name():
 
 
 def test_add_kairon_with_empty_data_for_static_prompt():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1461,10 +1446,8 @@ def test_add_kairon_with_empty_llm_prompt_instructions():
 
 
 def test_add_kairon_with_multiple_history_source_prompts():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -1494,10 +1477,8 @@ def test_add_kairon_with_multiple_history_source_prompts():
 
 
 def test_add_kairon_with_multiple_bot_content_source_prompts():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1526,10 +1507,8 @@ def test_add_kairon_with_multiple_bot_content_source_prompts():
 
 
 def test_add_kairon_faq_action_with_gpt_feature_disabled():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1559,10 +1538,8 @@ def test_add_kairon_faq_action(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1594,10 +1571,8 @@ def test_add_kairon_faq_action_already_exist(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1624,10 +1599,8 @@ def test_add_kairon_faq_action_already_exist(monkeypatch):
 
 
 def test_update_kairon_faq_action_does_not_exist():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1654,10 +1627,8 @@ def test_update_kairon_faq_action_does_not_exist():
 
 
 def test_update_kairon_faq_action_with_invalid_similarity_threshold():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1685,10 +1656,8 @@ def test_update_kairon_faq_action_with_invalid_similarity_threshold():
 
 
 def test_update_kairon_faq_action_with_invalid_top_results():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1712,10 +1681,8 @@ def test_update_kairon_faq_action_with_invalid_top_results():
 
 
 def test_update_kairon_faq_action_with_invalid_num_bot_responses():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1741,10 +1708,8 @@ def test_update_kairon_faq_action_with_invalid_num_bot_responses():
 
 
 def test_update_kairon_faq_action_with_invalid_query_prompt():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1771,10 +1736,8 @@ def test_update_kairon_faq_action_with_invalid_query_prompt():
 
 
 def test_update_kairon_faq_action_with_query_prompt_with_false():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1799,10 +1762,8 @@ def test_update_kairon_faq_action_with_query_prompt_with_false():
 
 
 def test_update_kairon_faq_action():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                    'instructions': 'Answer question based on the context below.', 'type': 'system',
-                                    'source': 'static',
-                                    'is_enabled': True},
+    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity_analytical Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -1846,8 +1807,7 @@ def test_get_kairon_faq_action():
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                              'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                              'logit_bias': {}}, 'llm_prompts': [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system', 'source': 'static',
              'is_enabled': True},
             {'name': 'Similarity_analytical Prompt',
               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
