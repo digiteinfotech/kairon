@@ -119,7 +119,7 @@ class ActionKaironFaq(ActionsBase):
         num_bot_responses = k_faq_action_config['num_bot_responses']
         for prompt in k_faq_action_config['llm_prompts']:
             if prompt['type'] == LlmPromptType.system.value and prompt['is_enabled']:
-                system_prompt = f"{prompt['data']}\n{prompt['instructions']}"
+                system_prompt = f"{prompt['data']}\n"
             elif prompt['type'] == LlmPromptType.user.value and prompt['is_enabled']:
                 if prompt['source'] == LlmPromptSource.history.value:
                     history_prompt = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
