@@ -5261,9 +5261,8 @@ class TestActionServer(AsyncHTTPTestCase):
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         llm_prompts = [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-             'is_enabled': True},
+            {'name': 'System Prompt', 'data': 'You are a personal assistant. Answer question based on the context below.',
+             'type': 'system', 'source': 'static', 'is_enabled': True},
             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
             {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
              'type': 'query', 'source': 'static', 'is_enabled': False},
@@ -5310,7 +5309,7 @@ class TestActionServer(AsyncHTTPTestCase):
              ])
 
         assert mock_completion.call_args.kwargs['messages'] == [
-            {'role': 'system', 'content': 'You are a personal assistant.\nAnswer question based on the context below.'},
+            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
             {'role': 'user', 'content': 'hello'},
             {'role': 'assistant', 'content': 'how are you'},
             {'role': 'user','content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: What kind of language is python?\n A:'}]
@@ -5333,9 +5332,8 @@ class TestActionServer(AsyncHTTPTestCase):
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         rephrased_query = "Explain python is called high level programming language in laymen terms?"
         llm_prompts = [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-             'is_enabled': True},
+            {'name': 'System Prompt', 'data': 'You are a personal assistant. Answer question based on the context below.',
+             'type': 'system', 'source': 'static', 'is_enabled': True},
             {'name': 'Similarity Prompt',
              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -5393,7 +5391,7 @@ class TestActionServer(AsyncHTTPTestCase):
         print(mock_completion.call_args.kwargs[
                    'messages'])
         assert mock_completion.call_args.kwargs['messages'] == [
-            {'role': 'system', 'content': 'You are a personal assistant.\nAnswer question based on the context below.'},
+            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
             {'role': 'user',
              'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}]
 
@@ -5776,9 +5774,8 @@ class TestActionServer(AsyncHTTPTestCase):
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         llm_prompts = [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-             'is_enabled': True},
+            {'name': 'System Prompt', 'data': 'You are a personal assistant. Answer question based on the context below.',
+             'type': 'system', 'source': 'static', 'is_enabled': True},
             {'name': 'Similarity Prompt',
              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
@@ -5837,7 +5834,7 @@ class TestActionServer(AsyncHTTPTestCase):
         print(mock_completion.call_args.kwargs[
                   'messages'])
         assert mock_completion.call_args.kwargs['messages'] == [
-            {'role': 'system', 'content': 'You are a personal assistant.\nAnswer question based on the context below.'},
+            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
             {'role': 'user',
              'content': 'Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\n\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: What kind of language is python?\n A:'}]
 
