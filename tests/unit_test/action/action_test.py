@@ -26,19 +26,18 @@ from typing import Dict, Text, Any, List
 
 import pytest
 import responses
-from mongoengine import connect, QuerySet, DoesNotExist
+from mongoengine import connect, QuerySet
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction
+    KaironTwoStageFallbackAction, SetSlotsFromResponse
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
-import requests
 from unittest.mock import patch
 
 
@@ -1045,6 +1044,69 @@ class TestActions:
         assert log['request_params'] == {'key1': 'value1', 'key2': 'value2'}
 
     @pytest.mark.asyncio
+    async def test_run_with_dynamic_params(self, monkeypatch):
+        http_url = "http://localhost:8080/mock"
+        http_response = "This should be response"
+        dynamic_params = "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'"
+        action = HttpActionConfig(
+            action_name="test_run_with_dynamic_params",
+            response=HttpActionResponse(value=http_response),
+            http_url=http_url,
+            request_method="GET",
+            dynamic_params=dynamic_params,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        responses.start()
+        resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": resp_msg},
+            status=200,
+        )
+        responses.add(
+            method=responses.GET,
+            url="http://localhost:8080/mock",
+            body=http_response,
+            status=200,
+        )
+
+        action_name = "test_run_with_dynamic_params"
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="default_sender", slots=slots, events=events, paused=False,
+                          latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert actual is not None
+        assert str(actual[0]['name']) == 'kairon_action_response'
+        assert str(actual[0]['value']) == 'This should be response'
+        log = ActionServerLogs.objects(sender="default_sender",
+                                       status="SUCCESS").get()
+        print(log.to_mongo().to_dict())
+        assert not log['exception']
+        assert log['timestamp']
+        assert log['intent']
+        assert log['action']
+        assert log['bot_response']
+        assert log['api_response']
+        assert log['status']
+        assert log['url'] == "http://localhost:8080/mock"
+        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                         'intent': 'test_run'}
+
+    @pytest.mark.asyncio
     async def test_run_with_post(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_post",
@@ -1140,6 +1202,68 @@ class TestActions:
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
+    async def test_run_with_post_and_dynamic_params(self, monkeypatch):
+        dynamic_params = "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'"
+        action = HttpActionConfig(
+            action_name="test_run_with_post_and_dynamic_params",
+            response=HttpActionResponse(value="Data added successfully, id:${RESPONSE}"),
+            http_url="http://localhost:8080/mock",
+            request_method="POST",
+            dynamic_params=dynamic_params,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+
+        responses.start()
+        resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": resp_msg},
+            status=200,
+        )
+        http_url = 'http://localhost:8080/mock'
+        resp_msg = "5000"
+        responses.add(
+            method=responses.POST,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+        )
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="default_sender", slots=slots, events=events, paused=False,
+                          latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post_and_dynamic_params")
+        responses.stop()
+        assert actual is not None
+        assert str(actual[0]['name']) == 'kairon_action_response'
+        assert str(actual[0]['value']) == 'Data added successfully, id:5000'
+        log = ActionServerLogs.objects(sender="default_sender",
+                                       action="test_run_with_post_and_dynamic_params",
+                                       status="SUCCESS").get()
+        assert not log['exception']
+        assert log['timestamp']
+        assert log['intent'] == "test_run"
+        assert log['action'] == "test_run_with_post_and_dynamic_params"
+        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                         'intent': 'test_run'}
+        assert log['api_response'] == '5000'
+        assert log['bot_response'] == 'Data added successfully, id:5000'
+
+    @pytest.mark.asyncio
     async def test_run_with_get(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_get",
@@ -1187,6 +1311,111 @@ class TestActions:
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+
+    @pytest.mark.asyncio
+    async def test_run_with_get_with_dynamic_params(self, monkeypatch):
+        dynamic_params = "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'"
+        action = HttpActionConfig(
+            action_name="test_run_with_get_with_dynamic_params",
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            dynamic_params=dynamic_params,
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        responses.start()
+        resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": resp_msg},
+            status=200,
+        )
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "${a.b.d}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "red"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "${a.b.d.0}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="default_sender", slots=slots, events=events, paused=False,
+                          latest_message=latest_message,followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_get_with_dynamic_params")
+        responses.stop()
+        assert actual is not None
+        assert str(actual[0]['name']) == 'val_d'
+        assert str(actual[0]['value']) == "['red', 'buggy', 'bumpers']"
+        assert str(actual[1]['name']) == 'val_d_0'
+        assert str(actual[1]['value']) == "red"
+        assert str(actual[2]['name']) == 'kairon_action_response'
+        assert str(actual[2]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+        log = ActionServerLogs.objects(sender="default_sender",
+                                       action="test_run_with_get_with_dynamic_params",
+                                       status="SUCCESS").get()
+        print(log.to_mongo().to_dict())
+        assert not log['exception']
+        assert log['timestamp']
+        assert log['intent'] == "test_run"
+        assert log['action'] == "test_run_with_get_with_dynamic_params"
+        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                         'intent': 'test_run'}
+        assert log['api_response'] == "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}"
+        assert log['bot_response'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
 
     @pytest.mark.asyncio
     async def test_run_no_connection(self, monkeypatch):
