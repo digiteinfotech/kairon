@@ -2830,6 +2830,7 @@ class MongoProcessor:
                          request_data.get('set_slots')]
             http_action.update(
                 set__http_url=request_data['http_url'], set__request_method=request_data['request_method'],
+                set__dynamic_params=request_data.get('dynamic_params'),
                 set__content_type=content_type, set__params_list=params_list, set__headers=headers,
                 set__response=response, set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
             )
@@ -2856,6 +2857,7 @@ class MongoProcessor:
             content_type=content_type,
             http_url=http_action_config['http_url'],
             request_method=http_action_config['request_method'],
+            dynamic_params=http_action_config.get('dynamic_params'),
             params_list=http_action_params,
             headers=headers,
             response=HttpActionResponse(**http_action_config.get('response', {})),

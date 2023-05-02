@@ -88,6 +88,7 @@ class HttpActionConfig(Auditlog):
     content_type = StringField(default=HttpRequestContentType.json.value,
                                choices=[c_type.value for c_type in HttpRequestContentType])
     params_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
+    dynamic_params = StringField(default=None)
     headers = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
