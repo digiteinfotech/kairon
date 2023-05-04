@@ -1,8 +1,11 @@
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from typing import Text, Dict, List, Union
+
+from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.utils import Utility
 import openai
 from kairon.shared.data.data_objects import BotContent
@@ -25,6 +28,7 @@ class GPT3FAQEmbedding(LLMBase):
         self.cached_resp_suffix = "_cached_response_embd"
         self.vector_config = {'size': 1536, 'distance': 'Cosine'}
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
+        self.client = GPT3Resources(self.api_key)
         self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:
@@ -75,12 +79,8 @@ class GPT3FAQEmbedding(LLMBase):
         return response
 
     def __get_embedding(self, text: Text) -> List[float]:
-        result = openai.Embedding.create(
-            api_key=self.api_key,
-            model="text-embedding-ada-002",
-            input=text
-        )
-        return result.to_dict_recursive()["data"][0]["embedding"]
+        result, _ = self.client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=text)
+        return result
 
     def __get_answer(self, query, system_prompt: Text, context: Text, **kwargs):
         query_prompt = kwargs.get('query_prompt')
@@ -97,16 +97,10 @@ class GPT3FAQEmbedding(LLMBase):
             messages.extend(previous_bot_responses)
         messages.append({"role": "user", "content": f"{context} \n Q: {query}\n A:"})
 
-        completion = openai.ChatCompletion.create(
-            api_key=self.api_key,
-            messages=messages,
-            **hyperparameters
-        )
-
-        response, raw_response = Utility.format_llm_response(completion, hyperparameters.get('stream', False))
+        completion, raw_response = self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                           'type': 'answer_query', 'hyperparameters': hyperparameters})
-        return response
+        return completion
 
     def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, **kwargs):
         messages = [
@@ -114,15 +108,11 @@ class GPT3FAQEmbedding(LLMBase):
             {"role": "user", "content": f"{query_prompt}\n\n Q: {query}\n A:"}
         ]
         hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyperparameters())
-        completion = openai.ChatCompletion.create(
-            api_key=self.api_key,
-            messages=messages,
-            **hyperparameters
-        )
-        response, raw_response = Utility.format_llm_response(completion, hyperparameters.get('stream', False))
+
+        completion, raw_response = self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
-                          'type': 'rephrase_query', 'hyperparameters': hyperparameters})
-        return response
+                            'type': 'rephrase_query', 'hyperparameters': hyperparameters})
+        return completion
 
     def __create_collection__(self, collection_name: Text):
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),

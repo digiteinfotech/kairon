@@ -159,7 +159,7 @@ class TestEventDefinitions:
         assert logs[0]['files_received'] == ['nlu']
         assert logs[0]['event_status'] == EVENT_STATUS.INITIATED.value
 
-        with pytest.raises(AppException, match='Failed to execute the url:*'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).enqueue()
         assert not os.path.isdir('training_data/test_definitions')
         logs = list(DataImporterLogProcessor.get_logs(bot))
@@ -261,7 +261,7 @@ class TestEventDefinitions:
         assert logs[0]['files_received'] == ['cfile.csv']
         assert logs[0]['event_status'] == EVENT_STATUS.INITIATED.value
 
-        with pytest.raises(AppException, match='Failed to execute the url:*'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             FaqDataImporterEvent(bot, user).enqueue()
         assert not os.path.isdir('training_data/test_faq')
         logs = list(DataImporterLogProcessor.get_logs(bot))
@@ -279,7 +279,7 @@ class TestEventDefinitions:
         assert logs[0]['files_received'] == ['cfile.xlsx']
         assert logs[0]['event_status'] == EVENT_STATUS.INITIATED.value
 
-        with pytest.raises(AppException, match='Failed to execute the url:*'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             FaqDataImporterEvent(bot, user).enqueue()
         assert not os.path.isdir('training_data/test_faq')
         logs = list(DataImporterLogProcessor.get_logs(bot))
@@ -418,7 +418,7 @@ class TestEventDefinitions:
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         monkeypatch.setattr(DataUtility, "validate_existing_data_train", _mock_validation)
-        with pytest.raises(AppException, match='Failed to execute the url:*'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             ModelTrainingEvent(bot, user).enqueue()
         logs = list(ModelProcessor.get_training_history(bot))
         assert len(logs) == 0
@@ -515,7 +515,7 @@ class TestEventDefinitions:
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 0
 
-        with pytest.raises(AppException, match='Failed to execute the url:*'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             ModelTestingEvent(bot, user).enqueue()
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 0
@@ -621,7 +621,7 @@ class TestEventDefinitions:
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
 
-        with pytest.raises(AppException, match='Failed to execute the url:*'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             DeleteHistoryEvent(bot, user).enqueue()
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -722,7 +722,7 @@ class TestEventDefinitions:
         bot = 'test_events_bot'
         user = 'test_user'
         d_lang = "es"
-        with pytest.raises(AppException, match='Failed to execute the url: *'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             MultilingualEvent(bot, user, dest_lang=d_lang, translate_responses=True, translate_actions=True).enqueue()
         logs = list(MultilingualLogProcessor.get_logs(bot))
         assert len(logs) == 0
@@ -824,7 +824,7 @@ class TestEventDefinitions:
         user = 'test_user'
         website_url = '/test/website.com'
         source_type = TrainingDataSourceType.website
-        with pytest.raises(AppException, match='Failed to execute the url: *'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             DataGenerationEvent(bot, user, website_url=website_url).enqueue()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
         assert len(logs) == 0
@@ -928,7 +928,7 @@ class TestEventDefinitions:
         with patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings") as mock_get_bot_settings:
             mock_get_bot_settings.return_value = {"notification_scheduling_limit": 2}
             with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
-                with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+                with pytest.raises(AppException, match=r"Failed to connect to service: *"):
                     event.enqueue(EventRequestType.trigger_async.value, config=config)
 
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 1
@@ -1008,7 +1008,7 @@ class TestEventDefinitions:
         event.validate()
 
         with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
-            with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+            with pytest.raises(AppException, match=r"Failed to connect to service: *"):
                 event.enqueue(EventRequestType.add_schedule.value, config=config)
 
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
@@ -1079,7 +1079,7 @@ class TestEventDefinitions:
         }
 
         event = MessageBroadcastEvent(bot, user)
-        with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+        with pytest.raises(AppException, match=r"Failed to connect to service: *"):
             event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=setting_id, config=config)
 
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
@@ -1241,7 +1241,7 @@ class TestEventDefinitions:
         setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
 
         event = MessageBroadcastEvent(bot, user)
-        with pytest.raises(AppException, match=r"Failed to execute the url: *"):
+        with pytest.raises(AppException, match=r"Failed to connect to service: *"):
             event.delete_schedule(msg_broadcast_id=setting_id)
 
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2

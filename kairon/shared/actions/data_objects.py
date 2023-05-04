@@ -512,7 +512,14 @@ class KaironFaqAction(Auditlog):
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = ListField(EmbeddedDocumentField(LlmPrompt), required=True)
 
+    def clean(self):
+        for key, value in Utility.get_llm_hyperparameters().items():
+            if key not in self.hyperparameters:
+                self.hyperparameters.update({key: value})
+
     def validate(self, clean=True):
+        if clean:
+            self.clean()
         if self.num_bot_responses > 5:
             raise ValidationError("num_bot_responses should not be greater than 5")
         if not 0.3 <= self.similarity_threshold <= 1:
