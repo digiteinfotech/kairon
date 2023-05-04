@@ -616,10 +616,9 @@ class TestMongoProcessor:
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': 'updated_failure_message',
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
-                                 'stream': False, 'stop': None, 'test_start_training_with_llm_faq presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}}, 'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                  'type': 'system', 'source': 'static',
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
                  'is_enabled': True}, {'name': 'Similarity Prompt',
                                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True},
