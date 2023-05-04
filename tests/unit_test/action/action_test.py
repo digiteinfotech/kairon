@@ -2136,19 +2136,15 @@ class TestActions:
         assert actual['type'] == ActionType.kairon_faq_action.value
         actual = ActionKaironFaq(bot, 'kairon_faq_action').retrieve_config()
         actual.pop("timestamp")
-        assert actual == {'name': 'kairon_faq_action',
-                          'system_prompt': 'You are a personal assistant. Answer question based on the context below',
-                          'context_prompt': 'Answer question based on the context below, if answer is not in the '
-                                            'context go check previous logs.',
-                          'top_results': 10, 'similarity_threshold': 0.7,
+        print(actual)
+        assert actual == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
+                          'similarity_threshold': 0.7,
                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                          'bot': 'test_action_server', "num_bot_responses": 5, "use_bot_responses": False,
-                          'use_query_prompt': False, 'hyperparameters': {'temperature': 0.0,
-                                                                         'max_tokens': 300,
-                                                                         'model': 'gpt-3.5-turbo',
-                                                                         'top_p': 0.0, 'n': 1, 'stream': False,
-                                                                         'stop': None, 'presence_penalty': 0.0,
-                                                                         'frequency_penalty': 0.0, 'logit_bias': {}}}
+                          'bot': 'test_action_server',
+                          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                              'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                              'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                          'llm_prompts': []}
 
     def test_kairon_faq_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3061,15 +3057,11 @@ class TestActions:
         k_faq_action_config = ActionUtility.get_faq_action_config(bot=bot)
         k_faq_action_config.pop('timestamp')
         assert k_faq_action_config == \
-               {'name': 'kairon_faq_action', 'top_results': 10, 'similarity_threshold': 0.7,
-                'system_prompt': 'You are a personal assistant. Answer question based on the context below',
-                'context_prompt': 'Answer question based on the context below, if answer is not in the '
-                                  'context go check previous logs.',
+               {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
                 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot',
-                "num_bot_responses": 5, "use_bot_responses": False, "use_query_prompt": False,
                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                    'frequency_penalty': 0.0, 'logit_bias': {}}}
+                                    'frequency_penalty': 0.0, 'logit_bias': {}}, 'llm_prompts': []}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

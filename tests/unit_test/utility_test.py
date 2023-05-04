@@ -1,10 +1,12 @@
 import os
+import re
 import shutil
 import tempfile
 import uuid
 from io import BytesIO
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 import pytest
 import requests
@@ -19,9 +21,13 @@ from websockets import InvalidStatusCode
 from mongoengine.queryset.visitor import Q
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
+from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.base_data import AuditLogData
-from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots
+from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
+from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, BotContent
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.llm.clients.gpt3 import GPT3Resources
+from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility, MailUtility
 from unittest.mock import patch
@@ -31,7 +37,7 @@ from kairon.chat.converters.channels.responseconverter import ElementTransformer
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 import json
 from kairon.shared.verification.email import QuickEmailVerification
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin
 
 
 class TestUtility:
@@ -1071,7 +1077,7 @@ class TestUtility:
     def test_execute_http_request_exception(self):
         def __mock_connection_error(*args, **kwargs):
             raise Exception("Server not found")
-        with mock.patch("kairon.shared.utils.requests.request") as mocked:
+        with mock.patch("kairon.shared.utils.requests.sessions.Session.request") as mocked:
             mocked.side_effect = __mock_connection_error
             with pytest.raises(AppException, match='Failed to execute the url: Server not found'):
                 Utility.execute_http_request("POST", "http://test.com/endpoint")
@@ -2209,3 +2215,267 @@ class TestUtility:
         monkeypatch.setitem(Utility.environment['llm'], 'faq', None)
         with pytest.raises(AppException, match="Could not find any hyperparameters for configured LLM."):
             Utility.get_llm_hyperparameters()
+
+    # @responses.activate
+    # def test_trigger_gp3_client_completion(self):
+    #     api_key = "test"
+    #     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    #     messages = {"messages": [
+    #                {"role": "system",
+    #                 "content": DEFAULT_SYSTEM_PROMPT},
+    #                 {'role': 'user',
+    #                     'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+    #            ]}
+    #     hyperparameters = Utility.get_llm_hyperparameters()
+    #     request_header = {"Authorization": f"Bearer {api_key}"}
+    #     mock_completion_request = {"messages": [
+    #         {"role": "system",
+    #          "content": DEFAULT_SYSTEM_PROMPT},
+    #         {'role': 'user',
+    #          'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+    #     ]}
+    #     mock_completion_request.update(hyperparameters)
+    #
+    #     responses.add(
+    #         url="https://api.openai.com/v1/chat/completions",
+    #         method="POST",
+    #         status=200,
+    #         match=[responses.matchers.json_params_matcher(mock_completion_request),
+    #                responses.matchers.header_matcher(request_header)],
+    #         json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+    #     )
+    #
+    #     resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
+    #     assert resp == generated_text
+
+    @responses.activate
+    def test_trigger_gp3_client_completion(self):
+        api_key = "test"
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        messages = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+
+        responses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=200,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        )
+        formatted_response, raw_response = GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        assert formatted_response == generated_text
+        assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+
+    @responses.activate
+    def test_trigger_gp3_client_completion_failure(self):
+        api_key = "test"
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+
+        responses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=504,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            json={"error": {"message": "Server unavailable!", "id": 876543456789}}
+        )
+        with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
+            GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+    @responses.activate
+    def test_trigger_gp3_client_embedding(self):
+        api_key = "test"
+        query = "What kind of language is python?"
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        request_header = {"Authorization": f"Bearer {api_key}"}
+
+        responses.add(
+            url="https://api.openai.com/v1/embeddings",
+            method="POST",
+            status=200,
+            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
+                   responses.matchers.header_matcher(request_header)],
+            json={'data': [{'embedding': embedding}]}
+        )
+        formatted_response, raw_response = GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+        assert formatted_response == embedding
+        assert raw_response == {'data': [{'embedding': embedding}]}
+
+    @responses.activate
+    def test_trigger_gp3_client_embedding_failure(self):
+        api_key = "test"
+        query = "What kind of language is python?"
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        request_header = {"Authorization": f"Bearer {api_key}"}
+
+        responses.add(
+            url="https://api.openai.com/v1/embeddings",
+            method="POST",
+            status=504,
+            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
+                   responses.matchers.header_matcher(request_header)],
+        )
+
+        with pytest.raises(AppException, match="Received non 200 status code:"):
+            GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+
+        responses.add(
+            url="https://api.openai.com/v1/embeddings",
+            method="POST",
+            status=504,
+            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
+                   responses.matchers.header_matcher(request_header)],
+            json={"error": {"message": "Server unavailable!", "id": 876543456789}}
+        )
+
+        with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
+            GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+
+    @responses.activate
+    def test_trigger_gp3_client_streaming_completion(self):
+        api_key = "test"
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+        mock_completion_request["stream"] = True
+
+        content = """data: {"choices": [{"delta": {"role": "assistant"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": "Python"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " is"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " dynamically"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " typed"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " garbage-collected"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " high"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " level"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " general"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " purpose"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": " programming"}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {"content": "."}, "index": 0, "finish_reason": null}]}\n\n
+data: {"choices": [{"delta": {}, "index": 0, "finish_reason": "stop"}]}\n\n
+data: [DONE]\n\n"""
+        responses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=200,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            body=content.encode(),
+            stream=True
+        )
+        formatted_response, raw_response = GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value,
+                                                                         **mock_completion_request)
+        assert formatted_response == generated_text
+        assert raw_response == [{'choices': [{'delta': {'role': 'assistant'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': 'Python'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ' is'}, 'index': 0, 'finish_reason': None}]}, {
+                                    'choices': [
+                                        {'delta': {'content': ' dynamically'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ' typed'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}, {
+                                    'choices': [{'delta': {'content': ' garbage-collected'}, 'index': 0,
+                                                 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ' high'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ' level'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ' general'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': ' purpose'}, 'index': 0, 'finish_reason': None}]}, {
+                                    'choices': [
+                                        {'delta': {'content': ' programming'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {'content': '.'}, 'index': 0, 'finish_reason': None}]},
+                                {'choices': [{'delta': {}, 'index': 0, 'finish_reason': 'stop'}]}]
+
+    @responses.activate
+    def test_trigger_gp3_client_streaming_completion_failure(self):
+        api_key = "test"
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+        mock_completion_request["stream"] = True
+
+        content = "data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n"
+        responses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=200,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            body=content.encode(),
+            stream=True
+        )
+        with pytest.raises(AppException, match=re.escape("Received HTTP code 200 in streaming response from openai: {'choices': [{'delta': {'role': 'assistant'}}]}")):
+            GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+        def __mock_exception(*args, **kwargs):
+            raise Exception("Something went wrong!")
+            
+        with patch("kairon.shared.llm.clients.gpt3.parse_stream") as mock_stream:
+            mock_stream.side_effect = __mock_exception
+
+            with pytest.raises(AppException, match="Failed to parse response: *"):
+                GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+    @responses.activate
+    def test_trigger_gp3_client_completion_failure_invalid_json(self):
+        api_key = "test"
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+        mock_completion_request["stream"] = True
+
+        content = "data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n"
+        responses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=504,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            body=content.encode(),
+            stream=True
+        )
+        with pytest.raises(AppException, match=re.escape("Received non 200 status code: data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n")):
+            GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)

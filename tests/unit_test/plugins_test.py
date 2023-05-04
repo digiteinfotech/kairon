@@ -140,7 +140,7 @@ class TestUtility:
         def __mock_connection_error(*args, **kwargs):
             raise requests.exceptions.ConnectTimeout()
 
-        with mock.patch("kairon.shared.utils.requests.request") as mocked:
+        with mock.patch("kairon.shared.utils.requests.sessions.Session.request") as mocked:
             mocked.side_effect = __mock_connection_error
             response = PluginFactory.get_instance(PluginTypes.gpt).execute(
                 key="asdfghjkl",
