@@ -805,7 +805,11 @@ class KaironFaqConfigRequest(BaseModel):
         from kairon.shared.utils import Utility
 
         if not values.get('hyperparameters'):
-            values['hyperparameters'] = Utility.get_llm_hyperparameters()
+            values['hyperparameters'] = {}
+
+        for key, value in Utility.get_llm_hyperparameters().items():
+            if key not in values['hyperparameters']:
+                values['hyperparameters'][key] = value
         return values
 
 

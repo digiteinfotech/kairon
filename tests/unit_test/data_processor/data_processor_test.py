@@ -583,18 +583,21 @@ class TestMongoProcessor:
         assert action == [
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': 'updated_failure_message',
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                            'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
-                                'source': 'static', 'is_enabled': True},
-                             {'name': 'Query Prompt',
-                              'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                              'is_enabled': True}]}]
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}}, 'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                  'type': 'system', 'source': 'static',
+                 'is_enabled': True}, {'name': 'Similarity Prompt',
+                                       'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                       'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True}, {'name': 'Query Prompt',
+                                       'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                       'instructions': 'Answer according to the context', 'type': 'query',
+                                       'source': 'static', 'is_enabled': True}]}]
 
 
     def test_get_kairon_faq_action_does_not_exist(self):
@@ -612,18 +615,20 @@ class TestMongoProcessor:
         assert action == [
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': 'updated_failure_message',
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1},
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt','instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content','is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
-                               'source': 'static', 'is_enabled': True},
-                             {'name': 'Query Prompt',
-                              'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                              'is_enabled': True}]}]
+             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                 'logit_bias': {}}, 'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
+                 'is_enabled': True}, {'name': 'Similarity Prompt',
+                                       'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                                       'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True}, {'name': 'Query Prompt',
+                                       'data': 'If there is no specific query, assume that user is aking about java programming.',
+                                       'instructions': 'Answer according to the context', 'type': 'query',
+                                       'source': 'static', 'is_enabled': True}]}]
 
     def test_delete_kairon_faq_action(self):
         processor = MongoProcessor()
@@ -1907,7 +1912,7 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
@@ -1929,7 +1934,7 @@ class TestMongoProcessor:
         settings.enable_gpt_llm_faq = True
         settings.save()
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        mock_openai.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_openai.return_value = embedding
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)

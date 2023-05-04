@@ -1,7 +1,7 @@
 import mock
 from jira import JIRAError
 from tornado.test.testing_test import AsyncHTTPTestCase
-
+from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
@@ -13,10 +13,11 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
-    DEFAULT_NLU_FALLBACK_RESPONSE, KAIRON_FAQ_ACTION, DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
+    DEFAULT_NLU_FALLBACK_RESPONSE, KAIRON_FAQ_ACTION
 import numpy as np
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.utils import Utility
 from kairon.shared.actions.utils import ActionUtility
 from mongoengine import connect
@@ -5244,13 +5245,11 @@ class TestActionServer(AsyncHTTPTestCase):
             self.assertEqual(response_json, {'error': "No registered action found for name 'Action Not Found Exception'.",
                                              'action_name': 'Action Not Found Exception'})
 
-    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_with_bot_responses(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-        from openai.util import convert_to_openai_object
-        from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
         action_name = KAIRON_FAQ_ACTION
@@ -5281,9 +5280,8 @@ class TestActionServer(AsyncHTTPTestCase):
             return {'result': []}
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_completion.return_value = convert_to_openai_object(
-            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
@@ -5308,19 +5306,29 @@ class TestActionServer(AsyncHTTPTestCase):
               'response': None, 'image': None, 'attachment': None}
              ])
 
-        assert mock_completion.call_args.kwargs['messages'] == [
-            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-            {'role': 'user', 'content': 'hello'},
-            {'role': 'assistant', 'content': 'how are you'},
-            {'role': 'user','content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: What kind of language is python?\n A:'}]
+        assert mock_completion.call_args.args[1] == 'What kind of language is python?'
+        assert mock_completion.call_args.args[2] == """You are a personal assistant. Answer question based on the context below.\n"""
+        assert mock_completion.call_args.args[
+                   3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
+        assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
+                                                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
+                                                                        'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
+                                                                        'stream': False, 'stop': None,
+                                                                        'presence_penalty': 0.0,
+                                                                        'frequency_penalty': 0.0, 'logit_bias': {}},
+                                                    'query_prompt': '', 'use_query_prompt': False,
+                                                    'previous_bot_responses': [{'role': 'user', 'content': 'hello'},
+                                                                               {'role': 'assistant',
+                                                                                'content': 'how are you'}],
+                                                    'use_similarity_prompt': True,
+                                                    'similarity_prompt_name': 'Similarity Prompt',
+                                                    'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.'}
 
-    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @mock.patch.object(GPT3Resources, "invoke", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_with_query_prompt(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-        from openai.util import convert_to_openai_object
-        from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
         action_name = KAIRON_FAQ_ACTION
@@ -5344,13 +5352,9 @@ class TestActionServer(AsyncHTTPTestCase):
              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}
         ]
 
-        def mock_completion_for_query_prompt(*args, **kwargs):
-            return convert_to_openai_object(
-            OpenAIResponse({'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}, {}))
+        mock_completion_for_query_prompt = rephrased_query, {'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}
 
-        def mock_completion_for_answer(*args, **kwargs):
-            return convert_to_openai_object(
-            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+        mock_completion_for_answer = generated_text, {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         
         def __mock_search_cache(*args, **kwargs):
             return {'result': []}
@@ -5361,10 +5365,10 @@ class TestActionServer(AsyncHTTPTestCase):
         def __mock_cache_result(*args, **kwargs):
             return {'result': []}
 
-        mock_completion.side_effect = [mock_completion_for_query_prompt(), mock_completion_for_answer()]
+        mock_completion.side_effect = [mock_completion_for_query_prompt, mock_completion_for_answer]
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_embedding.return_value = embedding
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
@@ -5395,13 +5399,11 @@ class TestActionServer(AsyncHTTPTestCase):
             {'role': 'user',
              'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}]
 
-    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-        from openai.util import convert_to_openai_object
-        from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
         def __mock_search_cache(*args, **kwargs):
@@ -5421,8 +5423,8 @@ class TestActionServer(AsyncHTTPTestCase):
         bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
@@ -5444,13 +5446,11 @@ class TestActionServer(AsyncHTTPTestCase):
                 'response': None, 'image': None, 'attachment': None}
              ])
 
-    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @mock.patch.object(GPT3Resources, "invoke", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_streaming_enabled(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-        from openai.util import convert_to_openai_object
-        from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
         action_name = GPT_LLM_FAQ
@@ -5467,28 +5467,6 @@ class TestActionServer(AsyncHTTPTestCase):
              'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
         ]
 
-        def mock_get_streaming_llm_response(*args, **kwargs):
-            response = [OpenAIResponse({'choices': [{'delta': {'role': 'assistant'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': 'Python'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' is'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' dynamically'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' typed'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' garbage-collected'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' high'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' level'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]},{}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' general'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' purpose'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': ' programming'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {'content': '.'}, 'index': 0, 'finish_reason': None}]}, {}),
-                        OpenAIResponse({'choices': [{'delta': {}, 'index': 0, 'finish_reason': 'stop'}]}, {})]
-            return (
-                convert_to_openai_object(line)
-                for line in response
-            )
-
         def __mock_search_cache(*args, **kwargs):
             return {'result': []}
 
@@ -5498,9 +5476,9 @@ class TestActionServer(AsyncHTTPTestCase):
         def __mock_cache_result(*args, **kwargs):
             return {'result': []}
 
-        mock_completion.return_value = mock_get_streaming_llm_response()
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text, generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
@@ -5524,6 +5502,14 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
+        assert mock_completion.call_args.kwargs == {'messages': [
+            {'role': 'system', 'content': 'You are a personal assistant.\n'},
+            {'role': 'user',
+             'content': '\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above.\n \n Q: What kind of language is python?\n A:'}],
+                                                    'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                    'top_p': 0.0, 'n': 1, 'stream': True, 'stop': None,
+                                                    'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+        assert mock_completion.call_args.args[1] == 'chat/completions'
 
     @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
@@ -5563,12 +5549,10 @@ class TestActionServer(AsyncHTTPTestCase):
                 'response': None, 'image': None, 'attachment': None}
              ])
 
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_connection_error_response_cached(self, mock_search, mock_embedding):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-        from openai.util import convert_to_openai_object
-        from openai.openai_response import OpenAIResponse
         from openai import error
         from uuid6 import uuid7
 
@@ -5586,10 +5570,7 @@ class TestActionServer(AsyncHTTPTestCase):
              'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
         ]
 
-        def __mock_get_embedding(*args, **kwargs):
-            return convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-
-        mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
+        mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), embedding]
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': user_msg, "response": bot_content}},
                                                {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "python?", "response": bot_content}},
                                                {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "what is python?", "response": "It is a programming language."}}]}
@@ -5619,12 +5600,10 @@ class TestActionServer(AsyncHTTPTestCase):
         assert log.exception == 'Connection reset by peer!'
         assert log.is_from_cache
 
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_exact_match_cached_query(self, mock_search, mock_embedding):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-        from openai.util import convert_to_openai_object
-        from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
         action_name = GPT_LLM_FAQ
@@ -5641,7 +5620,7 @@ class TestActionServer(AsyncHTTPTestCase):
              'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
         ]
 
-        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+        mock_embedding.return_value = embedding
         mock_search.return_value = {'result': [
             {'id': uuid7().__str__(), 'score': 1, 'payload': {'query': user_msg, "response": bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
@@ -5757,8 +5736,8 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(len(response_json['events']), 0)
         self.assertEqual(len(response_json['responses']), 0)
 
-    @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_with_static_user_prompt(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
@@ -5805,9 +5784,8 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_completion.return_value = mock_completion_for_answer()
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
-        mock_completion.return_value = convert_to_openai_object(
-            OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
@@ -5831,10 +5809,3 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
-        print(mock_completion.call_args.kwargs[
-                  'messages'])
-        assert mock_completion.call_args.kwargs['messages'] == [
-            {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-            {'role': 'user',
-             'content': 'Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\n\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n \n Q: What kind of language is python?\n A:'}]
-

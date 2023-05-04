@@ -431,7 +431,7 @@ class TestEventExecution:
 
         event = TrainingDataImporterEvent(bot, user, import_data=False, overwrite=False)
         event.validate()
-        with pytest.raises(AppException, match='Failed to execute the url: *'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             event.enqueue()
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
@@ -975,7 +975,7 @@ class TestEventExecution:
     def test_trigger_model_testing_event_connection_error(self):
         bot = 'test_events_bot'
         user = 'test_user'
-        with pytest.raises(AppException, match='Failed to execute the url: *'):
+        with pytest.raises(AppException, match='Failed to connect to service: *'):
             ModelTestingEvent(bot, user).enqueue()
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert not os.path.exists(os.path.join('./testing_data', bot))
@@ -1428,7 +1428,7 @@ class TestEventExecution:
         config['data_extraction_config']["request_body"] = {}
         assert logged_config == config
         exception = logs[0][0].pop("exception")
-        assert exception.startswith("Failed to execute the url: ")
+        assert exception.startswith("Failed to connect to service: kairon.local")
         assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'broadcast_id': event_id}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
