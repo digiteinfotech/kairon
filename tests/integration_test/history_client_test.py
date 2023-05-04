@@ -1421,7 +1421,7 @@ def test_delete_user_chat_history_connection_failure(mock_auth_admin, mock_mongo
 
     actual = response.json()
     assert actual["error_code"] == 422
-    assert actual["message"].__contains__("Failed to execute the url: ")
+    assert actual["message"].__contains__("Failed to connect to service: localhost")
     assert not actual["success"]
 
 
@@ -1485,7 +1485,7 @@ def test_delete_bot_chat_history_failed_to_connect_event_server(mock_auth_admin,
 
     actual = response.json()
     assert actual["error_code"] == 422
-    assert actual["message"].__contains__("Failed to execute the url: ")
+    assert actual["message"].__contains__("Failed to connect to service: localhost")
     assert not actual["success"]
 
 

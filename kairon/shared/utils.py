@@ -4,6 +4,7 @@ import hashlib
 import html
 import json
 import os
+import random
 import re
 import shutil
 import string
@@ -26,6 +27,8 @@ from urllib.parse import urljoin
 
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter, Retry
+
 import yaml
 from botocore.exceptions import ClientError
 from fastapi import File, UploadFile
@@ -1288,8 +1291,20 @@ class Utility:
             validate_status: To validate status_code in response. False by default.
             expected_status_code: 200 by default
             err_msg: error message to be raised in case expected status code not received
+            max_retries: Number times we want to retry in case of failure, defaults to 0.
+            status_forcelist: status codes for which we want to force retries
+            backoff_factor: A backoff factor to apply between attempts after the second try. Defaults to 0.
+                            For example, if the backoff_factor is 0.1, then Retry.sleep() will sleep for
+                            [0.0s, 0.2s, 0.4s, 0.8s, …] between retries. No backoff will ever be longer than backoff_max.
         :return: dict/response object
         """
+        session = requests.Session()
+        max_retries = kwargs.get("max_retries", 0)
+        status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
+        backoff_factor = kwargs.get("backoff_factor", 0)
+        retries = Retry(total=max_retries, backoff_factor=backoff_factor, status_forcelist=status_forcelist, read=False)
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        session.mount('http://', HTTPAdapter(max_retries=retries))
         if not headers:
             headers = {}
 
@@ -1302,14 +1317,14 @@ class Utility:
                     request_method.upper(), http_url, params=request_body, headers=headers, timeout=kwargs.get('timeout')
                 )
             elif request_method.lower() in ['post', 'put']:
-                response = requests.request(
+                response = session.request(
                     request_method.upper(), http_url, json=request_body, headers=headers, timeout=kwargs.get('timeout')
                 )
             else:
                 raise AppException("Invalid request method!")
             logger.debug("raw response: " + str(response.text))
             logger.debug("status " + str(response.status_code))
-        except requests.exceptions.ConnectTimeout:
+        except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
             _, _, host, _, _, _, _ = parse_url(http_url)
             raise AppException(f"Failed to connect to service: {host}")
         except Exception as e:
@@ -1636,21 +1651,6 @@ class Utility:
                 hyperparameters[key] = value['default']
             return hyperparameters
         raise AppException("Could not find any hyperparameters for configured LLM.")
-
-    @staticmethod
-    def format_llm_response(response, is_streamed: bool = False):
-        formatted_response = ''
-        if is_streamed:
-            raw_response = []
-            for chunk in response:
-                for delta in chunk['choices']:
-                    if delta['delta'].get('content'):
-                        formatted_response = f"{formatted_response}{delta['delta'].get('content')}"
-                raw_response.append(chunk.to_dict_recursive())
-        else:
-            formatted_response = ' '.join([choice['message']['content'] for choice in response.to_dict_recursive()['choices']])
-            raw_response = response.to_dict_recursive()
-        return formatted_response, raw_response
 
     @staticmethod
     def create_uuid_from_string(val: str):
