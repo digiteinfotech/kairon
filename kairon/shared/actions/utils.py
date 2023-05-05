@@ -74,6 +74,16 @@ class ActionUtility:
         return http_response_as_json
 
     @staticmethod
+    def encrypt_secrets(request_body: dict, tracker_data: dict):
+        request_body_log = {}
+        for key, value in request_body.items():
+            if key in tracker_data['key_vault'].keys():
+                request_body_log[key] = Utility.get_masked_value(value)
+            else:
+                request_body_log[key] = value
+        return request_body_log
+
+    @staticmethod
     def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody], bot: Text):
         """
         Prepares request body:

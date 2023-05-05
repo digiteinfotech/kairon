@@ -8128,6 +8128,103 @@ class TestMongoProcessor:
         except AppException as e:
             assert str(e) == "No HTTP action found for bot test_bot and action action"
 
+    def test_add_http_action_config_with_dynamic_params(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_config_with_dynamic_params'
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            dynamic_params=dynamic_params,
+            headers=header
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+            action_name__iexact=action).to_mongo().to_dict()
+        assert actual_http_action is not None
+        assert actual_http_action['action_name'] == action
+        assert actual_http_action['http_url'] == http_url
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['request_method'] == request_method
+        assert actual_http_action['params_list'] == []
+        assert actual_http_action['dynamic_params'] == dynamic_params
+        assert actual_http_action['headers'][0]['key'] == "param3"
+        assert actual_http_action['headers'][0]['value'] == "param1"
+        assert actual_http_action['headers'][0]['parameter_type'] == "slot"
+        assert actual_http_action['headers'][1]['key'] == "param4"
+        assert actual_http_action['headers'][1]['value'] == "value2"
+        assert actual_http_action['headers'][1]['parameter_type'] == "value"
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+
+    def test_update_http_config_with_dynamic_params(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_update_http_config_with_dynamic_params'
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            content_type=HttpContentType.application_json.value,
+            response=ActionResponseEvaluation(value=response, evaluation_type="script"),
+            http_url=http_url,
+            request_method=request_method,
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
+                       SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
+        )
+        http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
+        assert http_config_id is not None
+        http_url = 'http://www.alphabet.com'
+        response = "string"
+        request_method = 'POST'
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        header = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            content_type=HttpContentType.urlencoded_form_data.value,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            dynamic_params=dynamic_params,
+            headers=header,
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script")]
+        )
+        processor.update_http_config(http_action_config.dict(), user, bot)
+
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+            action_name__iexact=action).to_mongo().to_dict()
+        assert actual_http_action is not None
+        assert actual_http_action['action_name'] == action
+        assert actual_http_action['http_url'] == http_url
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['request_method'] == request_method
+        assert actual_http_action['params_list'] == []
+        assert actual_http_action['dynamic_params'] == dynamic_params
+        assert actual_http_action['headers'][0]['key'] == "param3"
+        assert actual_http_action['headers'][0]['value'] == "param1"
+        assert actual_http_action['headers'][0]['parameter_type'] == "slot"
+        assert actual_http_action['headers'][1]['key'] == "param4"
+        assert actual_http_action['headers'][1]['value'] == "value2"
+        assert actual_http_action['headers'][1]['parameter_type'] == "value"
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+
     def test_update_http_config(self):
         processor = MongoProcessor()
         bot = 'test_bot'

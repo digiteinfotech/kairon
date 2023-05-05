@@ -68,9 +68,9 @@ class ActionHTTP(ActionsBase):
             headers, header_log = ActionUtility.prepare_request(tracker_data, http_action_config.get('headers'), self.bot)
             logger.info("headers: " + str(header_log))
             dynamic_params = http_action_config.get('dynamic_params')
-            if dynamic_params:
+            if not ActionUtility.is_empty(dynamic_params):
                 body, body_log = ActionUtility.evaluate_script(dynamic_params, tracker_data)
-                body_log = body
+                body_log = ActionUtility.encrypt_secrets(body, tracker_data)
             else:
                 body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'],
                                                                self.bot)
