@@ -326,6 +326,7 @@ class HttpActionConfigRequest(BaseModel):
     http_url: str
     request_method: str
     params_list: List[HttpActionParameters] = []
+    dynamic_params: str = None
     headers: List[HttpActionParameters] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
 

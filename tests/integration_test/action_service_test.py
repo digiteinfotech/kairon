@@ -362,7 +362,8 @@ class TestActionServer(AsyncHTTPTestCase):
                 dispatch=True, evaluation_type="script"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
-            dynamic_params="'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+            dynamic_params=
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                      HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                      HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
@@ -385,7 +386,7 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+                    {'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
                      'data': {'sender_id': 'default', 'user_message': 'get intents',
                               'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
                               'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
@@ -507,7 +508,8 @@ class TestActionServer(AsyncHTTPTestCase):
                 dispatch=False, evaluation_type="script"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
-            dynamic_params="'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+            dynamic_params=
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                      HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                      HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
@@ -530,7 +532,7 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+                    {'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
                      'data': {'sender_id': 'default', 'user_message': 'get intents',
                               'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
                               'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
@@ -636,7 +638,8 @@ class TestActionServer(AsyncHTTPTestCase):
                 dispatch=False, evaluation_type="script"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
-            dynamic_params="'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+            dynamic_params=
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                      HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                      HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
@@ -659,7 +662,7 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+                    {'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
                      'data': {'sender_id': 'default', 'user_message': 'get intents',
                               'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
                               'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
@@ -744,7 +747,7 @@ class TestActionServer(AsyncHTTPTestCase):
              "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
         self.assertEqual(response_json['responses'], [])
 
-    def test_http_action_execution_script_evaluation_failure_with_dynamic_params(self):
+    def test_http_action_execution_script_evaluation_with_dynamic_params_failure(self):
         action_name = "test_http_action_execution_script_evaluation_failure_with_dynamic_params"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         HttpActionConfig(
@@ -755,7 +758,8 @@ class TestActionServer(AsyncHTTPTestCase):
                 dispatch=True, evaluation_type="script"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
-            dynamic_params="'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+            dynamic_params=
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                      HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                      HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
@@ -778,50 +782,13 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+                    {'script': "${e}",
                      'data': {'sender_id': 'default', 'user_message': 'get intents',
                               'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
                               'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
                               'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
         )
-        resp_msg = json.dumps({
-            "a": {
-                "b": {
-                    "3": 2,
-                    "43": 30,
-                    "c": [],
-                    "d": ['red', 'buggy', 'bumpers'],
-                }
-            }
-        })
-        responses.add(
-            method=responses.GET,
-            url=http_url,
-            body=resp_msg,
-            status=200,
-            match=[responses.matchers.json_params_matcher(
-                {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
-        )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
-        )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": False, "data": None},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "${e}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
-        )
+        responses.stop()
 
         request_object = {
             "next_action": action_name,
@@ -854,14 +821,12 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
-        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['events']), 1)
         self.assertEqual(len(response_json['responses']), 1)
         self.assertEqual(response_json['events'], [
-            {"event": "slot", "timestamp": None, "name": "val_d", "value": None},
-            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": None},
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-        self.assertEqual(response_json['responses'][0]['text'], "The value of 2 in red is ['red', 'buggy', 'bumpers']")
+             "value": "I have failed to process your request"}])
+        self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")
 
     def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list"
@@ -874,7 +839,8 @@ class TestActionServer(AsyncHTTPTestCase):
                 dispatch=True, evaluation_type="script"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
-            dynamic_params="'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+            dynamic_params=
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                      HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                      HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
@@ -900,7 +866,7 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'",
+                    {'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
                      'data': {'sender_id': 'default', 'user_message': 'get intents',
                               'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
                               'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},

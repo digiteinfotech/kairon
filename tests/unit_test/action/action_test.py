@@ -1047,7 +1047,8 @@ class TestActions:
     async def test_run_with_dynamic_params(self, monkeypatch):
         http_url = "http://localhost:8080/mock"
         http_response = "This should be response"
-        dynamic_params = "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'"
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
         action = HttpActionConfig(
             action_name="test_run_with_dynamic_params",
             response=HttpActionResponse(value=http_response),
@@ -1203,7 +1204,8 @@ class TestActions:
 
     @pytest.mark.asyncio
     async def test_run_with_post_and_dynamic_params(self, monkeypatch):
-        dynamic_params = "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'"
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
         action = HttpActionConfig(
             action_name="test_run_with_post_and_dynamic_params",
             response=HttpActionResponse(value="Data added successfully, id:${RESPONSE}"),
@@ -1314,7 +1316,8 @@ class TestActions:
 
     @pytest.mark.asyncio
     async def test_run_with_get_with_dynamic_params(self, monkeypatch):
-        dynamic_params = "'{sender_id: '+`${sender_id}`+',user_message: '+`${user_message}`+',intent: '+`${intent}`+'}'"
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
         action = HttpActionConfig(
             action_name="test_run_with_get_with_dynamic_params",
             response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
