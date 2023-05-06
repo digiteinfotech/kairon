@@ -831,6 +831,8 @@ class TestActionServer(AsyncHTTPTestCase):
     def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         HttpActionConfig(
             action_name=action_name,
             content_type="json",
@@ -839,8 +841,8 @@ class TestActionServer(AsyncHTTPTestCase):
                 dispatch=True, evaluation_type="script"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
-            dynamic_params=
-            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+            dynamic_params="{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "
+                           "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
                      HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
                      HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
@@ -855,7 +857,8 @@ class TestActionServer(AsyncHTTPTestCase):
         resp_msg = {
             "sender_id": "default",
             "user_message": "get intents",
-            "intent": "test_run"
+            "intent": "test_run",
+            "EMAIL": "uditpandey@digite.com"
         }
         http_url = 'http://localhost:8081/mock'
         responses.start()
@@ -866,7 +869,8 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+                    {'script': "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "
+                               "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}",
                      'data': {'sender_id': 'default', 'user_message': 'get intents',
                               'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
                               'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
@@ -888,7 +892,8 @@ class TestActionServer(AsyncHTTPTestCase):
             body=resp_msg,
             status=200,
             match=[responses.matchers.json_params_matcher(
-                {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
+                {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                 "EMAIL": "uditpandey@digite.com"})],
         )
         responses.add(
             method=responses.POST,
@@ -968,7 +973,8 @@ class TestActionServer(AsyncHTTPTestCase):
                        'sender': 'default', 'user_msg': 'get intents',
                        'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
                        'url': 'http://localhost:8081/mock', 'request_method': 'GET',
-                       'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
+                       'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                          'EMAIL': '*******************om'},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
                 'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || '
