@@ -1316,8 +1316,10 @@ class TestActions:
 
     @pytest.mark.asyncio
     async def test_run_with_get_with_dynamic_params(self, monkeypatch):
-        dynamic_params = \
-            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        dynamic_params = "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "\
+                         "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
+        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         action = HttpActionConfig(
             action_name="test_run_with_get_with_dynamic_params",
             response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
@@ -1335,7 +1337,12 @@ class TestActions:
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         responses.start()
-        resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
+        resp_msg = {
+            "sender_id": "default_sender",
+            "user_message": "get intents",
+            "intent": "test_run",
+            "EMAIL": "uditpandey@digite.com"
+        }
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
@@ -1416,7 +1423,7 @@ class TestActions:
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_get_with_dynamic_params"
         assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
-                                         'intent': 'test_run'}
+                                         'intent': 'test_run', 'EMAIL': '*******************om'}
         assert log['api_response'] == "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}"
         assert log['bot_response'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
 
