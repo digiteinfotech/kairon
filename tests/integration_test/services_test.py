@@ -14172,6 +14172,41 @@ def test_download_logs(monkeypatch):
     assert response == {'success': False, 'message': 'Logs not found!', 'data': None, 'error_code': 422}
 
 
+def test_download_logs_with_action_logs(monkeypatch):
+    import csv
+
+    start_date = datetime.utcnow()
+    end_date = datetime.utcnow() + timedelta(days=1)
+    bot = pytest.bot
+    request_params = {"key": "value", "key2": "value2"}
+    ActionServerLogs(intent="intent1", action="http_action", sender="sender_id", timestamp='2021-04-05T07:59:08.771000',
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
+    ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
+                     url="http://kairon-api.digite.com/api/bot",
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
+    ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
+    ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
+                     request_params=request_params, api_response="Response", bot_response="Bot Response",
+                     bot=bot).save()
+    ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
+                     request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
+                     status="FAILURE").save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/download/action_logs?start_date={start_date}&end_date={end_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert response.content
+    csv_content = response.content.decode("utf-8")
+    csv_file = csv.reader(csv_content.splitlines())
+    action_logs = list(csv_file)
+    assert len(action_logs) == 5
+
+
 def test_get_auditlog_for_user_1():
     email = "integration1234567890@demo.ai"
     response = client.post(
