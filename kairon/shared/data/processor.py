@@ -4809,13 +4809,13 @@ class MongoProcessor:
                 LogType.history_deletion.value: ConversationsHistoryDeleteLogs,
                 LogType.multilingual.value: BotReplicationLogs
         }
-        if logtype is LogType.action_logs.value:
+        if logtype == LogType.action_logs.value:
             filter_query = {
                 "bot": bot,
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }
-        elif logtype is LogType.audit_logs.value:
+        elif logtype == LogType.audit_logs.value:
             filter_query = {
                 "audit__Bot_id": bot,
                 "timestamp__gte": start_time,
