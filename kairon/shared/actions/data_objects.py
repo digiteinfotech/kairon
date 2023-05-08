@@ -505,6 +505,7 @@ class KaironFaqAction(Auditlog):
     num_bot_responses = IntField(default=5)
     top_results = IntField(default=10)
     similarity_threshold = FloatField(default=0.70)
+    enable_response_cache = BooleanField(default=False)
     failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
     bot = StringField(required=True)
     user = StringField(required=True)

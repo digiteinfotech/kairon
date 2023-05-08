@@ -772,6 +772,7 @@ class KaironFaqConfigRequest(BaseModel):
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     top_results: int = 10
     similarity_threshold: float = 0.70
+    enable_response_cache: bool = False
     hyperparameters: dict = None
     llm_prompts: List[LlmPromptRequest]
 

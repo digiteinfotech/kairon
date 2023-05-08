@@ -5269,20 +5269,11 @@ class TestActionServer(AsyncHTTPTestCase):
              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.', 'type': 'user', 'source': 'bot_content',
              'is_enabled': True}
         ]
-        
-        def __mock_search_cache(*args, **kwargs):
-            return {'result': []}
-
-        def __mock_fetch_similar(*args, **kwargs):
-            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-
-        def __mock_cache_result(*args, **kwargs):
-            return {'result': []}
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
-        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         KaironFaqAction(bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
@@ -5311,6 +5302,7 @@ class TestActionServer(AsyncHTTPTestCase):
         assert mock_completion.call_args.args[
                    3] == """\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.\n"""
         assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
+                                                    'enable_response_cache': False,
                                                     'hyperparameters': {'temperature': 0.0, 'max_tokens': 300,
                                                                         'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                                                         'stream': False, 'stop': None,
@@ -5355,21 +5347,12 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_completion_for_query_prompt = rephrased_query, {'choices': [{'message': {'content': rephrased_query, 'role': 'assistant'}}]}
 
         mock_completion_for_answer = generated_text, {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-        
-        def __mock_search_cache(*args, **kwargs):
-            return {'result': []}
-
-        def __mock_fetch_similar(*args, **kwargs):
-            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-
-        def __mock_cache_result(*args, **kwargs):
-            return {'result': []}
 
         mock_completion.side_effect = [mock_completion_for_query_prompt, mock_completion_for_answer]
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = embedding
-        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -5406,15 +5389,6 @@ class TestActionServer(AsyncHTTPTestCase):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from uuid6 import uuid7
 
-        def __mock_search_cache(*args, **kwargs):
-            return {'result': []}
-
-        def __mock_fetch_similar(*args, **kwargs):
-            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-
-        def __mock_cache_result(*args, **kwargs):
-            return {'result': []}
-
         action_name = GPT_LLM_FAQ
         bot = "5f50fd0a56b698ca10d35d2e"
         user = "udit.pandey"
@@ -5425,7 +5399,7 @@ class TestActionServer(AsyncHTTPTestCase):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
-        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -5467,19 +5441,10 @@ class TestActionServer(AsyncHTTPTestCase):
              'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content'},
         ]
 
-        def __mock_search_cache(*args, **kwargs):
-            return {'result': []}
-
-        def __mock_fetch_similar(*args, **kwargs):
-            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-
-        def __mock_cache_result(*args, **kwargs):
-            return {'result': []}
-
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text, generated_text
-        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         hyperparameters = Utility.get_llm_hyperparameters().copy()
@@ -5576,7 +5541,7 @@ class TestActionServer(AsyncHTTPTestCase):
                                                {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "what is python?", "response": "It is a programming language."}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts).save()
+        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts, enable_response_cache=True).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5599,6 +5564,8 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="FAILURE").get()
         assert log.exception == 'Connection reset by peer!'
         assert log.is_from_cache
+        assert log.llm_logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'},
+                                {'message': 'Searching recommendations from cache as `enable_response_cache` is enabled.'}]
 
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
@@ -5625,7 +5592,7 @@ class TestActionServer(AsyncHTTPTestCase):
             {'id': uuid7().__str__(), 'score': 1, 'payload': {'query': user_msg, "response": bot_content}}]}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts).save()
+        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts, enable_response_cache=True).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5643,12 +5610,14 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': bot_content, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
               'image': None, 'attachment': None}])
 
-    @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value).get()
+        assert log.llm_logs == [{'message': 'Searching exact match in cache as `enable_response_cache` is enabled.'},
+                                {'message': 'Found exact query match in cache.'}]
+
+    @mock.patch.object(GPT3Resources, "invoke", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_connection_error_caching_not_present(self, mock_search, mock_embedding):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
-        from openai.util import convert_to_openai_object
-        from openai.openai_response import OpenAIResponse
         from openai import error
 
         action_name = GPT_LLM_FAQ
@@ -5664,13 +5633,14 @@ class TestActionServer(AsyncHTTPTestCase):
         ]
 
         def __mock_get_embedding(*args, **kwargs):
-            return convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
+            return embedding, {'data': [{'embedding': embedding}]}
 
         mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
         mock_search.return_value = {'result': []}
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message="Did you mean any of the following?", llm_prompts=llm_prompts).save()
+        KaironFaqAction(bot=bot, user=user, failure_message="Did you mean any of the following?",
+                        llm_prompts=llm_prompts, enable_response_cache=True).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5687,6 +5657,14 @@ class TestActionServer(AsyncHTTPTestCase):
             response_json['responses'],
             [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [],
               'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
+
+        mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
+        mock_search.return_value = {'result': []}
+
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value).get()
+        assert log.exception == "Connection reset by peer!"
+        assert log.llm_logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'},
+                                {'message': 'Searching recommendations from cache as `enable_response_cache` is enabled.'}]
 
     def test_kairon_faq_response_action_disabled(self):
         bot = "5f50fd0a56b698ca10d35d2efg"

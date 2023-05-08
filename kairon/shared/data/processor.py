@@ -4719,6 +4719,7 @@ class MongoProcessor:
         action = KaironFaqAction.objects(id=faq_action_id, name__iexact=KAIRON_FAQ_ACTION, bot=bot).get()
         action.failure_message = request_data.get("failure_message")
         action.top_results = request_data.get("top_results")
+        action.enable_response_cache = request_data.get("enable_response_cache", False)
         action.similarity_threshold = request_data.get("similarity_threshold")
         action.num_bot_responses = request_data.get('num_bot_responses', 5)
         action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyperparameters())
