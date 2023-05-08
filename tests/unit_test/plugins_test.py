@@ -67,12 +67,16 @@ class TestUtility:
         with pytest.raises(AppException, match=re.escape(f"location is not a valid event. Accepted event types: {valid_plugins}")):
             PluginFactory.get_instance("location")
 
-    def test_empty_ip(self, monkeypatch):
+    def test_empty_ip(self, monkeypatch, caplog):
         ip = {"ip": " "}
         enable = True
         monkeypatch.setitem(Utility.environment["plugins"]["location"], "enable", enable)
-        with pytest.raises(AppException, match="ip is required"):
-            PluginFactory.get_instance(PluginTypes.ip_info).execute(**ip)
+        PluginFactory.get_instance(PluginTypes.ip_info).execute(**ip)
+        assert "ip is required" in caplog.text
+        assert any(
+            record.levelname == "ERROR" and record.message == "ip is required"
+            for record in caplog.records
+        )
 
     @responses.activate
     def test_gpt_plugin(self):

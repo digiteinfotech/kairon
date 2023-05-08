@@ -878,9 +878,9 @@ class AccountProcessor:
     def get_location_and_add_trusted_device(
             user: Text, fingerprint: Text, request: Request, send_confirmation: bool = True, raise_err: bool = False
     ):
-        ip = request.headers.get('X-Forwarded-For')
-        geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
         if Utility.environment['user']['validate_trusted_device']:
+            ip = Utility.get_client_ip(request)
+            geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
             link = AccountProcessor.add_trusted_device(user, fingerprint, send_confirmation, **geo_location)
             return link, geo_location
         else:
