@@ -70,6 +70,7 @@ class ActionHTTP(ActionsBase):
             dynamic_params = http_action_config.get('dynamic_params')
             if not ActionUtility.is_empty(dynamic_params):
                 body, body_log = ActionUtility.evaluate_script(dynamic_params, tracker_data)
+                msg_logger.append(body_log)
                 body_log = ActionUtility.encrypt_secrets(body, tracker_data)
             else:
                 body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'],

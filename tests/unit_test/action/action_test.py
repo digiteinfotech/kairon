@@ -775,6 +775,67 @@ class TestActions:
         actual_request_body = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert actual_request_body == ({}, {})
 
+    def test_encrypt_secrets(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                        "user_details": {"email": "uditpandey@digite.com", "name": "udit"}}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                    'user_details': {'email': '*******************om', 'name': '****'}}
+
+    def test_encrypt_secrets_different_body(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                        "user_personal_details": {"name": "udit"},
+                        "user_contact_details": {"contact_no": "9876543210", "email": "uditpandey@digite.com"}}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit', "CONTACT": "9876543210"},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                    'user_personal_details': {'name': '****'}, 'user_contact_details':
+                                        {'contact_no': '********10', 'email': '*******************om'}}
+
+    def test_encrypt_secrets_with_different_key_vaults(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                        "user_personal_details": {"name": "udit"},
+                        "user_contact_details": {"contact_no": "9876543210", "email": "uditpandey@digite.com"}}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                    'user_personal_details': {'name': '****'}, 'user_contact_details':
+                                        {'contact_no': '9876543210', 'email': '*******************om'}}
+
+    def test_test_encrypt_secrets_with_no_key_vaults(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                        "user_details": {"email": "uditpandey@digite.com", "name": "udit"}}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                    'user_details': {'email': 'uditpandey@digite.com', 'name': 'udit'}}
+
+    def test_encrypt_secrets_without_key_vault_values(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run"}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}
+
     def test_is_empty(self):
         assert ActionUtility.is_empty("")
         assert ActionUtility.is_empty("  ")

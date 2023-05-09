@@ -491,6 +491,7 @@ class TestActionServer(AsyncHTTPTestCase):
                        'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
+                'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"} || data: {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'intent\': \'test_run\'}}',
                 'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || '
                 'data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || '
                 'raise_err_on_failure: True || response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}', 'initiating slot evaluation',
@@ -859,7 +860,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "sender_id": "default",
             "user_message": "get intents",
             "intent": "test_run",
-            "EMAIL": "uditpandey@digite.com"
+            "user_details": {"email": "uditpandey@digite.com"}
         }
         http_url = 'http://localhost:8081/mock'
         responses.start()
@@ -894,7 +895,7 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[responses.matchers.json_params_matcher(
                 {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
-                 "EMAIL": "uditpandey@digite.com"})],
+                 "user_details": {"email": "uditpandey@digite.com"}})],
         )
         responses.add(
             method=responses.POST,
@@ -975,9 +976,10 @@ class TestActionServer(AsyncHTTPTestCase):
                        'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
                        'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                        'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
-                                          'EMAIL': '*******************om'},
+                                          "user_details": {"email": "*******************om"}},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
+                'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}", "EMAIL": "${key_vault.EMAIL}"} || data: {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'intent\': \'test_run\', \'user_details\': {\'email\': \'uditpandey@digite.com\'}}}',
                 'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || '
                 'data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || '
                 'raise_err_on_failure: True || response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
