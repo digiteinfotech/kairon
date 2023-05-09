@@ -3,7 +3,7 @@
             "tracker": {
                 "sender_id": "default",
                 "conversation_id": "default",
-                "slots": {"bot": "bot_id", "to_email": "test@test.com"},
+                "slots": {"bot": "bot_id", "to_email": "test@test.com", "type": "Python is an interpreted, object-oriented, high-level programming language with dynamic semantics."},
                 "latest_message": {"text": "get intents", "intent_ranking": [{"name": "test_run"}]},
                 "latest_event_time": 1537645578.314389,
                 "followup_action": "action_listen",

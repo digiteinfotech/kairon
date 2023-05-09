@@ -4695,6 +4695,15 @@ class MongoProcessor:
         if not bot_settings['enable_gpt_llm_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
 
+        for prompt in request_data['llm_prompts']:
+            if prompt['source'] == 'slot':
+                if not Utility.is_exist(Slots, raise_error=False, name=prompt['data'], bot=bot, status=True):
+                    raise AppException(f'Slot with name {prompt["data"]} not found!')
+            if prompt['source'] == 'action':
+                if not Utility.is_exist(HttpActionConfig, raise_error=False, action_name=prompt['data'], bot=bot,
+                                        status=True):
+                    raise AppException(f'Action with name {prompt["data"]} not found!')
+
         Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, exp_message="Action already exists!")
         request_data['bot'] = bot
         request_data['user'] = user

@@ -129,6 +129,58 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
             processor.add_kairon_faq_action(request, bot, user)
 
+    def test_add_kairon_with_invalid_slots(self):
+        processor = MongoProcessor()
+        bot = 'testing_bot'
+        user = 'testing_user'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 10,
+                   'similarity_threshold': 1.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Identification Prompt',
+             'data': 'info',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+             'is_enabled': True}]}
+        with pytest.raises(AppException, match="Slot with name info not found!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_http_action(self):
+        processor = MongoProcessor()
+        bot = 'testt_bot'
+        user = 'testt_user'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 10,
+                   'similarity_threshold': 1.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Http action Prompt',
+             'data': 'test_http_action',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
+             'is_enabled': True}]}
+        with pytest.raises(AppException, match="Action with name test_http_action not found!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
     def test_add_kairon_with_invalid_similarity_threshold(self):
         processor = MongoProcessor()
         bot = 'test_bot'
