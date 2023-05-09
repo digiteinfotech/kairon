@@ -59,7 +59,7 @@ class ActionKaironFaq(ActionsBase):
 
         try:
             k_faq_action_config = self.retrieve_config()
-            llm_params = self.__get_llm_params(k_faq_action_config, tracker)
+            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
             llm = LLMFactory.get_instance(self.bot, "faq")
             llm_response = llm.predict(user_msg, **llm_params)
@@ -96,7 +96,7 @@ class ActionKaironFaq(ActionsBase):
         dispatcher.utter_message(text=bot_response, buttons=recommendations)
         return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
 
-    def __get_llm_params(self, k_faq_action_config: dict, tracker: Tracker):
+    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         implementations = {
             "GPT3_FAQ_EMBED": self.__get_gpt_params,
         }
@@ -104,9 +104,11 @@ class ActionKaironFaq(ActionsBase):
         llm_type = Utility.environment['llm']["faq"]
         if not implementations.get(llm_type):
             raise ActionFailure(f'{llm_type} type LLM is not supported')
-        return implementations[Utility.environment['llm']["faq"]](k_faq_action_config, tracker)
+        return await implementations[Utility.environment['llm']["faq"]](k_faq_action_config, dispatcher, tracker, domain)
 
-    def __get_gpt_params(self, k_faq_action_config: dict, tracker: Tracker):
+    async def __get_gpt_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+        from kairon.actions.definitions.factory import ActionFactory
+
         system_prompt = None
         context_prompt = ''
         query_prompt = ''
@@ -127,6 +129,17 @@ class ActionKaironFaq(ActionsBase):
                     similarity_prompt_name = prompt['name']
                     similarity_prompt_instructions = prompt['instructions']
                     use_similarity_prompt = True
+                elif prompt['source'] == LlmPromptSource.slot.value:
+                    slot_data = tracker.get_slot(prompt['data'])
+                    context_prompt += f"{prompt['name']}:\n{slot_data}\n"
+                    context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                elif prompt['source'] == LlmPromptSource.action.value:
+                    action = ActionFactory.get_instance(self.bot, prompt['data'])
+                    await action.execute(dispatcher, tracker, domain)
+                    if action.is_success:
+                        response = action.response
+                        context_prompt += f"{prompt['name']}:\n{response}\n"
+                        context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 else:
                     context_prompt += f"{prompt['name']}:\n{prompt['data']}\n"
                     context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
