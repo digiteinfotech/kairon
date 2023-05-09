@@ -14748,6 +14748,28 @@ def test_allowed_origin(monkeypatch):
                                 'access-control-expose-headers': 'content-disposition',
                                 }
 
+def test_get_client_ip(monkeypatch):
+    headers = {"X-Forwarded-For": "10.0.0.1"}
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        headers=headers
+    )
+    assert Utility.get_client_ip(response.request) == "10.0.0.1"
+
+    headers = {"X-Forwarded-For": "10.0.0.2, 10.0.1.1"}
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        headers=headers
+    )
+    assert Utility.get_client_ip(response.request) == "10.0.0.2"
+
+    headers = {"X-Real-IP": "10.0.0.3"}
+    response = client.post(
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        headers=headers
+    )
+    assert Utility.get_client_ip(response.request) == "10.0.0.3"
+
 
 def test_allow_only_sso_login(monkeypatch):
     user = "test@demo.in"
