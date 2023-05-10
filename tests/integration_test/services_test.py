@@ -6151,6 +6151,82 @@ def test_add_http_action_no_token():
     assert actual["success"]
 
 
+def test_add_http_action_with_dynamic_params():
+    request_body = {
+        "action_name": "test_add_http_action_with_dynamic_params",
+        "response": {"value": "string"},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "dynamic_params":
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_update_http_action_with_dynamic_params():
+    request_body = {
+        "action_name": "test_update_http_action_with_dynamic_params",
+        "response": {"value": "", "dispatch": False},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "action_name": "test_update_http_action_with_dynamic_params",
+        "content_type": "application/x-www-form-urlencoded",
+        "response": {"value": "json", "dispatch": False, "evaluation_type": "script"},
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "dynamic_params":
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+        "headers": [{
+            "key": "Authorization", "parameter_type": "value", "value": "bearer token", "encrypt": True
+        }],
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/httpaction/test_update_http_action_with_dynamic_params",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script'}
+    assert actual['data']["http_url"] == "http://www.alphabet.com"
+    assert actual['data']["request_method"] == "POST"
+    assert len(actual['data']["params_list"]) == 0
+    assert actual['data']["dynamic_params"] == \
+           "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+    assert actual['data']["headers"] == \
+           [{'key': 'Authorization', 'value': 'bearer token', 'parameter_type': 'value', 'encrypt': True}]
+    assert actual["success"]
+
+
 def test_add_http_action_with_sender_id_parameter_type():
     request_body = {
         "auth_token": "",
@@ -6740,6 +6816,8 @@ def test_list_actions():
         'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
         'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
         'http_action': ['test_add_http_action_no_token',
+                        'test_add_http_action_with_dynamic_params',
+                        'test_update_http_action_with_dynamic_params',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
                         'test_add_http_action_no_params',

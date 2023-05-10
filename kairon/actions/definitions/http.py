@@ -67,7 +67,14 @@ class ActionHTTP(ActionsBase):
             tracker_data.update({'bot': self.bot})
             headers, header_log = ActionUtility.prepare_request(tracker_data, http_action_config.get('headers'), self.bot)
             logger.info("headers: " + str(header_log))
-            body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'], self.bot)
+            dynamic_params = http_action_config.get('dynamic_params')
+            if not ActionUtility.is_empty(dynamic_params):
+                body, body_log = ActionUtility.evaluate_script(dynamic_params, tracker_data)
+                msg_logger.append(body_log)
+                body_log = ActionUtility.encrypt_secrets(body, tracker_data)
+            else:
+                body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'],
+                                                               self.bot)
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
