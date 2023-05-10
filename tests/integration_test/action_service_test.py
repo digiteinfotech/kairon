@@ -5932,6 +5932,8 @@ class TestActionServer(AsyncHTTPTestCase):
              {'text': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
               'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
             )
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
+        assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
 
     @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
@@ -6089,3 +6091,5 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
+        assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]

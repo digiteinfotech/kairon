@@ -6524,6 +6524,41 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
             processor.delete_action('action_custom', bot, user)
 
+    def test_delete_action_with_attached_http_action(self):
+        processor = MongoProcessor()
+        bot = 'tester_bot'
+        http_url = 'http://www.google.com'
+        action = 'tester_action'
+        user = 'tester_user'
+        response = "json"
+        request_method = 'GET'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            params_list=http_params_list,
+            headers=header
+        )
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Action Prompt',
+                                    'data': 'tester_action',
+                                    'instructions': 'Answer according to the context', 'type': 'user',
+                                    'source': 'action',
+                                    'is_enabled': True}]}
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_kairon_faq_action(request, bot, user)
+        with pytest.raises(AppException, match=f'Action with name tester_action is attached with KaironFaqAction!'):
+            processor.delete_action('tester_action', bot, user)
+
     @responses.activate
     def test_push_notifications_enabled_create_type_event(self):
         Utility.environment['notifications']['enable'] = True
