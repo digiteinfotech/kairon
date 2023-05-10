@@ -929,6 +929,8 @@ class Utility:
 
     @staticmethod
     async def chat(data: Text, bot: Text, user: Text, email: Text):
+        if Utility.check_empty_string(data):
+            raise AppException("data cannot be empty")
         if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
             from kairon.shared.auth import Authentication
             agent_url = Utility.environment['model']['agent'].get('url')
