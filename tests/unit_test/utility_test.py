@@ -2479,3 +2479,8 @@ data: [DONE]\n\n"""
         )
         with pytest.raises(AppException, match=re.escape("Received non 200 status code: data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n")):
             GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+    def test_get_client_ip_with_request_client(self):
+        request = mock.Mock()
+        request.client.host = "58.0.127.89"
+        ip = Utility.get_client_ip(request)
+        assert "58.0.127.89" == ip
