@@ -2140,7 +2140,7 @@ class TestActions:
         assert actual == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
                           'similarity_threshold': 0.7,
                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                          'bot': 'test_action_server',
+                          'bot': 'test_action_server', 'enable_response_cache': False,
                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -3058,6 +3058,7 @@ class TestActions:
         k_faq_action_config.pop('timestamp')
         assert k_faq_action_config == \
                {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+                'enable_response_cache': False,
                 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot',
                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
                                     'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,

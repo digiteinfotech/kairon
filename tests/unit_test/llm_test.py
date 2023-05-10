@@ -361,7 +361,9 @@ class TestLLM:
 
             response = gpt3.predict(query, **k_faq_action_config)
             assert response['content'] == generated_text
-            assert gpt3.logs == [{'messages': [{'role': 'system',
+            assert gpt3.logs == [
+                {'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
+                {'messages': [{'role': 'system',
                                                 'content': 'You are a personal assistant. Answer the question according to the below context'},
                                                {'role': 'user',
                                                 'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}],
@@ -372,7 +374,7 @@ class TestLLM:
                                                       'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                       'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                                       'logit_bias': {}}},
-                                 {'message': 'Response added to cache', 'type': 'response_cached'}]
+                                 {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
 
     @responses.activate
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -390,7 +392,7 @@ class TestLLM:
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
             "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True, 'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.'}
+            'similarity_prompt_instructions': 'Answer according to this context.', "enable_response_cache": True}
 
         def __mock_connection_error(*args, **kwargs):
             import openai
@@ -450,10 +452,12 @@ Python is a high-level, general-purpose programming language. Its design philoso
 Instructions on how to use Similarity Prompt: Answer according to this context.
 """
             assert mock_completion.call_args.kwargs == {'top_results': 10, 'similarity_threshold': 0.7,
-                                                        'use_similarity_prompt': True,
+                                                        'use_similarity_prompt': True, 'enable_response_cache': True,
                                                         'similarity_prompt_name': 'Similarity Prompt',
                                                         'similarity_prompt_instructions': 'Answer according to this context.'}
-            assert gpt3.logs == [{'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'}]
+            assert gpt3.logs == [{'message': 'Searching exact match in cache as `enable_response_cache` is enabled.'},
+                                 {'error': 'Retrieving chat completion for the provided query. Connection reset by peer!'},
+                                 {'message': 'Searching recommendations from cache as `enable_response_cache` is enabled.'}]
 
     @responses.activate
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
@@ -469,7 +473,9 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True}
+            "top_results": 10, "similarity_threshold": 0.70, 'use_similarity_prompt': True,
+            'similarity_prompt_name': 'Similarity Prompt',
+            'similarity_prompt_instructions': 'Answer according to this context.', "enable_response_cache": True}
 
         mock_embedding.return_value = embedding
 
@@ -490,7 +496,8 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             assert response == {'content': generated_text, 'is_from_cache': True}
 
             assert mock_embedding.call_args.args[1] == query
-            assert gpt3.logs == [{"message": "Found exact query match in cache."}]
+            assert gpt3.logs == [{'message': 'Searching exact match in cache as `enable_response_cache` is enabled.'},
+                                 {"message": "Found exact query match in cache."}]
 
     @responses.activate
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
@@ -508,7 +515,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         k_faq_action_config = {
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
-            "top_results": 10, "similarity_threshold": 0.70}
+            "top_results": 10, "similarity_threshold": 0.70, "enable_response_cache": True}
 
         mock_embedding.side_effect = [openai.error.APIConnectionError("Connection reset by peer!"), embedding]
 
@@ -534,7 +541,8 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
                 'is_from_cache': True,  'exception': 'Connection reset by peer!', 'is_failure': True}
 
             assert mock_embedding.call_args.args[1] == query
-            assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
+            assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'},
+                                 {'message': 'Searching recommendations from cache as `enable_response_cache` is enabled.'}]
 
     @responses.activate
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -551,7 +559,9 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             "system_prompt": "You are a personal assistant. Answer the question according to the below context",
             "context_prompt": "Based on below context answer question, if answer not in context check previous logs.",
             "top_results": 10, "similarity_threshold": 0.70, 'similarity_prompt_name': 'Similarity Prompt',
-            'similarity_prompt_instructions': 'Answer according to this context.', 'use_similarity_prompt': True}
+            'similarity_prompt_instructions': 'Answer according to this context.', 'use_similarity_prompt': True,
+            "enable_response_cache": True
+        }
 
         def __mock_exception(*args, **kwargs):
             raise ConnectionResetError("Connection reset by peer!")
@@ -591,9 +601,8 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
                 json={'result': []}
             )
 
-            response = gpt3.predict(query, **k_faq_action_config)
-
-            assert response == {'content': {'result': []}, 'is_from_cache': True,  'exception': 'Connection reset by peer!', 'is_failure': True}
+            with pytest.raises(AppException, match="Connection reset by peer!"):
+                gpt3.predict(query, **k_faq_action_config)
 
     @responses.activate
     def test_gpt3_faq_embedding_predict_with_previous_bot_responses(self):

@@ -177,7 +177,7 @@ class GPT3FAQEmbedding(LLMBase):
         else:
             self.__logs.append({"message": "Skipping recommendation search from cache as `enable_response_cache` is disabled."})
 
-        if not search_result.get('result') and raise_err:
+        if (not search_result or not search_result.get('result')) and raise_err:
             raise AppException(err_msg)
 
         return search_result
