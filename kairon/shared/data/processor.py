@@ -46,7 +46,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     LlmPrompt
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
-from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType
+from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
+    LlmPromptSource
 from kairon.shared.utils import Utility, StoryValidator
 from .base_data import AuditLogData
 from .constant import (
@@ -4169,6 +4170,8 @@ class MongoProcessor:
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
             MongoProcessor.get_attached_flows(bot, name, 'action')
+            Utility.is_exist(KaironFaqAction, bot=bot, llm_prompts__source=LlmPromptSource.action.value,
+                                llm_prompts__data=name, exp_message=f"Action with name {name} is attached with KaironFaqAction!")
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.form_validation_action.value:
