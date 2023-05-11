@@ -59,8 +59,8 @@ class ActionKaironFaq(ActionsBase):
 
         try:
             k_faq_action_config = self.retrieve_config()
-            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
+            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm = LLMFactory.get_instance(self.bot, "faq")
             llm_response = llm.predict(user_msg, **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
