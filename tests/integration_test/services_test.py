@@ -8164,6 +8164,34 @@ def test_chat_user(monkeypatch):
 
 
 @responses.activate
+def test_chat_with_data_empty(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
+    chat_json = {"data": ""}
+    response = client.post(f"/api/bot/{pytest.bot}/chat",
+                           json=chat_json,
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual['message'] == 'data cannot be empty'
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+
+
+@responses.activate
+def test_chat_augment_user_with_data_empty(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
+    chat_json = {"data": ""}
+    response = client.post(f"/api/bot/{pytest.bot}/chat/testUser",
+                           json=chat_json,
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual['message'] == 'data cannot be empty'
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+
+
+@responses.activate
 def test_chat_augment_user(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     chat_json = {"data": "Hi"}
