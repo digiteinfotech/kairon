@@ -1654,6 +1654,27 @@ class Utility:
         raise AppException("Could not find any hyperparameters for configured LLM.")
 
     @staticmethod
+    def validate_llm_hyperparameters(hyperparameters: dict, exception_class):
+        for key, value in hyperparameters.items():
+            if key == 'temperature' and (value < 0.0 or value > 2.0):
+                raise exception_class("Temperature must be between 0.0 and 2.0!")
+            if key == 'presence_penalty' and (value < -2.0 or value > 2.0):
+                raise exception_class("Presence penalty must be between -2.0 and 2.0!")
+            if key == 'frequency_penalty' and (value < -2.0 or value > 2.0):
+                raise exception_class("Frequency penalty must be between -2.0 and 2.0!")
+            if key == 'stop':
+                if value is not None:
+                    if isinstance(value, str) or isinstance(value, int):
+                        pass
+                    elif isinstance(value, list) and len(value) <= 4:
+                        if all(isinstance(elem, str) or isinstance(elem, int) for elem in value):
+                            pass
+                        else:
+                            raise exception_class("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
+                    else:
+                        raise exception_class("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
+
+    @staticmethod
     def create_uuid_from_string(val: str):
         hex_string = hashlib.md5(val.encode("UTF-8")).hexdigest()
         return uuid.UUID(hex=hex_string).__str__()

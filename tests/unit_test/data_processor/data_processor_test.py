@@ -449,6 +449,82 @@ class TestMongoProcessor:
              }
         ]
 
+    def test_add_kairon_with_invalid_temperature_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_one'
+        user = 'test_user_one'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="Temperature must be between 0.0 and 2.0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_stop_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_two'
+        user = 'test_user_two'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"], 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_presence_penalty_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_three'
+        user = 'test_user_three'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': -3.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="Presence penalty must be between -2.0 and 2.0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_frequency_penalty_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_four'
+        user = 'test_user_four'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 3.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
     def test_add_kairon_faq_action_already_exist(self):
         processor = MongoProcessor()
         bot = 'test_bot'
