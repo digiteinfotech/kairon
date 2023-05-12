@@ -525,6 +525,120 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
+    def test_add_kairon_with_invalid_max_tokens_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_five'
+        user = 'test_user_five'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_zero_max_tokens_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_six'
+        user = 'test_user_six'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_top_p_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_seven'
+        user = 'test_user_seven'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 3.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="top_p must be between 0.0 and 1.0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_n_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_eight'
+        user = 'test_user_eight'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 7, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_zero_n_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_nine'
+        user = 'test_user_nine'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 0, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_logit_bias_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_ten'
+        user = 'test_user_ten'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 2, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': 'a'},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="logit_bias must be a dictionary!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
     def test_add_kairon_faq_action_already_exist(self):
         processor = MongoProcessor()
         bot = 'test_bot'

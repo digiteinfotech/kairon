@@ -1655,24 +1655,34 @@ class Utility:
 
     @staticmethod
     def validate_llm_hyperparameters(hyperparameters: dict, exception_class):
+        params = Utility.system_metadata['llm']['gpt']
         for key, value in hyperparameters.items():
-            if key == 'temperature' and (value < 0.0 or value > 2.0):
+            if key == 'temperature' and (value < params['temperature']['min'] or value > params['temperature']['max']):
                 raise exception_class("Temperature must be between 0.0 and 2.0!")
-            if key == 'presence_penalty' and (value < -2.0 or value > 2.0):
+            elif key == 'presence_penalty' and (value < params['presence_penalty']['min'] or value > params['presence_penalty']['max']):
                 raise exception_class("Presence penalty must be between -2.0 and 2.0!")
-            if key == 'frequency_penalty' and (value < -2.0 or value > 2.0):
+            elif key == 'frequency_penalty' and (value < params['presence_penalty']['min'] or value > params['presence_penalty']['max']):
                 raise exception_class("Frequency penalty must be between -2.0 and 2.0!")
-            if key == 'stop':
-                if value is not None:
-                    if isinstance(value, str) or isinstance(value, int):
-                        pass
-                    elif isinstance(value, list) and len(value) <= 4:
-                        if all(isinstance(elem, str) or isinstance(elem, int) for elem in value):
-                            pass
-                        else:
-                            raise exception_class("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
-                    else:
-                        raise exception_class("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
+            elif key == 'top_p' and (value < params['top_p']['min'] or value > params['top_p']['max']):
+                raise exception_class("top_p must be between 0.0 and 1.0!")
+            elif key == 'n':
+                if value < params['n']['min'] or value > params['n']['max'] or value == 0:
+                    raise exception_class("n must be between 1 and 5 and should not be 0!")
+                # elif value == 0:
+                #     raise exception_class("Value of n cannot be 0!")
+            elif key == 'max_tokens':
+                if value < params['max_tokens']['min'] or value > params['max_tokens']['max'] or value == 0:
+                    raise exception_class("max_tokens must be between 5 and 4096 and should not be 0!")
+                # elif value == 0:
+                #     raise exception_class("Value of max_tokens cannot be 0!")
+            elif key == 'logit_bias' and not isinstance(value, dict):
+                raise exception_class("logit_bias must be a dictionary!")
+            elif key == 'stop':
+                exc_msg = "Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."
+                if value and not isinstance(value, (str, int, list)):
+                    raise exception_class(exc_msg)
+                elif value and (isinstance(value, list) and len(value) > 4):
+                    raise exception_class(exc_msg)
 
     @staticmethod
     def create_uuid_from_string(val: str):
