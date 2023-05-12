@@ -6570,6 +6570,11 @@ class TestActionServer(AsyncHTTPTestCase):
             )
         log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
         assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
+        assert mock_completion.call_args.args[1] == 'What kind of language is python?'
+        assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
+        with open('tests/testing_data/actions/action_prompt.txt', 'r') as file:
+            prompt_data = file.read()
+        assert mock_completion.call_args.args[3] == prompt_data
 
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_with_action_not_found(self, mock_search):
@@ -6690,3 +6695,8 @@ class TestActionServer(AsyncHTTPTestCase):
              ])
         log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
         assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
+        assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
+        assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
+        with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
+            prompt_data = file.read()
+        assert mock_completion.call_args.args[3] == prompt_data
