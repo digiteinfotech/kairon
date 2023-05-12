@@ -51,6 +51,7 @@ class ActionKaironFaq(ActionsBase):
         exception = None
         llm_response = None
         k_faq_action_config = None
+        llm = None
         llm_logs = None
         recommendations = None
         bot_response = "Faq feature is disabled for the bot! Please contact support."
@@ -66,7 +67,6 @@ class ActionKaironFaq(ActionsBase):
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")
             is_from_cache = llm_response['is_from_cache']
-            llm_logs = llm.logs
             if is_from_cache and not isinstance(llm_response['content'], str):
                 recommendations, bot_response = ActionUtility.format_recommendations(llm_response, k_faq_action_config)
             else:
@@ -77,6 +77,8 @@ class ActionKaironFaq(ActionsBase):
             exception = str(e)
             status = "FAILURE"
         finally:
+            if llm:
+                llm_logs = llm.logs
             ActionServerLogs(
                 type=ActionType.kairon_faq_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -138,6 +140,7 @@ class ActionKaironFaq(ActionsBase):
         params["top_results"] = k_faq_action_config.get('top_results', 10)
         params["similarity_threshold"] = k_faq_action_config.get('similarity_threshold', 0.70)
         params["hyperparameters"] = k_faq_action_config.get('hyperparameters', Utility.get_llm_hyperparameters())
+        params['enable_response_cache'] = k_faq_action_config.get('enable_response_cache', False)
         params["system_prompt"] = system_prompt
         params["context_prompt"] = context_prompt
         params["query_prompt"] = query_prompt

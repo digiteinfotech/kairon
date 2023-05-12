@@ -439,6 +439,7 @@ class TestMongoProcessor:
         assert action == [
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+             'enable_response_cache': False,
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}}, 'llm_prompts': [],
@@ -518,7 +519,7 @@ class TestMongoProcessor:
         action[0].pop("_id")
         assert action == [
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': 'updated_failure_message',
+             'failure_message': 'updated_failure_message', 'enable_response_cache': False,
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}}, 'llm_prompts': [
@@ -543,6 +544,7 @@ class TestMongoProcessor:
         assert action == [
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+             'enable_response_cache': False,
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
@@ -582,7 +584,7 @@ class TestMongoProcessor:
         print(action)
         assert action == [
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': 'updated_failure_message',
+             'failure_message': 'updated_failure_message', 'enable_response_cache': False,
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}}, 'llm_prompts': [
@@ -599,7 +601,6 @@ class TestMongoProcessor:
                                        'instructions': 'Answer according to the context', 'type': 'query',
                                        'source': 'static', 'is_enabled': True}]}]
 
-
     def test_get_kairon_faq_action_does_not_exist(self):
         processor = MongoProcessor()
         bot = 'invalid_bot'
@@ -614,7 +615,7 @@ class TestMongoProcessor:
         print(action)
         assert action == [
             {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': 'updated_failure_message',
+             'failure_message': 'updated_failure_message', 'enable_response_cache': False,
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}}, 'llm_prompts': [

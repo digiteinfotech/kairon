@@ -1,10 +1,10 @@
+import logging
 from typing import Text
 
-from loguru import logger
-
 from kairon import Utility
-from kairon.exceptions import AppException
 from kairon.shared.plugins.base import BasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class IpInfoTracker(BasePlugin):
@@ -12,7 +12,8 @@ class IpInfoTracker(BasePlugin):
     def execute(self, ip: Text, **kwargs):
         if Utility.environment["plugins"]["location"]["enable"]:
             if Utility.check_empty_string(ip):
-                raise AppException("ip is required")
+                logger.error("ip is required")
+                return
             try:
                 headers = {"user-agent": "IPinfoClient/Python3.8/4.2.1", "accept": "application/json"}
                 token = Utility.environment["plugins"]["location"]["token"]

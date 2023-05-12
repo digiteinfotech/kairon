@@ -1687,6 +1687,20 @@ class Utility:
         if bot_content_prompt_count > 1:
             raise exception_class("Only one bot_content source can be present!")
 
+    @staticmethod
+    def get_client_ip(request):
+        client_ip = None
+        try:
+            client_ip = request.client.host
+        except AttributeError:
+            client_ip = request.headers.get('X-Forwarded-For')
+            if client_ip and "," in client_ip:
+                client_ip = client_ip.split(",")[0].strip() if client_ip else None
+
+        if client_ip is None:
+            client_ip = request.headers.get('X-Real-IP')
+        return client_ip
+
 
 class StoryValidator:
 

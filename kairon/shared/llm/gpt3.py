@@ -51,13 +51,13 @@ class GPT3FAQEmbedding(LLMBase):
             system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
 
-            cached_response, match_found = self.__search_exact_match(query_embedding)
+            cached_response, match_found = self.__search_exact_match(query_embedding, **kwargs)
             if match_found:
                 response = {"content": cached_response, "is_from_cache": True}
             else:
                 context = self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
                 response = {"content": self.__get_answer(query, system_prompt, context, **kwargs), "is_from_cache": False}
-                self.__cache_response(query, query_embedding, response["content"])
+                self.__cache_response(query, query_embedding, response["content"], **kwargs)
         except openai.error.APIConnectionError as e:
             logging.exception(e)
             if embeddings_created:
@@ -66,14 +66,14 @@ class GPT3FAQEmbedding(LLMBase):
                 failure_stage = "Creating a new embedding for the provided query."
             self.__logs.append({'error': f"{failure_stage} {str(e)}"})
             response = {
-                "content": self.__search_cache(query, query_embedding, **kwargs), "is_from_cache": True,
-                "is_failure": True, "exception": str(e)
+                "content": self.__search_cache(query, query_embedding, err_msg=str(e), raise_err_if_not_exists=True, **kwargs),
+                "is_from_cache": True, "is_failure": True, "exception": str(e)
             }
         except Exception as e:
             logging.exception(e)
             response = {
-                "content": self.__search_cache(query, query_embedding, **kwargs), "is_from_cache": True,
-                "is_failure": True, "exception": str(e)
+                "content": self.__search_cache(query, query_embedding, err_msg=str(e), raise_err_if_not_exists=True, **kwargs),
+                "is_from_cache": True, "is_failure": True, "exception": str(e)
             }
 
         return response
@@ -151,30 +151,52 @@ class GPT3FAQEmbedding(LLMBase):
     def logs(self):
         return self.__logs
 
-    def __cache_response(self, query: Text, query_embedding: List, response: Text):
-        vector_id = Utility.create_uuid_from_string(query)
-        point = [{'id': vector_id, 'vector': query_embedding, 'payload': {"query": query, "response": response}}]
-        self.__collection_upsert__(self.bot + self.cached_resp_suffix, {'points': point},
-                                   err_msg="Unable to add response to cache!", raise_err=False)
-        self.__logs.append({"message": "Response added to cache", 'type': 'response_cached'})
+    def __cache_response(self, query: Text, query_embedding: List, response: Text, **kwargs):
+        enable_response_cache = kwargs.get("enable_response_cache", False)
+        if enable_response_cache:
+            vector_id = Utility.create_uuid_from_string(query)
+            point = [{'id': vector_id, 'vector': query_embedding, 'payload': {"query": query, "response": response}}]
+            self.__collection_upsert__(self.bot + self.cached_resp_suffix, {'points': point},
+                                       err_msg="Unable to add response to cache!", raise_err=False)
+            self.__logs.append({"message": "Response added to cache as `enable_response_cache` is enabled.", 'type': 'response_cached'})
+        else:
+            self.__logs.append({"message": "Skipping response caching as `enable_response_cache` is disabled."})
 
     def __search_cache(self, query: Text, query_embedding: List, **kwargs):
+        search_result = None
         score_threshold = kwargs.get('similarity_threshold', 0.70)
-        if not query_embedding:
-            query_embedding = self.__get_embedding(query)
-        search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding, limit=3,
-                                                   score_threshold=score_threshold)
+        enable_response_cache = kwargs.get("enable_response_cache", False)
+        err_msg = kwargs.get("err_msg")
+        raise_err = kwargs.get("raise_err_if_not_exists", True)
+        if enable_response_cache:
+            if not query_embedding:
+                query_embedding = self.__get_embedding(query)
+            self.__logs.append({"message": "Searching recommendations from cache as `enable_response_cache` is enabled."})
+            search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding,
+                                                       limit=3, score_threshold=score_threshold)
+        else:
+            self.__logs.append({"message": "Skipping recommendation search from cache as `enable_response_cache` is disabled."})
+
+        if (not search_result or not search_result.get('result')) and raise_err:
+            raise AppException(err_msg)
+
         return search_result
 
-    def __search_exact_match(self, query_embedding: List):
+    def __search_exact_match(self, query_embedding: List, **kwargs):
+        response = None
         is_match_found = False
-        search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding, limit=1,
-                                                   score_threshold=0.99)
-        response = search_result["result"]
-        if response:
-            is_match_found = True
-            response = search_result["result"][0]['payload']['response']
-            self.__logs.append({"message": "Found exact query match in cache."})
+        enable_response_cache = kwargs.get("enable_response_cache", False)
+        if enable_response_cache:
+            self.__logs.append({"message": "Searching exact match in cache as `enable_response_cache` is enabled."})
+            search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding,
+                                                       limit=1, score_threshold=0.99)
+            response = search_result["result"]
+            if response:
+                is_match_found = True
+                response = search_result["result"][0]['payload']['response']
+                self.__logs.append({"message": "Found exact query match in cache."})
+        else:
+            self.__logs.append({"message": "Skipping cache lookup as `enable_response_cache` is disabled."})
         return response, is_match_found
 
     def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
