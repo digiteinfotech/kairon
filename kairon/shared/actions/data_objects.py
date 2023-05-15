@@ -88,6 +88,7 @@ class HttpActionConfig(Auditlog):
     content_type = StringField(default=HttpRequestContentType.json.value,
                                choices=[c_type.value for c_type in HttpRequestContentType])
     params_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
+    dynamic_params = StringField(default=None)
     headers = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
@@ -489,7 +490,8 @@ class LlmPrompt(EmbeddedDocument):
     data = StringField()
     instructions = StringField()
     type = StringField(required=True, choices=[LlmPromptType.user.value, LlmPromptType.system.value, LlmPromptType.query.value])
-    source = StringField(choices=[LlmPromptSource.static.value, LlmPromptSource.history.value, LlmPromptSource.bot_content.value],
+    source = StringField(choices=[LlmPromptSource.static.value, LlmPromptSource.history.value, LlmPromptSource.bot_content.value,
+                                  LlmPromptSource.action.value, LlmPromptSource.slot.value],
                          default=LlmPromptSource.static.value)
     is_enabled = BooleanField(default=True)
 
@@ -530,6 +532,7 @@ class KaironFaqAction(Auditlog):
         if not self.llm_prompts:
             raise ValidationError("llm_prompts are required!")
         Utility.validate_kairon_faq_llm_prompts(self.to_mongo().to_dict()['llm_prompts'], ValidationError)
+        Utility.validate_llm_hyperparameters(self.hyperparameters, ValidationError)
 
 
 @auditlogger.log

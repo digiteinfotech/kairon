@@ -929,6 +929,8 @@ class Utility:
 
     @staticmethod
     async def chat(data: Text, bot: Text, user: Text, email: Text):
+        if Utility.check_empty_string(data):
+            raise AppException("data cannot be empty")
         if Utility.environment.get('model') and Utility.environment['model']['agent'].get('url'):
             from kairon.shared.auth import Authentication
             agent_url = Utility.environment['model']['agent'].get('url')
@@ -1652,6 +1654,37 @@ class Utility:
         raise AppException("Could not find any hyperparameters for configured LLM.")
 
     @staticmethod
+    def validate_llm_hyperparameters(hyperparameters: dict, exception_class):
+        params = Utility.system_metadata['llm']['gpt']
+        for key, value in hyperparameters.items():
+            if key == 'temperature' and (value < params['temperature']['min'] or value > params['temperature']['max']):
+                raise exception_class("Temperature must be between 0.0 and 2.0!")
+            elif key == 'presence_penalty' and (value < params['presence_penalty']['min'] or value > params['presence_penalty']['max']):
+                raise exception_class("Presence penalty must be between -2.0 and 2.0!")
+            elif key == 'frequency_penalty' and (value < params['presence_penalty']['min'] or value > params['presence_penalty']['max']):
+                raise exception_class("Frequency penalty must be between -2.0 and 2.0!")
+            elif key == 'top_p' and (value < params['top_p']['min'] or value > params['top_p']['max']):
+                raise exception_class("top_p must be between 0.0 and 1.0!")
+            elif key == 'n':
+                if value < params['n']['min'] or value > params['n']['max'] or value == 0:
+                    raise exception_class("n must be between 1 and 5 and should not be 0!")
+                # elif value == 0:
+                #     raise exception_class("Value of n cannot be 0!")
+            elif key == 'max_tokens':
+                if value < params['max_tokens']['min'] or value > params['max_tokens']['max'] or value == 0:
+                    raise exception_class("max_tokens must be between 5 and 4096 and should not be 0!")
+                # elif value == 0:
+                #     raise exception_class("Value of max_tokens cannot be 0!")
+            elif key == 'logit_bias' and not isinstance(value, dict):
+                raise exception_class("logit_bias must be a dictionary!")
+            elif key == 'stop':
+                exc_msg = "Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."
+                if value and not isinstance(value, (str, int, list)):
+                    raise exception_class(exc_msg)
+                elif value and (isinstance(value, list) and len(value) > 4):
+                    raise exception_class(exc_msg)
+
+    @staticmethod
     def create_uuid_from_string(val: str):
         hex_string = hashlib.md5(val.encode("UTF-8")).hexdigest()
         return uuid.UUID(hex=hex_string).__str__()
@@ -1664,6 +1697,10 @@ class Utility:
         for prompt in llm_prompts:
             if prompt['type'] == LlmPromptType.system.value and prompt['source'] != LlmPromptSource.static.value:
                 raise exception_class("System prompt must have static source!")
+            if Utility.check_empty_string(prompt.get('data')) and prompt['source'] == LlmPromptSource.action.value:
+                raise exception_class("Data must contain action name!")
+            if Utility.check_empty_string(prompt.get('data')) and prompt['source'] == LlmPromptSource.slot.value:
+                raise exception_class("Data must contain slot name!")
             if prompt['type'] == LlmPromptType.query.value and prompt['source'] != LlmPromptSource.static.value:
                 raise exception_class("Query prompt must have static source!")
             if Utility.check_empty_string(prompt.get('name')):

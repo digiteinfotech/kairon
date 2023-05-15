@@ -1,0 +1,9 @@
+Language Prompt:
+Python is an interpreted, object-oriented, high-level programming language with dynamic semantics.
+Instructions on how to use Language Prompt:
+Answer according to the context
+
+
+Similarity Prompt:
+Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.
+Instructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.

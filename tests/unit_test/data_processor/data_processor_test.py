@@ -129,6 +129,58 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
             processor.add_kairon_faq_action(request, bot, user)
 
+    def test_add_kairon_with_invalid_slots(self):
+        processor = MongoProcessor()
+        bot = 'testing_bot'
+        user = 'testing_user'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 10,
+                   'similarity_threshold': 1.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Identification Prompt',
+             'data': 'info',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+             'is_enabled': True}]}
+        with pytest.raises(AppException, match="Slot with name info not found!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_http_action(self):
+        processor = MongoProcessor()
+        bot = 'testt_bot'
+        user = 'testt_user'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 10,
+                   'similarity_threshold': 1.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Http action Prompt',
+             'data': 'test_http_action',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
+             'is_enabled': True}]}
+        with pytest.raises(AppException, match="Action with name test_http_action not found!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
     def test_add_kairon_with_invalid_similarity_threshold(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -449,6 +501,196 @@ class TestMongoProcessor:
              ]
              }
         ]
+
+    def test_add_kairon_with_invalid_temperature_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_one'
+        user = 'test_user_one'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="Temperature must be between 0.0 and 2.0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_stop_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_two'
+        user = 'test_user_two'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': ["\n", ".", "?", "!", ";"], 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_presence_penalty_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_three'
+        user = 'test_user_three'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': -3.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="Presence penalty must be between -2.0 and 2.0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_frequency_penalty_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_four'
+        user = 'test_user_four'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 3.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_max_tokens_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_five'
+        user = 'test_user_five'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_zero_max_tokens_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_six'
+        user = 'test_user_six'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_top_p_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_seven'
+        user = 'test_user_seven'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 3.0,
+                                       'n': 1, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="top_p must be between 0.0 and 1.0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_n_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_eight'
+        user = 'test_user_eight'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 7, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_zero_n_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_nine'
+        user = 'test_user_nine'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 0, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': {}},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
+            processor.add_kairon_faq_action(request, bot, user)
+
+    def test_add_kairon_with_invalid_logit_bias_hyperparameter(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_ten'
+        user = 'test_user_ten'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        request = {'num_bot_responses': 5,
+                   'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   'top_results': 20,
+                   'similarity_threshold': 0.70,
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 0.0,
+                                       'n': 2, 'stream': False, 'stop': '?', 'presence_penalty': 0.0,
+                                       'frequency_penalty': 0.0, 'logit_bias': 'a'},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(ValidationError, match="logit_bias must be a dictionary!"):
+            processor.add_kairon_faq_action(request, bot, user)
 
     def test_add_kairon_faq_action_already_exist(self):
         processor = MongoProcessor()
@@ -6473,6 +6715,41 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
             processor.delete_action('action_custom', bot, user)
 
+    def test_delete_action_with_attached_http_action(self):
+        processor = MongoProcessor()
+        bot = 'tester_bot'
+        http_url = 'http://www.google.com'
+        action = 'tester_action'
+        user = 'tester_user'
+        response = "json"
+        request_method = 'GET'
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            params_list=http_params_list,
+            headers=header
+        )
+        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'Action Prompt',
+                                    'data': 'tester_action',
+                                    'instructions': 'Answer according to the context', 'type': 'user',
+                                    'source': 'action',
+                                    'is_enabled': True}]}
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_kairon_faq_action(request, bot, user)
+        with pytest.raises(AppException, match=f'Action with name tester_action is attached with KaironFaqAction!'):
+            processor.delete_action('tester_action', bot, user)
+
     @responses.activate
     def test_push_notifications_enabled_create_type_event(self):
         Utility.environment['notifications']['enable'] = True
@@ -8128,6 +8405,103 @@ class TestMongoProcessor:
             assert False
         except AppException as e:
             assert str(e) == "No HTTP action found for bot test_bot and action action"
+
+    def test_add_http_action_config_with_dynamic_params(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_add_http_action_config_with_dynamic_params'
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            dynamic_params=dynamic_params,
+            headers=header
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+            action_name__iexact=action).to_mongo().to_dict()
+        assert actual_http_action is not None
+        assert actual_http_action['action_name'] == action
+        assert actual_http_action['http_url'] == http_url
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['request_method'] == request_method
+        assert actual_http_action['params_list'] == []
+        assert actual_http_action['dynamic_params'] == dynamic_params
+        assert actual_http_action['headers'][0]['key'] == "param3"
+        assert actual_http_action['headers'][0]['value'] == "param1"
+        assert actual_http_action['headers'][0]['parameter_type'] == "slot"
+        assert actual_http_action['headers'][1]['key'] == "param4"
+        assert actual_http_action['headers'][1]['value'] == "value2"
+        assert actual_http_action['headers'][1]['parameter_type'] == "value"
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+
+    def test_update_http_config_with_dynamic_params(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        http_url = 'http://www.google.com'
+        action = 'test_update_http_config_with_dynamic_params'
+        user = 'test_user'
+        response = "json"
+        request_method = 'GET'
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            content_type=HttpContentType.application_json.value,
+            response=ActionResponseEvaluation(value=response, evaluation_type="script"),
+            http_url=http_url,
+            request_method=request_method,
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
+                       SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
+        )
+        http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
+        assert http_config_id is not None
+        http_url = 'http://www.alphabet.com'
+        response = "string"
+        request_method = 'POST'
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        header = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            content_type=HttpContentType.urlencoded_form_data.value,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            dynamic_params=dynamic_params,
+            headers=header,
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script")]
+        )
+        processor.update_http_config(http_action_config.dict(), user, bot)
+
+        actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+            action_name__iexact=action).to_mongo().to_dict()
+        assert actual_http_action is not None
+        assert actual_http_action['action_name'] == action
+        assert actual_http_action['http_url'] == http_url
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['request_method'] == request_method
+        assert actual_http_action['params_list'] == []
+        assert actual_http_action['dynamic_params'] == dynamic_params
+        assert actual_http_action['headers'][0]['key'] == "param3"
+        assert actual_http_action['headers'][0]['value'] == "param1"
+        assert actual_http_action['headers'][0]['parameter_type'] == "slot"
+        assert actual_http_action['headers'][1]['key'] == "param4"
+        assert actual_http_action['headers'][1]['value'] == "value2"
+        assert actual_http_action['headers'][1]['parameter_type'] == "value"
+        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
 
     def test_update_http_config(self):
         processor = MongoProcessor()
