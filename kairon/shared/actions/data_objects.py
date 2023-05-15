@@ -531,6 +531,7 @@ class KaironFaqAction(Auditlog):
         if not self.llm_prompts:
             raise ValidationError("llm_prompts are required!")
         Utility.validate_kairon_faq_llm_prompts(self.to_mongo().to_dict()['llm_prompts'], ValidationError)
+        Utility.validate_llm_hyperparameters(self.hyperparameters, ValidationError)
 
 
 @auditlogger.log
