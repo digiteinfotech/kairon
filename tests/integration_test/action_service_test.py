@@ -6504,20 +6504,14 @@ class TestActionServer(AsyncHTTPTestCase):
             return convert_to_openai_object(
                 OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
 
-        def __mock_search_cache(*args, **kwargs):
-            return {'result': []}
-
         def __mock_fetch_similar(*args, **kwargs):
             return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-
-        def __mock_cache_result(*args, **kwargs):
-            return {'result': []}
 
         mock_completion.return_value = mock_completion_for_answer()
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
-        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        mock_search.return_value = __mock_fetch_similar()
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -6547,7 +6541,8 @@ class TestActionServer(AsyncHTTPTestCase):
               'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
             )
         log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
-        assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
+        assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
+                                   {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
         assert mock_completion.call_args.args[1] == 'What kind of language is python?'
         assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
         with open('tests/testing_data/actions/action_prompt.txt', 'r') as file:
@@ -6634,21 +6629,15 @@ class TestActionServer(AsyncHTTPTestCase):
             return convert_to_openai_object(
                 OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
 
-        def __mock_search_cache(*args, **kwargs):
-            return {'result': []}
-
         def __mock_fetch_similar(*args, **kwargs):
             return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-
-        def __mock_cache_result(*args, **kwargs):
-            return {'result': []}
 
         mock_completion.return_value = mock_completion_for_answer()
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
-        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        mock_search.return_value = __mock_fetch_similar()
         Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
@@ -6672,7 +6661,8 @@ class TestActionServer(AsyncHTTPTestCase):
               'response': None, 'image': None, 'attachment': None}
              ])
         log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
-        assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
+        assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
+                                   {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
         assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
         assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
         with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
