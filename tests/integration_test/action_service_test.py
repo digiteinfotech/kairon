@@ -6445,3 +6445,258 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
+
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_with_action_prompt(self, mock_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = KAIRON_FAQ_ACTION
+        bot = "5u08kd0a56b698ca10d98e6s"
+        user = "nupur.khare"
+        value = "keyvalue"
+        user_msg = "What kind of language is python?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        Actions(name='http_action', type=ActionType.http_action.value, bot=bot, user=user).save()
+        KeyVault(key="FIRSTNAME", value="nupur", bot=bot, user=user).save()
+        KeyVault(key="CONTACT", value="9876543219", bot=bot, user=user).save()
+        HttpActionConfig(
+            action_name='http_action',
+            response=HttpActionResponse(value="Python is a scripting language because it uses an interpreter to translate and run its code."),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                     HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=True),
+                     HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=True)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                         HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME",
+                                               encrypt=False),
+                         HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT",
+                                               encrypt=False)],
+            # set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
+            #            SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
+            bot=bot,
+            user=user
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = "Python is a scripting language because it uses an interpreter to translate and run its code."
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            json=resp_msg,
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {"bot": "5u08kd0a56b698ca10d98e6s", "user": "1011", "tag": "from_bot",
+                 "name": "nupur", "contact": "9876543219"})],
+        )
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Python Prompt',
+             'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Java Prompt',
+             'data': 'Java is a programming language and computing platform first released by Sun Microsystems in 1995.',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Action Prompt',
+             'data': 'http_action',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
+             'is_enabled': True}
+        ]
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
+                OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        def __mock_search_cache(*args, **kwargs):
+            return {'result': []}
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        def __mock_cache_result(*args, **kwargs):
+            return {'result': []}
+
+        mock_completion.return_value = mock_completion_for_answer()
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text
+        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '', "attachment": '',
+                                                        "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '', "attachment": '',
+                                                        "image": '', "custom": ''}}]
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': 'Python is a scripting language because it uses an interpreter to translate and run its code.',
+              'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None},
+             {'text': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+              'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
+            )
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
+        assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
+        assert mock_completion.call_args.args[1] == 'What kind of language is python?'
+        assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
+        with open('tests/testing_data/actions/action_prompt.txt', 'r') as file:
+            prompt_data = file.read()
+        assert mock_completion.call_args.args[3] == prompt_data
+
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_with_action_not_found(self, mock_search):
+        action_name = KAIRON_FAQ_ACTION
+        bot = "5u08kd0a00b698ca10d98u9q"
+        user = "nupurk"
+        value = "keyvalue"
+        user_msg = "What kind of language is python?"
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Python Prompt',
+             'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Action Prompt',
+             'data': 'http_action',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
+             'is_enabled': True}
+        ]
+
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': "I'm sorry, I didn't quite understand that. Could you rephrase?"}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [], 'elements': [],
+              'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
+        )
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="FAILURE").get()
+        log['exception'] = 'No action found for given bot and name'
+
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_kairon_faq_response_action_slot_prompt(self, mock_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = KAIRON_FAQ_ACTION
+        bot = "5u80fd0a56c908ca10d35d2s"
+        user = "udit.pandey"
+        value = "keyvalue"
+        user_msg = "What is the name of prompt?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Language Prompt',
+             'data': 'type',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+             'is_enabled': True},
+        ]
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
+                OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        def __mock_search_cache(*args, **kwargs):
+            return {'result': []}
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        def __mock_cache_result(*args, **kwargs):
+            return {'result': []}
+
+        mock_completion.return_value = mock_completion_for_answer()
+
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text
+        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
+                                               {'event': 'bot', "text": "how are you"}]
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+              'response': None, 'image': None, 'attachment': None}
+             ])
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
+        assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
+        assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
+        assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
+        with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
+            prompt_data = file.read()
+        assert mock_completion.call_args.args[3] == prompt_data

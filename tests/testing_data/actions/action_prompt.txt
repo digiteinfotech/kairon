@@ -1,0 +1,19 @@
+Python Prompt:
+A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.
+Instructions on how to use Python Prompt:
+Answer according to the context
+
+Java Prompt:
+Java is a programming language and computing platform first released by Sun Microsystems in 1995.
+Instructions on how to use Java Prompt:
+Answer according to the context
+
+Action Prompt:
+Python is a scripting language because it uses an interpreter to translate and run its code.
+Instructions on how to use Action Prompt:
+Answer according to the context
+
+
+Similarity Prompt:
+Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.
+Instructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.

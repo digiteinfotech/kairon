@@ -1666,6 +1666,10 @@ class Utility:
         for prompt in llm_prompts:
             if prompt['type'] == LlmPromptType.system.value and prompt['source'] != LlmPromptSource.static.value:
                 raise exception_class("System prompt must have static source!")
+            if Utility.check_empty_string(prompt.get('data')) and prompt['source'] == LlmPromptSource.action.value:
+                raise exception_class("Data must contain action name!")
+            if Utility.check_empty_string(prompt.get('data')) and prompt['source'] == LlmPromptSource.slot.value:
+                raise exception_class("Data must contain slot name!")
             if prompt['type'] == LlmPromptType.query.value and prompt['source'] != LlmPromptSource.static.value:
                 raise exception_class("Query prompt must have static source!")
             if Utility.check_empty_string(prompt.get('name')):

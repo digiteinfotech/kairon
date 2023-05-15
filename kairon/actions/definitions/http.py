@@ -23,6 +23,8 @@ class ActionHTTP(ActionsBase):
         """
         self.bot = bot
         self.name = name
+        self.__response = None
+        self.__is_success = None
 
     def retrieve_config(self):
         """
@@ -84,6 +86,8 @@ class ActionHTTP(ActionsBase):
             logger.info("http response: " + str(http_response))
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'], http_response)
             msg_logger.append(bot_resp_log)
+            self.__response = bot_response
+            self.__is_success = True
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(http_action_config.get('set_slots', []),
                                                                                 http_response)
             msg_logger.extend(slot_eval_log)
@@ -94,6 +98,7 @@ class ActionHTTP(ActionsBase):
             logger.exception(e)
             status = "FAILURE"
             bot_response = "I have failed to process your request"
+            self.__is_success = False
         finally:
             ActionServerLogs(
                 type=ActionType.http_action.value,
@@ -116,3 +121,11 @@ class ActionHTTP(ActionsBase):
                 dispatcher.utter_message(bot_response)
         filled_slots.update({KAIRON_ACTION_RESPONSE_SLOT: bot_response})
         return filled_slots
+
+    @property
+    def is_success(self):
+        return self.__is_success
+
+    @property
+    def response(self):
+        return self.__response
