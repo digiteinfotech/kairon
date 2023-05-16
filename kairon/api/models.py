@@ -768,7 +768,8 @@ class LlmPromptRequest(BaseModel):
     is_enabled: bool = True
 
 
-class KaironFaqConfigRequest(BaseModel):
+class PromptActionConfigRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     top_results: int = 10

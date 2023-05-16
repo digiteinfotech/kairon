@@ -7,7 +7,7 @@ from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, KaironFaqAction
+    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -5884,11 +5884,11 @@ class TestActionServer(AsyncHTTPTestCase):
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_with_bot_responses(self, mock_search, mock_embedding, mock_completion):
+    def test_prompt_action_response_action_with_bot_responses(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from uuid6 import uuid7
 
-        action_name = KAIRON_FAQ_ACTION
+        action_name = "test_prompt_action"
         bot = "5f50fd0a56b698ca10d35d2k"
         user = "udit.pandey"
         value = "keyvalue"
@@ -5919,9 +5919,9 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -5963,11 +5963,11 @@ class TestActionServer(AsyncHTTPTestCase):
     @mock.patch.object(GPT3Resources, "invoke", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_with_query_prompt(self, mock_search, mock_embedding, mock_completion):
+    def test_prompt_action_response_action_with_query_prompt(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from uuid6 import uuid7
 
-        action_name = KAIRON_FAQ_ACTION
+        action_name = "test_prompt_action_response_action_with_query_prompt"
         bot = "5f50fd0a56b698ca10d35d2s"
         user = "udit.pandey"
         value = "keyvalue"
@@ -6006,9 +6006,9 @@ class TestActionServer(AsyncHTTPTestCase):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_embedding.return_value = embedding
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6038,7 +6038,7 @@ class TestActionServer(AsyncHTTPTestCase):
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action(self, mock_search, mock_embedding, mock_completion):
+    def test_prompt_response_action(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from uuid6 import uuid7
 
@@ -6062,7 +6062,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -6085,7 +6085,7 @@ class TestActionServer(AsyncHTTPTestCase):
     @mock.patch.object(GPT3Resources, "invoke", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_streaming_enabled(self, mock_search, mock_embedding, mock_completion):
+    def test_prompt_response_action_streaming_enabled(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from uuid6 import uuid7
 
@@ -6116,11 +6116,11 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text, generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         hyperparameters = Utility.get_llm_hyperparameters().copy()
         hyperparameters['stream'] = True
-        KaironFaqAction(bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6150,7 +6150,7 @@ class TestActionServer(AsyncHTTPTestCase):
     @patch("kairon.shared.llm.gpt3.openai.ChatCompletion.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_failure(self, mock_search, mock_embedding, mock_completion):
+    def test_prompt_response_action_failure(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
@@ -6166,7 +6166,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = convert_to_openai_object(OpenAIResponse({'data': [{'embedding': embedding}]}, {}))
         mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score':0.80, 'payload':{'content': bot_content}}]}
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6187,7 +6187,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_connection_error_response_cached(self, mock_search, mock_embedding):
+    def test_prompt_response_action_connection_error_response_cached(self, mock_search, mock_embedding):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai import error
         from uuid6 import uuid7
@@ -6210,9 +6210,9 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': user_msg, "response": bot_content}},
                                                {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "python?", "response": bot_content}},
                                                {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "what is python?", "response": "It is a programming language."}}]}
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6232,13 +6232,13 @@ class TestActionServer(AsyncHTTPTestCase):
                 {'text': 'python?', 'payload': 'python?'},
                 {'text': 'what is python?', 'payload': 'what is python?'}],
              'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
-        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="FAILURE").get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
         assert log.exception == 'Connection reset by peer!'
         assert log.is_from_cache
 
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_exact_match_cached_query(self, mock_search, mock_embedding):
+    def test_prompt_response_action_exact_match_cached_query(self, mock_search, mock_embedding):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from uuid6 import uuid7
 
@@ -6259,9 +6259,9 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_search.return_value = {'result': [
             {'id': uuid7().__str__(), 'score': 1, 'payload': {'query': user_msg, "response": bot_content}}]}
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6281,7 +6281,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
     @patch("kairon.shared.llm.gpt3.openai.Embedding.create", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_connection_error_caching_not_present(self, mock_search, mock_embedding):
+    def test_prompt_response_action_connection_error_caching_not_present(self, mock_search, mock_embedding):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
@@ -6304,9 +6304,9 @@ class TestActionServer(AsyncHTTPTestCase):
 
         mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
         mock_search.return_value = {'result': []}
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, failure_message="Did you mean any of the following?", llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, failure_message="Did you mean any of the following?", llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6324,7 +6324,7 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [],
               'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
 
-    def test_kairon_faq_response_action_disabled(self):
+    def test_prompt_response_action_disabled(self):
         bot = "5f50fd0a56b698ca10d35d2efg"
         user = "udit.pandey"
         user_msg = "What kind of language is python?"
@@ -6335,7 +6335,7 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=False, bot=bot, user=user).save()
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
@@ -6349,11 +6349,11 @@ class TestActionServer(AsyncHTTPTestCase):
               'custom': {}, 'template': None,
                 'response': None, 'image': None, 'attachment': None}
              ])
-        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="FAILURE").get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
         assert log['bot_response'] == 'Faq feature is disabled for the bot! Please contact support.'
         assert log['exception'] == 'Faq feature is disabled for the bot! Please contact support.'
 
-    def test_kairon_faq_response_action_does_not_exists(self):
+    def test_prompt_action_response_action_does_not_exists(self):
         bot = "5n80fd0a56b698ca10d35d2efg"
         user = "uditpandey"
         user_msg = "What kind of language is python?"
@@ -6375,7 +6375,7 @@ class TestActionServer(AsyncHTTPTestCase):
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_with_static_user_prompt(self, mock_search, mock_embedding, mock_completion):
+    def test_prompt_action_response_action_with_static_user_prompt(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
@@ -6423,9 +6423,9 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6449,7 +6449,7 @@ class TestActionServer(AsyncHTTPTestCase):
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_with_action_prompt(self, mock_search, mock_embedding, mock_completion):
+    def test_prompt_action_response_action_with_action_prompt(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
@@ -6482,8 +6482,6 @@ class TestActionServer(AsyncHTTPTestCase):
                                                encrypt=False),
                          HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT",
                                                encrypt=False)],
-            # set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
-            #            SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
             bot=bot,
             user=user
         ).save()
@@ -6540,9 +6538,9 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6568,7 +6566,7 @@ class TestActionServer(AsyncHTTPTestCase):
              {'text': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
               'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
             )
-        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
         assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
         assert mock_completion.call_args.args[1] == 'What kind of language is python?'
         assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
@@ -6577,7 +6575,7 @@ class TestActionServer(AsyncHTTPTestCase):
         assert mock_completion.call_args.args[3] == prompt_data
 
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_with_action_not_found(self, mock_search):
+    def test_prompt_response_action_with_action_not_found(self, mock_search):
         action_name = KAIRON_FAQ_ACTION
         bot = "5u08kd0a00b698ca10d98u9q"
         user = "nupurk"
@@ -6600,9 +6598,9 @@ class TestActionServer(AsyncHTTPTestCase):
              'is_enabled': True}
         ]
 
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6620,13 +6618,13 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [], 'elements': [],
               'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
         )
-        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="FAILURE").get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
         log['exception'] = 'No action found for given bot and name'
 
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
-    def test_kairon_faq_response_action_slot_prompt(self, mock_search, mock_embedding, mock_completion):
+    def test_prompt_action_response_action_slot_prompt(self, mock_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
@@ -6671,9 +6669,9 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
-        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6693,7 +6691,7 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
-        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
         assert log['llm_logs'] == [{'message': 'Response added to cache', 'type': 'response_cached'}]
         assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
         assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'

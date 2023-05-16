@@ -12,7 +12,7 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
-from kairon.actions.definitions.kairon_faq import ActionKaironFaq
+from kairon.actions.definitions.kairon_faq import ActionPrompt
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
@@ -33,7 +33,7 @@ from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, SetSlotsFromResponse
+    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
@@ -2427,14 +2427,14 @@ class TestActions:
         actual = ActionUtility.prepare_email_body(events, "conversation history", "test@kairon.com")
         assert str(actual).__contains__("</table>")
 
-    def test_get_kairon_faq_action_config(self):
+    def test_get_prompt_action_config(self):
         bot = 'test_action_server'
         user = 'test_user'
-        Actions(name='kairon_faq_action', type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name='kairon_faq_action', type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
-        assert actual['type'] == ActionType.kairon_faq_action.value
-        actual = ActionKaironFaq(bot, 'kairon_faq_action').retrieve_config()
+        assert actual['type'] == ActionType.prompt_action.value
+        actual = ActionPrompt(bot, 'kairon_faq_action').retrieve_config()
         actual.pop("timestamp")
         print(actual)
         assert actual == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
@@ -2446,9 +2446,9 @@ class TestActions:
                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                           'llm_prompts': []}
 
-    def test_kairon_faq_action_not_exists(self):
+    def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
-            ActionKaironFaq('test_kairon_faq_action_not_exists', 'testing_kairon_faq').retrieve_config()
+            ActionPrompt('test_kairon_faq_action_not_exists', 'testing_kairon_faq').retrieve_config()
 
     def test_get_google_search_action_config(self):
         bot = 'test_action_server'
@@ -3352,16 +3352,29 @@ class TestActions:
                                 'refresh_token_expiry': 60, 'whatsapp': 'meta',
                                 'notification_scheduling_limit': 4, 'bot': 'test_bot', 'status': True}
 
-    def test_get_faq_action_config(self):
-        bot = "test_bot"
+    def test_get_prompt_action_config(self):
+        bot = "test_bot_action_test"
+        user = "test_user_action_test"
+        llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+        PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
         k_faq_action_config = ActionUtility.get_faq_action_config(bot=bot)
         k_faq_action_config.pop('timestamp')
-        assert k_faq_action_config == \
-               {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-                'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot',
-                'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                    'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                    'frequency_penalty': 0.0, 'logit_bias': {}}, 'llm_prompts': []}
+        print(k_faq_action_config)
+        assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
+                                       'similarity_threshold': 0.7,
+                                       'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                                       'bot': 'test_bot_action_test', 'user': 'test_user_action_test',
+                                       'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                           'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                           'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                           'logit_bias': {}},
+                                       'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                                        'type': 'system', 'source': 'static', 'is_enabled': True},
+                                                       {'name': 'History Prompt', 'type': 'user', 'source': 'history',
+                                                        'is_enabled': True}],
+                                       'status': True}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

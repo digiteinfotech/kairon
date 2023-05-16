@@ -42,7 +42,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
-    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, KaironFaqAction, \
+    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
     LlmPrompt
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
@@ -4170,8 +4170,8 @@ class MongoProcessor:
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
             MongoProcessor.get_attached_flows(bot, name, 'action')
-            Utility.is_exist(KaironFaqAction, bot=bot, llm_prompts__source=LlmPromptSource.action.value,
-                                llm_prompts__data=name, exp_message=f"Action with name {name} is attached with KaironFaqAction!")
+            Utility.is_exist(PromptAction, bot=bot, llm_prompts__source=LlmPromptSource.action.value,
+                             llm_prompts__data=name, exp_message=f"Action with name {name} is attached with PromptAction!")
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.form_validation_action.value:
@@ -4194,8 +4194,8 @@ class MongoProcessor:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
-            elif action.type == ActionType.kairon_faq_action.value:
-                KaironFaqAction.objects(name__iexact=name, bot=bot, user=user).delete()
+            elif action.type == ActionType.prompt_action.value:
+                PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4707,30 +4707,28 @@ class MongoProcessor:
                                         status=True):
                     raise AppException(f'Action with name {prompt["data"]} not found!')
 
-        Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, exp_message="Action already exists!")
+        Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
         request_data['bot'] = bot
         request_data['user'] = user
-        request_data['name'] = KAIRON_FAQ_ACTION
-        data_object = KaironFaqAction(**request_data).save()
-        id = (
-            data_object.save().to_mongo().to_dict()["_id"].__str__()
+        prompt_action_id = PromptAction(**request_data).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(
+            request_data['name'], bot, user, action_type=ActionType.prompt_action.value, raise_exception=False
         )
-        self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
-        return id
+        return prompt_action_id
 
-    def edit_kairon_faq_action(self, faq_action_id: str, request_data: dict, bot: Text, user: Text):
+    def edit_kairon_faq_action(self, prompt_action_id: str, request_data: dict, bot: Text, user: Text):
         """
         Edit Kairon FAQ Action
 
-        :param faq_action_id: faq action id
+        :param prompt_action_id: action id
         :param request_data: request config for kairon faq action
         :param bot: bot id
         :param user: user
         """
-        if not Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, id=faq_action_id,
-                                raise_error=False):
+        if not Utility.is_exist(PromptAction, id=prompt_action_id, raise_error=False, bot=bot, status=True):
             raise AppException('Action not found')
-        action = KaironFaqAction.objects(id=faq_action_id, name__iexact=KAIRON_FAQ_ACTION, bot=bot).get()
+        action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
+        action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")
         action.top_results = request_data.get("top_results")
         action.similarity_threshold = request_data.get("similarity_threshold")
@@ -4749,7 +4747,7 @@ class MongoProcessor:
         :return: yield dict
         """
         actions = []
-        for action in KaironFaqAction.objects(bot=bot):
+        for action in PromptAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
             action['_id'] = action['_id'].__str__()
             action.pop('timestamp')

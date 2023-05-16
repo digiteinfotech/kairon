@@ -161,12 +161,12 @@ class ActionUtility:
 
     @staticmethod
     def get_faq_action_config(bot: Text):
-        from kairon.shared.actions.data_objects import KaironFaqAction
+        from kairon.shared.actions.data_objects import PromptAction
         try:
-            k_faq_action_config = KaironFaqAction.objects(bot=bot).get()
+            k_faq_action_config = PromptAction.objects(bot=bot).get()
         except DoesNotExist as e:
             logger.exception(e)
-            k_faq_action_config = KaironFaqAction(bot=bot)
+            k_faq_action_config = PromptAction(bot=bot)
         k_faq_action_config = k_faq_action_config.to_mongo().to_dict()
         k_faq_action_config.pop('_id', None)
         return k_faq_action_config

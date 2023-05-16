@@ -38,7 +38,7 @@ from starlette.requests import Request
 
 from kairon.api import models
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
-    SetSlotsUsingActionResponse
+    SetSlotsUsingActionResponse, PromptActionConfigRequest
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -119,7 +119,7 @@ class TestMongoProcessor:
 
         return _read_and_get_data
 
-    def test_add_kairon_with_gpt_feature_disabled(self):
+    def test_add_prompt_action_with_gpt_feature_disabled(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
@@ -129,12 +129,12 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_slots(self):
+    def test_add_prompt_action_with_invalid_slots(self):
         processor = MongoProcessor()
         bot = 'testing_bot'
         user = 'testing_user'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 10,
                    'similarity_threshold': 1.70,
@@ -155,12 +155,12 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Slot with name info not found!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_http_action(self):
+    def test_add_prompt_action_with_invalid_http_action(self):
         processor = MongoProcessor()
         bot = 'testt_bot'
         user = 'testt_user'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 10,
                    'similarity_threshold': 1.70,
@@ -181,12 +181,12 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Action with name test_http_action not found!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_similarity_threshold(self):
+    def test_add_prompt_action_with_invalid_similarity_threshold(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 10,
                    'similarity_threshold': 1.70,
@@ -210,11 +210,11 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="similarity_threshold should be within 0.3 and 1"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_top_results(self):
+    def test_add_prompt_action_with_invalid_top_results(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_prompt_action_invalid_top_results', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 40,
                    'similarity_threshold': 0.70,
@@ -238,11 +238,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="top_results should not be greater than 30"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_query_prompt(self):
+    def test_add_prompt_action_with_invalid_query_prompt(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_invalid_query_prompt',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -260,11 +261,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Query prompt must have static source!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_num_bot_responses(self):
+    def test_add_prompt_action_with_invalid_num_bot_responses(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_invalid_num_bot_responses',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -282,11 +284,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="num_bot_responses should not be greater than 5"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_system_prompt_source(self):
+    def test_add_prompt_action_with_invalid_system_prompt_source(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_invalid_system_prompt_source',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'history',
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -305,11 +308,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="System prompt must have static source!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_multiple_system_prompt(self):
+    def test_add_prompt_action_with_multiple_system_prompt(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_multiple_system_prompt',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
@@ -331,11 +335,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only one system prompt can be present!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_empty_llm_prompt_name(self):
+    def test_add_prompt_action_with_empty_llm_prompt_name(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
+                   'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -353,11 +358,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Name cannot be empty!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_empty_data_for_static_prompt(self):
+    def test_add_prompt_action_with_empty_data_for_static_prompt(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -374,11 +380,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="data is required for static prompts!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_empty_llm_prompt_instructions(self):
+    def test_add_prompt_action_with_empty_llm_prompt_instructions(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_instructions',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt', 'instructions': '', 'type': 'user',
                                     'source': 'bot_content', 'is_enabled': True},
@@ -395,11 +402,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="instructions are required!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_multiple_history_source_prompts(self):
+    def test_add_prompt_action_with_multiple_history_source_prompts(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_multiple_history_source_prompts',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
@@ -419,11 +427,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only one history source can be present!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_multiple_bot_content_source_prompts(self):
+    def test_add_prompt_action_with_multiple_bot_content_source_prompts(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_with_multiple_bot_content_source_prompts',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -442,16 +451,16 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only one bot_content source can be present!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_no_system_prompts(self):
+    def test_add_prompt_action_with_no_system_prompts(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [
+        request = {'name': 'test_add_prompt_action_with_no_system_prompts',
+                   'llm_prompts': [
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-
                                    {'name': 'Another Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True}
@@ -461,11 +470,11 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="System prompt is required!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_empty_llm_prompts(self):
+    def test_add_prompt_action_with_empty_llm_prompts(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_empty_llm_prompts', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -477,36 +486,36 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="llm_prompts are required!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_faq_action_with_default_values(self):
+    def test_add_prompt_action_faq_action_with_default_values(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_faq_action_with_default_values',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         pytest.action_id = processor.add_kairon_faq_action(request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
-
+        print(action)
         assert action == [
-            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
+            {'name': 'test_add_prompt_action_faq_action_with_default_values',
+             'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}}, 'llm_prompts': [],
+                                 'logit_bias': {}},
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-             ]
-             }
-        ]
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+             'status': True}]
 
-    def test_add_kairon_with_invalid_temperature_hyperparameter(self):
+    def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_one'
         user = 'test_user_one'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_temperature_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -520,12 +529,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Temperature must be between 0.0 and 2.0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_stop_hyperparameter(self):
+    def test_add_prompt_action_with_invalid_stop_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_two'
         user = 'test_user_two'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_stop_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -539,12 +548,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_presence_penalty_hyperparameter(self):
+    def test_add_prompt_action_with_invalid_presence_penalty_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_three'
         user = 'test_user_three'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -558,12 +567,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Presence penalty must be between -2.0 and 2.0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_frequency_penalty_hyperparameter(self):
+    def test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_four'
         user = 'test_user_four'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -577,12 +586,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_max_tokens_hyperparameter(self):
+    def test_add_prompt_action_with_invalid_max_tokens_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_five'
         user = 'test_user_five'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -596,12 +605,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_zero_max_tokens_hyperparameter(self):
+    def test_add_prompt_action_with_zero_max_tokens_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_six'
         user = 'test_user_six'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_zero_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -615,12 +624,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_top_p_hyperparameter(self):
+    def test_add_prompt_action_with_invalid_top_p_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_seven'
         user = 'test_user_seven'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_top_p_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -634,12 +643,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="top_p must be between 0.0 and 1.0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_n_hyperparameter(self):
+    def test_add_prompt_action_with_invalid_n_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_eight'
         user = 'test_user_eight'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -653,12 +662,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_zero_n_hyperparameter(self):
+    def test_add_prompt_action_with_zero_n_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_nine'
         user = 'test_user_nine'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_zero_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -672,12 +681,12 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_with_invalid_logit_bias_hyperparameter(self):
+    def test_add_prompt_action_with_invalid_logit_bias_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_ten'
         user = 'test_user_ten'
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
-        request = {'num_bot_responses': 5,
+        request = {'name': 'test_add_prompt_action_with_invalid_logit_bias_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
                    'similarity_threshold': 0.70,
@@ -691,33 +700,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="logit_bias must be a dictionary!"):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_add_kairon_faq_action_already_exist(self):
+    def test_add_prompt_action_faq_action_already_exist(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_add_prompt_action_faq_action_with_default_values',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
-                   "num_bot_responses": 5}
-        with pytest.raises(AppException, match="Action already exists!"):
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        with pytest.raises(AppException, match='Action exists!'):
             processor.add_kairon_faq_action(request, bot, user)
 
-    def test_edit_kairon_faq_action_does_not_exist(self):
+    def test_edit_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
         bot = 'invalid_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        action_id = '646344d6f7fa1a62db69cceb'
+        request = {'name': 'test_edit_prompt_action_does_not_exist',
+            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -733,13 +733,14 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Action not found"):
-            processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
+            processor.edit_kairon_faq_action(action_id, request, bot, user)
 
-    def test_edit_kairon_faq_action(self):
+    def test_edit_prompt_action_faq_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_edit_prompt_action_faq_action',
+            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -759,44 +760,42 @@ class TestMongoProcessor:
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
         assert action == [
-            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': 'updated_failure_message',
+            {'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5, 'top_results': 10,
+             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message',
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}}, 'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
-                 'is_enabled': True},
-                {'name': 'Similarity Prompt',
-                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                {'name': 'Query Prompt',
-                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True},
-                {'name': 'Query Prompt',
-                 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                 'instructions': 'Answer according to the context', 'type': 'query',
-                 'source': 'static', 'is_enabled': True}]}]
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                 'logit_bias': {}},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'Similarity Prompt',
+                              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                             {'name': 'Query Prompt',
+                              'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+             'status': True}]
+        request = {'name': 'test_edit_prompt_action_faq_action_again', 'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static'}]}
         processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
         assert action == [
-            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            {'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5, 'top_results': 10,
+             'similarity_threshold': 0.7, 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True}]}]
+                              'source': 'static', 'is_enabled': True}], 'status': True}]
 
-
-    def test_edit_kairon_faq_action_with_less_hyperparameters(self):
+    def test_edit_prompt_action_with_less_hyperparameters(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'llm_prompts': [
+        request = {'name': 'test_edit_prompt_action_with_less_hyperparameters',
+            'llm_prompts': [
                 {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
                  'is_enabled': True},
                 {'name': 'Similarity Prompt',
@@ -823,69 +822,63 @@ class TestMongoProcessor:
         action[0].pop("_id")
         print(action)
         assert action == [
-            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': 'updated_failure_message',
+            {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
+             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message',
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}}, 'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                  'type': 'system', 'source': 'static',
-                 'is_enabled': True}, {'name': 'Similarity Prompt',
-                                       'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                       'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                {'name': 'Query Prompt',
-                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True}, {'name': 'Query Prompt',
-                                       'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                       'instructions': 'Answer according to the context', 'type': 'query',
-                                       'source': 'static', 'is_enabled': True}]}]
+                                 'logit_bias': {}},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+             'status': True}]
 
-
-    def test_get_kairon_faq_action_does_not_exist(self):
+    def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
         bot = 'invalid_bot'
         action = list(processor.get_kairon_faq_action(bot))
         assert action == []
 
-    def test_get_kairon_faq_action(self):
+    def test_get_prompt_faq_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         action = list(processor.get_kairon_faq_action(bot))
         action[0].pop("_id")
         print(action)
         assert action == [
-            {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-             'failure_message': 'updated_failure_message',
+            {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
+             'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message',
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                 'logit_bias': {}}, 'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
-                 'is_enabled': True}, {'name': 'Similarity Prompt',
-                                       'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                       'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                {'name': 'Query Prompt',
-                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True}, {'name': 'Query Prompt',
-                                       'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                       'instructions': 'Answer according to the context', 'type': 'query',
-                                       'source': 'static', 'is_enabled': True}]}]
+                                 'logit_bias': {}},
+             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
+                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+             'status': True}]
 
-    def test_delete_kairon_faq_action(self):
+    def test_delete_prompt_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        processor.delete_action("kairon_faq_action", bot, user)
+        processor.delete_action("test_add_prompt_action_faq_action_with_default_values", bot, user)
 
-    def test_delete_kairon_faq_action_already_deleted(self):
+    def test_delete_prompt_action_already_deleted(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        with pytest.raises(AppException, match=f'Action with name "kairon_faq_action" not found'):
-            processor.delete_action('kairon_faq_action', bot, user)
+        with pytest.raises(AppException, match=f'Action with name "test_add_prompt_action_faq_action_with_default_values" not found'):
+            processor.delete_action('test_add_prompt_action_faq_action_with_default_values', bot, user)
 
-    def test_delete_kairon_faq_action_not_present(self):
+    def test_delete_prompt_action_not_present(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
@@ -2171,7 +2164,7 @@ class TestMongoProcessor:
             data="Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.",
             bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
-        MongoProcessor().add_action(GPT_LLM_FAQ, bot, user, False, ActionType.kairon_faq_action.value)
+        MongoProcessor().add_action(GPT_LLM_FAQ, bot, user, False, ActionType.prompt_action.value)
         settings = BotSettings.objects(bot=bot).get()
         settings.enable_gpt_llm_faq = True
         settings.save()
@@ -6737,16 +6730,19 @@ class TestMongoProcessor:
             params_list=http_params_list,
             headers=header
         )
-        request = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        prompt_action_config = PromptActionConfigRequest(
+            name='test_delete_action_with_attached_http_action',
+            llm_prompts=[{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Action Prompt',
                                     'data': 'tester_action',
                                     'instructions': 'Answer according to the context', 'type': 'user',
                                     'source': 'action',
-                                    'is_enabled': True}]}
+                                    'is_enabled': True}]
+        )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
-        processor.add_kairon_faq_action(request, bot, user)
-        with pytest.raises(AppException, match=f'Action with name tester_action is attached with KaironFaqAction!'):
+        processor.add_kairon_faq_action(prompt_action_config.dict(), bot, user)
+        with pytest.raises(AppException, match=f'Action with name tester_action is attached with PromptAction!'):
             processor.delete_action('tester_action', bot, user)
 
     @responses.activate
@@ -8637,7 +8633,7 @@ class TestMongoProcessor:
             'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
             'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'kairon_faq_action': [], 'actions': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -8660,7 +8656,7 @@ class TestMongoProcessor:
             'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'kairon_faq_action': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []
         }
 
     def test_add_complex_story(self):
@@ -8684,7 +8680,7 @@ class TestMongoProcessor:
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'kairon_bot_response': [],
-                           'razorpay_action': [], 'kairon_faq_action': ['gpt_llm_faq'],
+                           'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -9695,7 +9691,7 @@ class TestMongoProcessor:
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
-            'email_action': [], 'form_validation_action': [], 'kairon_faq_action': [],
+            'email_action': [], 'form_validation_action': [], 'prompt_action': [],
             'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase']}
 
     def test_delete_non_existing_complex_story(self):
@@ -9802,7 +9798,7 @@ class TestMongoProcessor:
         assert actions == {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
-            'razorpay_action': [], 'kairon_faq_action': ['gpt_llm_faq'],
+            'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
