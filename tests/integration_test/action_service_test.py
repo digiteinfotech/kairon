@@ -3150,6 +3150,38 @@ class TestActionServer(AsyncHTTPTestCase):
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None
                 }]})
 
+    def test_process_google_search_action_dispatch_false(self):
+        action_name = "custom_search_action"
+        bot = "5f50fd0a56b698asdfghjkiuytre"
+        user = 'test_user'
+        Actions(name=action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
+        GoogleSearchAction(name=action_name, api_key=CustomActionRequestParameters(value='1234567890'),
+                           search_engine_id='asdfg::123456', bot=bot, user=user, dispatch_response=False, set_slot="google_response").save()
+
+        def _run_action(*args, **kwargs):
+            return [{
+                'title': 'Kanban',
+                'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
+                'link': "https://www.digite.com/kanban/what-is-kanban/"
+            }]
+
+        expected_resp = 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = "what is Kanban?"
+
+        with patch.object(ActionUtility, "perform_google_search") as mocked:
+            mocked.side_effect = _run_action
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            self.assertEqual(response_json, {'events': [
+                {'event': 'slot', 'timestamp': None, 'name': 'google_response', 'value': expected_resp},
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': expected_resp},
+            ], 'responses': []})
+
     def test_process_google_search_action_failure(self):
         action_name = "custom_search_failure"
         bot = "5f50fd0a56b698ca10d35d2e"
@@ -6445,7 +6477,7 @@ class TestActionServer(AsyncHTTPTestCase):
         KeyVault(key="CONTACT", value="9876543219", bot=bot, user=user).save()
         HttpActionConfig(
             action_name='http_action',
-            response=HttpActionResponse(value="Python is a scripting language because it uses an interpreter to translate and run its code."),
+            response=HttpActionResponse(dispatch=False, value="Python is a scripting language because it uses an interpreter to translate and run its code."),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
@@ -6460,8 +6492,6 @@ class TestActionServer(AsyncHTTPTestCase):
                                                encrypt=False),
                          HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT",
                                                encrypt=False)],
-            # set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
-            #            SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
             bot=bot,
             user=user
         ).save()
@@ -6535,10 +6565,8 @@ class TestActionServer(AsyncHTTPTestCase):
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
         self.assertEqual(
             response_json['responses'],
-            [{'text': 'Python is a scripting language because it uses an interpreter to translate and run its code.',
-              'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None},
-             {'text': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-              'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
+            [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+              'image': None, 'attachment': None}]
             )
         log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
         assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
@@ -6548,6 +6576,77 @@ class TestActionServer(AsyncHTTPTestCase):
         with open('tests/testing_data/actions/action_prompt.txt', 'r') as file:
             prompt_data = file.read()
         assert mock_completion.call_args.args[3] == prompt_data
+
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+    @mock.patch.object(ActionUtility, "perform_google_search", autospec=True)
+    def test_kairon_faq_response_with_google_search_prompt(self, mock_google_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+
+        action_name = KAIRON_FAQ_ACTION
+        google_action_name = "custom_search_action"
+        bot = "5u08kd0a56b698ca10hgjgjkhgjks"
+        value = "keyvalue"
+        user_msg = "What is kanban"
+        user = 'test_user'
+        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=google_action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
+        GoogleSearchAction(name=google_action_name, api_key=CustomActionRequestParameters(value='1234567890'),
+                           search_engine_id='asdfg::123456', bot=bot, user=user, dispatch_response=False,
+                           set_slot="google_response").save()
+        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+        generated_text = 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.'
+        
+        def _run_action(*args, **kwargs):
+            return [{
+                'title': 'Kanban',
+                'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
+                'link': "https://www.digite.com/kanban/what-is-kanban/"
+            }]
+        
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'is_enabled': True,
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+            {'name': 'Google search Prompt', 'data': 'custom_search_action',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action', 'is_enabled': True}
+        ]
+        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
+                OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        mock_completion.return_value = mock_completion_for_answer()
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text
+        mock_google_search.side_effect = _run_action
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': generated_text,
+              'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
+              'attachment': None}]
+        )
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
+        assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
+                                   {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+        assert mock_completion.call_args.args[1] == 'What is kanban'
+        assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
+        assert mock_completion.call_args.args[3] == 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n'
 
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_kairon_faq_response_action_with_action_not_found(self, mock_search):

@@ -672,6 +672,8 @@ class GoogleSearchActionRequest(BaseModel):
     search_engine_id: str
     failure_response: str = 'I have failed to process your request.'
     num_results: int = 1
+    dispatch_response: bool = True
+    set_slot: str = None
 
 
 class EmailActionRequest(BaseModel):

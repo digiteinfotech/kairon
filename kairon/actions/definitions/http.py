@@ -24,7 +24,7 @@ class ActionHTTP(ActionsBase):
         self.bot = bot
         self.name = name
         self.__response = None
-        self.__is_success = None
+        self.__is_success = False
 
     def retrieve_config(self):
         """
@@ -98,7 +98,6 @@ class ActionHTTP(ActionsBase):
             logger.exception(e)
             status = "FAILURE"
             bot_response = "I have failed to process your request"
-            self.__is_success = False
         finally:
             ActionServerLogs(
                 type=ActionType.http_action.value,

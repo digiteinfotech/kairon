@@ -10328,19 +10328,26 @@ class TestMongoProcessor:
         assert email_actions[0]['smtp_url'] == 'test.test.com'
         assert email_actions[0]['smtp_port'] == 25
 
-    def test_add_google_search_action(self):
+    def test_add_google_search_action(self, monkeypatch):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
         action = {
             'name': 'google_custom_search',
             'api_key': {'value': '12345678'},
-            'search_engine_id': 'asdfg:123456',
+            'search_engine_id': 'asdfg:123456', "dispatch_response": False, "set_slot": "google_search_result",
             'failure_response': 'I have failed to process your request',
         }
         assert processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         assert GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+        def __mock_get_slots(*args, **kwargs):
+            return "some_mock_value"
+
+        monkeypatch.setattr(BaseQuerySet, "get", __mock_get_slots)
+        with pytest.raises(AppException, match=re.escape("Slot is attached to action: ['google_custom_search']")):
+            processor.delete_slot("google_search_result", bot, user)
 
     def test_add_google_search_action_with_story(self):
         processor = MongoProcessor()
@@ -10403,6 +10410,8 @@ class TestMongoProcessor:
         assert actions[0]['search_engine_id'] == 'asdfg:123456'
         assert actions[0]['failure_response'] == 'I have failed to process your request'
         assert actions[0]['num_results'] == 1
+        assert not actions[0]['dispatch_response']
+        assert actions[0]['set_slot'] == "google_search_result"
 
     def test_edit_google_search_action_not_exists(self):
         processor = MongoProcessor()
@@ -10444,6 +10453,8 @@ class TestMongoProcessor:
         assert actions[0]['search_engine_id'] == 'asdfg:12345689'
         assert actions[0]['failure_response'] == 'Failed to perform search'
         assert actions[0]['num_results'] == 1
+        assert actions[0]['dispatch_response']
+        assert actions[0]['set_slot'] is None
 
     def test_delete_google_search_action(self):
         processor = MongoProcessor()

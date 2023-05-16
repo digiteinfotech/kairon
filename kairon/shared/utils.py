@@ -1657,24 +1657,18 @@ class Utility:
     def validate_llm_hyperparameters(hyperparameters: dict, exception_class):
         params = Utility.system_metadata['llm']['gpt']
         for key, value in hyperparameters.items():
-            if key == 'temperature' and (value < params['temperature']['min'] or value > params['temperature']['max']):
-                raise exception_class("Temperature must be between 0.0 and 2.0!")
-            elif key == 'presence_penalty' and (value < params['presence_penalty']['min'] or value > params['presence_penalty']['max']):
-                raise exception_class("Presence penalty must be between -2.0 and 2.0!")
-            elif key == 'frequency_penalty' and (value < params['presence_penalty']['min'] or value > params['presence_penalty']['max']):
-                raise exception_class("Frequency penalty must be between -2.0 and 2.0!")
-            elif key == 'top_p' and (value < params['top_p']['min'] or value > params['top_p']['max']):
-                raise exception_class("top_p must be between 0.0 and 1.0!")
-            elif key == 'n':
-                if value < params['n']['min'] or value > params['n']['max'] or value == 0:
-                    raise exception_class("n must be between 1 and 5 and should not be 0!")
-                # elif value == 0:
-                #     raise exception_class("Value of n cannot be 0!")
-            elif key == 'max_tokens':
-                if value < params['max_tokens']['min'] or value > params['max_tokens']['max'] or value == 0:
-                    raise exception_class("max_tokens must be between 5 and 4096 and should not be 0!")
-                # elif value == 0:
-                #     raise exception_class("Value of max_tokens cannot be 0!")
+            if key == 'temperature' and not params['temperature']['min'] <= value <= params['temperature']['max']:
+                raise exception_class(f"Temperature must be between {params['temperature']['min']} and {params['temperature']['max']}!")
+            elif key == 'presence_penalty' and not params['presence_penalty']['min'] <= value <= params['presence_penalty']['max']:
+                raise exception_class(f"Presence penalty must be between {params['presence_penalty']['min']} and {params['presence_penalty']['max']}!")
+            elif key == 'frequency_penalty' and not params['presence_penalty']['min'] <= value <= params['presence_penalty']['max']:
+                raise exception_class(f"Frequency penalty must be between {params['presence_penalty']['min']} and {params['presence_penalty']['max']}!")
+            elif key == 'top_p' and not params['top_p']['min'] <= value <= params['top_p']['max']:
+                raise exception_class(f"top_p must be between {params['top_p']['min']} and {params['top_p']['max']}!")
+            elif key == 'n' and not params['n']['min'] <= value <= params['n']['max']:
+                raise exception_class(f"n must be between {params['n']['min']} and {params['n']['max']} and should not be 0!")
+            elif key == 'max_tokens' and not params['max_tokens']['min'] <= value <= params['max_tokens']['max']:
+                raise exception_class(f"max_tokens must be between {params['max_tokens']['min']} and {params['max_tokens']['max']} and should not be 0!")
             elif key == 'logit_bias' and not isinstance(value, dict):
                 raise exception_class("logit_bias must be a dictionary!")
             elif key == 'stop':

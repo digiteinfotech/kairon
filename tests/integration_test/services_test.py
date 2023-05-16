@@ -11079,6 +11079,8 @@ def test_list_google_search_action():
     assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
     assert actual["data"][0]['failure_response'] == 'Failed to perform search'
     assert actual["data"][0]['num_results'] == 1
+    assert actual["data"][0]['dispatch_response']
+    assert actual["data"][0]['set_slot'] is None
 
 
 def test_delete_google_search_action():

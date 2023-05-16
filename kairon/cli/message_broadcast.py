@@ -32,7 +32,7 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
     notifier.add_argument('user',
                           type=str,
                           help="Kairon user who is initiating the command", action='store')
-    notifier.add_argument('event-id',
+    notifier.add_argument('event_id',
                           type=str,
                           help="Broadcast config document id or broadcast log reference id", action='store')
     notifier.set_defaults(func=send_notifications)

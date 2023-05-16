@@ -2957,6 +2957,8 @@ class MongoProcessor:
             search_engine_id=action_config['search_engine_id'],
             failure_response=action_config.get('failure_response'),
             num_results=action_config.get('num_results'),
+            dispatch_response=action_config.get('dispatch_response', True),
+            set_slot=action_config.get('set_slot'),
             bot=bot,
             user=user,
         ).save().to_mongo().to_dict()["_id"].__str__()
@@ -2981,6 +2983,8 @@ class MongoProcessor:
         action.search_engine_id = action_config['search_engine_id']
         action.failure_response = action_config.get('failure_response')
         action.num_results = action_config.get('num_results')
+        action.dispatch_response = action_config.get('dispatch_response', True)
+        action.set_slot = action_config.get('set_slot')
         action.user = user
         action.timestamp = datetime.utcnow()
         action.save()
@@ -3060,8 +3064,11 @@ class MongoProcessor:
                 raise AppException('Default kAIron slot deletion not allowed')
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)
+            action_with_slot = GoogleSearchAction.objects(bot=bot, status=True, set_slot=slot_name)
             if len(forms_with_slot) > 0:
                 raise AppException(f'Slot is attached to form: {[form["name"] for form in forms_with_slot]}')
+            if len(action_with_slot) > 0:
+                raise AppException(f'Slot is attached to action: {[action["name"] for action in action_with_slot]}')
             slot.status = False
             slot.user = user
             slot.save()
@@ -4171,7 +4178,8 @@ class MongoProcessor:
             action = Actions.objects(name=name, bot=bot, status=True).get()
             MongoProcessor.get_attached_flows(bot, name, 'action')
             Utility.is_exist(KaironFaqAction, bot=bot, llm_prompts__source=LlmPromptSource.action.value,
-                                llm_prompts__data=name, exp_message=f"Action with name {name} is attached with KaironFaqAction!")
+                             llm_prompts__data=name,
+                             exp_message=f"Action with name {name} is attached with KaironFaqAction!")
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.form_validation_action.value:
@@ -4698,15 +4706,7 @@ class MongoProcessor:
         if not bot_settings['enable_gpt_llm_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
 
-        for prompt in request_data['llm_prompts']:
-            if prompt['source'] == 'slot':
-                if not Utility.is_exist(Slots, raise_error=False, name=prompt['data'], bot=bot, status=True):
-                    raise AppException(f'Slot with name {prompt["data"]} not found!')
-            if prompt['source'] == 'action':
-                if not Utility.is_exist(HttpActionConfig, raise_error=False, action_name=prompt['data'], bot=bot,
-                                        status=True):
-                    raise AppException(f'Action with name {prompt["data"]} not found!')
-
+        self.__validate_llm_prompts(request_data.get('llm_prompts', []), bot)
         Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, exp_message="Action already exists!")
         request_data['bot'] = bot
         request_data['user'] = user
@@ -4717,6 +4717,18 @@ class MongoProcessor:
         )
         self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
         return id
+
+    def __validate_llm_prompts(self, llm_prompts, bot: Text):
+        for prompt in llm_prompts:
+            if prompt['source'] == 'slot':
+                if not Utility.is_exist(Slots, raise_error=False, name=prompt['data'], bot=bot, status=True):
+                    raise AppException(f'Slot with name {prompt["data"]} not found!')
+            if prompt['source'] == 'action':
+                if not (
+                        Utility.is_exist(HttpActionConfig, raise_error=False, action_name=prompt['data'], bot=bot, status=True) or
+                        Utility.is_exist(GoogleSearchAction, raise_error=False, name=prompt['data'], bot=bot, status=True)
+                ):
+                    raise AppException(f'Action with name {prompt["data"]} not found!')
 
     def edit_kairon_faq_action(self, faq_action_id: str, request_data: dict, bot: Text, user: Text):
         """
@@ -4730,6 +4742,7 @@ class MongoProcessor:
         if not Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, id=faq_action_id,
                                 raise_error=False):
             raise AppException('Action not found')
+        self.__validate_llm_prompts(request_data.get('llm_prompts', []), bot)
         action = KaironFaqAction.objects(id=faq_action_id, name__iexact=KAIRON_FAQ_ACTION, bot=bot).get()
         action.failure_message = request_data.get("failure_message")
         action.top_results = request_data.get("top_results")

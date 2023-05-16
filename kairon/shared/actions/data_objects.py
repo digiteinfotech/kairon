@@ -298,6 +298,8 @@ class GoogleSearchAction(Auditlog):
     search_engine_id = StringField(required=True)
     failure_response = StringField(default='I have failed to process your request.')
     num_results = IntField(default=1)
+    dispatch_response = BooleanField(default=True)
+    set_slot = StringField()
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
