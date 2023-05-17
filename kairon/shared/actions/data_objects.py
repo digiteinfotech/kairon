@@ -502,8 +502,8 @@ class LlmPrompt(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
-class KaironFaqAction(Auditlog):
-    name = StringField(default=KAIRON_FAQ_ACTION)
+class PromptAction(Auditlog):
+    name = StringField(required=True)
     num_bot_responses = IntField(default=5)
     top_results = IntField(default=10)
     similarity_threshold = FloatField(default=0.70)
@@ -513,6 +513,7 @@ class KaironFaqAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = ListField(EmbeddedDocumentField(LlmPrompt), required=True)
+    status = BooleanField(default=True)
 
     def clean(self):
         for key, value in Utility.get_llm_hyperparameters().items():

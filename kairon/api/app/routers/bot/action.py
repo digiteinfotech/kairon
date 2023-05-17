@@ -6,7 +6,7 @@ from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
-    RazorpayActionRequest, KaironFaqConfigRequest
+    RazorpayActionRequest, PromptActionConfigRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -364,7 +364,7 @@ async def update_two_stage_fallback_action(
 
 @router.post("/kairon_faq", response_model=Response)
 async def add_kairon_faq_action(
-        request_data: KaironFaqConfigRequest,
+        request_data: PromptActionConfigRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -385,7 +385,7 @@ async def add_kairon_faq_action(
 @router.put("/kairon_faq/{faq_action_id}", response_model=Response)
 async def update_kairon_faq_action(
         faq_action_id: str,
-        request_data: KaironFaqConfigRequest,
+        request_data: PromptActionConfigRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """

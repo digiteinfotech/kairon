@@ -7,7 +7,7 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
-from kairon.actions.definitions.kairon_faq import ActionKaironFaq
+from kairon.actions.definitions.kairon_faq import ActionPrompt
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.razorpay import ActionRazorpay
 from kairon.actions.definitions.set_slot import ActionSetSlot
@@ -33,7 +33,7 @@ class ActionFactory:
         ActionType.two_stage_fallback.value: ActionTwoStageFallback,
         ActionType.kairon_bot_response.value: ActionKaironBotResponse,
         ActionType.razorpay_action.value: ActionRazorpay,
-        ActionType.kairon_faq_action.value: ActionKaironFaq,
+        ActionType.prompt_action.value: ActionPrompt,
     }
 
     @staticmethod
