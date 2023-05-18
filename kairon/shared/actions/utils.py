@@ -915,7 +915,7 @@ class ExpressionEvaluator:
             expression = f'("{slot_value}" not in {operand})'
             is_valid = slot_value not in operand
         elif operator == SlotValidationOperators.is_not_null_or_empty.value:
-            expression = f'(is_empty({slot_value}))'
+            expression = f'(is_not_empty({slot_value}))'
             is_valid = not ActionUtility.is_empty(slot_value)
         elif operator == SlotValidationOperators.is_null_or_empty.value:
             expression = f'(is_empty({slot_value}))'
