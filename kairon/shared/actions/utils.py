@@ -324,6 +324,21 @@ class ActionUtility:
         return http_url
 
     @staticmethod
+    def validate_slot_value(slot_value: Text, semantic: Text, raise_err_on_failure: bool = True):
+        log = f"semantic: {semantic} || slot_value: {slot_value} || raise_err_on_failure: {raise_err_on_failure}"
+        endpoint = Utility.environment['evaluator']['url']
+        request_body = {
+            "semantic": semantic,
+            "slot_value": slot_value
+        }
+        resp = ActionUtility.execute_http_request(endpoint, "POST", request_body)
+        log = f"{log} || response: {resp}"
+        if not resp.get('success') and raise_err_on_failure:
+            raise ActionFailure(f'slot value validation failed: {log}')
+        is_valid = resp.get('data')
+        return is_valid
+
+    @staticmethod
     def is_empty(value: str):
         """
         checks for null or empty string

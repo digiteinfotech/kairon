@@ -9,7 +9,7 @@ from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, FormValidationAction
 from rasa_sdk.forms import REQUESTED_SLOT
 from kairon.shared.actions.models import ActionType
-from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
+from kairon.shared.actions.utils import ActionUtility
 
 
 class ActionFormValidation(ActionsBase):
@@ -61,8 +61,7 @@ class ActionFormValidation(ActionsBase):
             utter_msg_on_invalid = validation.invalid_response
             msg.append(f'utter_msg_on_valid: {utter_msg_on_valid}')
             msg.append(f'utter_msg_on_valid: {utter_msg_on_invalid}')
-            expr_as_str, is_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value, semantic)
-            msg.append(f'Expression: {expr_as_str}')
+            is_valid = ActionUtility.validate_slot_value(slot_value=slot_value, semantic=semantic)
             msg.append(f'is_valid: {is_valid}')
 
             if is_valid:
