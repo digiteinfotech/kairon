@@ -377,6 +377,7 @@ class TrainingDataGeneratorStatusModel(BaseModel):
 class StoryStepRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True) = None
     type: StoryStepType
+    value: Any = None
 
 
 class MultiStoryStepRequest(StoryStepRequest):

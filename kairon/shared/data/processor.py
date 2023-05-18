@@ -2108,13 +2108,17 @@ class MongoProcessor:
                     name=RULE_SNIPPET_ACTION_NAME,
                     type=ActionExecuted.type_name))
         action_step_types = {s_type.value for s_type in StoryStepType}.difference({
-            StoryStepType.intent.value, StoryStepType.form_start.value, StoryStepType.form_end.value
+            StoryStepType.intent.value, StoryStepType.slot.value, StoryStepType.form_start.value, StoryStepType.form_end.value
         })
         for step in steps:
             if step['type'] == StoryStepType.intent.value:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type=UserUttered.type_name))
+            elif step['type'] == StoryStepType.slot.value:
+                events.append(StoryEvents(
+                    name=step['name'].strip().lower(),
+                    type=SlotSet.type_name, value=step.get('value')))
             elif step['type'] in action_step_types:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',

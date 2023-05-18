@@ -7,6 +7,7 @@ from kairon.shared.data.constant import ACCESS_ROLES
 
 class StoryStepType(str, Enum):
     intent = "INTENT"
+    slot = "SLOT"
     form_start = "FORM_START"
     form_end = "FORM_END"
     bot = "BOT"

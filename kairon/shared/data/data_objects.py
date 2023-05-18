@@ -473,7 +473,7 @@ class Slots(Auditlog):
 class StoryEvents(EmbeddedDocument):
     name = StringField(default=None)
     type = StringField(required=True, choices=["user", "action", "form", "slot", "active_loop"])
-    value = StringField()
+    value = DynamicField()
     entities = ListField(EmbeddedDocumentField(Entity), default=None)
 
     def validate(self, clean=True):
@@ -500,6 +500,7 @@ class StoryEvents(EmbeddedDocument):
 class StepFlowEvent(EmbeddedDocument):
     name = StringField(required=True)
     type = StringField(required=True, choices=[step_type.value for step_type in StoryStepType])
+    value = StringField(required=True)
     node_id = StringField(required=True)
     component_id = StringField(required=True)
 

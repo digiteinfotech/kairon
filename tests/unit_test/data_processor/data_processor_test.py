@@ -119,6 +119,29 @@ class TestMongoProcessor:
 
         return _read_and_get_data
 
+    def test_add_complex_story_with_slot(self):
+        processor = MongoProcessor()
+        story_name = "story with slot"
+        bot = "test_slot"
+        user = "test_user"
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "is_new_user", "type": "SLOT", "value": None},
+            {"name": "utter_welcome_user", "type": "BOT"},
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        pytest.story_id = processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name=story_name, bot=bot).get()
+        assert len(story.events) == 3
+
+        steps.insert(2, {"name": "persona", "type": "SLOT", "value": "positive"})
+        processor.update_complex_story(pytest.story_id, story_dict, bot, user)
+        story = Stories.objects(block_name=story_name, bot=bot).get()
+        assert story.to_mongo().to_dict()["events"] == [{'name': 'greet', 'type': 'user'},
+                                                        {'name': 'is_new_user', 'type': 'slot'},
+                                                        {'name': 'persona', 'type': 'slot', 'value': 'positive'},
+                                                        {'name': 'utter_welcome_user', 'type': 'action'}]
+
     def test_add_kairon_with_gpt_feature_disabled(self):
         processor = MongoProcessor()
         bot = 'test'
