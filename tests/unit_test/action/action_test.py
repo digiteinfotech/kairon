@@ -2157,6 +2157,28 @@ class TestActions:
         assert not is_slot_data_valid
         assert final_expr == '{(" " not in "valid slot value")}'
 
+        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'not', semantic_expression)
+        assert is_slot_data_valid
+        assert final_expr == '{(is_not_empty(not))}'
+
+        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, '', semantic_expression)
+        assert is_slot_data_valid
+        assert final_expr == '{(is_empty())}'
+
+        semantic_expression = {'and': [{'operator': 'not in', 'value': 'test value'}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        assert final_expr == '{("valid_slot_value" not in test value)}'
+
+        semantic_expression = {'and': [{'operator': 'case_insensitive_equals', 'value': slot_value}]}
+        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
+                                                                                 semantic_expression)
+        assert is_slot_data_valid
+        assert final_expr == '{("valid_slot_value" == "valid_slot_value")}'
+
         with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator ">" for current slot type'):
             semantic_expression = {'and': [{'operator': '>'}]}
             ExpressionEvaluator.is_valid_slot_value(slot_type, 'valid slot value', semantic_expression)
