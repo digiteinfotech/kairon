@@ -220,7 +220,7 @@ class SlotSetAction(Auditlog):
 class FormValidationAction(Auditlog):
     name = StringField(required=True)
     slot = StringField(required=True)
-    validation_semantic = DictField(default={})
+    validation_semantic = StringField(default=None)
     valid_response = StringField(default=None)
     invalid_response = StringField(default=None)
     bot = StringField(required=True)

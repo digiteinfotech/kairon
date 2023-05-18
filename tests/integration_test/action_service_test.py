@@ -1652,17 +1652,24 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'location'
-        semantic_expression = {'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']},
-                                                {'operator': 'startswith', 'value': 'M'},
-                                                {'operator': 'endswith', 'value': 'i'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                                               {'operator': 'has_no_whitespace'},
-                                               {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
+                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
+                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
+                              " {'operator': 'has_no_whitespace'}," \
+                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
                              bot=bot, user=user).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': "Mumbai"})],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1745,8 +1752,17 @@ class TestActionServer(AsyncHTTPTestCase):
         user = 'test_user'
         slot = 'location'
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        FormValidationAction(name=action_name, slot=slot, validation_semantic={}, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=None, bot=bot, user=user).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({'semantic': None, 'slot_value': None})],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1788,13 +1804,10 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'user_id'
-        semantic_expression = {'and': [{'and': [{'operator': 'is_an_email_address'},
-                                                {'operator': 'is_not_null_or_empty'},
-                                                {'operator': 'endswith', 'value': '.com'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 4},
-                                               {'operator': 'has_no_whitespace'},
-                                               ]}]}
+        semantic_expression = "{'and': [{'and': [{'operator': 'is_an_email_address'}," \
+                              " {'operator': 'is_not_null_or_empty'}, {'operator': 'endswith', 'value': '.com'},]}," \
+                              " {'or': [{'operator': 'has_length_greater_than', 'value': 4}," \
+                              " {'operator': 'has_no_whitespace'},]}]}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='location', validation_semantic=semantic_expression,
                              bot=bot, user=user).save()
@@ -1802,6 +1815,15 @@ class TestActionServer(AsyncHTTPTestCase):
                              bot=bot, user=user,
                              valid_response='that is great!').save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': "pandey.udit867@gmail.com"})],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1842,13 +1864,11 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'current_location'
-        semantic_expression = {'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']},
-                                                {'operator': 'startswith', 'value': 'M'},
-                                                {'operator': 'endswith', 'value': 'i'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                                               {'operator': 'has_no_whitespace'},
-                                               {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
+                              " {'operator': 'startswith', 'value': 'M'}, {'operator': 'endswith', 'value': 'i'},]}," \
+                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
+                              " {'operator': 'has_no_whitespace'}," \
+                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
@@ -1857,6 +1877,15 @@ class TestActionServer(AsyncHTTPTestCase):
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': "Delhi"})],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1898,12 +1927,10 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'profession'
-        semantic_expression = {'and': [{'and': [{'operator': 'is_not_null_or_empty'},
-                                                {'operator': 'endswith', 'value': '.com'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 4},
-                                               {'operator': 'has_no_whitespace'},
-                                               ]}]}
+        semantic_expression = "{'and': [{'and': [{'operator': 'is_not_null_or_empty'}, " \
+                              "{'operator': 'endswith', 'value': '.com'},]}, " \
+                              "{'or': [{'operator': 'has_length_greater_than', 'value': 4}, " \
+                              "{'operator': 'has_no_whitespace'},]}]}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='some_slot', validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
@@ -1911,6 +1938,16 @@ class TestActionServer(AsyncHTTPTestCase):
                              bot=bot, user=user, valid_response='that is great!',
                              invalid_response='Invalid value. Please type again!').save().to_mongo().to_dict()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'semantic': semantic_expression, 'slot_value': "computer programmer"})],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1987,12 +2024,10 @@ class TestActionServer(AsyncHTTPTestCase):
             'events': [{'event': 'slot', 'timestamp': None, 'name': 'age', 'value': 10}],
             'responses': []})
 
-        semantic_expression = {'and': [{'and': [{'operator': 'is_not_null_or_empty'},
-                                                {'operator': 'ends_with', 'value': '.com'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 4},
-                                               {'operator': 'has_no_whitespace'},
-                                               ]}]}
+        semantic_expression = "{'and': [{'and': [{'operator': 'is_not_null_or_empty'}, " \
+                              "{'operator': 'ends_with', 'value': '.com'},]}, " \
+                              "{'or': [{'operator': 'has_length_greater_than', 'value': 4}, " \
+                              "{'operator': 'has_no_whitespace'},]}]}"
         FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
                              bot=bot, user=user, valid_response='that is great!').save()
         FormValidationAction(name=action_name, slot='occupation', validation_semantic=semantic_expression,
