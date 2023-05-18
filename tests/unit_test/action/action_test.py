@@ -1856,6 +1856,60 @@ class TestActions:
         with pytest.raises(ActionFailure, match='None type action is not supported with action server'):
             ActionFactory.get_instance(bot, 'test_get_action_config_custom_user_action')
 
+    @responses.activate
+    def test_validate_slot_value(self):
+        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
+                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
+                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
+                              " {'operator': 'has_no_whitespace'}," \
+                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        slot_value = "Mumbai"
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': slot_value})],
+        )
+        is_valid = ActionUtility.validate_slot_value(slot_value, semantic_expression)
+        assert is_valid is True
+
+    @responses.activate
+    def test_validate_slot_value_validation_failure(self):
+        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
+                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
+                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
+                              " {'operator': 'has_no_whitespace'}," \
+                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        slot_value = "Mumbai"
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False, "data": False},
+            status=200,
+            match=[responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': slot_value})],
+        )
+        is_valid = ActionUtility.validate_slot_value(slot_value, semantic_expression, False)
+        assert is_valid is False
+
+    @responses.activate
+    def test_validate_slot_value_request_failure(self):
+        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
+                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
+                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
+                              " {'operator': 'has_no_whitespace'}," \
+                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        slot_value = "Mumbai"
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": False, "data": None},
+            status=200,
+            match=[responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': slot_value})],
+        )
+        with pytest.raises(ActionFailure, match="slot value validation failed: semantic: {'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}, {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}, {'or': [{'operator': 'has_length_greater_than', 'value': 20}, {'operator': 'has_no_whitespace'}, {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]} || slot_value: Mumbai || raise_err_on_failure: True || response: {'success': False, 'data': None}"):
+            ActionUtility.validate_slot_value(slot_value, semantic_expression)
+
     def test_get_form_validation_config_single_validation(self):
         bot = 'test_actions'
         user = 'test'
