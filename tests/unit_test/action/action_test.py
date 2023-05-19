@@ -3409,3 +3409,14 @@ class TestActions:
         print(bot_responses)
         assert bot_responses == [{'role': 'user', 'content': 'Kairon pricing'},
                                  {'role': 'assistant', 'content': "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."}]
+
+    def test_prepare_bot_responses_break_session_started(self):
+        events = Utility.read_yaml("tests/testing_data/history/session_started.json")
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
+        print(bot_responses)
+        assert bot_responses == []
