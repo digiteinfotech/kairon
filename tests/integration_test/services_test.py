@@ -1169,7 +1169,7 @@ def test_get_content_not_exists():
 
 def test_get_kairon_faq_action_with_no_actions():
     response = client.get(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -1196,7 +1196,7 @@ def test_add_prompt_action_with_invalid_similarity_threshold():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1226,7 +1226,7 @@ def test_add_prompt_action_with_invalid_top_results():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1256,7 +1256,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
                                     'source': 'history', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1287,7 +1287,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
               "num_bot_responses": 10}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1318,7 +1318,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1352,7 +1352,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1382,7 +1382,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1411,7 +1411,7 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1441,7 +1441,7 @@ def test_add_prompt_action_with_empty_llm_prompt_instructions():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1473,7 +1473,7 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1504,7 +1504,7 @@ def test_add_prompt_action_with_multiple_bot_content_source_prompts():
                                    ], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1534,7 +1534,7 @@ def test_add_prompt_action_with_gpt_feature_disabled():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1566,7 +1566,7 @@ def test_add_prompt_action(monkeypatch):
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1600,7 +1600,7 @@ def test_add_prompt_action_already_exist(monkeypatch):
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1629,7 +1629,7 @@ def test_update_prompt_action_does_not_exist():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/61512cc2c6219f0aae7bba3d",
+        f"/api/bot/{pytest.bot}/action/prompt/61512cc2c6219f0aae7bba3d",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1658,7 +1658,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 1.50}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1684,7 +1684,7 @@ def test_update_prompt_action_with_invalid_top_results():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1710,7 +1710,7 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 50,
               "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1741,7 +1741,7 @@ def test_update_prompt_action_with_invalid_query_prompt():
               'num_bot_responses': 5,
               "use_query_prompt": True, "query_prompt": ""}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1769,7 +1769,7 @@ def test_update_prompt_action_with_query_prompt_with_false():
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50,
               'num_bot_responses': 5}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1799,7 +1799,7 @@ def test_update_prompt_action():
               'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1813,7 +1813,7 @@ def test_update_prompt_action():
 
 def test_get_prompt_action():
     response = client.get(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3304,9 +3304,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3488,11 +3488,11 @@ def test_add_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', "
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
                  'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']}
+                 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']}
                  }]
     )
 
@@ -3558,9 +3558,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3696,12 +3696,12 @@ def test_update_multiflow_story_invalid_event_type():
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                         "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
-                        "'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                        "'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
                         'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                        'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']}
+                        'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']}
                  }]
     )
 
@@ -7523,9 +7523,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -7588,9 +7588,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum'}]
     )
 

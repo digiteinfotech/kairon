@@ -56,8 +56,7 @@ from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
-    DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT, \
-    KAIRON_FAQ_ACTION
+    DEFAULT_CONTEXT_PROMPT, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_SYSTEM_PROMPT
 from kairon.shared.data.data_objects import (TrainingExamples,
                                              Slots,
                                              Entities, EntitySynonyms, RegexFeatures,
@@ -155,7 +154,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_slots(self):
         processor = MongoProcessor()
@@ -181,7 +180,7 @@ class TestMongoProcessor:
              'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
              'is_enabled': True}]}
         with pytest.raises(AppException, match="Slot with name info not found!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_http_action(self):
         processor = MongoProcessor()
@@ -207,7 +206,7 @@ class TestMongoProcessor:
              'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
              'is_enabled': True}]}
         with pytest.raises(AppException, match="Action with name test_http_action not found!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_similarity_threshold(self):
         processor = MongoProcessor()
@@ -236,7 +235,7 @@ class TestMongoProcessor:
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="similarity_threshold should be within 0.3 and 1"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_top_results(self):
         processor = MongoProcessor()
@@ -264,7 +263,7 @@ class TestMongoProcessor:
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="top_results should not be greater than 30"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_query_prompt(self):
         processor = MongoProcessor()
@@ -287,7 +286,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Query prompt must have static source!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_num_bot_responses(self):
         processor = MongoProcessor()
@@ -310,7 +309,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 15}
         with pytest.raises(ValidationError, match="num_bot_responses should not be greater than 5"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_system_prompt_source(self):
         processor = MongoProcessor()
@@ -334,7 +333,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="System prompt must have static source!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_multiple_system_prompt(self):
         processor = MongoProcessor()
@@ -361,7 +360,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Only one system prompt can be present!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_empty_llm_prompt_name(self):
         processor = MongoProcessor()
@@ -384,7 +383,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Name cannot be empty!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_empty_data_for_static_prompt(self):
         processor = MongoProcessor()
@@ -406,7 +405,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="data is required for static prompts!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_empty_llm_prompt_instructions(self):
         processor = MongoProcessor()
@@ -428,7 +427,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="instructions are required!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_multiple_history_source_prompts(self):
         processor = MongoProcessor()
@@ -453,7 +452,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Only one history source can be present!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_multiple_bot_content_source_prompts(self):
         processor = MongoProcessor()
@@ -477,7 +476,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="Only one bot_content source can be present!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_no_system_prompts(self):
         processor = MongoProcessor()
@@ -496,7 +495,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
                    "similarity_threshold": 0.70, "num_bot_responses": 5}
         with pytest.raises(ValidationError, match="System prompt is required!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_empty_llm_prompts(self):
         processor = MongoProcessor()
@@ -512,7 +511,7 @@ class TestMongoProcessor:
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': []}
         with pytest.raises(ValidationError, match="llm_prompts are required!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_faq_action_with_default_values(self):
         processor = MongoProcessor()
@@ -522,8 +521,8 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        pytest.action_id = processor.add_kairon_faq_action(request, bot, user)
-        action = list(processor.get_kairon_faq_action(bot))
+        pytest.action_id = processor.add_prompt_action(request, bot, user)
+        action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
         print(action)
         assert action == [
@@ -556,7 +555,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Temperature must be between 0.0 and 2.0!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_stop_hyperparameter(self):
         processor = MongoProcessor()
@@ -575,7 +574,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers."):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_presence_penalty_hyperparameter(self):
         processor = MongoProcessor()
@@ -594,7 +593,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Presence penalty must be between -2.0 and 2.0!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter(self):
         processor = MongoProcessor()
@@ -613,7 +612,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="Frequency penalty must be between -2.0 and 2.0!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_max_tokens_hyperparameter(self):
         processor = MongoProcessor()
@@ -632,7 +631,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_zero_max_tokens_hyperparameter(self):
         processor = MongoProcessor()
@@ -651,7 +650,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="max_tokens must be between 5 and 4096 and should not be 0!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_top_p_hyperparameter(self):
         processor = MongoProcessor()
@@ -670,7 +669,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="top_p must be between 0.0 and 1.0!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_n_hyperparameter(self):
         processor = MongoProcessor()
@@ -689,7 +688,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_zero_n_hyperparameter(self):
         processor = MongoProcessor()
@@ -708,7 +707,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="n must be between 1 and 5 and should not be 0!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_logit_bias_hyperparameter(self):
         processor = MongoProcessor()
@@ -727,7 +726,7 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="logit_bias must be a dictionary!"):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_faq_action_already_exist(self):
         processor = MongoProcessor()
@@ -738,7 +737,7 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(AppException, match='Action exists!'):
-            processor.add_kairon_faq_action(request, bot, user)
+            processor.add_prompt_action(request, bot, user)
 
     def test_edit_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -762,7 +761,7 @@ class TestMongoProcessor:
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Action not found"):
-            processor.edit_kairon_faq_action(action_id, request, bot, user)
+            processor.edit_prompt_action(action_id, request, bot, user)
 
     def test_edit_prompt_action_faq_action(self):
         processor = MongoProcessor()
@@ -785,8 +784,8 @@ class TestMongoProcessor:
                    "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
                    "num_bot_responses": 5, "hyperparameters": Utility.get_llm_hyperparameters()}
-        processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
-        action = list(processor.get_kairon_faq_action(bot))
+        processor.edit_prompt_action(pytest.action_id, request, bot, user)
+        action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
         assert action == [
             {'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5, 'top_results': 10,
@@ -807,8 +806,8 @@ class TestMongoProcessor:
              'status': True}]
         request = {'name': 'test_edit_prompt_action_faq_action_again', 'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static'}]}
-        processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
-        action = list(processor.get_kairon_faq_action(bot))
+        processor.edit_prompt_action(pytest.action_id, request, bot, user)
+        action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
         assert action == [
             {'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5, 'top_results': 10,
@@ -847,8 +846,8 @@ class TestMongoProcessor:
                                                                "top_p": 0.0,
                                                                "n": 1}}
 
-        processor.edit_kairon_faq_action(pytest.action_id, request, bot, user)
-        action = list(processor.get_kairon_faq_action(bot))
+        processor.edit_prompt_action(pytest.action_id, request, bot, user)
+        action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
         print(action)
         assert action == [
@@ -870,13 +869,13 @@ class TestMongoProcessor:
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
         bot = 'invalid_bot'
-        action = list(processor.get_kairon_faq_action(bot))
+        action = list(processor.get_prompt_action(bot))
         assert action == []
 
     def test_get_prompt_faq_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
-        action = list(processor.get_kairon_faq_action(bot))
+        action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
         print(action)
         assert action == [
@@ -6771,7 +6770,7 @@ class TestMongoProcessor:
                                     'is_enabled': True}]
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
-        processor.add_kairon_faq_action(prompt_action_config.dict(), bot, user)
+        processor.add_prompt_action(prompt_action_config.dict(), bot, user)
         with pytest.raises(AppException, match=f'Action with name tester_action is attached with PromptAction!'):
             processor.delete_action('tester_action', bot, user)
 
@@ -10841,20 +10840,20 @@ class TestMongoProcessor:
         user = 'test_user'
         steps = [
             {"name": "greet", "type": "INTENT"},
-            {"name": KAIRON_FAQ_ACTION, "type": "KAIRON_FAQ_ACTION"}
+            {"name": "kairon_faq_action", "type": "PROMPT_ACTION"}
         ]
         story_dict = {'name': "activate kairon faq action", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
         pytest.two_stage_fallback_story_id = processor.add_complex_story(story_dict, bot, user)
         rule = Rules.objects(block_name="activate kairon faq action", bot=bot,
-                             events__name=KAIRON_FAQ_ACTION, status=True).get()
+                             events__name="kairon_faq_action", status=True).get()
         assert rule.to_mongo().to_dict()['events'] == [{'name': '...', 'type': 'action'},
                                                        {'name': 'greet', 'type': 'user'},
-                                                       {'name': KAIRON_FAQ_ACTION, 'type': 'action'}]
+                                                       {'name': "kairon_faq_action", 'type': 'action'}]
         stories = list(processor.get_stories(bot))
         story_with_form = [s for s in stories if s['name'] == "activate kairon faq action"]
         assert story_with_form[0]['steps'] == [
             {"name": "greet", "type": "INTENT"},
-            {"name": KAIRON_FAQ_ACTION, "type": "KAIRON_FAQ_ACTION"}
+            {"name": "kairon_faq_action", "type": "PROMPT_ACTION"}
         ]
 
     def test_add_secret(self):

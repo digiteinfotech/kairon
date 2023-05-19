@@ -23,7 +23,7 @@ class StoryStepType(str, Enum):
     hubspot_forms_action = "HUBSPOT_FORMS_ACTION"
     razorpay_action = "RAZORPAY_ACTION"
     two_stage_fallback_action = "TWO_STAGE_FALLBACK_ACTION"
-    kairon_faq_action = "KAIRON_FAQ_ACTION"
+    prompt_action = "PROMPT_ACTION"
 
 class StoryType(str, Enum):
     story = "STORY"

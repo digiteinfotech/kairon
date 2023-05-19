@@ -18,7 +18,7 @@ from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, KAIRON_FAQ_ACTION
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"

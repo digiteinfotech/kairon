@@ -62,8 +62,7 @@ from .constant import (
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
-    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType, GPT_LLM_FAQ,
-    DEFAULT_LLM_FALLBACK_RULE, KAIRON_FAQ_ACTION
+    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType
 )
 from .data_objects import (
     Responses,
@@ -2380,6 +2379,7 @@ class MongoProcessor:
         hubspot_forms_actions = set(HubspotFormsAction.objects(bot=bot, status=True).values_list('name'))
         razorpay_actions = set(RazorpayAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
+        prompt_actions = set(PromptAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -2432,8 +2432,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.razorpay_action.value
                     elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
-                    elif event['name'] == KAIRON_FAQ_ACTION:
-                        step['type'] = StoryStepType.kairon_faq_action.value
+                    elif event['name'] in prompt_actions:
+                        step['type'] = StoryStepType.prompt_action.value
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = StoryStepType.bot.value
                     else:
@@ -4702,9 +4702,9 @@ class MongoProcessor:
             action.pop('user')
             yield action
 
-    def add_kairon_faq_action(self, request_data: dict, bot: Text, user: Text):
+    def add_prompt_action(self, request_data: dict, bot: Text, user: Text):
         """
-        Add Kairon FAQ Action
+        Add prompt(Kairon FAQ) Action
 
         :param request_data: request config for kairon faq action
         :param bot: bot id
@@ -4736,9 +4736,9 @@ class MongoProcessor:
                 ):
                     raise AppException(f'Action with name {prompt["data"]} not found!')
 
-    def edit_kairon_faq_action(self, prompt_action_id: str, request_data: dict, bot: Text, user: Text):
+    def edit_prompt_action(self, prompt_action_id: str, request_data: dict, bot: Text, user: Text):
         """
-        Edit Kairon FAQ Action
+        Edit prompt(Kairon FAQ) Action
 
         :param prompt_action_id: action id
         :param request_data: request config for kairon faq action
@@ -4761,9 +4761,9 @@ class MongoProcessor:
         action.user = user
         action.save()
 
-    def get_kairon_faq_action(self, bot: Text):
+    def get_prompt_action(self, bot: Text):
         """
-        fetches Kairon FAQ Action
+        fetches prompt(Kairon FAQ) Action
 
         :param bot: bot id
         :return: yield dict

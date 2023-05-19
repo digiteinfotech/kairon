@@ -13,7 +13,7 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
-    DEFAULT_NLU_FALLBACK_RESPONSE, KAIRON_FAQ_ACTION
+    DEFAULT_NLU_FALLBACK_RESPONSE
 import numpy as np
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 from kairon.shared.data.processor import MongoProcessor
@@ -6391,7 +6391,7 @@ class TestActionServer(AsyncHTTPTestCase):
         from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
-        action_name = KAIRON_FAQ_ACTION
+        action_name = "kairon_faq_action"
         bot = "5u80fd0a56b698ca10d35d2s"
         user = "udit.pandey"
         value = "keyvalue"
@@ -6465,7 +6465,7 @@ class TestActionServer(AsyncHTTPTestCase):
         from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
-        action_name = KAIRON_FAQ_ACTION
+        action_name = "kairon_faq_action"
         bot = "5u08kd0a56b698ca10d98e6s"
         user = "nupur.khare"
         value = "keyvalue"
@@ -6585,7 +6585,7 @@ class TestActionServer(AsyncHTTPTestCase):
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
 
-        action_name = KAIRON_FAQ_ACTION
+        action_name = "kairon_faq_action"
         google_action_name = "custom_search_action"
         bot = "5u08kd0a56b698ca10hgjgjkhgjks"
         value = "keyvalue"
@@ -6650,7 +6650,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
     def test_prompt_response_action_with_action_not_found(self, mock_search):
-        action_name = KAIRON_FAQ_ACTION
+        action_name = "kairon_faq_action"
         bot = "5u08kd0a00b698ca10d98u9q"
         user = "nupurk"
         value = "keyvalue"
@@ -6704,7 +6704,7 @@ class TestActionServer(AsyncHTTPTestCase):
         from openai.openai_response import OpenAIResponse
         from uuid6 import uuid7
 
-        action_name = KAIRON_FAQ_ACTION
+        action_name = "kairon_faq_action"
         bot = "5u80fd0a56c908ca10d35d2s"
         user = "udit.pandey"
         value = "keyvalue"
