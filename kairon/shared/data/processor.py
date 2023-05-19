@@ -2404,6 +2404,10 @@ class MongoProcessor:
                 if event['type'] == UserUttered.type_name:
                     step['name'] = event['name']
                     step['type'] = StoryStepType.intent.value
+                elif event['type'] == SlotSet.type_name:
+                    step['name'] = event['name']
+                    step['type'] = StoryStepType.slot.value
+                    step['value'] = event.get("value")
                 elif event['type'] == ActionExecuted.type_name:
                     step['name'] = event['name']
                     if event['name'] in http_actions:

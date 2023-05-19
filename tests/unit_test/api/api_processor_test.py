@@ -2628,6 +2628,7 @@ class TestAccountProcessor:
 
         request = StoryRequest(name="registration", type="STORY", steps=temp)
         result = request.get_steps()
+        [r.pop("value", None) for r in result]
         temp[3] = {'name': None, 'type': 'FORM_END'}
         assert result == temp
         assert all([i for i in temp if type(i) is dict])

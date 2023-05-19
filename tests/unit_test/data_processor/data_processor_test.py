@@ -141,6 +141,11 @@ class TestMongoProcessor:
                                                         {'name': 'is_new_user', 'type': 'slot'},
                                                         {'name': 'persona', 'type': 'slot', 'value': 'positive'},
                                                         {'name': 'utter_welcome_user', 'type': 'action'}]
+        stories = list(processor.get_stories(bot))
+        assert stories[0]["steps"] == [{'name': 'greet', 'type': 'INTENT'},
+                                       {'name': 'is_new_user', 'type': 'SLOT', 'value': None},
+                                       {'name': 'persona', 'type': 'SLOT', 'value': 'positive'},
+                                       {'name': 'utter_welcome_user', 'type': 'BOT'}]
 
     def test_add_kairon_with_gpt_feature_disabled(self):
         processor = MongoProcessor()
