@@ -5942,8 +5942,6 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
-        mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
         PromptAction(bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
@@ -6280,7 +6278,7 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': bot_content, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
               'image': None, 'attachment': None}])
 
-        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value).get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value).get()
         assert log.llm_logs == [{'message': 'Searching exact match in cache as `enable_response_cache` is enabled.'},
                                 {'message': 'Found exact query match in cache.'}]
 
@@ -6331,7 +6329,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
         mock_search.return_value = {'result': []}
 
-        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value).get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value).get()
         assert log.exception == "Connection reset by peer!"
         assert log.llm_logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'},
                                 {'message': 'Searching recommendations from cache as `enable_response_cache` is enabled.'}]
@@ -6593,7 +6591,7 @@ class TestActionServer(AsyncHTTPTestCase):
         value = "keyvalue"
         user_msg = "What is kanban"
         user = 'test_user'
-        Actions(name=action_name, type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         Actions(name=google_action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
         GoogleSearchAction(name=google_action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user, dispatch_response=False,
@@ -6615,7 +6613,7 @@ class TestActionServer(AsyncHTTPTestCase):
             {'name': 'Google search Prompt', 'data': 'custom_search_action',
              'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action', 'is_enabled': True}
         ]
-        KaironFaqAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
+        PromptAction(bot=bot, user=user, llm_prompts=llm_prompts).save()
 
         def mock_completion_for_answer(*args, **kwargs):
             return convert_to_openai_object(
@@ -6643,7 +6641,7 @@ class TestActionServer(AsyncHTTPTestCase):
               'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
               'attachment': None}]
         )
-        log = ActionServerLogs.objects(bot=bot, type=ActionType.kairon_faq_action.value, status="SUCCESS").get()
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
         assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
                                    {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
         assert mock_completion.call_args.args[1] == 'What is kanban'
