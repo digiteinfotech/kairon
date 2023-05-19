@@ -15,7 +15,7 @@ from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.models import LlmPromptType, LlmPromptSource
 
 
-class ActionKaironFaq(ActionsBase):
+class ActionPrompt(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
         """
@@ -80,7 +80,7 @@ class ActionKaironFaq(ActionsBase):
             if llm:
                 llm_logs = llm.logs
             ActionServerLogs(
-                type=ActionType.kairon_faq_action.value,
+                type=ActionType.prompt_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=self.name,
                 sender=tracker.sender_id,

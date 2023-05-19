@@ -104,6 +104,7 @@ class TornadoAuthenticate:
         if not bot["status"]:
             raise ServiceHandlerException("Inactive Bot Please contact system admin!", 422, {"WWW-Authenticate": "Bearer"})
         user.active_bot = bot_id
+        user.bot_account = bot['account']
         return user
 
     @staticmethod

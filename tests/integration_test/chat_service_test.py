@@ -53,6 +53,7 @@ token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
 token_type = "Bearer"
 user = AccountProcessor.get_complete_user_details("test@chat.com")
 bot = user['bots']['account_owned'][0]['_id']
+bot_account = user['bots']['account_owned'][0]['account']
 chat_client_config = MongoProcessor().get_chat_client_config(bot, "test@chat.com").to_mongo().to_dict()
 start_training(bot, "test@chat.com")
 bot2 = AccountProcessor.add_bot("testChat2", user['account'], "test@chat.com")['_id'].__str__()
@@ -225,10 +226,12 @@ class TestChatServer(AsyncHTTPTestCase):
             assert headers[10] == ('Permissions-Policy',
                                    'accelerometer=(self), ambient-light-sensor=(self), autoplay=(self), battery=(self), camera=(self), cross-origin-isolated=(self), display-capture=(self), document-domain=(self), encrypted-media=(self), execution-while-not-rendered=(self), execution-while-out-of-viewport=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), keyboard-map=(self), magnetometer=(self), microphone=(self), midi=(self), navigation-override=(self), payment=(self), picture-in-picture=(self), publickey-credentials-get=(self), screen-wake-lock=(self), sync-xhr=(self), usb=(self), web-share=(self), xr-spatial-tracking=(self)')
             assert headers[11] == ('Cache-Control', 'no-store')
-            data = MeteringProcessor.get_logs(user['account'], metric_type=MetricType.test_chat, bot=bot)
+            data = MeteringProcessor.get_logs(bot_account, metric_type=MetricType.test_chat, bot=bot)
             assert len(data["logs"]) > 0
             assert len(data["logs"]) == data["total"]
-            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat, channel_type="chat_client") > 0
+            assert data['logs'][0]['account'] == bot_account
+            assert MeteringProcessor.get_metric_count(bot_account, metric_type=MetricType.test_chat,
+                                                      channel_type="chat_client") > 0
 
     def test_chat_with_user(self):
         access_token = chat_client_config['config']['headers']['authorization']['access_token']
@@ -262,7 +265,7 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["error_code"] == 0
             assert actual["data"]
             assert Utility.check_empty_string(actual["message"])
-            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.test_chat,
+            assert MeteringProcessor.get_metric_count(bot_account, metric_type=MetricType.test_chat,
                                                       channel_type="chat_client") >= 2
 
     def test_chat_fetch_from_cache(self):
@@ -395,10 +398,10 @@ class TestChatServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(actual["data"]["response"], [{'recipient_id': 'testUser', 'text': 'Welcome to kairon'}])
         assert actual['data']['response']
-        data = MeteringProcessor.get_logs(user['account'], metric_type=MetricType.prod_chat, bot=bot2)
+        data = MeteringProcessor.get_logs(bot_account, metric_type=MetricType.prod_chat, bot=bot2)
         assert len(data["logs"]) > 0
         assert len(data["logs"]) == data["total"]
-        assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+        assert MeteringProcessor.get_metric_count(bot_account, metric_type=MetricType.prod_chat,
                                                   channel_type="chat_client") > 0
 
         response = self.fetch(
