@@ -2081,6 +2081,48 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [], 'responses': []})
 
+    def test_form_validation_action_with_no_slot(self):
+        action_name = "validate_no_slot"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'reservation_id'
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, validation_semantic=None, is_required=False,
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save()
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: None, 'requested_slot': None},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [], 'responses': []})
+
     @patch("kairon.shared.actions.utils.ActionUtility.get_action")
     @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
     @patch("kairon.shared.utils.SMTP", autospec=True)
