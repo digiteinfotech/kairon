@@ -61,7 +61,8 @@ class OrgProcessor:
             data["id"] = data.pop("_id").__str__()
             return data
         except DoesNotExist:
-            raise AppException("Organization not found")
+            logger.error("Organization not found")
+            return "{}"
 
     @staticmethod
     def get_organization(org_name):

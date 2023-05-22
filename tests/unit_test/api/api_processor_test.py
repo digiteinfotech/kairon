@@ -2479,10 +2479,15 @@ class TestAccountProcessor:
         result = OrgProcessor.get_organization_for_account(account=account)
         assert result.get("name") == "new_test"
 
-    def test_get_organization_not_exists(self):
+    def test_get_organization_not_exists(self, caplog):
         account = 12345
-        with pytest.raises(AppException, match="Organization not found"):
-            OrgProcessor.get_organization_for_account(account=account)
+        result = OrgProcessor.get_organization_for_account(account=account)
+        assert "{}" == result
+        assert "Organization not found" in caplog.text
+        assert any(
+            record.levelname == "ERROR" and record.message == "Organization not found"
+            for record in caplog.records
+        )
 
     def test_invalid_account_number(self):
         with pytest.raises(DoesNotExist, match="Account does not exists"):
