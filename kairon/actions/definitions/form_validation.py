@@ -56,13 +56,19 @@ class ActionFormValidation(ActionsBase):
             slot_type = ActionUtility.get_slot_type(validation.bot, slot)
             msg.append(f'slot_type: {slot_type}')
             semantic = validation.validation_semantic
+            is_required = validation.is_required
             msg.append(f'validation: {semantic}')
+            msg.append(f'is_required: {is_required}')
             utter_msg_on_valid = validation.valid_response
             utter_msg_on_invalid = validation.invalid_response
             msg.append(f'utter_msg_on_valid: {utter_msg_on_valid}')
             msg.append(f'utter_msg_on_valid: {utter_msg_on_invalid}')
-            is_valid = ActionUtility.validate_slot_value(slot_value=slot_value, semantic=semantic)
+            is_valid, expr_as_str = ActionUtility.evaluate_script(script=semantic, data=tracker.slots)
+            msg.append(f'Expression: {expr_as_str}')
             msg.append(f'is_valid: {is_valid}')
+
+            if not is_required:
+                slot_value = None
 
             if is_valid:
                 status = "SUCCESS"

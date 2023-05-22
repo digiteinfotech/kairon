@@ -219,7 +219,7 @@ class SlotSetAction(Auditlog):
 @push_notification.apply
 class FormValidationAction(Auditlog):
     name = StringField(required=True)
-    slot = StringField(default=None)
+    slot = StringField(required=True)
     is_required = BooleanField(default=True)
     validation_semantic = StringField(default=None)
     valid_response = StringField(default=None)
@@ -231,8 +231,7 @@ class FormValidationAction(Auditlog):
 
     def clean(self):
         self.name = self.name.strip().lower()
-        if self.is_required:
-            self.slot = self.slot.strip().lower()
+        self.slot = self.slot.strip().lower()
 
     def validate(self, clean=True):
         if clean:
