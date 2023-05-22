@@ -1667,8 +1667,9 @@ class TestActionServer(AsyncHTTPTestCase):
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": True},
             status=200,
-            match=[
-                responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': "Mumbai"})],
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression, 'data': {"bot": bot, slot: 'Mumbai', 'requested_slot': slot}}
+            )],
         )
 
         request_object = {
@@ -1760,8 +1761,9 @@ class TestActionServer(AsyncHTTPTestCase):
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": False},
             status=200,
-            match=[
-                responses.matchers.json_params_matcher({'semantic': None, 'slot_value': None})],
+            match=[responses.matchers.json_params_matcher(
+                {'script': None, 'data': {"bot": bot, slot: None, 'requested_slot': slot}}
+            )],
         )
 
         request_object = {
@@ -1821,8 +1823,10 @@ class TestActionServer(AsyncHTTPTestCase):
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": True},
             status=200,
-            match=[
-                responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': "pandey.udit867@gmail.com"})],
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {"bot": bot, slot: 'pandey.udit867@gmail.com', 'requested_slot': slot}}
+            )],
         )
 
         request_object = {
@@ -1883,8 +1887,9 @@ class TestActionServer(AsyncHTTPTestCase):
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": False},
             status=200,
-            match=[
-                responses.matchers.json_params_matcher({'semantic': semantic_expression, 'slot_value': "Delhi"})],
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression, 'data': {"bot": bot, slot: 'Delhi', 'requested_slot': slot}}
+            )],
         )
 
         request_object = {
@@ -1944,9 +1949,10 @@ class TestActionServer(AsyncHTTPTestCase):
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": False},
             status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'semantic': semantic_expression, 'slot_value': "computer programmer"})],
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {"bot": bot, slot: 'computer programmer', 'requested_slot': slot}}
+            )],
         )
 
         request_object = {
@@ -2081,21 +2087,37 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [], 'responses': []})
 
-    def test_form_validation_action_with_no_slot(self):
-        action_name = "validate_no_slot"
+    def test_form_validation_action_with_is_required_false(self):
+        action_name = "validate_with_required_false"
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
-        slot = 'reservation_id'
+        slot = 'location'
+        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
+                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
+                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
+                              " {'operator': 'has_no_whitespace'}," \
+                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        FormValidationAction(name=action_name, validation_semantic=None, is_required=False,
+        FormValidationAction(name=action_name, validation_semantic=semantic_expression, is_required=False, slot=slot,
                              bot=bot, user=user, valid_response='that is great!',
                              invalid_response='Invalid value. Please type again!').save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression, 'data': {"bot": bot, slot: 'Mumbai', 'requested_slot': slot}}
+            )],
+        )
+
         request_object = {
             "next_action": action_name,
             "tracker": {
                 "sender_id": "default",
                 "conversation_id": "default",
-                "slots": {"bot": bot, slot: None, 'requested_slot': None},
+                "slots": {"bot": bot, slot: 'Mumbai', 'requested_slot': slot},
                 "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
                 "latest_event_time": 1537645578.314389,
                 "followup_action": "action_listen",
@@ -2121,7 +2143,65 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {'events': [], 'responses': []})
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}], 'responses': [{'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
+
+    def test_form_validation_action_with_is_required_true(self):
+        action_name = "validate_with_required_true"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'location'
+        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
+                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
+                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
+                              " {'operator': 'has_no_whitespace'}," \
+                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, validation_semantic=semantic_expression, is_required=True, slot=slot,
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression, 'data': {"bot": bot, slot: 'Mumbai', 'requested_slot': slot}}
+            )],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Mumbai', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
 
     @patch("kairon.shared.actions.utils.ActionUtility.get_action")
     @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
