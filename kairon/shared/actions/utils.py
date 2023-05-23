@@ -188,6 +188,8 @@ class ActionUtility:
                 message_trail.insert(0, {"role": "user", "content": event.get('text')})
                 if last_n <= 0:
                     break
+            elif event.get('event') == 'session_started':
+                break
         return message_trail
 
     @staticmethod
