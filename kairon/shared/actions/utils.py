@@ -775,9 +775,6 @@ class ActionUtility:
             bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         return recommendations, bot_response
 
-
-class ExpressionEvaluator:
-
     @staticmethod
     def list_slot_validation_operators():
         text_data_validations = [SlotValidationOperators.equal_to.value, SlotValidationOperators.not_equal_to.value,

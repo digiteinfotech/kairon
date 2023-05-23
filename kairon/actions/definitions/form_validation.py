@@ -49,11 +49,14 @@ class ActionFormValidation(ActionsBase):
         slot_value = tracker.get_slot(slot)
         msg = [f'slot: {slot} | slot_value: {slot_value}']
         status = "FAILURE"
+        is_valid = False
+        expr_as_str = None
         if ActionUtility.is_empty(slot):
             return {}
         try:
             validation = form_validations.get(slot=slot)
             slot_type = ActionUtility.get_slot_type(validation.bot, slot)
+            tracker_data = ActionUtility.build_context(tracker, True)
             msg.append(f'slot_type: {slot_type}')
             semantic = validation.validation_semantic
             is_required = validation.is_required
@@ -63,12 +66,10 @@ class ActionFormValidation(ActionsBase):
             utter_msg_on_invalid = validation.invalid_response
             msg.append(f'utter_msg_on_valid: {utter_msg_on_valid}')
             msg.append(f'utter_msg_on_valid: {utter_msg_on_invalid}')
-            is_valid, expr_as_str = ActionUtility.evaluate_script(script=semantic, data=tracker.slots)
+            if is_required:
+                is_valid, expr_as_str = ActionUtility.evaluate_script(script=semantic, data=tracker_data)
             msg.append(f'Expression: {expr_as_str}')
             msg.append(f'is_valid: {is_valid}')
-
-            if not is_required:
-                slot_value = None
 
             if is_valid:
                 status = "SUCCESS"

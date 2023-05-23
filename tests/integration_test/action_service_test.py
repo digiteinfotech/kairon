@@ -1668,7 +1668,11 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": True},
             status=200,
             match=[responses.matchers.json_params_matcher(
-                {'script': semantic_expression, 'data': {"bot": bot, slot: 'Mumbai', 'requested_slot': slot}}
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
+                                   'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
             )],
         )
 
@@ -1762,7 +1766,11 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": False},
             status=200,
             match=[responses.matchers.json_params_matcher(
-                {'script': None, 'data': {"bot": bot, slot: None, 'requested_slot': slot}}
+                {'script': None,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2f', 'location': None, 'requested_slot': 'location'},
+                          'intent': 'test_run', 'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None,
+                          'session_started': None}}
             )],
         )
 
@@ -1825,7 +1833,10 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[responses.matchers.json_params_matcher(
                 {'script': semantic_expression,
-                 'data': {"bot": bot, slot: 'pandey.udit867@gmail.com', 'requested_slot': slot}}
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'user_id': 'pandey.udit867@gmail.com',
+                                   'requested_slot': 'user_id'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
             )],
         )
 
@@ -1888,7 +1899,12 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": False},
             status=200,
             match=[responses.matchers.json_params_matcher(
-                {'script': semantic_expression, 'data': {"bot": bot, slot: 'Delhi', 'requested_slot': slot}}
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
+                                   'requested_slot': 'current_location'},
+                          'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
             )],
         )
 
@@ -1951,7 +1967,10 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[responses.matchers.json_params_matcher(
                 {'script': semantic_expression,
-                 'data': {"bot": bot, slot: 'computer programmer', 'requested_slot': slot}}
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'profession': 'computer programmer',
+                                   'requested_slot': 'profession'}, 'intent': 'test_run', 'chat_log': [],
+                          'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}}
             )],
         )
 
@@ -2102,16 +2121,6 @@ class TestActionServer(AsyncHTTPTestCase):
                              bot=bot, user=user, valid_response='that is great!',
                              invalid_response='Invalid value. Please type again!').save()
 
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": False},
-            status=200,
-            match=[responses.matchers.json_params_matcher(
-                {'script': semantic_expression, 'data': {"bot": bot, slot: 'Mumbai', 'requested_slot': slot}}
-            )],
-        )
-
         request_object = {
             "next_action": action_name,
             "tracker": {
@@ -2166,7 +2175,11 @@ class TestActionServer(AsyncHTTPTestCase):
             json={"success": True, "data": True},
             status=200,
             match=[responses.matchers.json_params_matcher(
-                {'script': semantic_expression, 'data': {"bot": bot, slot: 'Mumbai', 'requested_slot': slot}}
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
+                                   'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
             )],
         )
 

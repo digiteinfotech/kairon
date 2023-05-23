@@ -35,7 +35,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction
 from kairon.actions.handlers.processor import ActionProcessor
-from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
 from unittest.mock import patch

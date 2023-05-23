@@ -10,7 +10,7 @@ from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.shared.account.activity_log import UserActivityLogger
-from kairon.shared.actions.utils import ExpressionEvaluator
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
     TextData,
@@ -1391,7 +1391,7 @@ async def get_supported_form_validations(
     """
     Get list of all supported form validations according to slot types.
     """
-    return Response(data=ExpressionEvaluator.list_slot_validation_operators())
+    return Response(data=ActionUtility.list_slot_validation_operators())
 
 
 @router.get("/entities", response_model=Response)
