@@ -10,6 +10,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.constants import FAQ_DISABLED_ERR
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.models import LlmPromptType, LlmPromptSource
@@ -30,9 +31,8 @@ class ActionPrompt(ActionsBase):
     def retrieve_config(self):
         bot_settings = ActionUtility.get_bot_settings(bot=self.bot)
         if not bot_settings['enable_gpt_llm_faq']:
-            bot_response = "Faq feature is disabled for the bot! Please contact support."
-            raise ActionFailure(bot_response)
-        k_faq_action_config = ActionUtility.get_faq_action_config(bot=self.bot)
+            raise ActionFailure("Faq feature is disabled for the bot! Please contact support.")
+        k_faq_action_config = ActionUtility.get_faq_action_config(self.bot, self.name)
         logger.debug("bot_settings: " + str(bot_settings))
         logger.debug("k_faq_action_config: " + str(k_faq_action_config))
         return k_faq_action_config
@@ -50,17 +50,16 @@ class ActionPrompt(ActionsBase):
         status = "SUCCESS"
         exception = None
         llm_response = None
-        k_faq_action_config = None
+        k_faq_action_config = {}
         llm = None
         llm_logs = None
         recommendations = None
-        bot_response = "Faq feature is disabled for the bot! Please contact support."
+        bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         user_msg = tracker.latest_message.get('text')
         is_from_cache = False
 
         try:
             k_faq_action_config = self.retrieve_config()
-            bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm = LLMFactory.get_instance(self.bot, "faq")
             llm_response = llm.predict(user_msg, **llm_params)
@@ -76,6 +75,7 @@ class ActionPrompt(ActionsBase):
             logger.debug(e)
             exception = str(e)
             status = "FAILURE"
+            bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get("failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
         finally:
             if llm:
                 llm_logs = llm.logs

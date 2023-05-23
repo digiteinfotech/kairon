@@ -22,6 +22,8 @@ CHAT_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES.
 
 KAIRON_USER_MSG_ENTITY = "kairon_user_msg"
 
+FAQ_DISABLED_ERR = "Faq feature is disabled for the bot! Please contact support."
+
 
 class SLOT_SET_TYPE(str, Enum):
     FROM_VALUE = "from_value"

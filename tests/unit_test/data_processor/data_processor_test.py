@@ -10842,6 +10842,13 @@ class TestMongoProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "kairon_faq_action", "type": "PROMPT_ACTION"}
         ]
+        request = {'name': steps[1]["name"],
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
+        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        processor.add_prompt_action(request, bot, user)
+
         story_dict = {'name': "activate kairon faq action", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
         pytest.two_stage_fallback_story_id = processor.add_complex_story(story_dict, bot, user)
         rule = Rules.objects(block_name="activate kairon faq action", bot=bot,

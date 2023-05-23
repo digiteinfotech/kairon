@@ -160,13 +160,13 @@ class ActionUtility:
         return bot_settings
 
     @staticmethod
-    def get_faq_action_config(bot: Text):
+    def get_faq_action_config(bot: Text, name: Text):
         from kairon.shared.actions.data_objects import PromptAction
         try:
-            k_faq_action_config = PromptAction.objects(bot=bot).get()
+            k_faq_action_config = PromptAction.objects(bot=bot, name=name, status=True).get()
         except DoesNotExist as e:
             logger.exception(e)
-            k_faq_action_config = PromptAction(bot=bot)
+            raise AppException("No action found for given bot and name")
         k_faq_action_config = k_faq_action_config.to_mongo().to_dict()
         k_faq_action_config.pop('_id', None)
         return k_faq_action_config
