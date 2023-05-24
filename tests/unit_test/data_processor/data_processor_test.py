@@ -10836,7 +10836,7 @@ class TestMongoProcessor:
 
     def test_create_kairon_faq_action_rule(self):
         processor = MongoProcessor()
-        bot = 'test_bot'
+        bot = 'test_create_kairon_faq_action_rule'
         user = 'test_user'
         steps = [
             {"name": "greet", "type": "INTENT"},

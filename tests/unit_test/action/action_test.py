@@ -3359,7 +3359,7 @@ class TestActions:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
-        k_faq_action_config = ActionUtility.get_faq_action_config(bot=bot)
+        k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
         k_faq_action_config.pop('timestamp')
         print(k_faq_action_config)
         assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
