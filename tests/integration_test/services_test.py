@@ -35,7 +35,8 @@ from kairon.shared.auth import Authentication
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
     KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT, \
     DEFAULT_NLU_FALLBACK_RESPONSE
-from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig, BotSettings
+from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig, \
+    BotSettings, LLMSettings
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
@@ -998,7 +999,7 @@ def test_content_upload_api_with_gpt_feature_disabled():
 
 def test_content_upload_api(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
@@ -1019,7 +1020,7 @@ def test_content_upload_api(monkeypatch):
 
 def test_content_upload_api_invalid(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
@@ -1547,7 +1548,7 @@ def test_add_prompt_action_with_gpt_feature_disabled():
 
 def test_add_prompt_action(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {'name': 'test_add_prompt_action',
@@ -1581,7 +1582,7 @@ def test_add_prompt_action(monkeypatch):
 
 def test_add_prompt_action_already_exist(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {'name': 'test_add_prompt_action',
@@ -12227,7 +12228,7 @@ def test_get_bot_settings():
     assert actual['data'] == {
         "ignore_utterances": False, "force_import": False, "rephrase_response": False,
         "website_data_generator_depth_search_limit": 2, "chat_token_expiry": 30, 'notification_scheduling_limit': 4,
-        "refresh_token_expiry": 60, 'enable_gpt_llm_faq': False, 'whatsapp': 'meta'
+        "refresh_token_expiry": 60, 'llm_settings': {'enable_faq': False, 'provider': 'azure'}, 'whatsapp': 'meta'
     }
 
 

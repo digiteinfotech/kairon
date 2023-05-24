@@ -15,7 +15,7 @@ from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
     DEFAULT_NLU_FALLBACK_RESPONSE
 import numpy as np
-from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
+from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.utils import Utility
@@ -5943,7 +5943,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_completion.return_value = generated_text
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -6022,7 +6022,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -6076,7 +6076,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6121,7 +6121,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_completion.return_value = generated_text, generated_text
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         hyperparameters = Utility.get_llm_hyperparameters().copy()
         hyperparameters['stream'] = True
         PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
@@ -6171,7 +6171,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_completion.return_value = convert_to_openai_object(OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
         mock_search.return_value = {'result': [{'id': uuid7().__str__(), 'score':0.80, 'payload':{'content': bot_content}}]}
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
         request_object["tracker"]["slots"]["bot"] = bot
@@ -6215,7 +6215,7 @@ class TestActionServer(AsyncHTTPTestCase):
                                                {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "python?", "response": bot_content}},
                                                {'id': uuid7().__str__(), 'score': 0.80, 'payload': {'query': "what is python?", "response": "It is a programming language."}}]}
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts, enable_response_cache=True).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
@@ -6266,7 +6266,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_search.return_value = {'result': [
             {'id': uuid7().__str__(), 'score': 1, 'payload': {'query': user_msg, "response": bot_content}}]}
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, failure_message=failure_msg, llm_prompts=llm_prompts, enable_response_cache=True).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
 
@@ -6313,7 +6313,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
         mock_search.return_value = {'result': []}
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, failure_message="Did you mean any of the following?",
                     llm_prompts=llm_prompts, enable_response_cache=True).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value="keyvalue", bot=bot, user=user).save()
@@ -6353,7 +6353,7 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=False, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=False), bot=bot, user=user).save()
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -6441,7 +6441,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_completion.return_value = generated_text
         mock_search.side_effect = [__mock_search_cache(), __mock_fetch_similar(), __mock_cache_result()]
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -6550,7 +6550,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_completion.return_value = generated_text
         mock_search.return_value = __mock_fetch_similar()
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -6603,7 +6603,7 @@ class TestActionServer(AsyncHTTPTestCase):
         GoogleSearchAction(name=google_action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user, dispatch_response=False,
                            set_slot="google_response").save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
         generated_text = 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.'
 
@@ -6663,7 +6663,7 @@ class TestActionServer(AsyncHTTPTestCase):
         user_msg = "What kind of language is python?"
 
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6727,7 +6727,7 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_completion.return_value = generated_text
         mock_search.return_value = __mock_fetch_similar()
         Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(enable_gpt_llm_faq=True, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 

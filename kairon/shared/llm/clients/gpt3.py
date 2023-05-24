@@ -1,34 +1,33 @@
 import json
 import random
-from abc import ABC
 from json import JSONDecodeError
 from typing import Text
 from loguru import logger
 from openai.api_requestor import parse_stream
 from kairon.exceptions import AppException
 from kairon.shared.constants import GPT3ResourceTypes
+from kairon.shared.llm.clients.base import LLMResources
 from kairon.shared.utils import Utility
 
 
-class LLMResources(ABC):
-
-    def invoke(self, resource: Text, engine: Text, **kwargs):
-        raise NotImplementedError("Provider not implemented")
-
-
 class GPT3Resources(LLMResources):
-    resource_url = "https://api.openai.com/v1/"
+    resource_url = "https://api.openai.com/v1"
 
-    def __init__(self, api_key: Text):
+    def __init__(self, api_key: Text, **kwargs):
         self.api_key = api_key
 
+    def get_headers(self):
+        return {"Authorization": f"Bearer {self.api_key}"}
+
+    def get_resource_url(self, resource: Text):
+        return f"{self.resource_url}/{resource}"
+
     def invoke(self, resource: Text, model: Text, **kwargs):
-        http_url = f"{self.resource_url}{resource}"
-        headers = {"Authorization": f"Bearer {self.api_key}"}
+        http_url = self.get_resource_url(resource)
         request_body = kwargs.copy()
         request_body.update({"model": model})
         resp = Utility.execute_http_request(
-            "POST", http_url, request_body, headers, max_retries=3, backoff_factor=0.2, return_json=False
+            "POST", http_url, request_body, self.get_headers(), max_retries=3, backoff_factor=0.2, return_json=False
         )
         if resp.status_code != 200:
             try:

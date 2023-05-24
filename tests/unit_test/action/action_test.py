@@ -12,14 +12,14 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
-from kairon.actions.definitions.kairon_faq import ActionPrompt
+from kairon.actions.definitions.prompt import ActionPrompt
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
-from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
+from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
@@ -2431,20 +2431,34 @@ class TestActions:
         bot = 'test_action_server'
         user = 'test_user'
         Actions(name='kairon_faq_action', type=ActionType.prompt_action.value, bot=bot, user=user).save()
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
+        llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                        'source': 'static', 'is_enabled': True},
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+        PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
+
         assert actual['type'] == ActionType.prompt_action.value
-        actual = ActionPrompt(bot, 'kairon_faq_action').retrieve_config()
-        actual.pop("timestamp")
-        print(actual)
-        assert actual == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
+        actual_config, bot_settings = ActionPrompt(bot, 'kairon_faq_action').retrieve_config()
+        actual_config.pop("timestamp")
+        actual_config.pop("status")
+        actual_config.pop("user")
+        assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
                           'similarity_threshold': 0.7,
                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                           'bot': 'test_action_server', 'enable_response_cache': False,
                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                          'llm_prompts': []}
+                          'llm_prompts': llm_prompts}
+        bot_settings.pop("_id")
+        bot_settings.pop("timestamp")
+        bot_settings.pop("status")
+        assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
+                                'website_data_generator_depth_search_limit': 2,
+                                'llm_settings': {'enable_faq': True, 'provider': 'azure'}, 'chat_token_expiry': 30,
+                                'refresh_token_expiry': 60, 'whatsapp': 'meta', 'notification_scheduling_limit': 4,
+                                'bot': 'test_action_server', 'user': 'test_user'}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3348,11 +3362,11 @@ class TestActions:
         print(bot_settings)
         assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
                                 'website_data_generator_depth_search_limit': 2,
-                                'enable_gpt_llm_faq': False, 'chat_token_expiry': 30,
+                                'chat_token_expiry': 30, 'llm_settings': {'enable_faq': False, 'provider': 'azure'},
                                 'refresh_token_expiry': 60, 'whatsapp': 'meta',
                                 'notification_scheduling_limit': 4, 'bot': 'test_bot', 'status': True}
 
-    def test_get_prompt_action_config(self):
+    def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"
         user = "test_user_action_test"
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',

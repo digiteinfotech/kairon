@@ -109,3 +109,8 @@ class WhatsappBSPTypes(str, Enum):
 class GPT3ResourceTypes(str, Enum):
     embeddings = "embeddings"
     chat_completion = "chat/completions"
+
+
+class LLMResourceProvider(str, Enum):
+    azure = "azure"
+    openai = "openai"
