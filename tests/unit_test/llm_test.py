@@ -10,7 +10,7 @@ from mongoengine import connect
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
-from kairon.shared.data.data_objects import BotContent
+from kairon.shared.data.data_objects import BotContent, LLMSettings
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding, LLMBase
 from kairon.shared.utils import Utility
@@ -36,18 +36,18 @@ class TestLLM:
 
     def test_llm_factory_invalid_type(self):
         with pytest.raises(Exception):
-            LLMFactory.get_instance("test", "sample")
+            LLMFactory.get_instance("sample")("test", LLMSettings(provider="openai").to_mongo().to_dict())
 
     def test_llm_factory_faq_type(self):
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value='value', bot='test', user='test').save()
-        inst = LLMFactory.get_instance("test", "faq")
+        inst = LLMFactory.get_instance("faq")("test", LLMSettings(provider="openai").to_mongo().to_dict())
         assert isinstance(inst, GPT3FAQEmbedding)
         assert inst.db_url == Utility.environment['vector']['db']
         assert inst.headers == {}
 
     def test_llm_factory_faq_type_set_vector_key(self):
         with mock.patch.dict(Utility.environment, {'vector': {"db": "http://test:6333", 'key': 'test'}}):
-            inst = LLMFactory.get_instance("test", "faq")
+            inst = LLMFactory.get_instance( "faq")("test", LLMSettings(provider="openai").to_mongo().to_dict())
             assert isinstance(inst, GPT3FAQEmbedding)
             assert inst.db_url == Utility.environment['vector']['db']
             assert inst.headers == {'api-key': Utility.environment['vector']['key']}
@@ -76,7 +76,7 @@ class TestLLM:
         )
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot)
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 "DELETE",
@@ -123,7 +123,7 @@ class TestLLM:
 
     def test_gpt3_faq_embedding_train_failure(self):
         with pytest.raises(AppException, match=f"Bot secret '{BotSecretType.gpt_key.value}' not configured!"):
-            GPT3FAQEmbedding('test_failure')
+            GPT3FAQEmbedding('test_failure', LLMSettings(provider="openai").to_mongo().to_dict())
 
     @responses.activate
     def test_gpt3_faq_embedding_train_upsert_error(self):
@@ -149,7 +149,7 @@ class TestLLM:
         )
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot)
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 "DELETE",
@@ -248,7 +248,7 @@ class TestLLM:
 
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot)
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
@@ -328,7 +328,7 @@ class TestLLM:
         )
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot)
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
@@ -403,7 +403,7 @@ class TestLLM:
         mock_completion.side_effect = __mock_connection_error
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot)
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
@@ -480,7 +480,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         mock_embedding.return_value = embedding
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot)
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
@@ -520,7 +520,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         mock_embedding.side_effect = [openai.error.APIConnectionError("Connection reset by peer!"), embedding]
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot)
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}/points/search"),
@@ -570,7 +570,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
         mock_completion.side_effect = __mock_exception
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot)
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
@@ -651,7 +651,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
 
-        gpt3 = GPT3FAQEmbedding(test_content.bot)
+        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
         responses.add(
             url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),
@@ -747,7 +747,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
 
-        gpt3 = GPT3FAQEmbedding(test_content.bot)
+        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
         responses.add(
             url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points/search"),

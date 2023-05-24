@@ -66,7 +66,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
                                              TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
-                                             SlotMapping, KeyVault, MultiflowStories, BotContent
+                                             SlotMapping, KeyVault, MultiflowStories, BotContent, LLMSettings
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -160,7 +160,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'testing_bot'
         user = 'testing_user'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 10,
@@ -186,7 +186,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'testt_bot'
         user = 'testt_user'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 10,
@@ -212,7 +212,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 10,
@@ -542,7 +542,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_one'
         user = 'test_user_one'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_temperature_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -561,7 +561,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_two'
         user = 'test_user_two'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_stop_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -580,7 +580,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_three'
         user = 'test_user_three'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -599,7 +599,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_four'
         user = 'test_user_four'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -618,7 +618,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_five'
         user = 'test_user_five'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -637,7 +637,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_six'
         user = 'test_user_six'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -656,7 +656,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_seven'
         user = 'test_user_seven'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_top_p_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -675,7 +675,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_eight'
         user = 'test_user_eight'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -694,7 +694,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_nine'
         user = 'test_user_nine'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -713,7 +713,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_ten'
         user = 'test_user_ten'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_logit_bias_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'top_results': 20,
@@ -2195,7 +2195,7 @@ class TestMongoProcessor:
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
         MongoProcessor().add_action(GPT_LLM_FAQ, bot, user, False, ActionType.prompt_action.value)
         settings = BotSettings.objects(bot=bot).get()
-        settings.enable_gpt_llm_faq = True
+        settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         mock_openai.return_value = embedding
@@ -2203,7 +2203,7 @@ class TestMongoProcessor:
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)
         settings = BotSettings.objects(bot=bot).get()
-        settings.enable_gpt_llm_faq = False
+        settings.llm_settings = LLMSettings(enable_faq=False)
         settings.save()
         log = Metering.objects(bot=bot, metric_type=MetricType.faq_training.value).get()
         assert log["faq"] == 2
@@ -4953,7 +4953,7 @@ class TestMongoProcessor:
         assert settings.timestamp
         assert settings.user
         assert settings.bot
-        assert not settings.enable_gpt_llm_faq
+        assert settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'azure'}
 
     def test_get_bot_settings(self):
         processor = MongoProcessor()
@@ -4968,7 +4968,7 @@ class TestMongoProcessor:
         assert fresh_settings.timestamp
         assert fresh_settings.user
         assert fresh_settings.bot
-        assert not settings.enable_gpt_llm_faq
+        assert settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'azure'}
 
     def test_save_bot_settings_error(self):
         with pytest.raises(ValidationError, match="refresh_token_expiry must be greater than chat_token_expiry!"):
@@ -6744,7 +6744,7 @@ class TestMongoProcessor:
         user = 'tester_user'
         response = "json"
         request_method = 'GET'
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         http_params_list: List[HttpActionParameters] = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
@@ -10846,7 +10846,7 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
-        BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         processor.add_prompt_action(request, bot, user)
 
         story_dict = {'name': "activate kairon faq action", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
@@ -11459,7 +11459,7 @@ class TestMongoProcessor:
             processor.save_content(content, user, bot)
 
         settings = BotSettings.objects(bot=bot).get()
-        settings.enable_gpt_llm_faq = True
+        settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
 
     def test_save_content(self):
@@ -11491,7 +11491,6 @@ class TestMongoProcessor:
         content = 'Bots are commonly used in various industries, such as e-commerce, customer service, gaming, ' \
                   'and social media. Some bots are designed to interact with humans in a conversational manner and are ' \
                   'called chatbots or virtual assistants.'
-        # pytest.content_id = processor.save_content(content, user, bot)
         processor.update_content(pytest.content_id, content, user, bot)
 
     def test_update_content_invalid(self):

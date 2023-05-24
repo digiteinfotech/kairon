@@ -5,7 +5,7 @@ from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_P
 from kairon.shared.llm.base import LLMBase
 from typing import Text, Dict, List, Union
 
-from kairon.shared.llm.clients.gpt3 import GPT3Resources
+from kairon.shared.llm.clients.factory import LLMClientFactory
 from kairon.shared.utils import Utility
 import openai
 from kairon.shared.data.data_objects import BotContent
@@ -18,7 +18,7 @@ class GPT3FAQEmbedding(LLMBase):
 
     __embedding__ = 1536
 
-    def __init__(self, bot: Text):
+    def __init__(self, bot: Text, llm_settings: dict):
         super().__init__(bot)
         self.db_url = Utility.environment['vector']['db']
         self.headers = {}
@@ -27,8 +27,9 @@ class GPT3FAQEmbedding(LLMBase):
         self.suffix = "_faq_embd"
         self.cached_resp_suffix = "_cached_response_embd"
         self.vector_config = {'size': 1536, 'distance': 'Cosine'}
+        self.llm_settings = llm_settings
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
-        self.client = GPT3Resources(self.api_key)
+        self.client = LLMClientFactory.get_resource_provider(llm_settings["provider"])(self.api_key, **self.llm_settings)
         self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:

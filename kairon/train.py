@@ -169,8 +169,9 @@ def start_training(bot: str, user: str, token: str = None):
             apm_client.begin_transaction(transaction_type="script")
         ModelProcessor.set_training_status(bot=bot, user=user, status=EVENT_STATUS.INPROGRESS.value)
         settings = processor.get_bot_settings(bot, user)
-        if settings['enable_gpt_llm_faq']:
-            llm = LLMFactory.get_instance(bot, "faq")
+        settings = settings.to_mongo().to_dict()
+        if settings["llm_settings"]['enable_faq']:
+            llm = LLMFactory.get_instance("faq")(bot, settings["llm_settings"])
             faqs = llm.train()
             account = AccountProcessor.get_bot(bot)['account']
             MeteringProcessor.add_metrics(bot=bot, metric_type=MetricType.faq_training.value, account=account, **faqs)

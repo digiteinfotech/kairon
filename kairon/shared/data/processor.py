@@ -4711,7 +4711,7 @@ class MongoProcessor:
         :param user: user
         """
         bot_settings = self.get_bot_settings(bot=bot, user=user)
-        if not bot_settings['enable_gpt_llm_faq']:
+        if not bot_settings['llm_settings']["enable_faq"]:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
 
         self.__validate_llm_prompts(request_data.get('llm_prompts', []), bot)
@@ -5067,7 +5067,7 @@ class MongoProcessor:
 
     def save_content(self, content: Text, user: Text, bot: Text):
         bot_settings = self.get_bot_settings(bot=bot, user=user)
-        if not bot_settings['enable_gpt_llm_faq']:
+        if not bot_settings["llm_settings"]['enable_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")

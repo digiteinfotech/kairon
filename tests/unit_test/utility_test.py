@@ -21,11 +21,13 @@ from websockets import InvalidStatusCode
 from mongoengine.queryset.visitor import Q
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
-from kairon.shared.constants import GPT3ResourceTypes
+from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
-from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, BotContent
+from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, LLMSettings
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.llm.clients.azure import AzureGPT3Resources
+from kairon.shared.llm.clients.factory import LLMClientFactory
 from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
@@ -1299,7 +1301,7 @@ class TestUtility:
 
     def test_getConcreteInstance_invalid_type(self):
         telegram = ConverterFactory.getConcreteInstance("link", "invalid")
-        assert telegram == None
+        assert telegram is None
 
     @pytest.mark.asyncio
     async def test_messageConverter_hangout_link(self):
@@ -2216,48 +2218,42 @@ class TestUtility:
         with pytest.raises(AppException, match="Could not find any hyperparameters for configured LLM."):
             Utility.get_llm_hyperparameters()
 
-    # @responses.activate
-    # def test_trigger_gp3_client_completion(self):
-    #     api_key = "test"
-    #     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    #     messages = {"messages": [
-    #                {"role": "system",
-    #                 "content": DEFAULT_SYSTEM_PROMPT},
-    #                 {'role': 'user',
-    #                     'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
-    #            ]}
-    #     hyperparameters = Utility.get_llm_hyperparameters()
-    #     request_header = {"Authorization": f"Bearer {api_key}"}
-    #     mock_completion_request = {"messages": [
-    #         {"role": "system",
-    #          "content": DEFAULT_SYSTEM_PROMPT},
-    #         {'role': 'user',
-    #          'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
-    #     ]}
-    #     mock_completion_request.update(hyperparameters)
-    #
-    #     responses.add(
-    #         url="https://api.openai.com/v1/chat/completions",
-    #         method="POST",
-    #         status=200,
-    #         match=[responses.matchers.json_params_matcher(mock_completion_request),
-    #                responses.matchers.header_matcher(request_header)],
-    #         json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-    #     )
-    #
-    #     resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
-    #     assert resp == generated_text
-
     @responses.activate
     def test_trigger_gp3_client_completion(self):
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         messages = {"messages": [
+                   {"role": "system",
+                    "content": DEFAULT_SYSTEM_PROMPT},
+                    {'role': 'user',
+                        'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+               ]}
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
             {"role": "system",
              "content": DEFAULT_SYSTEM_PROMPT},
             {'role': 'user',
              'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
         ]}
+        mock_completion_request.update(hyperparameters)
+
+        responses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=200,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        )
+
+        resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
+        assert resp == generated_text
+
+    @responses.activate
+    def test_trigger_gp3_client_completion(self):
+        api_key = "test"
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         hyperparameters = Utility.get_llm_hyperparameters()
         request_header = {"Authorization": f"Bearer {api_key}"}
         mock_completion_request = {"messages": [
@@ -2479,8 +2475,136 @@ data: [DONE]\n\n"""
         )
         with pytest.raises(AppException, match=re.escape("Received non 200 status code: data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n")):
             GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
     def test_get_client_ip_with_request_client(self):
         request = mock.Mock()
         request.client.host = "58.0.127.89"
         ip = Utility.get_client_ip(request)
         assert "58.0.127.89" == ip
+
+    def test_llm_resource_provider_factory(self):
+        client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)
+        assert isinstance(client("test"), AzureGPT3Resources)
+
+        client = LLMClientFactory.get_resource_provider(LLMResourceProvider.openai.value)
+        assert isinstance(client("test"), GPT3Resources)
+
+    def test_llm_resource_provider_not_implemented(self):
+        with pytest.raises(AppException, match='aws client not supported'):
+            LLMClientFactory.get_resource_provider("aws")
+
+    @responses.activate
+    def test_trigger_azure_client_completion(self):
+        api_key = "test"
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"api-key": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+        llm_settings = LLMSettings(enable_faq=True, provider="azure", embeddings_model_id="openaimodel_embd",
+                                   chat_completion_model_id="openaimodel_completion",
+                                   api_version="2023-03-16").to_mongo().to_dict()
+        responses.add(
+            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['chat_completion_model_id']}/{GPT3ResourceTypes.chat_completion.value}?api-version={llm_settings['api_version']}",
+            method="POST",
+            status=200,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        )
+
+        client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
+        formatted_response, raw_response = client.invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        assert formatted_response == generated_text
+        assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+
+    @responses.activate
+    def test_trigger_azure_client_embedding(self):
+        api_key = "test"
+        query = "What kind of language is python?"
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        request_header = {"api-key": f"Bearer {api_key}"}
+        llm_settings = LLMSettings(enable_faq=True, provider="azure", embeddings_model_id="openaimodel_embd",
+                                   chat_completion_model_id="openaimodel_completion",
+                                   api_version="2023-03-16").to_mongo().to_dict()
+
+        responses.add(
+            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['embeddings_model_id']}/{GPT3ResourceTypes.embeddings.value}?api-version={llm_settings['api_version']}",
+            method="POST",
+            status=200,
+            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
+                   responses.matchers.header_matcher(request_header)],
+            json={'data': [{'embedding': embedding}]}
+        )
+        client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
+        formatted_response, raw_response = client.invoke(GPT3ResourceTypes.embeddings.value,
+                                                         model="text-embedding-ada-002", input=query)
+        assert formatted_response == embedding
+        assert raw_response == {'data': [{'embedding': embedding}]}
+
+    @responses.activate
+    def test_trigger_azure_client_embedding_failure(self):
+        api_key = "test"
+        query = "What kind of language is python?"
+        request_header = {"api-key": f"Bearer {api_key}"}
+        llm_settings = LLMSettings(enable_faq=True, provider="azure", embeddings_model_id="openaimodel_embd",
+                                   chat_completion_model_id="openaimodel_completion",
+                                   api_version="2023-03-16").to_mongo().to_dict()
+
+        responses.add(
+            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['embeddings_model_id']}/{GPT3ResourceTypes.embeddings.value}?api-version={llm_settings['api_version']}",
+            method="POST",
+            status=504,
+            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
+                   responses.matchers.header_matcher(request_header)],
+        )
+        client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
+
+        with pytest.raises(AppException, match="Received non 200 status code:"):
+            client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+
+        responses.add(
+            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['embeddings_model_id']}/{GPT3ResourceTypes.embeddings.value}?api-version={llm_settings['api_version']}",
+            method="POST",
+            status=504,
+            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
+                   responses.matchers.header_matcher(request_header)],
+            json={"error": {"message": "Server unavailable!", "id": 876543456789}}
+        )
+
+        with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
+            client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+
+    @responses.activate
+    def test_trigger_azure_client_completion_failure(self):
+        api_key = "test"
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"api-key": f"Bearer {api_key}"}
+        llm_settings = LLMSettings(enable_faq=True, provider="azure", embeddings_model_id="openaimodel_embd",
+                                   chat_completion_model_id="openaimodel_completion",
+                                   api_version="2023-03-16").to_mongo().to_dict()
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+
+        responses.add(
+            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['chat_completion_model_id']}/{GPT3ResourceTypes.chat_completion.value}?api-version={llm_settings['api_version']}",
+            method="POST",
+            status=504,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            json={"error": {"message": "Server unavailable!", "id": 876543456789}}
+        )
+
+        client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
+        with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
+            client.invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)

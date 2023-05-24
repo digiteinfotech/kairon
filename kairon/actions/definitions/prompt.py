@@ -30,12 +30,13 @@ class ActionPrompt(ActionsBase):
 
     def retrieve_config(self):
         bot_settings = ActionUtility.get_bot_settings(bot=self.bot)
-        if not bot_settings['enable_gpt_llm_faq']:
+        bot_settings = bot_settings.to_mongo().to_dict()
+        if not bot_settings['llm_settings']["enable_faq"]:
             raise ActionFailure("Faq feature is disabled for the bot! Please contact support.")
         k_faq_action_config = ActionUtility.get_faq_action_config(self.bot, self.name)
         logger.debug("bot_settings: " + str(bot_settings))
         logger.debug("k_faq_action_config: " + str(k_faq_action_config))
-        return k_faq_action_config
+        return k_faq_action_config, bot_settings
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         """
@@ -59,9 +60,9 @@ class ActionPrompt(ActionsBase):
         is_from_cache = False
 
         try:
-            k_faq_action_config = self.retrieve_config()
+            k_faq_action_config, bot_settings = self.retrieve_config()
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
-            llm = LLMFactory.get_instance(self.bot, "faq")
+            llm = LLMFactory.get_instance("faq")(self.bot, bot_settings["llm_settings"])
             llm_response = llm.predict(user_msg, **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")

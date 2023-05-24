@@ -34,7 +34,7 @@ from kairon.shared.utils import Utility
 from kairon.shared.models import TemplateType, StoryStepType
 from validators import domain
 
-from ..constants import WhatsappBSPTypes
+from ..constants import WhatsappBSPTypes, LLMResourceProvider
 
 
 class Entity(EmbeddedDocument):
@@ -742,6 +742,15 @@ class TrainingDataGenerator(Document):
     exception = StringField(default=None)
 
 
+class LLMSettings(EmbeddedDocument):
+    enable_faq = BooleanField(default=False)
+    provider = StringField(default=LLMResourceProvider.azure.value, choices=[LLMResourceProvider.azure.value,
+                                                                             LLMResourceProvider.openai.value])
+    embeddings_model_id = StringField()
+    chat_completion_model_id = StringField()
+    api_version = StringField()
+
+
 @auditlogger.log
 @push_notification.apply
 class BotSettings(Auditlog):
@@ -749,7 +758,7 @@ class BotSettings(Auditlog):
     force_import = BooleanField(default=False)
     rephrase_response = BooleanField(default=False)
     website_data_generator_depth_search_limit = IntField(default=2)
-    enable_gpt_llm_faq = BooleanField(default=False)
+    llm_settings = EmbeddedDocumentField(LLMSettings, default=LLMSettings())
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
     whatsapp = StringField(default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value])
