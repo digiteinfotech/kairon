@@ -17,8 +17,7 @@ from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRe
     EvaluationType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, KAIRON_FAQ_ACTION, \
-    DEFAULT_NLU_FALLBACK_RESPONSE
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import LlmPromptType, LlmPromptSource
 from kairon.shared.utils import Utility
@@ -88,6 +87,7 @@ class HttpActionConfig(Auditlog):
     content_type = StringField(default=HttpRequestContentType.json.value,
                                choices=[c_type.value for c_type in HttpRequestContentType])
     params_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
+    dynamic_params = StringField(default=None)
     headers = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
@@ -297,6 +297,8 @@ class GoogleSearchAction(Auditlog):
     search_engine_id = StringField(required=True)
     failure_response = StringField(default='I have failed to process your request.')
     num_results = IntField(default=1)
+    dispatch_response = BooleanField(default=True)
+    set_slot = StringField()
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -489,7 +491,8 @@ class LlmPrompt(EmbeddedDocument):
     data = StringField()
     instructions = StringField()
     type = StringField(required=True, choices=[LlmPromptType.user.value, LlmPromptType.system.value, LlmPromptType.query.value])
-    source = StringField(choices=[LlmPromptSource.static.value, LlmPromptSource.history.value, LlmPromptSource.bot_content.value],
+    source = StringField(choices=[LlmPromptSource.static.value, LlmPromptSource.history.value, LlmPromptSource.bot_content.value,
+                                  LlmPromptSource.action.value, LlmPromptSource.slot.value],
                          default=LlmPromptSource.static.value)
     is_enabled = BooleanField(default=True)
 
@@ -500,8 +503,8 @@ class LlmPrompt(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
-class KaironFaqAction(Auditlog):
-    name = StringField(default=KAIRON_FAQ_ACTION)
+class PromptAction(Auditlog):
+    name = StringField(required=True)
     num_bot_responses = IntField(default=5)
     top_results = IntField(default=10)
     similarity_threshold = FloatField(default=0.70)
@@ -512,6 +515,7 @@ class KaironFaqAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = ListField(EmbeddedDocumentField(LlmPrompt), required=True)
+    status = BooleanField(default=True)
 
     def clean(self):
         for key, value in Utility.get_llm_hyperparameters().items():
@@ -530,6 +534,7 @@ class KaironFaqAction(Auditlog):
         if not self.llm_prompts:
             raise ValidationError("llm_prompts are required!")
         Utility.validate_kairon_faq_llm_prompts(self.to_mongo().to_dict()['llm_prompts'], ValidationError)
+        Utility.validate_llm_hyperparameters(self.hyperparameters, ValidationError)
 
 
 @auditlogger.log

@@ -12,13 +12,13 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
-from kairon.actions.definitions.kairon_faq import ActionKaironFaq
+from kairon.actions.definitions.kairon_faq import ActionPrompt
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, KAIRON_FAQ_ACTION
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -26,19 +26,18 @@ from typing import Dict, Text, Any, List
 
 import pytest
 import responses
-from mongoengine import connect, QuerySet, DoesNotExist
+from mongoengine import connect, QuerySet
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction
+    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
-import requests
 from unittest.mock import patch
 
 
@@ -776,6 +775,67 @@ class TestActions:
         actual_request_body = ActionUtility.prepare_request(tracker, http_action_config_params=http_action_config_params, bot="test")
         assert actual_request_body == ({}, {})
 
+    def test_encrypt_secrets(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                        "user_details": {"email": "uditpandey@digite.com", "name": "udit"}}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                    'user_details': {'email': '*******************om', 'name': '****'}}
+
+    def test_encrypt_secrets_different_body(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                        "user_personal_details": {"name": "udit"},
+                        "user_contact_details": {"contact_no": "9876543210", "email": "uditpandey@digite.com"}}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit', "CONTACT": "9876543210"},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                    'user_personal_details': {'name': '****'}, 'user_contact_details':
+                                        {'contact_no': '********10', 'email': '*******************om'}}
+
+    def test_encrypt_secrets_with_different_key_vaults(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                        "user_personal_details": {"name": "udit"},
+                        "user_contact_details": {"contact_no": "9876543210", "email": "uditpandey@digite.com"}}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                    'user_personal_details': {'name': '****'}, 'user_contact_details':
+                                        {'contact_no': '9876543210', 'email': '*******************om'}}
+
+    def test_test_encrypt_secrets_with_no_key_vaults(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+                        "user_details": {"email": "uditpandey@digite.com", "name": "udit"}}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
+                                    'user_details': {'email': 'uditpandey@digite.com', 'name': 'udit'}}
+
+    def test_encrypt_secrets_without_key_vault_values(self):
+        request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run"}
+        tracker_data = {'sender_id': 'default', 'user_message': 'get intents',
+                        'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                        'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}
+
+        request_body_log = ActionUtility.encrypt_secrets(request_body, tracker_data)
+        assert request_body_log == {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}
+
     def test_is_empty(self):
         assert ActionUtility.is_empty("")
         assert ActionUtility.is_empty("  ")
@@ -1045,6 +1105,70 @@ class TestActions:
         assert log['request_params'] == {'key1': 'value1', 'key2': 'value2'}
 
     @pytest.mark.asyncio
+    async def test_run_with_dynamic_params(self, monkeypatch):
+        http_url = "http://localhost:8080/mock"
+        http_response = "This should be response"
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        action = HttpActionConfig(
+            action_name="test_run_with_dynamic_params",
+            response=HttpActionResponse(value=http_response),
+            http_url=http_url,
+            request_method="GET",
+            dynamic_params=dynamic_params,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        responses.start()
+        resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": resp_msg},
+            status=200,
+        )
+        responses.add(
+            method=responses.GET,
+            url="http://localhost:8080/mock",
+            body=http_response,
+            status=200,
+        )
+
+        action_name = "test_run_with_dynamic_params"
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="default_sender", slots=slots, events=events, paused=False,
+                          latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert actual is not None
+        assert str(actual[0]['name']) == 'kairon_action_response'
+        assert str(actual[0]['value']) == 'This should be response'
+        log = ActionServerLogs.objects(sender="default_sender",
+                                       status="SUCCESS").get()
+        print(log.to_mongo().to_dict())
+        assert not log['exception']
+        assert log['timestamp']
+        assert log['intent']
+        assert log['action']
+        assert log['bot_response']
+        assert log['api_response']
+        assert log['status']
+        assert log['url'] == "http://localhost:8080/mock"
+        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                         'intent': 'test_run'}
+
+    @pytest.mark.asyncio
     async def test_run_with_post(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_post",
@@ -1140,6 +1264,69 @@ class TestActions:
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
+    async def test_run_with_post_and_dynamic_params(self, monkeypatch):
+        dynamic_params = \
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        action = HttpActionConfig(
+            action_name="test_run_with_post_and_dynamic_params",
+            response=HttpActionResponse(value="Data added successfully, id:${RESPONSE}"),
+            http_url="http://localhost:8080/mock",
+            request_method="POST",
+            dynamic_params=dynamic_params,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+
+        responses.start()
+        resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": resp_msg},
+            status=200,
+        )
+        http_url = 'http://localhost:8080/mock'
+        resp_msg = "5000"
+        responses.add(
+            method=responses.POST,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+        )
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="default_sender", slots=slots, events=events, paused=False,
+                          latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_post_and_dynamic_params")
+        responses.stop()
+        assert actual is not None
+        assert str(actual[0]['name']) == 'kairon_action_response'
+        assert str(actual[0]['value']) == 'Data added successfully, id:5000'
+        log = ActionServerLogs.objects(sender="default_sender",
+                                       action="test_run_with_post_and_dynamic_params",
+                                       status="SUCCESS").get()
+        assert not log['exception']
+        assert log['timestamp']
+        assert log['intent'] == "test_run"
+        assert log['action'] == "test_run_with_post_and_dynamic_params"
+        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                         'intent': 'test_run'}
+        assert log['api_response'] == '5000'
+        assert log['bot_response'] == 'Data added successfully, id:5000'
+
+    @pytest.mark.asyncio
     async def test_run_with_get(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_get",
@@ -1187,6 +1374,119 @@ class TestActions:
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+
+    @pytest.mark.asyncio
+    async def test_run_with_get_with_dynamic_params(self, monkeypatch):
+        dynamic_params = "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "\
+                         "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
+        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        action = HttpActionConfig(
+            action_name="test_run_with_get_with_dynamic_params",
+            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            dynamic_params=dynamic_params,
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}", evaluation_type="script"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}", evaluation_type="script")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        responses.start()
+        resp_msg = {
+            "sender_id": "default_sender",
+            "user_message": "get intents",
+            "intent": "test_run",
+            "EMAIL": "uditpandey@digite.com"
+        }
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": resp_msg},
+            status=200,
+        )
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "${a.b.d}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "red"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "${a.b.d.0}",
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+        )
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="default_sender", slots=slots, events=events, paused=False,
+                          latest_message=latest_message,followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_get_with_dynamic_params")
+        responses.stop()
+        assert actual is not None
+        assert str(actual[0]['name']) == 'val_d'
+        assert str(actual[0]['value']) == "['red', 'buggy', 'bumpers']"
+        assert str(actual[1]['name']) == 'val_d_0'
+        assert str(actual[1]['value']) == "red"
+        assert str(actual[2]['name']) == 'kairon_action_response'
+        assert str(actual[2]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
+        log = ActionServerLogs.objects(sender="default_sender",
+                                       action="test_run_with_get_with_dynamic_params",
+                                       status="SUCCESS").get()
+        print(log.to_mongo().to_dict())
+        assert not log['exception']
+        assert log['timestamp']
+        assert log['intent'] == "test_run"
+        assert log['action'] == "test_run_with_get_with_dynamic_params"
+        assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                         'intent': 'test_run', 'EMAIL': '*******************om'}
+        assert log['api_response'] == "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}"
+        assert log['bot_response'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
 
     @pytest.mark.asyncio
     async def test_run_no_connection(self, monkeypatch):
@@ -2127,14 +2427,14 @@ class TestActions:
         actual = ActionUtility.prepare_email_body(events, "conversation history", "test@kairon.com")
         assert str(actual).__contains__("</table>")
 
-    def test_get_kairon_faq_action_config(self):
+    def test_get_prompt_action_config(self):
         bot = 'test_action_server'
         user = 'test_user'
-        Actions(name='kairon_faq_action', type=ActionType.kairon_faq_action.value, bot=bot, user=user).save()
+        Actions(name='kairon_faq_action', type=ActionType.prompt_action.value, bot=bot, user=user).save()
         BotSettings(bot=bot, user=user, enable_gpt_llm_faq=True).save()
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
-        assert actual['type'] == ActionType.kairon_faq_action.value
-        actual = ActionKaironFaq(bot, 'kairon_faq_action').retrieve_config()
+        assert actual['type'] == ActionType.prompt_action.value
+        actual = ActionPrompt(bot, 'kairon_faq_action').retrieve_config()
         actual.pop("timestamp")
         print(actual)
         assert actual == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
@@ -2146,9 +2446,9 @@ class TestActions:
                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                           'llm_prompts': []}
 
-    def test_kairon_faq_action_not_exists(self):
+    def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
-            ActionKaironFaq('test_kairon_faq_action_not_exists', 'testing_kairon_faq').retrieve_config()
+            ActionPrompt('test_kairon_faq_action_not_exists', 'testing_kairon_faq').retrieve_config()
 
     def test_get_google_search_action_config(self):
         bot = 'test_action_server'
@@ -3052,17 +3352,30 @@ class TestActions:
                                 'refresh_token_expiry': 60, 'whatsapp': 'meta',
                                 'notification_scheduling_limit': 4, 'bot': 'test_bot', 'status': True}
 
-    def test_get_faq_action_config(self):
-        bot = "test_bot"
-        k_faq_action_config = ActionUtility.get_faq_action_config(bot=bot)
+    def test_get_prompt_action_config(self):
+        bot = "test_bot_action_test"
+        user = "test_user_action_test"
+        llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                              'source': 'static', 'is_enabled': True},
+                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]
+        PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
+        k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
         k_faq_action_config.pop('timestamp')
-        assert k_faq_action_config == \
-               {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
-                'enable_response_cache': False,
-                'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'bot': 'test_bot',
-                'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0,
-                                    'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                    'frequency_penalty': 0.0, 'logit_bias': {}}, 'llm_prompts': []}
+        print(k_faq_action_config)
+        assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
+                                       'similarity_threshold': 0.7,
+                                       'enable_response_cache': False,
+                'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                                       'bot': 'test_bot_action_test', 'user': 'test_user_action_test',
+                                       'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                           'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                           'presence_penalty': 0.0, 'frequency_penalty': 0.0,
+                                                           'logit_bias': {}},
+                                       'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                                                        'type': 'system', 'source': 'static', 'is_enabled': True},
+                                                       {'name': 'History Prompt', 'type': 'user', 'source': 'history',
+                                                        'is_enabled': True}],
+                                       'status': True}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

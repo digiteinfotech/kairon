@@ -326,6 +326,7 @@ class HttpActionConfigRequest(BaseModel):
     http_url: str
     request_method: str
     params_list: List[HttpActionParameters] = []
+    dynamic_params: str = None
     headers: List[HttpActionParameters] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
 
@@ -376,6 +377,7 @@ class TrainingDataGeneratorStatusModel(BaseModel):
 class StoryStepRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True) = None
     type: StoryStepType
+    value: Any = None
 
 
 class MultiStoryStepRequest(StoryStepRequest):
@@ -671,6 +673,8 @@ class GoogleSearchActionRequest(BaseModel):
     search_engine_id: str
     failure_response: str = 'I have failed to process your request.'
     num_results: int = 1
+    dispatch_response: bool = True
+    set_slot: str = None
 
 
 class EmailActionRequest(BaseModel):
@@ -767,7 +771,8 @@ class LlmPromptRequest(BaseModel):
     is_enabled: bool = True
 
 
-class KaironFaqConfigRequest(BaseModel):
+class PromptActionConfigRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     top_results: int = 10

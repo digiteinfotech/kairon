@@ -42,11 +42,12 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
-    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, KaironFaqAction, \
+    CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
     LlmPrompt
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
-from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType
+from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
+    LlmPromptSource
 from kairon.shared.utils import Utility, StoryValidator
 from .base_data import AuditLogData
 from .constant import (
@@ -61,8 +62,7 @@ from .constant import (
     SLOTS,
     UTTERANCE_TYPE, CUSTOM_ACTIONS, REQUIREMENTS, EVENT_STATUS, COMPONENT_COUNT, SLOT_TYPE,
     DEFAULT_NLU_FALLBACK_RULE, DEFAULT_NLU_FALLBACK_RESPONSE, DEFAULT_ACTION_FALLBACK_RESPONSE, ENDPOINT_TYPE,
-    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType, GPT_LLM_FAQ,
-    DEFAULT_LLM_FALLBACK_RULE, KAIRON_FAQ_ACTION
+    TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, ACCESS_ROLES, LogType
 )
 from .data_objects import (
     Responses,
@@ -2107,13 +2107,17 @@ class MongoProcessor:
                     name=RULE_SNIPPET_ACTION_NAME,
                     type=ActionExecuted.type_name))
         action_step_types = {s_type.value for s_type in StoryStepType}.difference({
-            StoryStepType.intent.value, StoryStepType.form_start.value, StoryStepType.form_end.value
+            StoryStepType.intent.value, StoryStepType.slot.value, StoryStepType.form_start.value, StoryStepType.form_end.value
         })
         for step in steps:
             if step['type'] == StoryStepType.intent.value:
                 events.append(StoryEvents(
                     name=step['name'].strip().lower(),
                     type=UserUttered.type_name))
+            elif step['type'] == StoryStepType.slot.value:
+                events.append(StoryEvents(
+                    name=step['name'].strip().lower(),
+                    type=SlotSet.type_name, value=step.get('value')))
             elif step['type'] in action_step_types:
                 Utility.is_exist(Utterances,
                                  f'utterance "{step["name"]}" is attached to a form',
@@ -2375,6 +2379,7 @@ class MongoProcessor:
         hubspot_forms_actions = set(HubspotFormsAction.objects(bot=bot, status=True).values_list('name'))
         razorpay_actions = set(RazorpayAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
+        prompt_actions = set(PromptAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -2399,6 +2404,10 @@ class MongoProcessor:
                 if event['type'] == UserUttered.type_name:
                     step['name'] = event['name']
                     step['type'] = StoryStepType.intent.value
+                elif event['type'] == SlotSet.type_name:
+                    step['name'] = event['name']
+                    step['type'] = StoryStepType.slot.value
+                    step['value'] = event.get("value")
                 elif event['type'] == ActionExecuted.type_name:
                     step['name'] = event['name']
                     if event['name'] in http_actions:
@@ -2423,8 +2432,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.razorpay_action.value
                     elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
-                    elif event['name'] == KAIRON_FAQ_ACTION:
-                        step['type'] = StoryStepType.kairon_faq_action.value
+                    elif event['name'] in prompt_actions:
+                        step['type'] = StoryStepType.prompt_action.value
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = StoryStepType.bot.value
                     else:
@@ -2830,6 +2839,7 @@ class MongoProcessor:
                          request_data.get('set_slots')]
             http_action.update(
                 set__http_url=request_data['http_url'], set__request_method=request_data['request_method'],
+                set__dynamic_params=request_data.get('dynamic_params'),
                 set__content_type=content_type, set__params_list=params_list, set__headers=headers,
                 set__response=response, set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
             )
@@ -2856,6 +2866,7 @@ class MongoProcessor:
             content_type=content_type,
             http_url=http_action_config['http_url'],
             request_method=http_action_config['request_method'],
+            dynamic_params=http_action_config.get('dynamic_params'),
             params_list=http_action_params,
             headers=headers,
             response=HttpActionResponse(**http_action_config.get('response', {})),
@@ -2954,6 +2965,8 @@ class MongoProcessor:
             search_engine_id=action_config['search_engine_id'],
             failure_response=action_config.get('failure_response'),
             num_results=action_config.get('num_results'),
+            dispatch_response=action_config.get('dispatch_response', True),
+            set_slot=action_config.get('set_slot'),
             bot=bot,
             user=user,
         ).save().to_mongo().to_dict()["_id"].__str__()
@@ -2978,6 +2991,8 @@ class MongoProcessor:
         action.search_engine_id = action_config['search_engine_id']
         action.failure_response = action_config.get('failure_response')
         action.num_results = action_config.get('num_results')
+        action.dispatch_response = action_config.get('dispatch_response', True)
+        action.set_slot = action_config.get('set_slot')
         action.user = user
         action.timestamp = datetime.utcnow()
         action.save()
@@ -3057,8 +3072,11 @@ class MongoProcessor:
                 raise AppException('Default kAIron slot deletion not allowed')
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)
+            action_with_slot = GoogleSearchAction.objects(bot=bot, status=True, set_slot=slot_name)
             if len(forms_with_slot) > 0:
                 raise AppException(f'Slot is attached to form: {[form["name"] for form in forms_with_slot]}')
+            if len(action_with_slot) > 0:
+                raise AppException(f'Slot is attached to action: {[action["name"] for action in action_with_slot]}')
             slot.status = False
             slot.user = user
             slot.save()
@@ -4167,6 +4185,9 @@ class MongoProcessor:
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
             MongoProcessor.get_attached_flows(bot, name, 'action')
+            Utility.is_exist(PromptAction, bot=bot, llm_prompts__source=LlmPromptSource.action.value,
+                             llm_prompts__data=name,
+                             exp_message=f"Action with name {name} is attached with PromptAction!")
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.form_validation_action.value:
@@ -4189,8 +4210,8 @@ class MongoProcessor:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
-            elif action.type == ActionType.kairon_faq_action.value:
-                KaironFaqAction.objects(name__iexact=name, bot=bot, user=user).delete()
+            elif action.type == ActionType.prompt_action.value:
+                PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4681,9 +4702,9 @@ class MongoProcessor:
             action.pop('user')
             yield action
 
-    def add_kairon_faq_action(self, request_data: dict, bot: Text, user: Text):
+    def add_prompt_action(self, request_data: dict, bot: Text, user: Text):
         """
-        Add Kairon FAQ Action
+        Add prompt(Kairon FAQ) Action
 
         :param request_data: request config for kairon faq action
         :param bot: bot id
@@ -4693,30 +4714,42 @@ class MongoProcessor:
         if not bot_settings['enable_gpt_llm_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
 
-        Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, exp_message="Action already exists!")
+        self.__validate_llm_prompts(request_data.get('llm_prompts', []), bot)
+        Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
         request_data['bot'] = bot
         request_data['user'] = user
-        request_data['name'] = KAIRON_FAQ_ACTION
-        data_object = KaironFaqAction(**request_data).save()
-        id = (
-            data_object.save().to_mongo().to_dict()["_id"].__str__()
+        prompt_action_id = PromptAction(**request_data).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(
+            request_data['name'], bot, user, action_type=ActionType.prompt_action.value, raise_exception=False
         )
-        self.add_action(KAIRON_FAQ_ACTION, bot, user, False, ActionType.kairon_faq_action.value)
-        return id
+        return prompt_action_id
 
-    def edit_kairon_faq_action(self, faq_action_id: str, request_data: dict, bot: Text, user: Text):
+    def __validate_llm_prompts(self, llm_prompts, bot: Text):
+        for prompt in llm_prompts:
+            if prompt['source'] == 'slot':
+                if not Utility.is_exist(Slots, raise_error=False, name=prompt['data'], bot=bot, status=True):
+                    raise AppException(f'Slot with name {prompt["data"]} not found!')
+            if prompt['source'] == 'action':
+                if not (
+                        Utility.is_exist(HttpActionConfig, raise_error=False, action_name=prompt['data'], bot=bot, status=True) or
+                        Utility.is_exist(GoogleSearchAction, raise_error=False, name=prompt['data'], bot=bot, status=True)
+                ):
+                    raise AppException(f'Action with name {prompt["data"]} not found!')
+
+    def edit_prompt_action(self, prompt_action_id: str, request_data: dict, bot: Text, user: Text):
         """
-        Edit Kairon FAQ Action
+        Edit prompt(Kairon FAQ) Action
 
-        :param faq_action_id: faq action id
+        :param prompt_action_id: action id
         :param request_data: request config for kairon faq action
         :param bot: bot id
         :param user: user
         """
-        if not Utility.is_exist(KaironFaqAction, bot=bot, name__iexact=KAIRON_FAQ_ACTION, id=faq_action_id,
-                                raise_error=False):
+        if not Utility.is_exist(PromptAction, id=prompt_action_id, raise_error=False, bot=bot, status=True):
             raise AppException('Action not found')
-        action = KaironFaqAction.objects(id=faq_action_id, name__iexact=KAIRON_FAQ_ACTION, bot=bot).get()
+        self.__validate_llm_prompts(request_data.get('llm_prompts', []), bot)
+        action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
+        action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")
         action.top_results = request_data.get("top_results")
         action.enable_response_cache = request_data.get("enable_response_cache", False)
@@ -4728,15 +4761,15 @@ class MongoProcessor:
         action.user = user
         action.save()
 
-    def get_kairon_faq_action(self, bot: Text):
+    def get_prompt_action(self, bot: Text):
         """
-        fetches Kairon FAQ Action
+        fetches prompt(Kairon FAQ) Action
 
         :param bot: bot id
         :return: yield dict
         """
         actions = []
-        for action in KaironFaqAction.objects(bot=bot):
+        for action in PromptAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
             action['_id'] = action['_id'].__str__()
             action.pop('timestamp')

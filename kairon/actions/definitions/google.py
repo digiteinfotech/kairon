@@ -24,6 +24,8 @@ class ActionGoogleSearch(ActionsBase):
         """
         self.bot = bot
         self.name = name
+        self.__response = None
+        self.__is_success = False
 
     def retrieve_config(self):
         """
@@ -49,6 +51,7 @@ class ActionGoogleSearch(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        slots_set = {}
         exception = None
         status = "SUCCESS"
         latest_msg = tracker.latest_message.get('text')
@@ -68,6 +71,10 @@ class ActionGoogleSearch(ActionsBase):
                 )
                 if results:
                     bot_response = ActionUtility.format_search_result(results)
+                    self.__response = bot_response
+                    self.__is_success = True
+                    if not ActionUtility.is_empty(action_config.get('set_slot')):
+                        slots_set.update({action_config['set_slot']: bot_response})
         except Exception as e:
             logger.exception(e)
             exception = str(e)
@@ -84,5 +91,15 @@ class ActionGoogleSearch(ActionsBase):
                 status=status,
                 user_msg=tracker.latest_message.get('text')
             ).save()
-        dispatcher.utter_message(bot_response)
-        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
+        if action_config.get('dispatch_response', True):
+            dispatcher.utter_message(bot_response)
+        slots_set.update({KAIRON_ACTION_RESPONSE_SLOT: bot_response})
+        return slots_set
+
+    @property
+    def is_success(self):
+        return self.__is_success
+
+    @property
+    def response(self):
+        return self.__response

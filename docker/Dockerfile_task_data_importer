@@ -38,6 +38,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install openpyxl
 RUN python -m pip install pandas
+RUN python -m pip install croniter
 
 RUN mkdir ssl
 RUN mkdir training_data

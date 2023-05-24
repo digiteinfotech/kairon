@@ -6,7 +6,7 @@ from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
-    RazorpayActionRequest, KaironFaqConfigRequest
+    RazorpayActionRequest, PromptActionConfigRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -362,9 +362,9 @@ async def update_two_stage_fallback_action(
     return Response(message="Action updated!")
 
 
-@router.post("/kairon_faq", response_model=Response)
-async def add_kairon_faq_action(
-        request_data: KaironFaqConfigRequest,
+@router.post("/prompt", response_model=Response)
+async def add_prompt_action(
+        request_data: PromptActionConfigRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -373,7 +373,7 @@ async def add_kairon_faq_action(
     return {
         "message": "Action Added Successfully",
         "data": {
-            "_id": mongo_processor.add_kairon_faq_action(
+            "_id": mongo_processor.add_prompt_action(
                 request_data.dict(),
                 current_user.get_bot(),
                 current_user.get_user()
@@ -382,28 +382,28 @@ async def add_kairon_faq_action(
     }
 
 
-@router.put("/kairon_faq/{faq_action_id}", response_model=Response)
-async def update_kairon_faq_action(
+@router.put("/prompt/{faq_action_id}", response_model=Response)
+async def update_prompt_action(
         faq_action_id: str,
-        request_data: KaironFaqConfigRequest,
+        request_data: PromptActionConfigRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Updates kairon FAQ Action
     """
-    mongo_processor.edit_kairon_faq_action(faq_action_id, request_data.dict(),
-                                           current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_prompt_action(faq_action_id, request_data.dict(),
+                                       current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")
 
 
-@router.get("/kairon_faq", response_model=Response)
-async def get_kairon_faq_action(
+@router.get("/prompt", response_model=Response)
+async def get_prompt_action(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     Retrieves kairon FAQ Action
     """
-    action = mongo_processor.get_kairon_faq_action(current_user.get_bot())
+    action = mongo_processor.get_prompt_action(current_user.get_bot())
     return Response(data=action)
 
 

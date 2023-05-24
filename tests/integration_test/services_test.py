@@ -1169,7 +1169,7 @@ def test_get_content_not_exists():
 
 def test_get_kairon_faq_action_with_no_actions():
     response = client.get(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -1179,8 +1179,9 @@ def test_get_kairon_faq_action_with_no_actions():
     assert actual["data"] == []
 
 
-def test_add_kairon_faq_action_with_invalid_similarity_threshold():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_add_prompt_action_with_invalid_similarity_threshold():
+    action = {'name': 'test_add_prompt_action_with_invalid_similarity_threshold',
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1195,7 +1196,7 @@ def test_add_kairon_faq_action_with_invalid_similarity_threshold():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 1.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1208,8 +1209,9 @@ def test_add_kairon_faq_action_with_invalid_similarity_threshold():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_invalid_top_results():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_add_prompt_action_with_invalid_top_results():
+    action = {'name': 'test_add_prompt_action_with_invalid_top_results',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1224,7 +1226,7 @@ def test_add_kairon_faq_action_with_invalid_top_results():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1237,8 +1239,9 @@ def test_add_kairon_faq_action_with_invalid_top_results():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_invalid_query_prompt():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system',
+def test_add_prompt_action_with_invalid_query_prompt():
+    action = {'name': "test_add_prompt_action_with_invalid_query_prompt",
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1253,7 +1256,7 @@ def test_add_kairon_faq_action_with_invalid_query_prompt():
                                     'source': 'history', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1266,8 +1269,9 @@ def test_add_kairon_faq_action_with_invalid_query_prompt():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_invalid_num_bot_responses():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_add_prompt_action_with_invalid_num_bot_responses():
+    action = {'name': 'test_add_prompt_action_with_invalid_num_bot_responses',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1283,7 +1287,7 @@ def test_add_kairon_faq_action_with_invalid_num_bot_responses():
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
               "num_bot_responses": 10}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1296,8 +1300,9 @@ def test_add_kairon_faq_action_with_invalid_num_bot_responses():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_invalid_system_prompt_source():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_add_prompt_action_with_invalid_system_prompt_source():
+    action = {'name': 'test_add_prompt_action_with_invalid_system_prompt_source',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'history',
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -1313,7 +1318,7 @@ def test_add_kairon_faq_action_with_invalid_system_prompt_source():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1326,8 +1331,9 @@ def test_add_kairon_faq_action_with_invalid_system_prompt_source():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_multiple_system_prompt():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_add_prompt_action_with_multiple_system_prompt():
+    action = {'name': 'test_add_prompt_action_with_multiple_system_prompt',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
@@ -1346,7 +1352,7 @@ def test_add_kairon_faq_action_with_multiple_system_prompt():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1359,8 +1365,9 @@ def test_add_kairon_faq_action_with_multiple_system_prompt():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_empty_llm_prompt_name():
-    action = {'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
+def test_add_prompt_action_with_empty_llm_prompt_name():
+    action = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
+        'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.',  'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1375,7 +1382,7 @@ def test_add_kairon_faq_action_with_empty_llm_prompt_name():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1388,8 +1395,9 @@ def test_add_kairon_faq_action_with_empty_llm_prompt_name():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_with_empty_data_for_static_prompt():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system',
+def test_add_prompt_action_with_empty_data_for_static_prompt():
+    action = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1403,7 +1411,7 @@ def test_add_kairon_with_empty_data_for_static_prompt():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1416,8 +1424,9 @@ def test_add_kairon_with_empty_data_for_static_prompt():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_with_empty_llm_prompt_instructions():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
+def test_add_prompt_action_with_empty_llm_prompt_instructions():
+    action = {'name': 'test_add_prompt_action_with_empty_llm_prompt_instructions',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                     'type': 'system', 'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': '',
@@ -1432,7 +1441,7 @@ def test_add_kairon_with_empty_llm_prompt_instructions():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1445,8 +1454,9 @@ def test_add_kairon_with_empty_llm_prompt_instructions():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_with_multiple_history_source_prompts():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_add_prompt_action_with_multiple_history_source_prompts():
+    action = {'name': 'test_add_prompt_action_with_multiple_history_source_prompts',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
@@ -1463,7 +1473,7 @@ def test_add_kairon_with_multiple_history_source_prompts():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1476,8 +1486,9 @@ def test_add_kairon_with_multiple_history_source_prompts():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_with_multiple_bot_content_source_prompts():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_add_prompt_action_with_multiple_bot_content_source_prompts():
+    action = {'name': 'test_add_prompt_action_with_multiple_bot_content_source_prompts',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
@@ -1493,7 +1504,7 @@ def test_add_kairon_with_multiple_bot_content_source_prompts():
                                    ], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1506,8 +1517,9 @@ def test_add_kairon_with_multiple_bot_content_source_prompts():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action_with_gpt_feature_disabled():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_add_prompt_action_with_gpt_feature_disabled():
+    action = {'name': 'test_add_prompt_action_with_gpt_feature_disabled',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1522,7 +1534,7 @@ def test_add_kairon_faq_action_with_gpt_feature_disabled():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1533,12 +1545,13 @@ def test_add_kairon_faq_action_with_gpt_feature_disabled():
     assert actual["error_code"] == 422
 
 
-def test_add_kairon_faq_action(monkeypatch):
+def test_add_prompt_action(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+    action = {'name': 'test_add_prompt_action',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1553,7 +1566,7 @@ def test_add_kairon_faq_action(monkeypatch):
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1566,12 +1579,13 @@ def test_add_kairon_faq_action(monkeypatch):
     assert actual["error_code"] == 0
 
 
-def test_add_kairon_faq_action_already_exist(monkeypatch):
+def test_add_prompt_action_already_exist(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", enable_gpt_llm_faq=True)
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+    action = {'name': 'test_add_prompt_action',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1586,20 +1600,21 @@ def test_add_kairon_faq_action_already_exist(monkeypatch):
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     print(actual["message"])
-    assert actual["message"] == "Action already exists!"
+    assert actual["message"] == "Action exists!"
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
 
 
-def test_update_kairon_faq_action_does_not_exist():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_update_prompt_action_does_not_exist():
+    action = {'name': 'test_update_prompt_action_does_not_exist',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1614,7 +1629,7 @@ def test_update_kairon_faq_action_does_not_exist():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/61512cc2c6219f0aae7bba3d",
+        f"/api/bot/{pytest.bot}/action/prompt/61512cc2c6219f0aae7bba3d",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1626,8 +1641,9 @@ def test_update_kairon_faq_action_does_not_exist():
     assert actual["error_code"] == 422
 
 
-def test_update_kairon_faq_action_with_invalid_similarity_threshold():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_update_prompt_action_with_invalid_similarity_threshold():
+    action = {'name': 'test_update_prompt_action_with_invalid_similarity_threshold',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1642,7 +1658,7 @@ def test_update_kairon_faq_action_with_invalid_similarity_threshold():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 1.50}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1655,8 +1671,9 @@ def test_update_kairon_faq_action_with_invalid_similarity_threshold():
     assert actual["error_code"] == 422
 
 
-def test_update_kairon_faq_action_with_invalid_top_results():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_update_prompt_action_with_invalid_top_results():
+    action = {'name': 'test_update_prompt_action_with_invalid_top_results',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1667,7 +1684,7 @@ def test_update_kairon_faq_action_with_invalid_top_results():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1680,8 +1697,9 @@ def test_update_kairon_faq_action_with_invalid_top_results():
     assert actual["error_code"] == 422
 
 
-def test_update_kairon_faq_action_with_invalid_num_bot_responses():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_update_prompt_action_with_invalid_num_bot_responses():
+    action = {'name': 'test_update_prompt_action_with_invalid_num_bot_responses',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1692,7 +1710,7 @@ def test_update_kairon_faq_action_with_invalid_num_bot_responses():
                                     'source': 'static', 'is_enabled': True}], 'num_bot_responses': 50,
               "failure_message": "updated_failure_message", "top_results": 39, "similarity_threshold": 0.50}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1707,8 +1725,9 @@ def test_update_kairon_faq_action_with_invalid_num_bot_responses():
     assert actual["error_code"] == 422
 
 
-def test_update_kairon_faq_action_with_invalid_query_prompt():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_update_prompt_action_with_invalid_query_prompt():
+    action = {'name': 'test_update_prompt_action_with_invalid_query_prompt',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1722,7 +1741,7 @@ def test_update_kairon_faq_action_with_invalid_query_prompt():
               'num_bot_responses': 5,
               "use_query_prompt": True, "query_prompt": ""}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1735,8 +1754,9 @@ def test_update_kairon_faq_action_with_invalid_query_prompt():
     assert actual["error_code"] == 422
 
 
-def test_update_kairon_faq_action_with_query_prompt_with_false():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_update_prompt_action_with_query_prompt_with_false():
+    action = {'name': 'test_update_prompt_action_with_query_prompt_with_false',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1749,7 +1769,7 @@ def test_update_kairon_faq_action_with_query_prompt_with_false():
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50,
               'num_bot_responses': 5}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1761,8 +1781,9 @@ def test_update_kairon_faq_action_with_query_prompt_with_false():
     assert actual["error_code"] == 0
 
 
-def test_update_kairon_faq_action():
-    action = {'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+def test_update_prompt_action():
+    action = {'name': 'test_update_prompt_action',
+        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity_analytical Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -1778,7 +1799,7 @@ def test_update_kairon_faq_action():
               'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50}
     response = client.put(
-        f"/api/bot/{pytest.bot}/action/kairon_faq/{pytest.action_id}",
+        f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1790,9 +1811,9 @@ def test_update_kairon_faq_action():
     assert actual["error_code"] == 0
 
 
-def test_get_kairon_faq_action():
+def test_get_prompt_action():
     response = client.get(
-        f"/api/bot/{pytest.bot}/action/kairon_faq",
+        f"/api/bot/{pytest.bot}/action/prompt",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -1802,27 +1823,22 @@ def test_get_kairon_faq_action():
     actual['data'][0].pop("_id")
     print(actual["data"])
     assert actual["data"] == [
-        {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
+        {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
          'failure_message': 'updated_failure_message', 'enable_response_cache': False,
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                              'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                             'logit_bias': {}}, 'llm_prompts': [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.',  'type': 'system', 'source': 'static',
-             'is_enabled': True},
-            {'name': 'Similarity_analytical Prompt',
-              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-            {'name': 'Query Prompt',
-             'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-             'is_enabled': True},
-            {'name': 'Query Prompt',
-              'data': 'If there is no specific query, assume that user is aking about java programming language,',
-                'instructions': 'Answer according to the context', 'type': 'query',
-                 'source': 'static', 'is_enabled': True}]}]
+                             'logit_bias': {}},
+         'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                          'source': 'static', 'is_enabled': True},
+                         {'name': 'Similarity_analytical Prompt',
+                          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.', 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                         {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
+                         {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming language,',
+                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}], 'status': True}]
 
 
-def test_delete_kairon_faq_action_not_exists():
+def test_delete_prompt_action_not_exists():
     response = client.delete(
         f"/api/bot/{pytest.bot}/action/non_existent_kairon_faq_action",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -1833,9 +1849,9 @@ def test_delete_kairon_faq_action_not_exists():
     assert actual["message"] == 'Action with name "non_existent_kairon_faq_action" not found'
 
 
-def test_delete_kairon_faq_action_1():
+def test_delete_prompt_action_1():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/action/kairon_faq_action",
+        f"/api/bot/{pytest.bot}/action/test_add_prompt_action",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3288,9 +3304,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3469,14 +3485,14 @@ def test_add_multiflow_story_invalid_event_type():
     assert (
             actual["message"]
             == [{'loc': ['body', 'steps', 0, 'step', 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', "
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', "
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
-                 'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT',
+                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
                  'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']}
+                 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']}
                  }]
     )
 
@@ -3542,9 +3558,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3676,16 +3692,16 @@ def test_update_multiflow_story_invalid_event_type():
     assert (
             actual["message"]
             == [{'loc': ['body', 'steps', 0, 'step', 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', "
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', "
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                         "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
-                        "'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
-                 'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END',
+                        "'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
                         'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                        'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']}
+                        'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']}
                  }]
     )
 
@@ -6151,6 +6167,82 @@ def test_add_http_action_no_token():
     assert actual["success"]
 
 
+def test_add_http_action_with_dynamic_params():
+    request_body = {
+        "action_name": "test_add_http_action_with_dynamic_params",
+        "response": {"value": "string"},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "dynamic_params":
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_update_http_action_with_dynamic_params():
+    request_body = {
+        "action_name": "test_update_http_action_with_dynamic_params",
+        "response": {"value": "", "dispatch": False},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "action_name": "test_update_http_action_with_dynamic_params",
+        "content_type": "application/x-www-form-urlencoded",
+        "response": {"value": "json", "dispatch": False, "evaluation_type": "script"},
+        "http_url": "http://www.alphabet.com",
+        "request_method": "POST",
+        "dynamic_params":
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+        "headers": [{
+            "key": "Authorization", "parameter_type": "value", "value": "bearer token", "encrypt": True
+        }],
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/httpaction/test_update_http_action_with_dynamic_params",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script'}
+    assert actual['data']["http_url"] == "http://www.alphabet.com"
+    assert actual['data']["request_method"] == "POST"
+    assert len(actual['data']["params_list"]) == 0
+    assert actual['data']["dynamic_params"] == \
+           "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+    assert actual['data']["headers"] == \
+           [{'key': 'Authorization', 'value': 'bearer token', 'parameter_type': 'value', 'encrypt': True}]
+    assert actual["success"]
+
+
 def test_add_http_action_with_sender_id_parameter_type():
     request_body = {
         "auth_token": "",
@@ -6737,27 +6829,21 @@ def test_list_actions():
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     assert actual['data'] == {
-        'actions': ['action_greet'], 'email_action': [], 'form_validation_action': [], 'google_search_action': [],
-        'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
+        'actions': ['action_greet'],
         'http_action': ['test_add_http_action_no_token',
+                        'test_add_http_action_with_dynamic_params',
+                        'test_update_http_action_with_dynamic_params',
                         'test_add_http_action_with_sender_id_parameter_type',
                         'test_add_http_action_with_token_and_story',
                         'test_add_http_action_no_params',
                         'test_add_http_action_existing',
                         'test_update_http_action',
-                        'test_update_http_action_6',
-                        'test_update_http_action_non_existing',
-                        'new_http_action4'], 'kairon_faq_action': [],
-        'slot_set_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
-        'utterances': ['utter_greet',
-                       'utter_cheer_up',
-                       'utter_did_that_help',
-                       'utter_happy',
-                       'utter_goodbye',
-                       'utter_iamabot',
-                       'utter_default',
-                       'utter_please_rephrase']
-    }
+                        'test_update_http_action_6', 'test_update_http_action_non_existing', 'new_http_action4'],
+        'utterances': ['utter_greet', 'utter_cheer_up', 'utter_did_that_help', 'utter_happy', 'utter_goodbye',
+                       'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
+        'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
+        'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
+        'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []}
 
     assert actual["success"]
 
@@ -7437,9 +7523,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -7502,9 +7588,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'KAIRON_FAQ_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -8083,6 +8169,34 @@ def test_chat_user(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]['response']
+
+
+@responses.activate
+def test_chat_with_data_empty(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
+    chat_json = {"data": ""}
+    response = client.post(f"/api/bot/{pytest.bot}/chat",
+                           json=chat_json,
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual['message'] == 'data cannot be empty'
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
+
+
+@responses.activate
+def test_chat_augment_user_with_data_empty(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
+    chat_json = {"data": ""}
+    response = client.post(f"/api/bot/{pytest.bot}/chat/testUser",
+                           json=chat_json,
+                           headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+    actual = response.json()
+    assert not actual["success"]
+    assert actual['message'] == 'data cannot be empty'
+    assert actual["error_code"] == 422
+    assert actual["data"] is None
 
 
 @responses.activate
@@ -10973,6 +11087,8 @@ def test_list_google_search_action():
     assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
     assert actual["data"][0]['failure_response'] == 'Failed to perform search'
     assert actual["data"][0]['num_results'] == 1
+    assert actual["data"][0]['dispatch_response']
+    assert not actual["data"][0].get('set_slot')
 
 
 def test_delete_google_search_action():

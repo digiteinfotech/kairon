@@ -10,12 +10,13 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.constants import FAQ_DISABLED_ERR
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.models import LlmPromptType, LlmPromptSource
 
 
-class ActionKaironFaq(ActionsBase):
+class ActionPrompt(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
         """
@@ -30,9 +31,8 @@ class ActionKaironFaq(ActionsBase):
     def retrieve_config(self):
         bot_settings = ActionUtility.get_bot_settings(bot=self.bot)
         if not bot_settings['enable_gpt_llm_faq']:
-            bot_response = "Faq feature is disabled for the bot! Please contact support."
-            raise ActionFailure(bot_response)
-        k_faq_action_config = ActionUtility.get_faq_action_config(bot=self.bot)
+            raise ActionFailure("Faq feature is disabled for the bot! Please contact support.")
+        k_faq_action_config = ActionUtility.get_faq_action_config(self.bot, self.name)
         logger.debug("bot_settings: " + str(bot_settings))
         logger.debug("k_faq_action_config: " + str(k_faq_action_config))
         return k_faq_action_config
@@ -50,18 +50,17 @@ class ActionKaironFaq(ActionsBase):
         status = "SUCCESS"
         exception = None
         llm_response = None
-        k_faq_action_config = None
+        k_faq_action_config = {}
         llm = None
         llm_logs = None
         recommendations = None
-        bot_response = "Faq feature is disabled for the bot! Please contact support."
+        bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         user_msg = tracker.latest_message.get('text')
         is_from_cache = False
 
         try:
             k_faq_action_config = self.retrieve_config()
-            llm_params = self.__get_llm_params(k_faq_action_config, tracker)
-            bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
+            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm = LLMFactory.get_instance(self.bot, "faq")
             llm_response = llm.predict(user_msg, **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
@@ -76,11 +75,12 @@ class ActionKaironFaq(ActionsBase):
             logger.debug(e)
             exception = str(e)
             status = "FAILURE"
+            bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get("failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
         finally:
             if llm:
                 llm_logs = llm.logs
             ActionServerLogs(
-                type=ActionType.kairon_faq_action.value,
+                type=ActionType.prompt_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=self.name,
                 sender=tracker.sender_id,
@@ -98,7 +98,7 @@ class ActionKaironFaq(ActionsBase):
         dispatcher.utter_message(text=bot_response, buttons=recommendations)
         return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
 
-    def __get_llm_params(self, k_faq_action_config: dict, tracker: Tracker):
+    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         implementations = {
             "GPT3_FAQ_EMBED": self.__get_gpt_params,
         }
@@ -106,9 +106,11 @@ class ActionKaironFaq(ActionsBase):
         llm_type = Utility.environment['llm']["faq"]
         if not implementations.get(llm_type):
             raise ActionFailure(f'{llm_type} type LLM is not supported')
-        return implementations[Utility.environment['llm']["faq"]](k_faq_action_config, tracker)
+        return await implementations[Utility.environment['llm']["faq"]](k_faq_action_config, dispatcher, tracker, domain)
 
-    def __get_gpt_params(self, k_faq_action_config: dict, tracker: Tracker):
+    async def __get_gpt_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+        from kairon.actions.definitions.factory import ActionFactory
+
         system_prompt = None
         context_prompt = ''
         query_prompt = ''
@@ -129,6 +131,17 @@ class ActionKaironFaq(ActionsBase):
                     similarity_prompt_name = prompt['name']
                     similarity_prompt_instructions = prompt['instructions']
                     use_similarity_prompt = True
+                elif prompt['source'] == LlmPromptSource.slot.value:
+                    slot_data = tracker.get_slot(prompt['data'])
+                    context_prompt += f"{prompt['name']}:\n{slot_data}\n"
+                    context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                elif prompt['source'] == LlmPromptSource.action.value:
+                    action = ActionFactory.get_instance(self.bot, prompt['data'])
+                    await action.execute(dispatcher, tracker, domain)
+                    if action.is_success:
+                        response = action.response
+                        context_prompt += f"{prompt['name']}:\n{response}\n"
+                        context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 else:
                     context_prompt += f"{prompt['name']}:\n{prompt['data']}\n"
                     context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"

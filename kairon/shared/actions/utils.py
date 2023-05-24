@@ -74,6 +74,21 @@ class ActionUtility:
         return http_response_as_json
 
     @staticmethod
+    def encrypt_secrets(request_body: dict, tracker_data: dict):
+        def mask_nested_json_values(json_dict: dict):
+            encrypted_dict = {}
+            for key, value in json_dict.items():
+                if isinstance(value, dict):
+                    encrypted_dict[key] = mask_nested_json_values(value)
+                elif isinstance(value, str) and value in tracker_data['key_vault'].values():
+                    encrypted_dict[key] = Utility.get_masked_value(value)
+                else:
+                    encrypted_dict[key] = value
+            return encrypted_dict
+
+        return mask_nested_json_values(request_body)
+
+    @staticmethod
     def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody], bot: Text):
         """
         Prepares request body:
@@ -145,13 +160,13 @@ class ActionUtility:
         return bot_settings
 
     @staticmethod
-    def get_faq_action_config(bot: Text):
-        from kairon.shared.actions.data_objects import KaironFaqAction
+    def get_faq_action_config(bot: Text, name: Text):
+        from kairon.shared.actions.data_objects import PromptAction
         try:
-            k_faq_action_config = KaironFaqAction.objects(bot=bot).get()
+            k_faq_action_config = PromptAction.objects(bot=bot, name=name, status=True).get()
         except DoesNotExist as e:
             logger.exception(e)
-            k_faq_action_config = KaironFaqAction(bot=bot)
+            raise AppException("No action found for given bot and name")
         k_faq_action_config = k_faq_action_config.to_mongo().to_dict()
         k_faq_action_config.pop('_id', None)
         return k_faq_action_config
