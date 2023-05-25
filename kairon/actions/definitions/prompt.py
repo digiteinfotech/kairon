@@ -30,7 +30,6 @@ class ActionPrompt(ActionsBase):
 
     def retrieve_config(self):
         bot_settings = ActionUtility.get_bot_settings(bot=self.bot)
-        bot_settings = bot_settings.to_mongo().to_dict()
         if not bot_settings['llm_settings']["enable_faq"]:
             raise ActionFailure("Faq feature is disabled for the bot! Please contact support.")
         k_faq_action_config = ActionUtility.get_faq_action_config(self.bot, self.name)
