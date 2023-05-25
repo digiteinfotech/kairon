@@ -1,0 +1,303 @@
+[
+  {
+    "event": "slot",
+    "timestamp": 1679564406.0117106,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564406.0119207,
+    "name": "action_session_start",
+    "policy": null,
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "session_started",
+    "timestamp": 1679564406.0119953,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679564406.0120163,
+    "name": "session_started_metadata",
+    "value": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    }
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564406.0120194,
+    "name": "action_listen",
+    "policy": null,
+    "confidence": null,
+    "action_text": null,
+    "hide_rule_turn": false
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679564410.0004952,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564410.000527,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "bot",
+    "timestamp": 1679564410.0006871,
+    "text": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more.",
+    "data": {
+      "elements": null,
+      "quick_replies": null,
+      "buttons": null,
+      "attachment": null,
+      "image": null,
+      "custom": null
+    },
+    "metadata": {}
+  },
+  {
+    "event": "slot",
+    "timestamp": 1679564410.0006957,
+    "name": "kairon_action_response",
+    "value": "Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more."
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564410.259588,
+    "name": "action_listen",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  },
+  {
+    "event": "user",
+    "timestamp": 1679564406.054926,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+      "text": {
+        "body": "I am interested in Kairon and want to know what features it offers"
+      },
+      "timestamp": "1679564404",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "I am interested in Kairon and want to know what features it offers",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9999985694885254
+      },
+      "entities": [],
+      "text": "I am interested in Kairon and want to know what features it offers",
+      "message_id": "7716f3b96b0c41538211383fa9fb0361",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhBQtpYWqEIMDvgcVlFqFv6L",
+        "text": {
+          "body": "I am interested in Kairon and want to know what features it offers"
+        },
+        "timestamp": "1679564404",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9999985694885254
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 8.110004614536592e-7
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 6.184782250784338e-7
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "7716f3b96b0c41538211383fa9fb0361"
+  },
+  {
+    "event": "user",
+    "timestamp": 1679564511.754209,
+    "metadata": {
+      "from": "919515991685",
+      "id": "ABEGkZUVmRaFAhBqts9YCD82XqzLWTgu782e",
+      "text": {
+        "body": "What are some advantages of kairon"
+      },
+      "timestamp": "1679564510",
+      "type": "text",
+      "is_integration_user": true,
+      "bot": "64194d0767f769fdbd9bfe08",
+      "account": 32,
+      "channel_type": "whatsapp",
+      "bsp_type": "360dialog"
+    },
+    "text": "What are some advantages of kairon",
+    "parse_data": {
+      "intent": {
+        "id": {
+          "$numberLong": "-1431284465221621498"
+        },
+        "name": "nlu_fallback",
+        "confidence": 0.9999861717224121
+      },
+      "entities": [],
+      "text": "What are some advantages of kairon",
+      "message_id": "22388462565448abb247de6f944f92b6",
+      "metadata": {
+        "from": "919515991685",
+        "id": "ABEGkZUVmRaFAhBqts9YCD82XqzLWTgu782e",
+        "text": {
+          "body": "What are some advantages of kairon"
+        },
+        "timestamp": "1679564510",
+        "type": "text",
+        "is_integration_user": true,
+        "bot": "64194d0767f769fdbd9bfe08",
+        "account": 32,
+        "channel_type": "whatsapp",
+        "bsp_type": "360dialog"
+      },
+      "intent_ranking": [
+        {
+          "id": {
+            "$numberLong": "-1431284465221621498"
+          },
+          "name": "nlu_fallback",
+          "confidence": 0.9999861717224121
+        },
+        {
+          "id": {
+            "$numberLong": "-3155400300484276392"
+          },
+          "name": "goodbye",
+          "confidence": 0.000013383863915805705
+        },
+        {
+          "id": {
+            "$numberLong": "5992108466215921233"
+          },
+          "name": "greet",
+          "confidence": 4.36140936699303e-7
+        }
+      ],
+      "response_selector": {
+        "all_retrieval_intents": [],
+        "default": {
+          "response": {
+            "id": null,
+            "responses": null,
+            "response_templates": null,
+            "confidence": 0,
+            "intent_response_key": null,
+            "utter_action": "utter_None",
+            "template_name": "utter_None"
+          },
+          "ranking": []
+        }
+      }
+    },
+    "input_channel": "whatsapp",
+    "message_id": "22388462565448abb247de6f944f92b6"
+  },
+  {
+    "event": "user_featurization",
+    "timestamp": 1679564527.7790787,
+    "use_text_for_featurization": false
+  },
+  {
+    "event": "action",
+    "timestamp": 1679564527.7791095,
+    "name": "gpt_llm_faq",
+    "policy": "policy_2_RulePolicy",
+    "confidence": 1,
+    "action_text": null,
+    "hide_rule_turn": true
+  }
+  ]

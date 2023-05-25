@@ -3421,15 +3421,53 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
-        assert bot_responses == [{'role': 'user', 'content': 'What is kairon simply?'},
-                                 {'role': 'assistant',
-                                  'content': 'Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.'},
-                                 {'role': 'user', 'content': 'Do you know any language other than English.'},
-                                 {'role': 'assistant', 'content': "I'm sorry, I didn't quite understand that. Could you rephrase?"},
-                                 {'role': 'user', 'content': 'How to add forms in kairon?'},
-                                 {'role': 'assistant',
-                                  'content': 'To add forms in Kairon, follow these steps:\n- Click on "View"\n- Click on "Add new" button on the top right corner\n- Click on the option "Forms"\n- Type in the desired title on the top left corner\n- Add the desired component from the mapped slots\n- Click on the added slots and type in the bot\'s reply for valid user response, invalid user response, and questions in the respective type boxes\n- To add the questions, press shift and enter keys together\n- Click on "Save" button on the top right corner\n- Retrain the bot to add the form successfully after adding the form.'},
-                                 {'role': 'assistant',
-                                  'content': 'Kairon uses two main approaches for training its chatbots: GPT-based models and Rasa-based models.'},
-                                 {'role': 'user', 'content': 'In how many ways can we train in kairon?'},
+        print(bot_responses)
+        assert bot_responses == [{'role': 'user', 'content': 'Kairon pricing'},
                                  {'role': 'assistant', 'content': "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."}]
+
+    def test_if_last_n_is_less_than_or_equal_to_zero(self):
+        events = Utility.read_yaml("tests/testing_data/history/bot_user_tracker_events.json")
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
+        print(bot_responses)
+        assert bot_responses == [{'role': 'user', 'content': 'How can I use it?'},
+                                 {'role': 'assistant', 'content': 'It depends on what "it" refers to. Can you please provide more context or specify what you are referring to?'},
+                                 {'role': 'user', 'content': 'How can I use kairon?'},
+                                 {'role': 'assistant', 'content': "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."},
+                                 {'role': 'user', 'content': 'Is there any example for how can I use it?'},
+                                 {'role': 'assistant', 'content': 'Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world.'},
+                                 {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'},
+                                 {'role': 'assistant', 'content': 'Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more.'},
+                                 {'role': 'user', 'content': 'What is kairon simply?'},
+                                 {'role': 'assistant', 'content': 'Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.'}
+                                 ]
+
+    def test_prepare_bot_responses_messages_pop(self):
+        events = Utility.read_yaml("tests/testing_data/history/tracker_file.json")
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
+        print(bot_responses)
+        assert bot_responses == [
+            {'role': 'assistant', 'content': 'Kairon is a versatile conversational digital transformation platform '
+                                             'that offers a range of capabilities to businesses. Its features include '
+                                             'end-to-end lifecycle management, tethered digital assistants, '
+                                             'low-code/no-code interface, secure script injection, Kairon Telemetry, '
+                                             'chat client designer, analytics module, robust integration suite, '
+                                             'and real-time struggle analytics. Additionally, Kairon offers natural '
+                                             'language processing, artificial intelligence, and machine learning for '
+                                             'developing sophisticated chatbots for e-commerce purposes. Kairon '
+                                             'chatbots can perform a wide range of tasks, including providing '
+                                             'customer support, helping customers find the right products, '
+                                             'answering customer queries, processing orders, managing inventory, '
+                                             'generating leads, promoting sales and discounts, gathering customer '
+                                             'feedback, analyzing customer data, and much more.'},
+            {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'}
+        ]
