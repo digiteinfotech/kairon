@@ -3554,6 +3554,42 @@ class MongoProcessor:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME):
                 self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, bot, user)
 
+    def add_default_training_data(self, bot: Text, user: Text):
+        data = Utility.read_yaml("template/use-cases/GPT-FAQ/data/nlu.yml")
+        utterance = Utility.read_yaml("template/use-cases/GPT-FAQ/domain.yml")
+
+        self.add_intent('bye', bot, user, is_integration=False)
+        examples_bye = next(intent["examples"] for intent in data["nlu"] if intent['intent'] == "bye")
+        self.add_training_example(examples_bye, 'bye', bot, user, is_integration=False)
+        self.add_utterance_name('utter_bye', bot, user)
+        utter_bye_exmp = utterance['responses']['utter_bye']
+        utter_bye = [item['text'] for item in utter_bye_exmp]
+        for text in utter_bye:
+            self.add_text_response(text, 'utter_bye', bot, user)
+        steps_goodbye = [
+            {"name": 'bye', "type": "INTENT"},
+            {"name": 'utter_bye', "type": "BOT"},
+        ]
+        story_dict_bye = {'name': "Bye", 'steps': steps_goodbye, 'type': 'STORY',
+                          'template_type': 'CUSTOM'}
+        self.add_complex_story(story_dict_bye, bot, user)
+
+        self.add_intent('greet', bot, user, is_integration=False)
+        examples_greet = next(intent["examples"] for intent in data["nlu"] if intent['intent'] == "greet")
+        self.add_training_example(examples_greet, 'bye', bot, user, is_integration=False)
+        self.add_utterance_name('utter_greet', bot, user)
+        utter_greet_exmp = utterance['responses']['utter_greet']
+        utter_greet = [item['text'] for item in utter_greet_exmp]
+        for text in utter_greet:
+            self.add_text_response(text, 'utter_greet', bot, user)
+        steps_greet = [
+            {"name": 'greet', "type": "INTENT"},
+            {"name": 'utter_greet', "type": "BOT"},
+        ]
+        story_dict_greet = {'name': "Greet", 'steps': steps_greet, 'type': 'STORY',
+                            'template_type': 'CUSTOM'}
+        self.add_complex_story(story_dict_greet, bot, user)
+
     def add_synonym(self, synonyms_dict: Dict, bot, user):
         if Utility.check_empty_string(synonyms_dict.get('name')):
             raise AppException("Synonym name cannot be an empty string")
