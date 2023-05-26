@@ -2498,7 +2498,7 @@ data: [DONE]\n\n"""
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"api-key": f"Bearer {api_key}"}
+        request_header = {"api-key": api_key}
         mock_completion_request = {"messages": [
             {"role": "system",
              "content": DEFAULT_SYSTEM_PROMPT},
@@ -2528,7 +2528,7 @@ data: [DONE]\n\n"""
         api_key = "test"
         query = "What kind of language is python?"
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
-        request_header = {"api-key": f"Bearer {api_key}"}
+        request_header = {"api-key": api_key}
         llm_settings = LLMSettings(enable_faq=True, provider="azure", embeddings_model_id="openaimodel_embd",
                                    chat_completion_model_id="openaimodel_completion",
                                    api_version="2023-03-16").to_mongo().to_dict()
@@ -2551,7 +2551,7 @@ data: [DONE]\n\n"""
     def test_trigger_azure_client_embedding_failure(self):
         api_key = "test"
         query = "What kind of language is python?"
-        request_header = {"api-key": f"Bearer {api_key}"}
+        request_header = {"api-key": api_key}
         llm_settings = LLMSettings(enable_faq=True, provider="azure", embeddings_model_id="openaimodel_embd",
                                    chat_completion_model_id="openaimodel_completion",
                                    api_version="2023-03-16").to_mongo().to_dict()
@@ -2584,7 +2584,7 @@ data: [DONE]\n\n"""
     def test_trigger_azure_client_completion_failure(self):
         api_key = "test"
         hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"api-key": f"Bearer {api_key}"}
+        request_header = {"api-key": api_key}
         llm_settings = LLMSettings(enable_faq=True, provider="azure", embeddings_model_id="openaimodel_embd",
                                    chat_completion_model_id="openaimodel_completion",
                                    api_version="2023-03-16").to_mongo().to_dict()
