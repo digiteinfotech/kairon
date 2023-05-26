@@ -3548,31 +3548,32 @@ class MongoProcessor:
                 examples = name['examples'].split('\n')
                 examples = [exmp.replace('- ', '') for exmp in examples if exmp]
                 self.add_training_example(examples, name['intent'], bot, user, is_integration=False)
-                for key, value in utterance['responses'].items():
-                    if name['intent'] == 'bye' and key == 'utter_bye':
-                        self.add_utterance_name(key, bot, user)
-                        utter_examples = [item['text'] for item in value]
-                        for text in utter_examples:
-                            self.add_text_response(text, key, bot, user)
-                        steps_goodbye = [
-                            {"name": name['intent'], "type": "INTENT"},
-                            {"name": key, "type": "BOT"},
-                        ]
-                        story_dict_bye = {'name': "Bye", 'steps': steps_goodbye, 'type': 'STORY',
-                                          'template_type': 'CUSTOM'}
-                        self.add_complex_story(story_dict_bye, bot, user)
-                    elif name['intent'] == 'greet' and key == 'utter_greet':
-                        self.add_utterance_name(key, bot, user)
-                        utter_examples = [item['text'] for item in value]
-                        for text in utter_examples:
-                            self.add_text_response(text, key, bot, user)
-                        steps_greet = [
-                            {"name": name['intent'], "type": "INTENT"},
-                            {"name": key, "type": "BOT"},
-                        ]
-                        story_dict_greet = {'name': "Greet", 'steps': steps_greet, 'type': 'STORY',
-                                            'template_type': 'CUSTOM'}
-                        self.add_complex_story(story_dict_greet, bot, user)
+                if name['intent'] == 'bye':
+                    self.add_utterance_name('utter_bye', bot, user)
+                    utter_bye_exmp = utterance['responses']['utter_bye']
+                    utter_bye = [item['text'] for item in utter_bye_exmp]
+                    for text in utter_bye:
+                        self.add_text_response(text, 'utter_bye', bot, user)
+                    steps_goodbye = [
+                        {"name": name['intent'], "type": "INTENT"},
+                        {"name": 'utter_bye', "type": "BOT"},
+                    ]
+                    story_dict_bye = {'name': "Bye", 'steps': steps_goodbye, 'type': 'STORY',
+                                      'template_type': 'CUSTOM'}
+                    self.add_complex_story(story_dict_bye, bot, user)
+                elif name['intent'] == 'greet':
+                    self.add_utterance_name('utter_greet', bot, user)
+                    utter_greet_exmp = utterance['responses']['utter_greet']
+                    utter_greet = [item['text'] for item in utter_greet_exmp]
+                    for text in utter_greet:
+                        self.add_text_response(text, 'utter_greet', bot, user)
+                    steps_greet = [
+                        {"name": name['intent'], "type": "INTENT"},
+                        {"name": 'utter_greet', "type": "BOT"},
+                    ]
+                    story_dict_greet = {'name': "Greet", 'steps': steps_greet, 'type': 'STORY',
+                                        'template_type': 'CUSTOM'}
+                    self.add_complex_story(story_dict_greet, bot, user)
 
     def add_synonym(self, synonyms_dict: Dict, bot, user):
         if Utility.check_empty_string(synonyms_dict.get('name')):
