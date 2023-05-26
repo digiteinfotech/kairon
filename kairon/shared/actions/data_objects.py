@@ -96,6 +96,7 @@ class HttpActionConfig(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    return_json = BooleanField(default=True)
 
     def validate(self, clean=True):
         from kairon.shared.actions.utils import ActionUtility
