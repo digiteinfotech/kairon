@@ -1384,16 +1384,6 @@ async def delete_form(
     return Response(message='Form deleted')
 
 
-@router.get("/forms/validations/list", response_model=Response)
-async def get_supported_form_validations(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
-):
-    """
-    Get list of all supported form validations according to slot types.
-    """
-    return Response(data=ActionUtility.list_slot_validation_operators())
-
-
 @router.get("/entities", response_model=Response)
 async def list_entities(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """

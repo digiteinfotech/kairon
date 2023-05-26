@@ -12,12 +12,11 @@ from rasa_sdk import Tracker
 
 from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
-from .models import SlotValidationOperators, LogicalOperators, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, ActionType
+from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes
-from ..data.constant import SLOT_TYPE, REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
+from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..utils import Utility
@@ -774,29 +773,3 @@ class ActionUtility:
         else:
             bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         return recommendations, bot_response
-
-    @staticmethod
-    def list_slot_validation_operators():
-        text_data_validations = [SlotValidationOperators.equal_to.value, SlotValidationOperators.not_equal_to.value,
-                                 SlotValidationOperators.case_insensitive_equals.value, SlotValidationOperators.contains.value,
-                                 SlotValidationOperators.starts_with.value, SlotValidationOperators.ends_with.value,
-                                 SlotValidationOperators.has_length.value, SlotValidationOperators.has_length_greater_than.value,
-                                 SlotValidationOperators.has_length_less_than.value, SlotValidationOperators.has_no_whitespace.value,
-                                 SlotValidationOperators.is_in.value, SlotValidationOperators.is_not_in.value,
-                                 SlotValidationOperators.is_not_null_or_empty.value, SlotValidationOperators.is_null_or_empty.value,
-                                 SlotValidationOperators.is_an_email_address.value, SlotValidationOperators.matches_regex.value]
-        operators = {
-            SLOT_TYPE.LIST.value: [SlotValidationOperators.equal_to.value, SlotValidationOperators.contains.value,
-                                   SlotValidationOperators.has_length.value, SlotValidationOperators.has_length_greater_than.value,
-                                   SlotValidationOperators.has_length_less_than.value, SlotValidationOperators.is_in.value,
-                                   SlotValidationOperators.is_not_in.value, SlotValidationOperators.is_null_or_empty.value,
-                                   SlotValidationOperators.is_not_null_or_empty.value],
-            SLOT_TYPE.BOOLEAN.value: [SlotValidationOperators.is_true.value, SlotValidationOperators.is_false.value],
-            SLOT_TYPE.FLOAT.value: [SlotValidationOperators.equal_to.value, SlotValidationOperators.is_greater_than.value,
-                                    SlotValidationOperators.is_less_than.value, SlotValidationOperators.is_in.value,
-                                    SlotValidationOperators.is_not_in.value],
-            SLOT_TYPE.TEXT.value: text_data_validations,
-            SLOT_TYPE.CATEGORICAL.value: text_data_validations,
-            SLOT_TYPE.ANY.value: text_data_validations
-        }
-        return operators
