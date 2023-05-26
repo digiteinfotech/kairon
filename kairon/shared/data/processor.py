@@ -3922,7 +3922,7 @@ class MongoProcessor:
 
         for slots_to_fill in path:
             slot = slots_to_fill.get('slot')
-            validation_semantic = Utility.prepare_form_validation_semantic(slots_to_fill.get('validation'))
+            validation_semantic = slots_to_fill.get('validation_semantic')
             if slot in existing_validations:
                 validation = existing_slot_validations.get(slot=slot)
                 validation.validation_semantic = validation_semantic
