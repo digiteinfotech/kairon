@@ -1,13 +1,13 @@
 version: "2.0"
 nlu:
 - intent: bye
-  examples: |
+  examples:
     - good bye
     - bye
     - See you later!
     - Goodbye!
 - intent: greet
-  examples: |
+  examples:
     - Hi
     - Hello
     - Greetings
