@@ -5804,34 +5804,27 @@ class TestMongoProcessor:
 
     def test_add_form_with_validations(self):
         processor = MongoProcessor()
-        name_validation = {'logical_operator': 'and',
-                           'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                            {'operator': 'has_no_whitespace'}]}]}
-        age_validation = {'logical_operator': 'and',
-                          'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10},
-                                                           {'operator': 'is_less_than', 'value': 70},
-                                                           {'operator': 'starts_with', 'value': 'valid'},
-                                                           {'operator': 'ends_with', 'value': 'value'}]}]}
-        occupation_validation = {'logical_operator': 'and', 'expressions': [
-            {'logical_operator': 'and',
-             'validations': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
-                             {'operator': 'has_no_whitespace'},
-                             {'operator': 'ends_with', 'value': 'value'}]},
-            {'logical_operator': 'or',
-             'validations': [{'operator': 'has_length_greater_than', 'value': 20},
-                             {'operator': 'has_no_whitespace'},
-                             {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        name_validation = "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, " \
+                          "{'operator': 'has_no_whitespace'}]}"
+        age_validation = "{'and': [{'operator': 'is_greater_than', 'value': 10}, " \
+                         "{'operator': 'is_less_than', 'value': 70}, {'operator': 'starts_with', 'value': 'valid'}, " \
+                         "{'operator': 'ends_with', 'value': 'value'},]}"
+        occupation_validation = \
+            "{'and': [{'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']}, " \
+            "{'operator': 'has_no_whitespace'}, {'operator': 'ends_with', 'value': 'value'}]}, " \
+            "{'or': [{'operator': 'has_length_greater_than', 'value': 20}, {'operator': 'has_no_whitespace'}, " \
+            "{'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
         path = [{'ask_questions': ['your name?', 'ur name?'], 'slot': 'name',
-                 'validation': name_validation,
+                 'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['your age?', 'ur age?'], 'slot': 'age',
-                 'validation': age_validation,
+                 'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['your occupation?', 'ur occupation?'], 'slot': 'occupation',
-                 'validation': occupation_validation}]
+                 'validation_semantic': occupation_validation}]
         bot = 'test'
         user = 'user'
         assert processor.add_form('know_user_form', path, bot, user)
@@ -5856,28 +5849,25 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
-        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                                    {'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].validation_semantic == \
+               "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, {'operator': 'has_no_whitespace'}]}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
 
         assert validations_added[1].slot == 'age'
-        assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10},
-                                                                    {'operator': 'is_less_than', 'value': 70},
-                                                                    {'operator': 'starts_with', 'value': 'valid'},
-                                                                    {'operator': 'ends_with', 'value': 'value'},
-                                                                    ]}
+        assert validations_added[1].validation_semantic == \
+               "{'and': [{'operator': 'is_greater_than', 'value': 10}, " \
+               "{'operator': 'is_less_than', 'value': 70}, {'operator': 'starts_with', 'value': 'valid'}, " \
+               "{'operator': 'ends_with', 'value': 'value'},]}"
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
 
         assert validations_added[2].slot == 'occupation'
-        assert validations_added[2].validation_semantic == {'and': [
-            {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
-                     {'operator': 'has_no_whitespace'},
-                     {'operator': 'ends_with', 'value': 'value'}]},
-            {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                    {'operator': 'has_no_whitespace'},
-                    {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert validations_added[2].validation_semantic == \
+               "{'and': [{'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']}, " \
+               "{'operator': 'has_no_whitespace'}, {'operator': 'ends_with', 'value': 'value'}]}, " \
+               "{'or': [{'operator': 'has_length_greater_than', 'value': 20}, {'operator': 'has_no_whitespace'}, " \
+               "{'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
         assert not validations_added[2].valid_response
         assert not validations_added[2].invalid_response
 
@@ -5943,24 +5933,21 @@ class TestMongoProcessor:
         assert form['settings'][2]['ask_questions'][0]['_id']
         assert form['settings'][2]['ask_questions'][0]['value']['text']
         assert form['settings'][2]['ask_questions'][1]['value']['text']
-        assert form['settings'][0]['validation'] == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                             {'operator': 'has_no_whitespace'}]}
+        assert form['settings'][0]['validation'] == \
+               "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, {'operator': 'has_no_whitespace'}]}"
         assert form['settings'][0]['invalid_response'] == 'please rephrase'
         assert form['settings'][0]['valid_response'] == 'got it'
-        assert form['settings'][1]['validation'] == {'and': [{'operator': 'is_greater_than', 'value': 10},
-                                                             {'operator': 'is_less_than', 'value': 70},
-                                                             {'operator': 'starts_with', 'value': 'valid'},
-                                                             {'operator': 'ends_with', 'value': 'value'},
-                                                             ]}
+        assert form['settings'][1]['validation'] == \
+               "{'and': [{'operator': 'is_greater_than', 'value': 10}, " \
+               "{'operator': 'is_less_than', 'value': 70}, {'operator': 'starts_with', 'value': 'valid'}, " \
+               "{'operator': 'ends_with', 'value': 'value'},]}"
         assert form['settings'][1]['invalid_response'] == 'please enter again'
         assert form['settings'][1]['valid_response'] == 'valid entry'
-        assert form['settings'][2]['validation'] == {'and': [
-            {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
-                     {'operator': 'has_no_whitespace'},
-                     {'operator': 'ends_with', 'value': 'value'}]},
-            {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                    {'operator': 'has_no_whitespace'},
-                    {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert form['settings'][2]['validation'] == \
+               "{'and': [{'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']}, " \
+               "{'operator': 'has_no_whitespace'}, {'operator': 'ends_with', 'value': 'value'}]}, " \
+               "{'or': [{'operator': 'has_length_greater_than', 'value': 20}, {'operator': 'has_no_whitespace'}, " \
+               "{'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
 
@@ -6026,22 +6013,20 @@ class TestMongoProcessor:
 
     def test_edit_form_change_validations(self):
         processor = MongoProcessor()
-        name_validation = {'logical_operator': 'and',
-                           'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                            {'operator': 'has_no_whitespace'}]}]}
-        age_validation = {'logical_operator': 'and',
-                          'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10}]}]}
+        name_validation = "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, " \
+                          "{'operator': 'has_no_whitespace'}]}"
+        age_validation = "{'and': [{'operator': 'is_greater_than', 'value': 10}]}"
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-                 'validation': name_validation,
+                 'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
-                 'validation': age_validation,
+                 'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'validation': None}]
+                 'validation_semantic': None}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6066,13 +6051,13 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
-        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                                    {'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].validation_semantic == \
+               "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, {'operator': 'has_no_whitespace'}]}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
 
         assert validations_added[1].slot == 'age'
-        assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10}]}
+        assert validations_added[1].validation_semantic == "{'and': [{'operator': 'is_greater_than', 'value': 10}]}"
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
 
@@ -6084,12 +6069,12 @@ class TestMongoProcessor:
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}],
-                 'validation': None,
+                 'validation_semantic': None,
                  'valid_response': 'got it',
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
-                 'validation': None,
+                 'validation_semantic': None,
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
@@ -6100,7 +6085,7 @@ class TestMongoProcessor:
                      {'type': 'from_entity', 'entity': 'occupation'},
                      {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
                       'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
-                 'validation': None}]
+                 'validation_semantic': None}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6124,31 +6109,30 @@ class TestMongoProcessor:
 
         validations = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations) == 3
-        assert validations[0].validation_semantic == {}
+        assert not validations[0].validation_semantic
         assert validations[0].valid_response == 'got it'
         assert validations[0].invalid_response == 'please rephrase'
-        assert validations[1].validation_semantic == {}
+        assert not validations[1].validation_semantic
         assert validations[1].valid_response == 'valid entry'
         assert validations[1].invalid_response == 'please enter again'
-        assert validations[2].validation_semantic == {}
+        assert not validations[2].validation_semantic
         assert not validations[2].valid_response
         assert not validations[2].invalid_response
 
     def test_edit_form_add_validations(self):
         processor = MongoProcessor()
-        name_validation = {'logical_operator': 'and',
-                           'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}
+        name_validation = "{'and': [{'operator': 'has_no_whitespace'}]}"
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-                 'validation': name_validation,
+                 'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
-                 'validation': None,
+                 'validation_semantic': None,
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'validation': None}]
+                 'validation_semantic': None}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6156,7 +6140,7 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
-        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].validation_semantic == "{'and': [{'operator': 'has_no_whitespace'}]}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
 
@@ -6165,8 +6149,7 @@ class TestMongoProcessor:
         path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location'},
                 {'ask_questions': ['seats required?'], 'slot': 'num_people'},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-                 'validation': {'logical_operator': 'and',
-                                'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}},
+                 'validation_semantic': "{'and': [{'operator': 'has_no_whitespace'}]}"},
                 {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
                 {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
                 {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required'},
@@ -6221,7 +6204,7 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_restaurant_form', bot=bot, status=True))
         assert len(validations_added) == 7
         assert validations_added[1].slot == 'cuisine'
-        assert validations_added[1].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
+        assert validations_added[1].validation_semantic == "{'and': [{'operator': 'has_no_whitespace'}]}"
 
     def test_edit_form_not_exists(self):
         processor = MongoProcessor()
