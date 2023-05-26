@@ -17,7 +17,7 @@ class AzureGPT3Resources(GPT3Resources):
         }
 
     def get_headers(self):
-        return {"api-key": f"Bearer {self.api_key}"}
+        return {"api-key": self.api_key}
 
     def get_resource_url(self, resource: Text):
         model_id = self.model_id[resource]
