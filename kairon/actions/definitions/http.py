@@ -61,6 +61,7 @@ class ActionHTTP(ActionsBase):
         header_log = None
         filled_slots = {}
         dispatch_bot_response = True
+        return_json = True
         msg_logger = []
         try:
             http_action_config = self.retrieve_config()
@@ -70,6 +71,7 @@ class ActionHTTP(ActionsBase):
             headers, header_log = ActionUtility.prepare_request(tracker_data, http_action_config.get('headers'), self.bot)
             logger.info("headers: " + str(header_log))
             dynamic_params = http_action_config.get('dynamic_params')
+            return_json = http_action_config.get('return_json')
             if not ActionUtility.is_empty(dynamic_params):
                 body, body_log = ActionUtility.evaluate_script(dynamic_params, tracker_data)
                 msg_logger.append(body_log)
@@ -117,6 +119,8 @@ class ActionHTTP(ActionsBase):
                 status=status,
                 user_msg=tracker.latest_message.get('text')
             ).save()
+            if return_json:
+                dispatcher.utter_custom_json({"text": bot_response})
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)
         filled_slots.update({KAIRON_ACTION_RESPONSE_SLOT: bot_response})
