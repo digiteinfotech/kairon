@@ -5427,7 +5427,7 @@ def test_add_intents_to_different_bot():
 
     response = client.post(
         f"/api/bot/{pytest.bot_2}/intents",
-        json={"data": "greet"},
+        json={"data": "greeting"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5472,7 +5472,7 @@ def test_add_response_different_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert len(actual["data"]) == 1
+    assert len(actual["data"]) == 3
 
 
 def test_add_story_to_different_bot():
@@ -5483,7 +5483,7 @@ def test_add_story_to_different_bot():
             "type": "STORY",
             "template_type": "Q&A",
             "steps": [
-                {"name": "greet", "type": "INTENT"},
+                {"name": "greeting", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
             ],
         },
@@ -5536,7 +5536,37 @@ def test_train_insufficient_data(monkeypatch):
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
 
     response = client.post(
-        f"/api/bot/{pytest.bot_2}/train",
+        "/api/account/bot",
+        json={"data": "sample-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.get(
+        "/api/account/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    pytest.bot_sample = response['data']['account_owned'][3]['_id']
+
+    response_story = client.get(
+        f"/api/bot/{pytest.bot_sample}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response_story.json()
+    story_one = actual['data'][0]['_id']
+    story_two = actual['data'][1]['_id']
+
+    response_delete_story_one = client.delete(
+        f"/api/bot/{pytest.bot_sample}/stories/{story_one}/STORY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response_delete_story_two = client.delete(
+        f"/api/bot/{pytest.bot_sample}/stories/{story_two}/STORY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot_sample}/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
