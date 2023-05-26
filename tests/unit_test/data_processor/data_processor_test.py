@@ -5804,16 +5804,12 @@ class TestMongoProcessor:
 
     def test_add_form_with_validations(self):
         processor = MongoProcessor()
-        name_validation = "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, " \
-                          "{'operator': 'has_no_whitespace'}]}"
-        age_validation = "{'and': [{'operator': 'is_greater_than', 'value': 10}, " \
-                         "{'operator': 'is_less_than', 'value': 70}, {'operator': 'starts_with', 'value': 'valid'}, " \
-                         "{'operator': 'ends_with', 'value': 'value'},]}"
-        occupation_validation = \
-            "{'and': [{'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']}, " \
-            "{'operator': 'has_no_whitespace'}, {'operator': 'ends_with', 'value': 'value'}]}, " \
-            "{'or': [{'operator': 'has_length_greater_than', 'value': 20}, {'operator': 'has_no_whitespace'}, " \
-            "{'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        name_validation = "if (&& name.contains('i') && name.length() > 4 || !name.contains(" ")) " \
+                          "{return true;} else {return false;}"
+        age_validation = "if (age > 10 && age < 70) {return true;} else {return false;}"
+        occupation_validation = "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
+                                "&& !occupation.contains(" ") && occupation.length() > 20) " \
+                                "{return true;} else {return false;}"
         path = [{'ask_questions': ['your name?', 'ur name?'], 'slot': 'name',
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
@@ -5849,25 +5845,21 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
-        assert validations_added[0].validation_semantic == \
-               "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, {'operator': 'has_no_whitespace'}]}"
+        assert validations_added[0].validation_semantic == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                           "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
 
         assert validations_added[1].slot == 'age'
         assert validations_added[1].validation_semantic == \
-               "{'and': [{'operator': 'is_greater_than', 'value': 10}, " \
-               "{'operator': 'is_less_than', 'value': 70}, {'operator': 'starts_with', 'value': 'valid'}, " \
-               "{'operator': 'ends_with', 'value': 'value'},]}"
+               "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
 
         assert validations_added[2].slot == 'occupation'
         assert validations_added[2].validation_semantic == \
-               "{'and': [{'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']}, " \
-               "{'operator': 'has_no_whitespace'}, {'operator': 'ends_with', 'value': 'value'}]}, " \
-               "{'or': [{'operator': 'has_length_greater_than', 'value': 20}, {'operator': 'has_no_whitespace'}, " \
-               "{'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+               "if (occupation in ['teacher', 'programmer', 'student', 'manager'] && !occupation.contains(" ") " \
+               "&& occupation.length() > 20) {return true;} else {return false;}"
         assert not validations_added[2].valid_response
         assert not validations_added[2].invalid_response
 
@@ -5933,21 +5925,16 @@ class TestMongoProcessor:
         assert form['settings'][2]['ask_questions'][0]['_id']
         assert form['settings'][2]['ask_questions'][0]['value']['text']
         assert form['settings'][2]['ask_questions'][1]['value']['text']
-        assert form['settings'][0]['validation'] == \
-               "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, {'operator': 'has_no_whitespace'}]}"
+        assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                    "!name.contains(" ")) {return true;} else {return false;}"
         assert form['settings'][0]['invalid_response'] == 'please rephrase'
         assert form['settings'][0]['valid_response'] == 'got it'
-        assert form['settings'][1]['validation'] == \
-               "{'and': [{'operator': 'is_greater_than', 'value': 10}, " \
-               "{'operator': 'is_less_than', 'value': 70}, {'operator': 'starts_with', 'value': 'valid'}, " \
-               "{'operator': 'ends_with', 'value': 'value'},]}"
+        assert form['settings'][1]['validation'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert form['settings'][1]['invalid_response'] == 'please enter again'
         assert form['settings'][1]['valid_response'] == 'valid entry'
         assert form['settings'][2]['validation'] == \
-               "{'and': [{'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']}, " \
-               "{'operator': 'has_no_whitespace'}, {'operator': 'ends_with', 'value': 'value'}]}, " \
-               "{'or': [{'operator': 'has_length_greater_than', 'value': 20}, {'operator': 'has_no_whitespace'}, " \
-               "{'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+               "if (occupation in ['teacher', 'programmer', 'student', 'manager'] && !occupation.contains(" ") " \
+               "&& occupation.length() > 20) {return true;} else {return false;}"
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
 
@@ -6013,9 +6000,9 @@ class TestMongoProcessor:
 
     def test_edit_form_change_validations(self):
         processor = MongoProcessor()
-        name_validation = "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, " \
-                          "{'operator': 'has_no_whitespace'}]}"
-        age_validation = "{'and': [{'operator': 'is_greater_than', 'value': 10}]}"
+        name_validation = "if (&& name.contains('i') && name.length() > 4 || " \
+                          "!name.contains(" ")) {return true;} else {return false;}"
+        age_validation = "if (age > 10 && age < 70) {return true;} else {return false;}"
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
@@ -6052,12 +6039,14 @@ class TestMongoProcessor:
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
         assert validations_added[0].validation_semantic == \
-               "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, {'operator': 'has_no_whitespace'}]}"
+               "if (&& name.contains('i') && name.length() > 4 || " \
+               "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
 
         assert validations_added[1].slot == 'age'
-        assert validations_added[1].validation_semantic == "{'and': [{'operator': 'is_greater_than', 'value': 10}]}"
+        assert validations_added[1].validation_semantic == \
+               "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
 
@@ -6121,7 +6110,8 @@ class TestMongoProcessor:
 
     def test_edit_form_add_validations(self):
         processor = MongoProcessor()
-        name_validation = "{'and': [{'operator': 'has_no_whitespace'}]}"
+        name_validation = "if (&& name.contains('i') && name.length() > 4 || " \
+                          "!name.contains(" ")) {return true;} else {return false;}"
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
@@ -6140,7 +6130,8 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
-        assert validations_added[0].validation_semantic == "{'and': [{'operator': 'has_no_whitespace'}]}"
+        assert validations_added[0].validation_semantic == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                           "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
 
@@ -6149,7 +6140,8 @@ class TestMongoProcessor:
         path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location'},
                 {'ask_questions': ['seats required?'], 'slot': 'num_people'},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-                 'validation_semantic': "{'and': [{'operator': 'has_no_whitespace'}]}"},
+                 'validation_semantic': "if (&& cuisine.contains('i') && cuisine.length() > 4 || "
+                                        "!cuisine.contains(" ")) {return true;} else {return false;}"},
                 {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
                 {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
                 {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required'},
@@ -6204,7 +6196,9 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_restaurant_form', bot=bot, status=True))
         assert len(validations_added) == 7
         assert validations_added[1].slot == 'cuisine'
-        assert validations_added[1].validation_semantic == "{'and': [{'operator': 'has_no_whitespace'}]}"
+        assert validations_added[1].validation_semantic == \
+               "if (&& cuisine.contains('i') && cuisine.length() > 4 || !cuisine.contains(" ")) " \
+               "{return true;} else {return false;}"
 
     def test_edit_form_not_exists(self):
         processor = MongoProcessor()

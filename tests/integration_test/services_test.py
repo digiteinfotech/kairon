@@ -9458,19 +9458,14 @@ def test_add_form_with_validations():
     assert actual["message"] == "Slot mapping added"
     assert actual["success"]
 
-    name_validation = "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, " \
-                      "{'operator': 'has_no_whitespace', 'value': None}]}"
+    name_validation = "if (&& name.contains('i') && name.length() > 4 || !name.contains(" ")) " \
+                      "{return true;} else {return false;}"
 
-    age_validation = "{'and': [{'operator': '>', 'value': 10}, {'operator': '<', 'value': 70}, " \
-                     "{'operator': 'startswith', 'value': 'valid'}, {'operator': 'endswith', 'value': 'value'}]}"
+    age_validation = "if (age > 10 && age < 70) {return true;} else {return false;}"
 
-    occupation_validation = "{'and': [{'and': [{'operator': 'in', " \
-                            "'value': ['teacher', 'programmer', 'student', 'manager']}, " \
-                            "{'operator': 'has_no_whitespace', 'value': None}, " \
-                            "{'operator': 'endswith', 'value': 'value'}]}, " \
-                            "{'or': [{'operator': 'has_length_greater_than', 'value': 20}, " \
-                            "{'operator': 'has_no_whitespace', 'value': None}, " \
-                            "{'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+    occupation_validation = "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
+                            "&& !occupation.contains(" ") && occupation.length() > 20) " \
+                            "{return true;} else {return false;}"
 
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
              'validation_semantic': name_validation,
@@ -9526,27 +9521,19 @@ def test_get_form_with_validations():
     assert form['settings'][1]['ask_questions'][0]['value']['text']
     assert form['settings'][2]['ask_questions'][0]['value']['text']
     assert form['settings'][3]['ask_questions'][0]['value']['text']
-    assert form['settings'][0]['validation'] == "{'and': [{'operator': 'has_length_greater_than', 'value': 1}, " \
-                                                "{'operator': 'has_no_whitespace', 'value': None}]}"
-    assert form['settings'][1]['validation'] == "{'and': [{'operator': '>', 'value': 10}, " \
-                                                "{'operator': '<', 'value': 70}, " \
-                                                "{'operator': 'startswith', 'value': 'valid'}, " \
-                                                "{'operator': 'endswith', 'value': 'value'}]}"
+    assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                "!name.contains(" ")) {return true;} else {return false;}"
+    assert form['settings'][1]['validation'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
     assert not form['settings'][2]['validation']
-    assert form['settings'][3]['validation'] == \
-           "{'and': [{'and': [{'operator': 'in', " \
-           "'value': ['teacher', 'programmer', 'student', 'manager']}, " \
-           "{'operator': 'has_no_whitespace', 'value': None}, " \
-           "{'operator': 'endswith', 'value': 'value'}]}, " \
-           "{'or': [{'operator': 'has_length_greater_than', 'value': 20}, " \
-           "{'operator': 'has_no_whitespace', 'value': None}, " \
-           "{'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+    assert form['settings'][3]['validation'] == "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
+                                                "&& !occupation.contains(" ") && occupation.length() > 20) " \
+                                                "{return true;} else {return false;}"
 
 
 def test_edit_form_add_validations():
-    name_validation = "{'and': [{'operator': 'has_length_greater_than', 'value': 4}, " \
-                      "{'operator': 'has_no_whitespace', 'value': None}]}"
-    num_people_validation = "{'and': [{'operator': '>', 'value': 1}, {'operator': '<', 'value': 10}]}"
+    name_validation = "if (&& name.contains('i') && name.length() > 4 || " \
+                      "!name.contains(" ")) {return true;} else {return false;}"
+    num_people_validation = "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}],
@@ -9654,10 +9641,10 @@ def test_get_form_after_edit():
     assert form['settings'][4]['ask_questions'][0]['value']['text'] == 'any preferences?'
     assert form['settings'][5]['ask_questions'][0]['value'][
                'text'] == 'Please give your feedback on your experience so far'
-    assert form['settings'][0]['validation'] == "{'and': [{'operator': 'has_length_greater_than', 'value': 4}, " \
-                                                "{'operator': 'has_no_whitespace', 'value': None}]}"
-    assert form['settings'][1]['validation'] == "{'and': [{'operator': '>', 'value': 1}, " \
-                                                "{'operator': '<', 'value': 10}]}"
+    assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                "!name.contains(" ")) {return true;} else {return false;}"
+    assert form['settings'][1]['validation'] == \
+           "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     assert not form['settings'][2]['validation']
     assert not form['settings'][3]['validation']
     assert not form['settings'][4]['validation']

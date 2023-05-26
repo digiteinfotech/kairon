@@ -1652,11 +1652,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'location'
-        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
-                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
-                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
-                              " {'operator': 'has_no_whitespace'}," \
-                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                              "&& location.endsWith('i')) || location.length() > 20) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
                              bot=bot, user=user).save()
@@ -1814,10 +1812,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'user_id'
-        semantic_expression = "{'and': [{'and': [{'operator': 'is_an_email_address'}," \
-                              " {'operator': 'is_not_null_or_empty'}, {'operator': 'endswith', 'value': '.com'},]}," \
-                              " {'or': [{'operator': 'has_length_greater_than', 'value': 4}," \
-                              " {'operator': 'has_no_whitespace'},]}]}"
+        semantic_expression = "if (!user_id.isEmpty() && user_id.endsWith('.com) && " \
+                              "(user_id.length() > 4 || !user_id.contains(" ")) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='location', validation_semantic=semantic_expression,
                              bot=bot, user=user).save()
@@ -1879,11 +1876,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'current_location'
-        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
-                              " {'operator': 'startswith', 'value': 'M'}, {'operator': 'endswith', 'value': 'i'},]}," \
-                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
-                              " {'operator': 'has_no_whitespace'}," \
-                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        semantic_expression = "if ((current_location in ['Mumbai', 'Bangalore'] && current_location.startsWith('M') " \
+                              "&& current_location.endsWith('i')) || current_location.length() > 20) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
@@ -1948,10 +1943,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'profession'
-        semantic_expression = "{'and': [{'and': [{'operator': 'is_not_null_or_empty'}, " \
-                              "{'operator': 'endswith', 'value': '.com'},]}, " \
-                              "{'or': [{'operator': 'has_length_greater_than', 'value': 4}, " \
-                              "{'operator': 'has_no_whitespace'},]}]}"
+        semantic_expression = "if (!profession.isEmpty() && profession.endsWith('.com) && " \
+                              "(profession.length() > 4 || !profession.contains(" ")) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='some_slot', validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
@@ -2049,10 +2043,7 @@ class TestActionServer(AsyncHTTPTestCase):
             'events': [{'event': 'slot', 'timestamp': None, 'name': 'age', 'value': 10}],
             'responses': []})
 
-        semantic_expression = "{'and': [{'and': [{'operator': 'is_not_null_or_empty'}, " \
-                              "{'operator': 'ends_with', 'value': '.com'},]}, " \
-                              "{'or': [{'operator': 'has_length_greater_than', 'value': 4}, " \
-                              "{'operator': 'has_no_whitespace'},]}]}"
+        semantic_expression = "if (age > 10 && age < 70) {return true;} else {return false;}"
         FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
                              bot=bot, user=user, valid_response='that is great!').save()
         FormValidationAction(name=action_name, slot='occupation', validation_semantic=semantic_expression,
@@ -2154,11 +2145,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'current_location'
-        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
-                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
-                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
-                              " {'operator': 'has_no_whitespace'}," \
-                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        semantic_expression = "if ((current_location in ['Mumbai', 'Bangalore'] && current_location.startsWith('M') " \
+                              "&& current_location.endsWith('i')) || current_location.length() > 20) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, validation_semantic=semantic_expression, is_required=False, slot=slot,
                              bot=bot, user=user, valid_response='that is great!',
@@ -2302,11 +2291,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'location'
-        semantic_expression = "{'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']}," \
-                              " {'operator': 'startswith', 'value': 'M'},{'operator': 'endswith', 'value': 'i'},]}," \
-                              " {'or': [{'operator': 'has_length_greater_than', 'value': 20}," \
-                              " {'operator': 'has_no_whitespace'}," \
-                              " {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}"
+        semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                              "&& location.endsWith('i')) || location.length() > 20) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, validation_semantic=semantic_expression, is_required=True, slot=slot,
                              bot=bot, user=user, valid_response='that is great!',

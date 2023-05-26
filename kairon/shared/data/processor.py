@@ -3928,6 +3928,7 @@ class MongoProcessor:
                 validation.validation_semantic = validation_semantic
                 validation.valid_response = slots_to_fill.get('valid_response')
                 validation.invalid_response = slots_to_fill.get('invalid_response')
+                validation.is_required = slots_to_fill.get('is_required')
                 validation.user = user
                 validation.timestamp = datetime.utcnow()
                 validation.save()
@@ -3936,7 +3937,8 @@ class MongoProcessor:
                                      validation_semantic=validation_semantic,
                                      bot=bot, user=user,
                                      valid_response=slots_to_fill.get('valid_response'),
-                                     invalid_response=slots_to_fill.get('invalid_response')).save()
+                                     invalid_response=slots_to_fill.get('invalid_response'),
+                                     is_required=slots_to_fill.get('is_required')).save()
 
         slot_validations_to_delete = existing_validations.difference(slots_required_for_form)
         for slot in slot_validations_to_delete:
