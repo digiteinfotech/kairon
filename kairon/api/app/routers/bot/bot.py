@@ -10,7 +10,6 @@ from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.shared.account.activity_log import UserActivityLogger
-from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
     TextData,
