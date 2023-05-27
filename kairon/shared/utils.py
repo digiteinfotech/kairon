@@ -1025,21 +1025,6 @@ class Utility:
         return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
 
     @staticmethod
-    def prepare_form_validation_semantic(validations: dict):
-        semantic = {}
-        if validations:
-            parent_operator = validations.get('logical_operator')
-            expressions = validations.get('expressions')
-            validation_semantic = []
-            for exp in expressions:
-                if exp.get('logical_operator'):
-                    validation_semantic.append({exp['logical_operator']: exp.get('validations')})
-                else:
-                    validation_semantic.extend(exp.get('validations'))
-            semantic = {parent_operator: validation_semantic}
-        return semantic
-
-    @staticmethod
     def get_latest_model(bot: Text):
         """
         fetches the latest model from the path
