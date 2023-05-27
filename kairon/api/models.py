@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
-from ..shared.actions.models import SlotValidationOperators, LogicalOperators, ActionParameterType, EvaluationType
+from ..shared.actions.models import ActionParameterType, EvaluationType
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
@@ -582,25 +582,11 @@ class SlotMappingRequest(BaseModel):
         return v
 
 
-class Validation(BaseModel):
-    operator: SlotValidationOperators
-    value: Any
-
-
-class Expression(BaseModel):
-    logical_operator: LogicalOperators = None
-    validations: List[Validation]
-
-
-class SlotValidation(BaseModel):
-    logical_operator: LogicalOperators = LogicalOperators.and_operator.value
-    expressions: List[Expression]
-
-
 class FormSettings(BaseModel):
     ask_questions: List[str]
     slot: str
-    validation: SlotValidation = None
+    is_required: bool = True
+    validation_semantic: str = None
     valid_response: str = None
     invalid_response: str = None
 

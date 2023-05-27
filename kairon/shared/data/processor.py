@@ -3973,12 +3973,13 @@ class MongoProcessor:
 
         for slots_to_fill in path:
             slot = slots_to_fill.get('slot')
-            validation_semantic = Utility.prepare_form_validation_semantic(slots_to_fill.get('validation'))
+            validation_semantic = slots_to_fill.get('validation_semantic')
             if slot in existing_validations:
                 validation = existing_slot_validations.get(slot=slot)
                 validation.validation_semantic = validation_semantic
                 validation.valid_response = slots_to_fill.get('valid_response')
                 validation.invalid_response = slots_to_fill.get('invalid_response')
+                validation.is_required = slots_to_fill.get('is_required')
                 validation.user = user
                 validation.timestamp = datetime.utcnow()
                 validation.save()
@@ -3987,7 +3988,8 @@ class MongoProcessor:
                                      validation_semantic=validation_semantic,
                                      bot=bot, user=user,
                                      valid_response=slots_to_fill.get('valid_response'),
-                                     invalid_response=slots_to_fill.get('invalid_response')).save()
+                                     invalid_response=slots_to_fill.get('invalid_response'),
+                                     is_required=slots_to_fill.get('is_required')).save()
 
         slot_validations_to_delete = existing_validations.difference(slots_required_for_form)
         for slot in slot_validations_to_delete:
@@ -4054,6 +4056,7 @@ class MongoProcessor:
                     mapping['validation'] = validations.get('validation_semantic')
                     mapping['valid_response'] = validations.get('valid_response')
                     mapping['invalid_response'] = validations.get('invalid_response')
+                    mapping['is_required'] = validations.get('is_required')
                 slot_mapping.append(mapping)
             form['settings'] = slot_mapping
             return form

@@ -1652,17 +1652,27 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'location'
-        semantic_expression = {'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']},
-                                                {'operator': 'startswith', 'value': 'M'},
-                                                {'operator': 'endswith', 'value': 'i'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                                               {'operator': 'has_no_whitespace'},
-                                               {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                              "&& location.endsWith('i')) || location.length() > 20) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
                              bot=bot, user=user).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
+                                   'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1745,8 +1755,22 @@ class TestActionServer(AsyncHTTPTestCase):
         user = 'test_user'
         slot = 'location'
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
-        FormValidationAction(name=action_name, slot=slot, validation_semantic={}, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=None, bot=bot, user=user).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': None,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2f', 'location': None, 'requested_slot': 'location'},
+                          'intent': 'test_run', 'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None,
+                          'session_started': None}}
+            )],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1788,13 +1812,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'user_id'
-        semantic_expression = {'and': [{'and': [{'operator': 'is_an_email_address'},
-                                                {'operator': 'is_not_null_or_empty'},
-                                                {'operator': 'endswith', 'value': '.com'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 4},
-                                               {'operator': 'has_no_whitespace'},
-                                               ]}]}
+        semantic_expression = "if (!user_id.isEmpty() && user_id.endsWith('.com) && " \
+                              "(user_id.length() > 4 || !user_id.contains(" ")) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='location', validation_semantic=semantic_expression,
                              bot=bot, user=user).save()
@@ -1802,6 +1822,20 @@ class TestActionServer(AsyncHTTPTestCase):
                              bot=bot, user=user,
                              valid_response='that is great!').save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'user_id': 'pandey.udit867@gmail.com',
+                                   'requested_slot': 'user_id'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1842,13 +1876,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'current_location'
-        semantic_expression = {'and': [{'and': [{'operator': 'in', 'value': ['Mumbai', 'Bangalore']},
-                                                {'operator': 'startswith', 'value': 'M'},
-                                                {'operator': 'endswith', 'value': 'i'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                                               {'operator': 'has_no_whitespace'},
-                                               {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        semantic_expression = "if ((current_location in ['Mumbai', 'Bangalore'] && current_location.startsWith('M') " \
+                              "&& current_location.endsWith('i')) || current_location.length() > 20) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
@@ -1857,6 +1887,21 @@ class TestActionServer(AsyncHTTPTestCase):
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
+                                   'requested_slot': 'current_location'},
+                          'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1898,12 +1943,9 @@ class TestActionServer(AsyncHTTPTestCase):
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
         slot = 'profession'
-        semantic_expression = {'and': [{'and': [{'operator': 'is_not_null_or_empty'},
-                                                {'operator': 'endswith', 'value': '.com'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 4},
-                                               {'operator': 'has_no_whitespace'},
-                                               ]}]}
+        semantic_expression = "if (!profession.isEmpty() && profession.endsWith('.com) && " \
+                              "(profession.length() > 4 || !profession.contains(" ")) " \
+                              "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot='some_slot', validation_semantic=semantic_expression,
                              bot=bot, user=user).save().to_mongo().to_dict()
@@ -1911,6 +1953,20 @@ class TestActionServer(AsyncHTTPTestCase):
                              bot=bot, user=user, valid_response='that is great!',
                              invalid_response='Invalid value. Please type again!').save().to_mongo().to_dict()
         Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'profession': 'computer programmer',
+                                   'requested_slot': 'profession'}, 'intent': 'test_run', 'chat_log': [],
+                          'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
 
         request_object = {
             "next_action": action_name,
@@ -1987,12 +2043,7 @@ class TestActionServer(AsyncHTTPTestCase):
             'events': [{'event': 'slot', 'timestamp': None, 'name': 'age', 'value': 10}],
             'responses': []})
 
-        semantic_expression = {'and': [{'and': [{'operator': 'is_not_null_or_empty'},
-                                                {'operator': 'ends_with', 'value': '.com'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 4},
-                                               {'operator': 'has_no_whitespace'},
-                                               ]}]}
+        semantic_expression = "if (age > 10 && age < 70) {return true;} else {return false;}"
         FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
                              bot=bot, user=user, valid_response='that is great!').save()
         FormValidationAction(name=action_name, slot='occupation', validation_semantic=semantic_expression,
@@ -2044,7 +2095,256 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {'events': [], 'responses': []})
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'reservation_id', 'value': "10974872t49"}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
+
+    def test_form_validation_action_with_is_required_false(self):
+        action_name = "validate_with_required_false"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'location'
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, validation_semantic=None, is_required=False, slot=slot,
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Mumbai', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
+
+    def test_form_validation_action_with_is_required_false_and_semantics(self):
+        action_name = "validate_with_required_false_and_semantics"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'current_location'
+        semantic_expression = "if ((current_location in ['Mumbai', 'Bangalore'] && current_location.startsWith('M') " \
+                              "&& current_location.endsWith('i')) || current_location.length() > 20) " \
+                              "{return true;} else {return false;}"
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, validation_semantic=semantic_expression, is_required=False, slot=slot,
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
+                                   'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
+                          'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Delhi', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location', 'value': None}], 'responses': [{'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
+
+    def test_form_validation_action_with_is_required_true(self):
+        action_name = "validate_with_required_true"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'user_id'
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, validation_semantic=None, is_required=True, slot=slot,
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'pandey.udit867@gmail.com', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'user_id', 'value': 'pandey.udit867@gmail.com'}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
+    
+    def test_form_validation_action_with_is_required_true_and_no_slot(self):
+        action_name = "validate_with_required_true_and_no_slot"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'reservation_id'
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, validation_semantic=None, is_required=True, slot=slot,
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: None, 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'reservation_id', 'value': None}], 'responses': [{'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
+
+    def test_form_validation_action_with_is_required_true_and_semantics(self):
+        action_name = "validate_with_required_true_and_semantics"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'location'
+        semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                              "&& location.endsWith('i')) || location.length() > 20) " \
+                              "{return true;} else {return false;}"
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, validation_semantic=semantic_expression, is_required=True, slot=slot,
+                             bot=bot, user=user, valid_response='that is great!',
+                             invalid_response='Invalid value. Please type again!').save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
+                                   'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Mumbai', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
 
     @patch("kairon.shared.actions.utils.ActionUtility.get_action")
     @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
