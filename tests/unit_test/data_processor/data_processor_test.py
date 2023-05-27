@@ -5813,14 +5813,16 @@ class TestMongoProcessor:
         path = [{'ask_questions': ['your name?', 'ur name?'], 'slot': 'name',
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
+                 'is_required': False,
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['your age?', 'ur age?'], 'slot': 'age',
                  'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
+                 'is_required': True,
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['your occupation?', 'ur occupation?'], 'slot': 'occupation',
-                 'validation_semantic': occupation_validation}]
+                 'validation_semantic': occupation_validation, 'is_required': False}]
         bot = 'test'
         user = 'user'
         assert processor.add_form('know_user_form', path, bot, user)
@@ -5849,12 +5851,14 @@ class TestMongoProcessor:
                                                            "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
+        assert not validations_added[0].is_required
 
         assert validations_added[1].slot == 'age'
         assert validations_added[1].validation_semantic == \
                "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
+        assert validations_added[1].is_required
 
         assert validations_added[2].slot == 'occupation'
         assert validations_added[2].validation_semantic == \
@@ -5862,6 +5866,7 @@ class TestMongoProcessor:
                "&& occupation.length() > 20) {return true;} else {return false;}"
         assert not validations_added[2].valid_response
         assert not validations_added[2].invalid_response
+        assert not validations_added[2].is_required
 
     def test_list_forms(self):
         processor = MongoProcessor()
@@ -5929,14 +5934,17 @@ class TestMongoProcessor:
                                                     "!name.contains(" ")) {return true;} else {return false;}"
         assert form['settings'][0]['invalid_response'] == 'please rephrase'
         assert form['settings'][0]['valid_response'] == 'got it'
+        assert not form['settings'][0]['is_required']
         assert form['settings'][1]['validation'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert form['settings'][1]['invalid_response'] == 'please enter again'
         assert form['settings'][1]['valid_response'] == 'valid entry'
+        assert form['settings'][1]['is_required']
         assert form['settings'][2]['validation'] == \
                "if (occupation in ['teacher', 'programmer', 'student', 'manager'] && !occupation.contains(" ") " \
                "&& occupation.length() > 20) {return true;} else {return false;}"
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
+        assert not form['settings'][2]['is_required']
 
     def test_get_form_not_added(self):
         import mongomock
@@ -6006,14 +6014,16 @@ class TestMongoProcessor:
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
+                 'is_required': True,
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
-                 'invalid_response': 'please enter again'
+                 'invalid_response': 'please enter again',
+                 'is_required': False,
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'validation_semantic': None}]
+                 'validation_semantic': None, 'is_required': False}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6043,15 +6053,18 @@ class TestMongoProcessor:
                "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
+        assert validations_added[0].is_required
 
         assert validations_added[1].slot == 'age'
         assert validations_added[1].validation_semantic == \
                "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
+        assert not validations_added[1].is_required
 
         assert validations_added[2].slot == 'occupation'
         assert not validations_added[2].validation_semantic
+        assert not validations_added[2].is_required
 
     def test_edit_form_remove_validations(self):
         processor = MongoProcessor()
@@ -6059,11 +6072,13 @@ class TestMongoProcessor:
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}],
                  'validation_semantic': None,
+                 'is_required': True,
                  'valid_response': 'got it',
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
                  'validation_semantic': None,
+                 'is_required': True,
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
@@ -6074,7 +6089,7 @@ class TestMongoProcessor:
                      {'type': 'from_entity', 'entity': 'occupation'},
                      {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
                       'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
-                 'validation_semantic': None}]
+                 'validation_semantic': None, 'is_required': False}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6101,12 +6116,15 @@ class TestMongoProcessor:
         assert not validations[0].validation_semantic
         assert validations[0].valid_response == 'got it'
         assert validations[0].invalid_response == 'please rephrase'
+        assert validations[0].is_required
         assert not validations[1].validation_semantic
         assert validations[1].valid_response == 'valid entry'
         assert validations[1].invalid_response == 'please enter again'
+        assert validations[1].is_required
         assert not validations[2].validation_semantic
         assert not validations[2].valid_response
         assert not validations[2].invalid_response
+        assert not validations[2].is_required
 
     def test_edit_form_add_validations(self):
         processor = MongoProcessor()
@@ -6115,14 +6133,16 @@ class TestMongoProcessor:
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
+                 'is_required': False,
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'validation_semantic': None,
+                 'is_required': True,
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'validation_semantic': None}]
+                 'validation_semantic': None, 'is_required': False}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6134,6 +6154,7 @@ class TestMongoProcessor:
                                                            "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
+        assert not validations_added[0].is_required
 
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()

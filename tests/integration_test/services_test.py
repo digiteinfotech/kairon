@@ -9469,16 +9469,18 @@ def test_add_form_with_validations():
 
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
              'validation_semantic': name_validation,
+             'is_required': True,
              'valid_response': 'got it',
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
              'validation_semantic': age_validation,
+             'is_required': True,
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'
              },
             {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location'},
             {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-             'validation_semantic': occupation_validation}]
+             'validation_semantic': occupation_validation, 'is_required': False}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9523,11 +9525,15 @@ def test_get_form_with_validations():
     assert form['settings'][3]['ask_questions'][0]['value']['text']
     assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
                                                 "!name.contains(" ")) {return true;} else {return false;}"
+    assert form['settings'][0]['is_required']
     assert form['settings'][1]['validation'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
+    assert form['settings'][1]['is_required']
     assert not form['settings'][2]['validation']
+    assert form['settings'][2]['is_required']
     assert form['settings'][3]['validation'] == "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
                                                 "&& !occupation.contains(" ") && occupation.length() > 20) " \
                                                 "{return true;} else {return false;}"
+    assert not form['settings'][3]['is_required']
 
 
 def test_edit_form_add_validations():
@@ -9537,10 +9543,11 @@ def test_edit_form_add_validations():
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}],
-             'validation_semantic': name_validation},
+             'validation_semantic': name_validation, 'is_required': True},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}],
              'validation_semantic': num_people_validation,
+             'is_required': False,
              'valid_response': 'valid value',
              'invalid_response': 'invalid value. please enter again'},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
@@ -9643,8 +9650,10 @@ def test_get_form_after_edit():
                'text'] == 'Please give your feedback on your experience so far'
     assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
                                                 "!name.contains(" ")) {return true;} else {return false;}"
+    assert form['settings'][0]['is_required']
     assert form['settings'][1]['validation'] == \
            "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
+    assert not form['settings'][1]['is_required']
     assert not form['settings'][2]['validation']
     assert not form['settings'][3]['validation']
     assert not form['settings'][4]['validation']

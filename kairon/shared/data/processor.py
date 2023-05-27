@@ -4005,6 +4005,7 @@ class MongoProcessor:
                     mapping['validation'] = validations.get('validation_semantic')
                     mapping['valid_response'] = validations.get('valid_response')
                     mapping['invalid_response'] = validations.get('invalid_response')
+                    mapping['is_required'] = validations.get('is_required')
                 slot_mapping.append(mapping)
             form['settings'] = slot_mapping
             return form
