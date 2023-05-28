@@ -71,3 +71,4 @@ APScheduler
 croniter
 faiss-cpu
 urllib3==1.26.15
+sanic>=20.12.6 # not directly required, pinned by Snyk to avoid a vulnerability
