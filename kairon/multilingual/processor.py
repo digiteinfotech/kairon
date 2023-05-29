@@ -212,7 +212,7 @@ class MultilingualTranslator:
 
             logger.info("Translated bot files successfully.")
 
-            new_bot = AccountProcessor.add_bot(name=name, account=self.account, user=self.user, metadata=metadata)
+            new_bot = AccountProcessor.add_bot(name=name, account=self.account, user=self.user, add_data=False, metadata=metadata)
             new_bot_id = new_bot['_id'].__str__()
             bot_created = True
             logger.info(f"Created new bot with bot_id: {str(new_bot_id)}")

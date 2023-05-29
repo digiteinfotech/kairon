@@ -3561,7 +3561,7 @@ class MongoProcessor:
 
         self.add_intent('greet', bot, user, is_integration=False)
         examples_greet = next(intent["examples"] for intent in data["nlu"] if intent['intent'] == "greet")
-        list(self.add_training_example(examples_greet, 'bye', bot, user, is_integration=False))
+        list(self.add_training_example(examples_greet, 'greet', bot, user, is_integration=False))
         self.add_utterance_name('utter_greet', bot, user)
         utter_greet_exmp = utterance['responses']['utter_greet']
         utter_greet = [item['text'] for item in utter_greet_exmp]

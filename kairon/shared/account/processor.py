@@ -79,7 +79,7 @@ class AccountProcessor:
         return bot_exists
 
     @staticmethod
-    def add_bot(name: str, account: int, user: str, is_new_account: bool = False, **metadata):
+    def add_bot(name: str, account: int, user: str, is_new_account: bool = False, add_data: bool = True, **metadata):
         """
         add a bot to account
 
@@ -116,7 +116,8 @@ class AccountProcessor:
         processor.add_or_overwrite_config(config, bot_id, user)
         processor.add_default_fallback_data(bot_id, user, True, True)
         processor.add_system_required_slots(bot_id, user)
-        processor.add_default_training_data(bot_id, user)
+        if add_data:
+            processor.add_default_training_data(bot_id, user)
         return bot
 
     @staticmethod
