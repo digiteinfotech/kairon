@@ -79,7 +79,7 @@ class AccountProcessor:
         return bot_exists
 
     @staticmethod
-    def add_bot(name: str, account: int, user: str, is_new_account: bool = False, **metadata):
+    def add_bot(name: str, account: int, user: str, is_new_account: bool = False, add_default_data: bool = True, **metadata):
         """
         add a bot to account
 
@@ -88,6 +88,7 @@ class AccountProcessor:
         :param account: account id
         :param user: user id
         :param is_new_account: True if it is a new account
+        :param add_default_data: True if default data is to be added
         :return: bot id
         """
         from kairon.shared.data.processor import MongoProcessor
@@ -116,7 +117,8 @@ class AccountProcessor:
         processor.add_or_overwrite_config(config, bot_id, user)
         processor.add_default_fallback_data(bot_id, user, True, True)
         processor.add_system_required_slots(bot_id, user)
-        processor.add_default_training_data(bot_id, user)
+        if add_default_data:
+            processor.add_default_training_data(bot_id, user)
         return bot
 
     @staticmethod
