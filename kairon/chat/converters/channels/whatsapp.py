@@ -59,6 +59,35 @@ class WhatsappResponseConverter(ElementTransformerOps):
         except Exception as ex:
             raise Exception(f"Exception in WhatsappResponseConverter::button_transfomer: {str(ex)}")
 
+    def dropdown_transformer(self, message):
+        try:
+            message_template = ElementTransformerOps.getChannelConfig(self.channel, self.message_type)
+            dropdown_json_temp = json.loads(message_template)
+            jsoniterator = ElementTransformerOps.json_generator(message)
+            submit_button_text = ElementTransformerOps.getChannelConfig(self.channel, "dropdown_button_text")
+            sections = {"sections": [], "button": submit_button_text}
+            rows_list = {"rows": []}
+            for item in jsoniterator:
+                body_default = item["dropdownLabel"]
+                body_msg = {"text": body_default}
+                data_type = item.get("type")
+                if data_type == ElementTypes.DROPDOWN.value:
+                    option_list = ElementTransformerOps.json_generator(item.get("options"))
+                    for option in option_list:
+                        label = option.get("label")
+                        value = option.get("value")
+                        row_data = {}
+                        row_data.update({"id": value})
+                        row_data.update({"title": label})
+                        row_data.update({"description": label})
+                        rows_list["rows"].append(row_data)
+                    sections["sections"].append(rows_list)
+                    dropdown_json_temp.update({"body": body_msg})
+                    dropdown_json_temp.update({"action": sections})
+                    return dropdown_json_temp
+        except Exception as ex:
+            raise Exception(f"Exception in WhatsappResponseConverter::dropdown_transformer: {str(ex)}")
+
     async def messageConverter(self, message):
         try:
             if self.message_type == ElementTypes.IMAGE.value:
@@ -69,5 +98,7 @@ class WhatsappResponseConverter(ElementTransformerOps):
                 return super().video_transformer(message)
             elif self.message_type == ElementTypes.BUTTON.value:
                 return self.button_transformer(message)
+            elif self.message_type == ElementTypes.DROPDOWN.value:
+                return self.dropdown_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in WhatsappResponseConverter::messageConverter {str(ex)}")
