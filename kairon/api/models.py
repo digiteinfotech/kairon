@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
-from ..shared.actions.models import ActionParameterType, EvaluationType
+from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
@@ -329,6 +329,13 @@ class HttpActionConfigRequest(BaseModel):
     dynamic_params: str = None
     headers: List[HttpActionParameters] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
+    dispatch_type: DispatchType = DispatchType.text.value
+
+    @validator("dispatch_type")
+    def validate_dispatch_type(cls, v, values, **kwargs):
+        if v not in [DispatchType.text.value, DispatchType.json.value]:
+            raise ValueError("Invalid dispatch_type")
+        return v
 
     @validator("action_name")
     def validate_action_name(cls, v, values, **kwargs):

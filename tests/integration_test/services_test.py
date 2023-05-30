@@ -6197,6 +6197,68 @@ def test_add_http_action_no_token():
     assert actual["success"]
 
 
+def test_add_http_action_with_valid_dispatch_type():
+    request_body = {
+        "action_name": "test_add_http_action_with_valid_dispatch_type",
+        "response": {"value": "string"},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "dynamic_params":
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+        "dispatch_type": "json"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/httpaction/test_add_http_action_with_valid_dispatch_type",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual['data']["response"] == {"value": "string", "dispatch": True, 'evaluation_type': 'expression'}
+    assert actual['data']["http_url"] == "http://www.google.com"
+    assert actual['data']["request_method"] == "GET"
+    assert len(actual['data']["params_list"]) == 0
+    assert actual['data']["dynamic_params"] == \
+           "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+    assert actual['data']["dispatch_type"] == "json"
+
+
+def test_add_http_action_with_invalid_dispatch_type():
+    request_body = {
+        "action_name": "test_add_http_action_with_invalid_dispatch_type",
+        "response": {"value": "string"},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "dynamic_params":
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}",
+        "dispatch_type": "invalid_dispatch_type"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert str(actual['message']).__contains__("value is not a valid enumeration member")
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
 def test_add_http_action_with_dynamic_params():
     request_body = {
         "action_name": "test_add_http_action_with_dynamic_params",
@@ -6224,7 +6286,7 @@ def test_update_http_action_with_dynamic_params():
         "action_name": "test_update_http_action_with_dynamic_params",
         "response": {"value": "", "dispatch": False},
         "http_url": "http://www.google.com",
-        "request_method": "GET",
+        "request_method": "GET"
     }
 
     response = client.post(
@@ -6246,7 +6308,8 @@ def test_update_http_action_with_dynamic_params():
         "headers": [{
             "key": "Authorization", "parameter_type": "value", "value": "bearer token", "encrypt": True
         }],
-        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}],
+        "dispatch_type": "json"
     }
     response = client.put(
         url=f"/api/bot/{pytest.bot}/action/httpaction",
@@ -6270,6 +6333,7 @@ def test_update_http_action_with_dynamic_params():
            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
     assert actual['data']["headers"] == \
            [{'key': 'Authorization', 'value': 'bearer token', 'parameter_type': 'value', 'encrypt': True}]
+    assert actual['data']["dispatch_type"] == "json"
     assert actual["success"]
 
 
@@ -6861,6 +6925,7 @@ def test_list_actions():
     assert actual['data'] == {
         'actions': ['action_greet'],
         'http_action': ['test_add_http_action_no_token',
+                        'test_add_http_action_with_valid_dispatch_type',
                         'test_add_http_action_with_dynamic_params',
                         'test_update_http_action_with_dynamic_params',
                         'test_add_http_action_with_sender_id_parameter_type',

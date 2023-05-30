@@ -14,7 +14,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType
+    EvaluationType, DispatchType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, KAIRON_FAQ_ACTION, \
@@ -96,7 +96,8 @@ class HttpActionConfig(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    return_json = BooleanField(default=True)
+    dispatch_type = StringField(default=DispatchType.text.value,
+                                choices=[d_type.value for d_type in DispatchType])
 
     def validate(self, clean=True):
         from kairon.shared.actions.utils import ActionUtility
@@ -104,6 +105,8 @@ class HttpActionConfig(Auditlog):
         if clean:
             self.clean()
 
+        if self.dispatch_type not in [DispatchType.text.value, DispatchType.json.value]:
+            raise ValidationError("Invalid dispatch_type")
         if self.action_name is None or not self.action_name.strip():
             raise ValidationError("Action name cannot be empty")
         if self.request_method.upper() not in ("GET", "POST", "PUT", "DELETE"):
