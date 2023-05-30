@@ -45,7 +45,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction
-from kairon.shared.actions.models import ActionType
+from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.auth import Authentication
@@ -8154,13 +8154,18 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response),
             http_url=http_url,
             request_method=request_method,
-            params_list=http_params_list
+            params_list=http_params_list,
+            dispatch_type=DispatchType.json.value
         )
         http_dict = http_action_config.dict()
         http_dict['action_name'] = ''
         with pytest.raises(ValidationError, match="Action name cannot be empty"):
             processor.add_http_action_config(http_dict, user, bot)
         http_dict['action_name'] = action
+        http_dict['dispatch_type'] = 'invalid_dispatch_type'
+        with pytest.raises(ValidationError, match="Invalid dispatch_type"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['dispatch_type'] = DispatchType.json.value
         http_dict['http_url'] = None
         with pytest.raises(ValidationError, match="URL cannot be empty"):
             processor.add_http_action_config(http_dict, user, bot)

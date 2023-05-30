@@ -331,12 +331,6 @@ class HttpActionConfigRequest(BaseModel):
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_type: DispatchType = DispatchType.text.value
 
-    @validator("dispatch_type")
-    def validate_dispatch_type(cls, v, values, **kwargs):
-        if v not in [DispatchType.text.value, DispatchType.json.value]:
-            raise ValueError("Invalid dispatch_type")
-        return v
-
     @validator("action_name")
     def validate_action_name(cls, v, values, **kwargs):
         from kairon.shared.utils import Utility
