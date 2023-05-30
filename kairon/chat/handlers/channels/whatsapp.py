@@ -39,8 +39,9 @@ class Whatsapp:
 
         # quick reply and user message both share 'text' attribute
         # so quick reply should be checked first
-        if message.get("type") == "interactive" and message.get("interactive").get("type") == "button_reply":
-            text = message["interactive"]["button_reply"]["id"]
+        if message.get("type") == "interactive":
+            interactive_type = message.get("interactive").get("type")
+            text = message["interactive"][interactive_type]["id"]
         elif message.get("type") == "text":
             text = message["text"]['body']
         elif message.get("type") in {"image", "audio", "document", "video"}:
@@ -173,7 +174,8 @@ class WhatsappBot(OutputChannel):
         type_list = Utility.system_metadata.get("type_list")
         message = json_message.get("data")
         messagetype = json_message.get("type")
-        content_type = {"link": "text", "video": "text", "image": "image", "button": "interactive"}
+        content_type = {"link": "text", "video": "text", "image": "image", "button": "interactive",
+                        "dropdown": "interactive"}
         if messagetype is not None and messagetype in type_list:
             messaging_type = content_type.get(messagetype)
             from kairon.chat.converters.channels.response_factory import ConverterFactory
