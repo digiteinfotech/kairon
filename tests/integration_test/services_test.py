@@ -6286,7 +6286,7 @@ def test_update_http_action_with_dynamic_params():
         "action_name": "test_update_http_action_with_dynamic_params",
         "response": {"value": "", "dispatch": False},
         "http_url": "http://www.google.com",
-        "request_method": "GET"
+        "request_method": "GET",
     }
 
     response = client.post(
