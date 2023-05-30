@@ -8088,7 +8088,7 @@ class TestMongoProcessor:
                                       'response': {'dispatch': False, 'evaluation_type': 'script'}, 'set_slots': [
                 {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                 {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
-                                      'user': 'test_user', 'status': True}
+                                      'user': 'test_user', 'status': True, "dispatch_type": "text"}
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
         assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
 
@@ -8131,7 +8131,7 @@ class TestMongoProcessor:
                           'response': {'value': '${RESPONSE}', 'dispatch': True, 'evaluation_type': 'expression'},
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                                         {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}],
-                          'bot': 'test_bot_1', 'user': 'test_user', 'status': True}
+                          'bot': 'test_bot_1', 'user': 'test_user', 'status': True, "dispatch_type": "text"}
         assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
         assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
 
@@ -8409,6 +8409,7 @@ class TestMongoProcessor:
         request_method = 'GET'
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        dispatch_type="json"
         header: List[HttpActionParameters] = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
@@ -8418,7 +8419,8 @@ class TestMongoProcessor:
             http_url=http_url,
             request_method=request_method,
             dynamic_params=dynamic_params,
-            headers=header
+            headers=header,
+            dispatch_type=dispatch_type
         )
         processor.add_http_action_config(http_action_config.dict(), user, bot)
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
@@ -8430,6 +8432,7 @@ class TestMongoProcessor:
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] == []
         assert actual_http_action['dynamic_params'] == dynamic_params
+        assert actual_http_action['dispatch_type'] == "json"
         assert actual_http_action['headers'][0]['key'] == "param3"
         assert actual_http_action['headers'][0]['value'] == "param1"
         assert actual_http_action['headers'][0]['parameter_type'] == "slot"
@@ -8447,6 +8450,7 @@ class TestMongoProcessor:
         user = 'test_user'
         response = "json"
         request_method = 'GET'
+        dispatch_type = 'json'
         http_action_config = HttpActionConfigRequest(
             action_name=action,
             content_type=HttpContentType.application_json.value,
@@ -8463,6 +8467,7 @@ class TestMongoProcessor:
         request_method = 'POST'
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        dispatch_type = "text"
         header = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
@@ -8474,7 +8479,8 @@ class TestMongoProcessor:
             request_method=request_method,
             dynamic_params=dynamic_params,
             headers=header,
-            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script")]
+            set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script")],
+            dispatch_type=dispatch_type
         )
         processor.update_http_config(http_action_config.dict(), user, bot)
 
@@ -8487,6 +8493,7 @@ class TestMongoProcessor:
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] == []
         assert actual_http_action['dynamic_params'] == dynamic_params
+        assert actual_http_action['dispatch_type'] == "text"
         assert actual_http_action['headers'][0]['key'] == "param3"
         assert actual_http_action['headers'][0]['value'] == "param1"
         assert actual_http_action['headers'][0]['parameter_type'] == "slot"
@@ -8569,7 +8576,7 @@ class TestMongoProcessor:
                                       {'key': 'param6', 'value': '', 'parameter_type': 'intent', 'encrypt': False}],
                           'response': {'value': 'string', 'dispatch': True, 'evaluation_type': 'expression'},
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'}],
-                          'bot': 'test_bot', 'user': 'test_user', 'status': True}
+                          'bot': 'test_bot', 'user': 'test_user', 'status': True, "dispatch_type": "text"}
 
     def test_update_http_config_invalid_action(self):
         processor = MongoProcessor()
