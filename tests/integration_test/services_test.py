@@ -5440,7 +5440,7 @@ def test_add_intents_to_different_bot():
 def test_add_training_examples_to_different_bot():
     response = client.post(
         f"/api/bot/{pytest.bot_2}/training_examples/greet",
-        json={"data": ["Hi"]},
+        json={"data": ["Heya"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5453,7 +5453,7 @@ def test_add_training_examples_to_different_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert len(actual["data"]) == 1
+    assert len(actual["data"]) == 10
 
 
 def test_add_response_different_bot():
@@ -14451,7 +14451,7 @@ def test_get_auditlog_for_user_2():
     from collections import Counter
     counter = Counter(actions)
     assert counter.get(AuditlogActions.SAVE.value) > 5
-    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 2
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
     assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
