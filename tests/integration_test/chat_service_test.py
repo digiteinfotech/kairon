@@ -268,6 +268,80 @@ class TestChatServer(AsyncHTTPTestCase):
             assert MeteringProcessor.get_metric_count(bot_account, metric_type=MetricType.test_chat,
                                                       channel_type="chat_client") >= 2
 
+    def test_chat_empty_data(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps({"data": ""}).encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == 'data is required!'
+
+    def test_chat_with_data_not_present(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps({"name": "nupur"}).encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == 'data is required!'
+
+    def test_chat_data_is_not_a_string(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps({"data": 123}).encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            print(actual)
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == "Invalid request body: 'data' field must be a string!"
+
+    def test_chat_invalid_json(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=''.encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            print(actual)
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == "Invalid JSON request: Expecting value: line 1 column 1 (char 0)"
+
     def test_chat_fetch_from_cache(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store

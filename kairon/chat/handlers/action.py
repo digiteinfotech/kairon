@@ -24,7 +24,7 @@ class ChatHandler(BaseHandler, ABC):
         error_code = 0
         try:
             user: User = super().authenticate(self.request, bot=bot)
-            body = json_decode(self.request.body.decode("utf8"))
+            body = ChatUtils.decode_request(self.request)
             response = await ChatUtils.chat(body.get("data"), user.bot_account, bot, user.get_user(),
                                             user.is_integration_user)
             logger.info(f"text={body.get('data')} response={response}")
