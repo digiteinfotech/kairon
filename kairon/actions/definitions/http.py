@@ -8,7 +8,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, HttpActionConfig
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
+from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 
 
@@ -61,10 +61,12 @@ class ActionHTTP(ActionsBase):
         header_log = None
         filled_slots = {}
         dispatch_bot_response = True
+        dispatch_type = DispatchType.text.value
         msg_logger = []
         try:
             http_action_config = self.retrieve_config()
             dispatch_bot_response = http_action_config['response']['dispatch']
+            dispatch_type = http_action_config['response']['dispatch_type']
             tracker_data = ActionUtility.build_context(tracker, True)
             tracker_data.update({'bot': self.bot})
             headers, header_log = ActionUtility.prepare_request(tracker_data, http_action_config.get('headers'), self.bot)
@@ -118,7 +120,10 @@ class ActionHTTP(ActionsBase):
                 user_msg=tracker.latest_message.get('text')
             ).save()
             if dispatch_bot_response:
-                dispatcher.utter_message(bot_response)
+                if dispatch_type == DispatchType.json.value:
+                    dispatcher.utter_message(json_message=bot_response)
+                else:
+                    dispatcher.utter_message(bot_response)
         filled_slots.update({KAIRON_ACTION_RESPONSE_SLOT: bot_response})
         return filled_slots
 

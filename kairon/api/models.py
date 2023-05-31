@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
-from ..shared.actions.models import ActionParameterType, EvaluationType
+from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType
 from ..shared.constants import SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
@@ -308,6 +308,7 @@ class ActionResponseEvaluation(BaseModel):
     value: str = None
     dispatch: bool = True
     evaluation_type: EvaluationType = EvaluationType.expression
+    dispatch_type: DispatchType = DispatchType.text.value
 
     @root_validator
     def check(cls, values):
