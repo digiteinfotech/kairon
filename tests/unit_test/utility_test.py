@@ -2484,3 +2484,30 @@ data: [DONE]\n\n"""
         request.client.host = "58.0.127.89"
         ip = Utility.get_client_ip(request)
         assert "58.0.127.89" == ip
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_whatsapp_dropdown(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input")
+        whatsapp = ConverterFactory.getConcreteInstance("dropdown", "whatsapp")
+        response = await whatsapp.messageConverter(input_json)
+        expected_output = json_data.get("whatsapp_drop_down_output")
+        print(f"expected {expected_output}..{response}")
+        assert expected_output == response
+
+    def test_dropdown_transformer_whatsapp(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
+        response = whatsapp.dropdown_transformer(input_json)
+        expected_output = json_data.get("whatsapp_drop_down_output")
+        assert expected_output == response
+
+    def test_dropdown_transformer_whatsapp_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input_exception")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
+        with pytest.raises(Exception):
+            whatsapp.dropdown_transformer(input_json)
