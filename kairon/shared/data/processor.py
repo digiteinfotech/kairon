@@ -2832,7 +2832,6 @@ class MongoProcessor:
             http_action.update(
                 set__http_url=request_data['http_url'], set__request_method=request_data['request_method'],
                 set__dynamic_params=request_data.get('dynamic_params'),
-                set__dispatch_type=request_data.get('dispatch_type'),
                 set__content_type=content_type, set__params_list=params_list, set__headers=headers,
                 set__response=response, set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
             )
@@ -2865,8 +2864,7 @@ class MongoProcessor:
             response=HttpActionResponse(**http_action_config.get('response', {})),
             set_slots=set_slots,
             bot=bot,
-            user=user,
-            dispatch_type=http_action_config.get('dispatch_type')
+            user=user
         ).save().to_mongo().to_dict()["_id"].__str__()
         self.add_action(http_action_config['action_name'], bot, user, action_type=ActionType.http_action.value,
                         raise_exception=False)
