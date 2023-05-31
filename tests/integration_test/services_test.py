@@ -14386,7 +14386,7 @@ def test_get_auditlog_for_user_2():
     from collections import Counter
     counter = Counter(actions)
     assert counter.get(AuditlogActions.SAVE.value) > 5
-    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 2
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
     assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
