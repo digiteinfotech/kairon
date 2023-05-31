@@ -100,6 +100,7 @@ class ElementTypes(str, Enum):
     IMAGE = "image"
     VIDEO = "video"
     BUTTON = "button"
+    DROPDOWN = "dropdown"
 
 
 class WhatsappBSPTypes(str, Enum):

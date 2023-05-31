@@ -2608,3 +2608,30 @@ data: [DONE]\n\n"""
         client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
         with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
             client.invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_whatsapp_dropdown(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input")
+        whatsapp = ConverterFactory.getConcreteInstance("dropdown", "whatsapp")
+        response = await whatsapp.messageConverter(input_json)
+        expected_output = json_data.get("whatsapp_drop_down_output")
+        print(f"expected {expected_output}..{response}")
+        assert expected_output == response
+
+    def test_dropdown_transformer_whatsapp(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
+        response = whatsapp.dropdown_transformer(input_json)
+        expected_output = json_data.get("whatsapp_drop_down_output")
+        assert expected_output == response
+
+    def test_dropdown_transformer_whatsapp_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input_exception")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
+        with pytest.raises(Exception):
+            whatsapp.dropdown_transformer(input_json)
