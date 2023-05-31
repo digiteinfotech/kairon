@@ -71,3 +71,4 @@ APScheduler
 croniter
 faiss-cpu
 urllib3==1.26.15
+pytest-metadata==2.0.4
