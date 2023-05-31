@@ -1,9 +1,9 @@
 import datetime
 import json
-from json import JSONDecodeError, JSONEncoder
 from typing import Text
 
 from loguru import logger
+from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 from rasa.core.channels import UserMessage
 from rasa.core.tracker_store import TrackerStore
@@ -18,7 +18,7 @@ from ..shared.actions.utils import ActionUtility
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
-from pymongo.collection import Collection
+
 
 class ChatUtils:
 

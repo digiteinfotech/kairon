@@ -3,6 +3,7 @@ import json
 import os
 from urllib.parse import urlencode, quote_plus
 
+import responses
 from mock import patch
 from mongoengine import connect
 from rasa.core.agent import Agent
@@ -15,8 +16,12 @@ from kairon.chat.agent.agent import KaironAgent
 from kairon.chat.handlers.channels.messenger import MessengerHandler
 from kairon.chat.server import make_app
 from kairon.chat.utils import ChatUtils
+from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.auth import Authentication
+from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import INTEGRATION_STATUS
+from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
@@ -24,11 +29,6 @@ from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
-import responses
-from kairon.shared.account.data_objects import UserActivityLog
-from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import TOKEN_TYPE
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
