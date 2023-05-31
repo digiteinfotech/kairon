@@ -308,6 +308,7 @@ class ActionResponseEvaluation(BaseModel):
     value: str = None
     dispatch: bool = True
     evaluation_type: EvaluationType = EvaluationType.expression
+    dispatch_type: DispatchType = DispatchType.text.value
 
     @root_validator
     def check(cls, values):
@@ -329,7 +330,6 @@ class HttpActionConfigRequest(BaseModel):
     dynamic_params: str = None
     headers: List[HttpActionParameters] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
-    dispatch_type: DispatchType = DispatchType.text.value
 
     @validator("action_name")
     def validate_action_name(cls, v, values, **kwargs):

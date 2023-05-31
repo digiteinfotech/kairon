@@ -71,10 +71,14 @@ class HttpActionResponse(EmbeddedDocument):
     dispatch = BooleanField(default=True)
     evaluation_type = StringField(default=EvaluationType.expression.value,
                                   choices=[p_type.value for p_type in EvaluationType])
+    dispatch_type = StringField(default=DispatchType.text.value,
+                                choices=[d_type.value for d_type in DispatchType])
 
     def validate(self, clean=True):
         from .utils import ActionUtility
 
+        if self.dispatch_type not in [DispatchType.text.value, DispatchType.json.value]:
+            raise ValidationError("Invalid dispatch_type")
         if self.dispatch and ActionUtility.is_empty(self.value):
             raise ValidationError("response is required for dispatch")
 
@@ -96,8 +100,6 @@ class HttpActionConfig(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    dispatch_type = StringField(default=DispatchType.text.value,
-                                choices=[d_type.value for d_type in DispatchType])
 
     def validate(self, clean=True):
         from kairon.shared.actions.utils import ActionUtility
@@ -105,8 +107,6 @@ class HttpActionConfig(Auditlog):
         if clean:
             self.clean()
 
-        if self.dispatch_type not in [DispatchType.text.value, DispatchType.json.value]:
-            raise ValidationError("Invalid dispatch_type")
         if self.action_name is None or not self.action_name.strip():
             raise ValidationError("Action name cannot be empty")
         if self.request_method.upper() not in ("GET", "POST", "PUT", "DELETE"):

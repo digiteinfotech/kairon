@@ -66,12 +66,12 @@ class ActionHTTP(ActionsBase):
         try:
             http_action_config = self.retrieve_config()
             dispatch_bot_response = http_action_config['response']['dispatch']
+            dispatch_type = http_action_config['response']['dispatch_type']
             tracker_data = ActionUtility.build_context(tracker, True)
             tracker_data.update({'bot': self.bot})
             headers, header_log = ActionUtility.prepare_request(tracker_data, http_action_config.get('headers'), self.bot)
             logger.info("headers: " + str(header_log))
             dynamic_params = http_action_config.get('dynamic_params')
-            dispatch_type = http_action_config.get('dispatch_type')
             if not ActionUtility.is_empty(dynamic_params):
                 body, body_log = ActionUtility.evaluate_script(dynamic_params, tracker_data)
                 msg_logger.append(body_log)
