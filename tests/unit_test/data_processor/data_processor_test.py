@@ -45,7 +45,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction
-from kairon.shared.actions.models import ActionType
+from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.auth import Authentication
@@ -1157,7 +1157,7 @@ class TestMongoProcessor:
         assert actions == {'http_action': [
             {'action_name': 'action_get_google_application', 'http_url': 'http://www.alphabet.com',
              'content_type': 'json',
-             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
+             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'},
              'request_method': 'GET', 'headers': [
                 {'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log',
                  'encrypt': False},
@@ -1176,7 +1176,7 @@ class TestMongoProcessor:
                              {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1',
                               'parameter_type': 'slot', 'encrypt': False}]},
             {'action_name': 'action_get_microsoft_application',
-             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
+             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
              'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1',
                               'parameter_type': 'value', 'encrypt': False},
@@ -8055,7 +8055,8 @@ class TestMongoProcessor:
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression",
+                                                  "dispatch_type": "text"}
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] is not None
         assert actual_http_action['params_list'][0]['key'] == "param1"
@@ -8114,7 +8115,8 @@ class TestMongoProcessor:
                  'encrypt': False},
                 {'_cls': 'HttpActionRequestBody', 'key': 'param4', 'value': 'value2', 'parameter_type': 'value',
                  'encrypt': False}],
-                                      'response': {'dispatch': False, 'evaluation_type': 'script'}, 'set_slots': [
+                                      'response': {'dispatch': False, 'evaluation_type': 'script'
+                                          , "dispatch_type": "text"}, 'set_slots': [
                 {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                 {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
                                       'user': 'test_user', 'status': True}
@@ -8157,7 +8159,8 @@ class TestMongoProcessor:
                               {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True}],
                           'headers': [{'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
                                       {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True}],
-                          'response': {'value': '${RESPONSE}', 'dispatch': True, 'evaluation_type': 'expression'},
+                          'response': {'value': '${RESPONSE}', 'dispatch': True, 'evaluation_type': 'expression',
+                                       "dispatch_type": "text"},
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                                         {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}],
                           'bot': 'test_bot_1', 'user': 'test_user', 'status': True}
@@ -8180,7 +8183,7 @@ class TestMongoProcessor:
         http_action_config = HttpActionConfigRequest(
             auth_token=auth_token,
             action_name=action,
-            response=ActionResponseEvaluation(value=response),
+            response=ActionResponseEvaluation(value=response, dispatch_type=DispatchType.json.value),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list
@@ -8190,6 +8193,10 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Action name cannot be empty"):
             processor.add_http_action_config(http_dict, user, bot)
         http_dict['action_name'] = action
+        http_dict['response']['dispatch_type'] = 'invalid_dispatch_type'
+        with pytest.raises(ValidationError, match="Invalid dispatch_type"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['response']['dispatch_type'] = DispatchType.json.value
         http_dict['http_url'] = None
         with pytest.raises(ValidationError, match="URL cannot be empty"):
             processor.add_http_action_config(http_dict, user, bot)
@@ -8360,7 +8367,8 @@ class TestMongoProcessor:
         assert actual_test_user1 is not None
         assert actual_test_user1['action_name'] == action
         assert actual_test_user1['content_type'] == 'application/json'
-        assert actual_test_user1['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
+        assert actual_test_user1['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json',
+                                                 "dispatch_type": "text"}
         assert actual_test_user1['http_url'] == http_url
         assert actual_test_user1['request_method'] == request_method
 
@@ -8381,7 +8389,8 @@ class TestMongoProcessor:
         actual_test_user2 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user2 is not None
         assert actual_test_user2['action_name'] == action
-        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
+        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json',
+                                                 "dispatch_type": "text"}
         assert actual_test_user2['http_url'] == http_url
         assert actual_test_user2['request_method'] == request_method
 
@@ -8401,7 +8410,8 @@ class TestMongoProcessor:
         actual_test_user2 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user2 is not None
         assert actual_test_user2['action_name'] == action
-        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': "json"}
+        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': "json",
+                                                 "dispatch_type": "text"}
         assert actual_test_user2['http_url'] == http_url
         assert actual_test_user2['request_method'] == request_method
 
@@ -8438,12 +8448,13 @@ class TestMongoProcessor:
         request_method = 'GET'
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        dispatch_type="json"
         header: List[HttpActionParameters] = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=ActionResponseEvaluation(value=response),
+            response=ActionResponseEvaluation(value=response, dispatch_type=dispatch_type),
             http_url=http_url,
             request_method=request_method,
             dynamic_params=dynamic_params,
@@ -8455,7 +8466,8 @@ class TestMongoProcessor:
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression",
+                                                  "dispatch_type": "json"}
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] == []
         assert actual_http_action['dynamic_params'] == dynamic_params
@@ -8476,6 +8488,7 @@ class TestMongoProcessor:
         user = 'test_user'
         response = "json"
         request_method = 'GET'
+        dispatch_type = 'json'
         http_action_config = HttpActionConfigRequest(
             action_name=action,
             content_type=HttpContentType.application_json.value,
@@ -8492,13 +8505,14 @@ class TestMongoProcessor:
         request_method = 'POST'
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        dispatch_type = "text"
         header = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
             content_type=HttpContentType.urlencoded_form_data.value,
-            response=ActionResponseEvaluation(value=response),
+            response=ActionResponseEvaluation(value=response, dispatch_type=dispatch_type),
             http_url=http_url,
             request_method=request_method,
             dynamic_params=dynamic_params,
@@ -8512,7 +8526,8 @@ class TestMongoProcessor:
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression",
+                                                  "dispatch_type": "text"}
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] == []
         assert actual_http_action['dynamic_params'] == dynamic_params
@@ -8596,7 +8611,8 @@ class TestMongoProcessor:
                                        'encrypt': False},
                                       {'key': 'param5', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
                                       {'key': 'param6', 'value': '', 'parameter_type': 'intent', 'encrypt': False}],
-                          'response': {'value': 'string', 'dispatch': True, 'evaluation_type': 'expression'},
+                          'response': {'value': 'string', 'dispatch': True, 'evaluation_type': 'expression',
+                                       "dispatch_type": "text"},
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'}],
                           'bot': 'test_bot', 'user': 'test_user', 'status': True}
 

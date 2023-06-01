@@ -14,7 +14,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType
+    EvaluationType, DispatchType
 from kairon.shared.constants import SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -70,10 +70,14 @@ class HttpActionResponse(EmbeddedDocument):
     dispatch = BooleanField(default=True)
     evaluation_type = StringField(default=EvaluationType.expression.value,
                                   choices=[p_type.value for p_type in EvaluationType])
+    dispatch_type = StringField(default=DispatchType.text.value,
+                                choices=[d_type.value for d_type in DispatchType])
 
     def validate(self, clean=True):
         from .utils import ActionUtility
 
+        if self.dispatch_type not in [DispatchType.text.value, DispatchType.json.value]:
+            raise ValidationError("Invalid dispatch_type")
         if self.dispatch and ActionUtility.is_empty(self.value):
             raise ValidationError("response is required for dispatch")
 

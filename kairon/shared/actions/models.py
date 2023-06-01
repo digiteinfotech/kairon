@@ -75,3 +75,8 @@ class SlotValidationOperators(str, Enum):
     is_false = "is_false"
     is_null_or_empty = "is_null_or_empty"
     is_not_null_or_empty = "is_not_null_or_empty"
+
+
+class DispatchType(str, Enum):
+    json = "json"
+    text = "text"

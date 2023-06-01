@@ -1820,7 +1820,8 @@ class TestActions:
 
         config = ActionHTTP(bot, 'action_hit_endpoint').retrieve_config()
         assert config['action_name'] == 'action_hit_endpoint'
-        assert config['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
+        assert config['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json',
+                                      'dispatch_type': 'text'}
         assert config['http_url'] == "http://test.com"
         assert config['request_method'] == 'GET'
 
