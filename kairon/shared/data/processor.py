@@ -43,7 +43,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt
+    LlmPrompt, FormSlotSet
 from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
     ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
@@ -3973,6 +3973,7 @@ class MongoProcessor:
 
         for slots_to_fill in path:
             slot = slots_to_fill.get('slot')
+            slot_set = slots_to_fill["slot_set"]
             validation_semantic = slots_to_fill.get('validation_semantic')
             if slot in existing_validations:
                 validation = existing_slot_validations.get(slot=slot)
@@ -3980,6 +3981,8 @@ class MongoProcessor:
                 validation.valid_response = slots_to_fill.get('valid_response')
                 validation.invalid_response = slots_to_fill.get('invalid_response')
                 validation.is_required = slots_to_fill.get('is_required')
+                validation.slot_set.type = slot_set.get('type')
+                validation.slot_set.custom_value = slot_set.get('custom_value')
                 validation.user = user
                 validation.timestamp = datetime.utcnow()
                 validation.save()
@@ -3989,7 +3992,8 @@ class MongoProcessor:
                                      bot=bot, user=user,
                                      valid_response=slots_to_fill.get('valid_response'),
                                      invalid_response=slots_to_fill.get('invalid_response'),
-                                     is_required=slots_to_fill.get('is_required')).save()
+                                     is_required=slots_to_fill.get('is_required'),
+                                     slot_set=FormSlotSet(**slot_set)).save()
 
         slot_validations_to_delete = existing_validations.difference(slots_required_for_form)
         for slot in slot_validations_to_delete:
@@ -4050,13 +4054,15 @@ class MongoProcessor:
             for slot in form.get('required_slots') or []:
                 utterance = list(self.get_response(name=f'utter_ask_{name}_{slot}', bot=bot))
                 mapping = {'slot': slot, 'ask_questions': utterance, 'validation': None,
-                           'valid_response': None, 'invalid_response': None}
+                           'valid_response': None, 'invalid_response': None, 'slot_set': {}}
                 if slot in slots_with_validations:
                     validations = form_validations.get(slot=slot).to_mongo().to_dict()
                     mapping['validation'] = validations.get('validation_semantic')
                     mapping['valid_response'] = validations.get('valid_response')
                     mapping['invalid_response'] = validations.get('invalid_response')
                     mapping['is_required'] = validations.get('is_required')
+                    mapping['slot_set']['type'] = validations["slot_set"].get("type")
+                    mapping['slot_set']['custom_value'] = validations["slot_set"].get("custom_value")
                 slot_mapping.append(mapping)
             form['settings'] = slot_mapping
             return form
