@@ -1,14 +1,14 @@
 import logging
 from abc import ABC
 
-from kairon.shared.tornado.handlers.base import BaseHandler
-from tornado.escape import json_decode, json_encode
-from ..utils import ChatUtils
-from kairon.shared.models import User
 from tornado import concurrent
-
-from ...live_agent.live_agent import LiveAgent
+from tornado.escape import json_decode, json_encode
 from tornado.web import HTTPError
+
+from kairon.shared.models import User
+from kairon.shared.tornado.handlers.base import BaseHandler
+from ..utils import ChatUtils
+from ...live_agent.live_agent import LiveAgent
 
 executor = concurrent.futures.ThreadPoolExecutor(2)
 
@@ -24,7 +24,7 @@ class ChatHandler(BaseHandler, ABC):
         error_code = 0
         try:
             user: User = super().authenticate(self.request, bot=bot)
-            body = json_decode(self.request.body.decode("utf8"))
+            body = ChatUtils.decode_request(self.request)
             response = await ChatUtils.chat(body.get("data"), user.bot_account, bot, user.get_user(),
                                             user.is_integration_user)
             logger.info(f"text={body.get('data')} response={response}")
