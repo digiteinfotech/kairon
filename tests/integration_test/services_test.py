@@ -9064,8 +9064,9 @@ def test_list_form_none_exists():
 
 
 def test_add_form_invalid_parameters():
-    path = [{'ask_questions': [], 'slot': 'name'},
-            {'ask_questions': ['seats required?'], 'slot': 'num_people'}]
+    path = [{'ask_questions': [], 'slot': 'name', 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'custom_value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9079,8 +9080,9 @@ def test_add_form_invalid_parameters():
         {'loc': ['body', 'settings', 0, 'ask_questions'], 'msg': 'Questions cannot be empty or contain spaces',
          'type': 'value_error'}]
 
-    path = [{'ask_questions': [" "], 'slot': 'name'},
-            {'ask_questions': ['seats required?'], 'slot': 'num_people'}]
+    path = [{'ask_questions': [" "], 'slot': 'name', 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'custom_value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9094,8 +9096,9 @@ def test_add_form_invalid_parameters():
         {'loc': ['body', 'settings', 0, 'ask_questions'], 'msg': 'Questions cannot be empty or contain spaces',
          'type': 'value_error'}]
 
-    path = [{'ask_questions': ["name ?"], 'slot': ''},
-            {'ask_questions': ['seats required?'], 'slot': 'num_people'}]
+    path = [{'ask_questions': ["name ?"], 'slot': '', 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'custom_value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9162,6 +9165,23 @@ def test_add_empty_slot_mapping():
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == [{'loc': ['body', 'mapping', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
+def test_add_form_with_invalid_slot_set_type():
+    path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
+             'slot_set': {'type': 'invalid_type', 'custom_value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'custom_value': 10}}]
+    request = {'name': 'restaurant_form', 'settings': path}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/forms",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert str(actual['message']).__contains__("value is not a valid enumeration member")
 
 
 def test_add_form():
@@ -9256,12 +9276,18 @@ def test_add_form():
     assert actual["message"] == "Slot mapping added"
     assert actual["success"]
 
-    path = [{'ask_questions': ['please give us your name?'], 'slot': 'name'},
-            {'ask_questions': ['seats required?'], 'slot': 'num_people'},
-            {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine'},
-            {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
-            {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
-            {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback'},
+    path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
+             'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'custom_value': 10}},
+            {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+             'slot_set': {'type': 'current', 'custom_value': 'Indian Cuisine'}},
+            {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+             'slot_set': {'type': 'custom', 'custom_value': True}},
+            {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+             'slot_set': {'type': 'current'}},
+            {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+             'slot_set': {'type': 'custom', 'custom_value': 'Very Nice!'}},
             ]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
@@ -9449,6 +9475,12 @@ def test_get_form_with_no_validations():
     assert form['settings'][3]['ask_questions'][0]['value']['text'] == 'outdoor seating required?'
     assert form['settings'][4]['ask_questions'][0]['value']['text'] == 'any preferences?'
     assert form['settings'][5]['ask_questions'][0]['value']['text'] == 'Please give your feedback on your experience so far'
+    assert form['settings'][0]['slot_set'] == {'type': 'custom', 'custom_value': 'Mahesh'}
+    assert form['settings'][1]['slot_set'] == {'type': 'current', 'custom_value': 10}
+    assert form['settings'][2]['slot_set'] == {'type': 'current', 'custom_value': 'Indian Cuisine'}
+    assert form['settings'][3]['slot_set'] == {'type': 'custom', 'custom_value': True}
+    assert form['settings'][4]['slot_set'] == {'type': 'current', 'custom_value': None}
+    assert form['settings'][5]['slot_set'] == {'type': 'custom', 'custom_value': 'Very Nice!'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/response/all",
@@ -9466,20 +9498,25 @@ def test_get_form_with_no_validations():
 
 def test_add_form_slot_not_present():
     path = [{'ask_questions': ['please give us your location?'], 'slot': 'location',
+             'slot_set': {'type': 'custom', 'custom_value': 'Bangalore'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}]},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'custom_value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+             'slot_set': {'type': 'current', 'custom_value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+             'slot_set': {'type': 'custom', 'custom_value': True},
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-            {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+            {'ask_questions': ['any preferences?'], 'slot': 'preferences', 'slot_set': {'type': 'current'},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+             'slot_set': {'type': 'custom', 'custom_value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]},
             ]
@@ -9566,16 +9603,20 @@ def test_add_form_with_validations():
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
              'validation_semantic': name_validation,
              'is_required': True,
+             'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'},
              'valid_response': 'got it',
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
              'validation_semantic': age_validation,
              'is_required': True,
+             'slot_set': {'type': 'current', 'custom_value': 22},
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'
              },
-            {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location'},
+            {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location',
+             'slot_set': {'type': 'custom', 'custom_value': 'Bangalore'}},
             {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+             'slot_set': {'type': 'custom', 'custom_value': 'Tester'},
              'validation_semantic': occupation_validation, 'is_required': False}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.post(
@@ -9622,14 +9663,18 @@ def test_get_form_with_validations():
     assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
                                                 "!name.contains(" ")) {return true;} else {return false;}"
     assert form['settings'][0]['is_required']
+    assert form['settings'][0]['slot_set'] == {'type': 'custom', 'custom_value': 'Mahesh'}
     assert form['settings'][1]['validation'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
     assert form['settings'][1]['is_required']
+    assert form['settings'][1]['slot_set'] == {'type': 'current', 'custom_value': 22}
     assert not form['settings'][2]['validation']
     assert form['settings'][2]['is_required']
+    assert form['settings'][2]['slot_set'] == {'type': 'custom', 'custom_value': 'Bangalore'}
     assert form['settings'][3]['validation'] == "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
                                                 "&& !occupation.contains(" ") && occupation.length() > 20) " \
                                                 "{return true;} else {return false;}"
     assert not form['settings'][3]['is_required']
+    assert form['settings'][3]['slot_set'] == {'type': 'custom', 'custom_value': 'Tester'}
 
 
 def test_edit_form_add_validations():
@@ -9637,25 +9682,31 @@ def test_edit_form_add_validations():
                       "!name.contains(" ")) {return true;} else {return false;}"
     num_people_validation = "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
+             'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}],
              'validation_semantic': name_validation, 'is_required': True},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'custom_value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}],
              'validation_semantic': num_people_validation,
              'is_required': False,
              'valid_response': 'valid value',
              'invalid_response': 'invalid value. please enter again'},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+             'slot_set': {'type': 'custom', 'custom_value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+             'slot_set': {'type': 'current', 'custom_value': False},
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+             'slot_set': {'type': 'current', 'custom_value': "No"},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+             'slot_set': {'type': 'custom', 'custom_value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]},
             ]
@@ -9674,12 +9725,16 @@ def test_edit_form_add_validations():
 def test_edit_form_remove_validations():
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
              'valid_response': 'got it',
+             'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'},
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
+             'slot_set': {'type': 'current', 'custom_value': 22},
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'},
-            {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location'},
-            {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation'}]
+            {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location',
+             'slot_set': {'type': 'custom', 'custom_value': 'Bangalore'}},
+            {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+             'slot_set': {'type': 'custom', 'custom_value': 'Tester'}}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.put(
         f"/api/bot/{pytest.bot}/forms",
@@ -9747,12 +9802,17 @@ def test_get_form_after_edit():
     assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
                                                 "!name.contains(" ")) {return true;} else {return false;}"
     assert form['settings'][0]['is_required']
+    assert form['settings'][0]['slot_set'] == {'type': 'custom', 'custom_value': 'Mahesh'}
     assert form['settings'][1]['validation'] == \
            "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     assert not form['settings'][1]['is_required']
+    assert form['settings'][1]['slot_set'] == {'type': 'current', 'custom_value': 10}
     assert not form['settings'][2]['validation']
+    assert form['settings'][2]['slot_set'] == {'type': 'custom', 'custom_value': 'Indian Cuisine'}
     assert not form['settings'][3]['validation']
+    assert form['settings'][3]['slot_set'] == {'type': 'current', 'custom_value': False}
     assert not form['settings'][4]['validation']
+    assert form['settings'][4]['slot_set'] == {'type': 'current', 'custom_value': 'No'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/response/all",
@@ -9789,21 +9849,28 @@ def test_edit_form():
     assert actual["success"]
 
     path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
+             'slot_set': {'type': 'custom', 'custom_value': 'Bangalore'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
                          {'type': 'from_entity', 'entity': 'location'}]},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'custom_value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+             'slot_set': {'type': 'custom', 'custom_value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+             'slot_set': {'type': 'custom', 'custom_value': True},
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+             'slot_set': {'type': 'custom', 'custom_value': 'No'},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
-            {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required'},
+            {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
+             'slot_set': {'type': 'current', 'custom_value': True},},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+             'slot_set': {'type': 'custom', 'custom_value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]}
             ]
@@ -10327,6 +10394,7 @@ def test_add_slot_case_insensitivity():
 
 def test_add_form_case_insensitivity():
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
+             'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}]},
             ]
