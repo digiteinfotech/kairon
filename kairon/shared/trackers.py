@@ -9,6 +9,8 @@ from typing import (
     Iterator
 )
 
+import pymongo
+from pymongo import IndexModel
 from pymongo.collection import Collection
 from rasa.core.brokers.broker import EventBroker
 from rasa.core.tracker_store import TrackerStore
@@ -57,8 +59,10 @@ class KMongoTrackerStore(TrackerStore):
         return self.db[self.collection]
 
     def _ensure_indices(self) -> None:
-        self.conversations.create_index("sender_id")
-        self.conversations.create_index("conversation_id")
+        index1 = IndexModel([("event.event", pymongo.ASCENDING), ("event.timestamp", pymongo.DESCENDING)])
+        index2 = IndexModel([("type", pymongo.ASCENDING)])
+        index3 = IndexModel([("sender_id", pymongo.ASCENDING), ("conversation_id", pymongo.ASCENDING)])
+        self.conversations.create_indexes([index1, index2, index3])
 
     def save(self, tracker, timeout=None):
         """Saves the current conversation state."""
