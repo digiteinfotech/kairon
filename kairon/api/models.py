@@ -585,7 +585,7 @@ class SlotMappingRequest(BaseModel):
 
 class FormSlotSetModel(BaseModel):
     type: FORM_SLOT_SET_TYPE = FORM_SLOT_SET_TYPE.CURRENT.value
-    custom_value: Any = None
+    value: Any = None
 
 
 class FormSettings(BaseModel):

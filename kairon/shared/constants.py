@@ -33,6 +33,7 @@ class SLOT_SET_TYPE(str, Enum):
 class FORM_SLOT_SET_TYPE(str, Enum):
     CURRENT = "current"
     CUSTOM = "custom"
+    SLOT = "SLOT"
 
 
 class SSO_TYPES(str, Enum):

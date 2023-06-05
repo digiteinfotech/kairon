@@ -3982,7 +3982,7 @@ class MongoProcessor:
                 validation.invalid_response = slots_to_fill.get('invalid_response')
                 validation.is_required = slots_to_fill.get('is_required')
                 validation.slot_set.type = slot_set.get('type')
-                validation.slot_set.custom_value = slot_set.get('custom_value')
+                validation.slot_set.value = slot_set.get('value')
                 validation.user = user
                 validation.timestamp = datetime.utcnow()
                 validation.save()
@@ -4062,7 +4062,7 @@ class MongoProcessor:
                     mapping['invalid_response'] = validations.get('invalid_response')
                     mapping['is_required'] = validations.get('is_required')
                     mapping['slot_set']['type'] = validations["slot_set"].get("type")
-                    mapping['slot_set']['custom_value'] = validations["slot_set"].get("custom_value")
+                    mapping['slot_set']['value'] = validations["slot_set"].get("value")
                 slot_mapping.append(mapping)
             form['settings'] = slot_mapping
             return form

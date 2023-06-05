@@ -1967,7 +1967,7 @@ class TestActionServer(AsyncHTTPTestCase):
                               "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
-                             slot_set=FormSlotSet(type=FORM_SLOT_SET_TYPE.CUSTOM.value, custom_value="Bangalore")
+                             slot_set=FormSlotSet(type=FORM_SLOT_SET_TYPE.CUSTOM.value, value="Bangalore")
                              ).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
@@ -2079,6 +2079,67 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json,
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
+                          'responses': []})
+
+    def test_form_validation_action_with_form_slot_type_slot(self):
+        action_name = "validate_location_with_form_slot_type_slot"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'location'
+        semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                              "&& location.endsWith('i')) || location.length() > 20) " \
+                              "{return true;} else {return false;}"
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
+                             slot_set=FormSlotSet(type=FORM_SLOT_SET_TYPE.SLOT.value)).save()
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
+                                   'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Mumbai', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json,
+                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'location'}],
                           'responses': []})
 
     def test_form_validation_action_no_requested_slot(self):

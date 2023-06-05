@@ -5543,11 +5543,11 @@ class TestMongoProcessor:
     def test_add_form(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-                 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'}},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
-                 'slot_set': {'type': 'current', 'custom_value': 22}},
+                 'slot_set': {'type': 'current', 'value': 22}},
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'slot_set': {'type': 'custom', 'custom_value': 'Tester'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Tester'}}]
         bot = 'test'
         user = 'user'
         assert processor.add_form('know_user', path, bot, user)
@@ -5757,17 +5757,17 @@ class TestMongoProcessor:
     def test_add_form_2(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
-                 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'}},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
                 {'ask_questions': ['seats required?'], 'slot': 'num_people',
-                 'slot_set': {'type': 'current', 'custom_value': 10}},
+                 'slot_set': {'type': 'current', 'value': 10}},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
                  'slot_set': {'type': 'current'}},
                 {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
-                 'slot_set': {'type': 'custom', 'custom_value': True}},
+                 'slot_set': {'type': 'custom', 'value': True}},
                 {'ask_questions': ['any preferences?'], 'slot': 'preferences',
                  'slot_set': {'type': 'current'}},
                 {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-                 'slot_set': {'type': 'custom', 'custom_value': 'Very Nice!'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "num_people",
@@ -5852,18 +5852,18 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': False,
-                 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['your age?', 'ur age?'], 'slot': 'age',
                  'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
                  'is_required': True,
-                 'slot_set': {'type': 'current', 'custom_value': 22},
+                 'slot_set': {'type': 'current', 'value': 22},
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['your occupation?', 'ur occupation?'], 'slot': 'occupation',
                  'validation_semantic': occupation_validation, 'is_required': False,
-                 'slot_set': {'type': 'custom', 'custom_value': 'Tester'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Tester'}}]
         bot = 'test'
         user = 'user'
         assert processor.add_form('know_user_form', path, bot, user)
@@ -5894,7 +5894,7 @@ class TestMongoProcessor:
         assert validations_added[0].invalid_response == 'please rephrase'
         assert not validations_added[0].is_required
         assert validations_added[0].slot_set.type == 'custom'
-        assert validations_added[0].slot_set.custom_value == 'Mahesh'
+        assert validations_added[0].slot_set.value == 'Mahesh'
 
         assert validations_added[1].slot == 'age'
         assert validations_added[1].validation_semantic == \
@@ -5903,7 +5903,7 @@ class TestMongoProcessor:
         assert validations_added[1].invalid_response == 'please enter again'
         assert validations_added[1].is_required
         assert validations_added[1].slot_set.type == 'current'
-        assert validations_added[1].slot_set.custom_value == 22
+        assert validations_added[1].slot_set.value == 22
 
         assert validations_added[2].slot == 'occupation'
         assert validations_added[2].validation_semantic == \
@@ -5913,7 +5913,7 @@ class TestMongoProcessor:
         assert not validations_added[2].invalid_response
         assert not validations_added[2].is_required
         assert validations_added[2].slot_set.type == 'custom'
-        assert validations_added[2].slot_set.custom_value == 'Tester'
+        assert validations_added[2].slot_set.value == 'Tester'
 
     def test_list_forms(self):
         processor = MongoProcessor()
@@ -5949,15 +5949,15 @@ class TestMongoProcessor:
         assert form['settings'][2]['ask_questions'][0]['_id']
         assert form['settings'][2]['ask_questions'][0]['value'] == {'text': 'occupation?'}
         assert form['settings'][2]['ask_questions'][1]['value'] == {'text': 'what is your occupation?'}
-        assert form['settings'][0]['slot_set'] == {'type': 'custom', 'custom_value': 'Mahesh'}
+        assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
         assert not form['settings'][0]['validation']
         assert not form['settings'][0]['invalid_response']
         assert not form['settings'][0]['valid_response']
-        assert form['settings'][1]['slot_set'] == {'type': 'current', 'custom_value': 22}
+        assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
         assert not form['settings'][1]['validation']
         assert not form['settings'][1]['invalid_response']
         assert not form['settings'][1]['valid_response']
-        assert form['settings'][2]['slot_set'] == {'type': 'custom', 'custom_value': 'Tester'}
+        assert form['settings'][2]['slot_set'] == {'type': 'custom', 'value': 'Tester'}
         assert not form['settings'][2]['validation']
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
@@ -5985,19 +5985,19 @@ class TestMongoProcessor:
         assert form['settings'][0]['invalid_response'] == 'please rephrase'
         assert form['settings'][0]['valid_response'] == 'got it'
         assert not form['settings'][0]['is_required']
-        assert form['settings'][0]['slot_set'] == {'type': 'custom', 'custom_value': 'Mahesh'}
+        assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
         assert form['settings'][1]['validation'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert form['settings'][1]['invalid_response'] == 'please enter again'
         assert form['settings'][1]['valid_response'] == 'valid entry'
         assert form['settings'][1]['is_required']
-        assert form['settings'][1]['slot_set'] == {'type': 'current', 'custom_value': 22}
+        assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
         assert form['settings'][2]['validation'] == \
                "if (occupation in ['teacher', 'programmer', 'student', 'manager'] && !occupation.contains(" ") " \
                "&& occupation.length() > 20) {return true;} else {return false;}"
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
         assert not form['settings'][2]['is_required']
-        assert form['settings'][2]['slot_set'] == {'type': 'custom', 'custom_value': 'Tester'}
+        assert form['settings'][2]['slot_set'] == {'type': 'custom', 'value': 'Tester'}
 
     def test_get_form_not_added(self):
         import mongomock
@@ -6068,18 +6068,18 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': True,
-                 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again',
                  'is_required': False,
-                 'slot_set': {'type': 'current', 'custom_value': 22}
+                 'slot_set': {'type': 'current', 'value': 22}
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'validation_semantic': None, 'is_required': False,
-                 'slot_set': {'type': 'custom', 'custom_value': 'Tester'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Tester'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6111,7 +6111,7 @@ class TestMongoProcessor:
         assert validations_added[0].invalid_response == 'please rephrase'
         assert validations_added[0].is_required
         assert validations_added[0].slot_set.type == 'custom'
-        assert validations_added[0].slot_set.custom_value == 'Mahesh'
+        assert validations_added[0].slot_set.value == 'Mahesh'
 
         assert validations_added[1].slot == 'age'
         assert validations_added[1].validation_semantic == \
@@ -6120,13 +6120,13 @@ class TestMongoProcessor:
         assert validations_added[1].invalid_response == 'please enter again'
         assert not validations_added[1].is_required
         assert validations_added[1].slot_set.type == 'current'
-        assert validations_added[1].slot_set.custom_value == 22
+        assert validations_added[1].slot_set.value == 22
 
         assert validations_added[2].slot == 'occupation'
         assert not validations_added[2].validation_semantic
         assert not validations_added[2].is_required
         assert validations_added[2].slot_set.type == 'custom'
-        assert validations_added[2].slot_set.custom_value == 'Tester'
+        assert validations_added[2].slot_set.value == 'Tester'
 
     def test_edit_form_remove_validations(self):
         processor = MongoProcessor()
@@ -6135,14 +6135,14 @@ class TestMongoProcessor:
                              {'type': 'from_entity', 'entity': 'name'}],
                  'validation_semantic': None,
                  'is_required': True,
-                 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'valid_response': 'got it',
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
                  'validation_semantic': None,
                  'is_required': True,
-                 'slot_set': {'type': 'current', 'custom_value': 22},
+                 'slot_set': {'type': 'current', 'value': 22},
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
@@ -6154,7 +6154,7 @@ class TestMongoProcessor:
                      {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
                       'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
                  'validation_semantic': None, 'is_required': False,
-                 'slot_set': {'type': 'custom', 'custom_value': 'Tester'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Tester'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6183,19 +6183,19 @@ class TestMongoProcessor:
         assert validations[0].invalid_response == 'please rephrase'
         assert validations[0].is_required
         assert validations[0].slot_set.type == 'custom'
-        assert validations[0].slot_set.custom_value == 'Mahesh'
+        assert validations[0].slot_set.value == 'Mahesh'
         assert not validations[1].validation_semantic
         assert validations[1].valid_response == 'valid entry'
         assert validations[1].invalid_response == 'please enter again'
         assert validations[1].is_required
         assert validations[1].slot_set.type == 'current'
-        assert validations[1].slot_set.custom_value == 22
+        assert validations[1].slot_set.value == 22
         assert not validations[2].validation_semantic
         assert not validations[2].valid_response
         assert not validations[2].invalid_response
         assert not validations[2].is_required
         assert validations[2].slot_set.type == 'custom'
-        assert validations[2].slot_set.custom_value == 'Tester'
+        assert validations[2].slot_set.value == 'Tester'
 
     def test_edit_form_add_validations(self):
         processor = MongoProcessor()
@@ -6205,18 +6205,18 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': False,
-                 'slot_set': {'type': 'custom', 'custom_value': 'Mahesh'},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'validation_semantic': None,
                  'is_required': True,
-                 'slot_set': {'type': 'current', 'custom_value': 22},
+                 'slot_set': {'type': 'current', 'value': 22},
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'validation_semantic': None, 'is_required': False,
-                 'slot_set': {'type': 'custom', 'custom_value': 'Tester'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Tester'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6230,32 +6230,32 @@ class TestMongoProcessor:
         assert validations_added[0].invalid_response == 'please rephrase'
         assert not validations_added[0].is_required
         assert validations_added[0].slot_set.type == 'custom'
-        assert validations_added[0].slot_set.custom_value == 'Mahesh'
+        assert validations_added[0].slot_set.value == 'Mahesh'
         assert validations_added[1].is_required
         assert validations_added[1].slot_set.type == 'current'
-        assert validations_added[1].slot_set.custom_value == 22
+        assert validations_added[1].slot_set.value == 22
         assert not validations_added[2].is_required
         assert validations_added[2].slot_set.type == 'custom'
-        assert validations_added[2].slot_set.custom_value == 'Tester'
+        assert validations_added[2].slot_set.value == 'Tester'
 
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
-                 'slot_set': {'type': 'custom', 'custom_value': 'Bangalore'}},
+                 'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
                 {'ask_questions': ['seats required?'], 'slot': 'num_people',
-                 'slot_set': {'type': 'current', 'custom_value': 10}},
+                 'slot_set': {'type': 'current', 'value': 10}},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
                  'validation_semantic': "if (&& cuisine.contains('i') && cuisine.length() > 4 || "
                                         "!cuisine.contains(" ")) {return true;} else {return false;}",
-                 'slot_set': {'type': 'current', 'custom_value': 'Indian Cuisine'}},
+                 'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
                 {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
-                 'slot_set': {'type': 'custom', 'custom_value': True}},
+                 'slot_set': {'type': 'custom', 'value': True}},
                 {'ask_questions': ['any preferences?'], 'slot': 'preferences',
                  'slot_set': {'type': 'current'}},
                 {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
-                 'slot_set': {'type': 'custom', 'custom_value': False}},
+                 'slot_set': {'type': 'custom', 'value': False}},
                 {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-                 'slot_set': {'type': 'custom', 'custom_value': 'Very Nice!'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "ac_required",
@@ -6310,7 +6310,7 @@ class TestMongoProcessor:
                "if (&& cuisine.contains('i') && cuisine.length() > 4 || !cuisine.contains(" ")) " \
                "{return true;} else {return false;}"
         assert validations_added[1].slot_set.type == 'current'
-        assert validations_added[1].slot_set.custom_value == 'Indian Cuisine'
+        assert validations_added[1].slot_set.value == 'Indian Cuisine'
 
     def test_edit_form_not_exists(self):
         processor = MongoProcessor()
@@ -6320,9 +6320,9 @@ class TestMongoProcessor:
     def test_edit_form_utterance_not_exists(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['provide your age?'], 'slot': 'age',
-                 'slot_set': {'type': 'current', 'custom_value': 27}},
+                 'slot_set': {'type': 'current', 'value': 27}},
                 {'ask_questions': ['provide your location?'], 'slot': 'location',
-                 'slot_set': {'type': 'custom', 'custom_value': 'Delhi'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Delhi'}}]
 
         bot = 'test'
         user = 'user'
@@ -6345,10 +6345,10 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user', bot=bot, status=True))
         assert validations_added[0].is_required
         assert validations_added[0].slot_set.type == 'current'
-        assert validations_added[0].slot_set.custom_value == 27
+        assert validations_added[0].slot_set.value == 27
         assert validations_added[1].is_required
         assert validations_added[1].slot_set.type == 'custom'
-        assert validations_added[1].slot_set.custom_value == 'Delhi'
+        assert validations_added[1].slot_set.value == 'Delhi'
 
     def test_delete_form_with_validations(self):
         bot = 'test'
