@@ -9285,7 +9285,7 @@ def test_add_form():
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
              'slot_set': {'type': 'custom', 'value': True}},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-             'slot_set': {'type': 'current'}},
+             'slot_set': {'type': 'slot', 'value': 'preferences'}},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
              'slot_set': {'type': 'custom', 'value': 'Very Nice!'}},
             ]
@@ -9479,7 +9479,7 @@ def test_get_form_with_no_validations():
     assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 10}
     assert form['settings'][2]['slot_set'] == {'type': 'current', 'value': 'Indian Cuisine'}
     assert form['settings'][3]['slot_set'] == {'type': 'custom', 'value': True}
-    assert form['settings'][4]['slot_set'] == {'type': 'current', 'value': None}
+    assert form['settings'][4]['slot_set'] == {'type': 'slot', 'value': 'preferences'}
     assert form['settings'][5]['slot_set'] == {'type': 'custom', 'value': 'Very Nice!'}
 
     response = client.get(
@@ -9512,7 +9512,8 @@ def test_add_form_slot_not_present():
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
-            {'ask_questions': ['any preferences?'], 'slot': 'preferences', 'slot_set': {'type': 'current'},
+            {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+             'slot_set': {'type': 'slot', 'value': 'preferences'},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
@@ -9616,7 +9617,7 @@ def test_add_form_with_validations():
             {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location',
              'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
             {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-             'slot_set': {'type': 'custom', 'value': 'Tester'},
+             'slot_set': {'type': 'slot', 'value': 'occupation'},
              'validation_semantic': occupation_validation, 'is_required': False}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.post(
@@ -9674,7 +9675,7 @@ def test_get_form_with_validations():
                                                 "&& !occupation.contains(" ") && occupation.length() > 20) " \
                                                 "{return true;} else {return false;}"
     assert not form['settings'][3]['is_required']
-    assert form['settings'][3]['slot_set'] == {'type': 'custom', 'value': 'Tester'}
+    assert form['settings'][3]['slot_set'] == {'type': 'slot', 'value': 'occupation'}
 
 
 def test_edit_form_add_validations():
@@ -9702,7 +9703,7 @@ def test_edit_form_add_validations():
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-             'slot_set': {'type': 'current', 'value': "No"},
+             'slot_set': {'type': 'slot', 'value': "preferences"},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
@@ -9734,7 +9735,7 @@ def test_edit_form_remove_validations():
             {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location',
              'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
             {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-             'slot_set': {'type': 'custom', 'value': 'Tester'}}]
+             'slot_set': {'type': 'slot', 'value': 'occupation'}}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.put(
         f"/api/bot/{pytest.bot}/forms",
@@ -9812,7 +9813,7 @@ def test_get_form_after_edit():
     assert not form['settings'][3]['validation']
     assert form['settings'][3]['slot_set'] == {'type': 'current', 'value': False}
     assert not form['settings'][4]['validation']
-    assert form['settings'][4]['slot_set'] == {'type': 'current', 'value': 'No'}
+    assert form['settings'][4]['slot_set'] == {'type': 'slot', 'value': 'preferences'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/response/all",
@@ -9864,7 +9865,7 @@ def test_edit_form():
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-             'slot_set': {'type': 'custom', 'value': 'No'},
+             'slot_set': {'type': 'slot', 'value': 'preferences'},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',

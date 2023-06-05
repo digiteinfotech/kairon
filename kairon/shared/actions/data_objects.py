@@ -219,12 +219,13 @@ class SlotSetAction(Auditlog):
 
 
 class FormSlotSet(EmbeddedDocument):
-    type = StringField(default=FORM_SLOT_SET_TYPE.CURRENT.value,
+    type = StringField(default=FORM_SLOT_SET_TYPE.current.value,
                        choices=[type.value for type in FORM_SLOT_SET_TYPE])
     value = DynamicField()
 
     def validate(self, clean=True):
-        if self.type not in [FORM_SLOT_SET_TYPE.CURRENT.value, FORM_SLOT_SET_TYPE.CUSTOM.value]:
+        if self.type not in [FORM_SLOT_SET_TYPE.current.value, FORM_SLOT_SET_TYPE.custom.value,
+                             FORM_SLOT_SET_TYPE.slot.value]:
             raise ValidationError("Invalid form_slot_set_type")
 
 
