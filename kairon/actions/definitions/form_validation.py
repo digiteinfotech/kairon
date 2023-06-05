@@ -62,7 +62,7 @@ class ActionFormValidation(ActionsBase):
             utter_msg_on_valid = validation.valid_response
             utter_msg_on_invalid = validation.invalid_response
             form_slot_set_type = validation.slot_set.type
-            custom_value = validation.slot_set.custom_value
+            custom_value = validation.slot_set.value
 
             if not ActionUtility.is_empty(validation.validation_semantic):
                 is_valid, log = ActionUtility.evaluate_script(script=validation.validation_semantic, data=tracker_data)
@@ -75,6 +75,8 @@ class ActionFormValidation(ActionsBase):
                 status = "SUCCESS"
                 if custom_value and form_slot_set_type == FORM_SLOT_SET_TYPE.CUSTOM.value:
                     slot_value = custom_value
+                elif slot and form_slot_set_type == FORM_SLOT_SET_TYPE.SLOT.value:
+                    slot_value = slot
                 if not ActionUtility.is_empty(utter_msg_on_valid):
                     dispatcher.utter_message(text=utter_msg_on_valid)
             else:
