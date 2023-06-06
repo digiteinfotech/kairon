@@ -2635,3 +2635,13 @@ data: [DONE]\n\n"""
         whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
         with pytest.raises(Exception):
             whatsapp.dropdown_transformer(input_json)
+
+    def test_dropdown_transformer_header_input_whatsapp(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_header_input")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
+        response = whatsapp.dropdown_transformer(input_json)
+        expected_output = json_data.get("whatsapp_drop_down_header_output")
+        print(f"expectedoutput {expected_output}")
+        assert expected_output == response
