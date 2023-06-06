@@ -317,5 +317,87 @@
 		"children": [{
 			"text": ""
 		}]
-	}]
+	}],
+
+  "whatsapp_drop_down_header_input": [{
+		"rule": "/dropdown",
+		"slot": "defect",
+		"type": "dropdown",
+		"dropdownLabel": "Select the fertilizer",
+		"options": [{
+				"label": "fertilizer1",
+				"value": "/fertilizer1",
+                "optionHeader": "Fertilizer"
+			},
+			{
+				"label": "fertilizer2",
+				"value": "/fertilizer2",
+              "optionHeader": "Fertilizer"
+			},
+			{
+				"label": "fertilizer3",
+				"value": "/fertilizer3",
+              "optionHeader": "Fertilizer"
+			},
+            {
+				"label": "crop1",
+				"value": "/crop1",
+              "optionHeader": "Crop"
+			},
+           {
+				"label": "crop2",
+				"value": "/crop2",
+              "optionHeader": "Crop"
+			}
+		],
+		"children": [{
+			"text": ""
+		}]
+	}],
+  "whatsapp_drop_down_header_output":{
+        "type": "list",
+  "body": {
+    "text": "Select the fertilizer"
+  },
+  "action": {
+    "sections":[
+      {
+        "title": "Fertilizer",
+        "rows": [
+          {
+            "id":"/fertilizer1",
+            "title": "fertilizer1",
+            "description": "fertilizer1"
+          },
+          {
+            "id":"/fertilizer2",
+            "title": "fertilizer2",
+            "description": "fertilizer2"
+          },
+          {
+            "id":"/fertilizer3",
+            "title": "fertilizer3",
+            "description": "fertilizer3"
+          }
+        ]
+      },
+      {
+        "title": "Crop",
+        "rows": [
+          {
+            "id":"/crop1",
+            "title": "crop1",
+            "description": "crop1"
+          },
+          {
+            "id":"/crop2",
+            "title": "crop2",
+            "description": "crop2"
+          }
+        ]
+      }
+    ],
+    "button": "Submit Option"
+  }
+    }
 }
