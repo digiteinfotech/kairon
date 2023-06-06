@@ -30,6 +30,12 @@ class SLOT_SET_TYPE(str, Enum):
     RESET_SLOT = "reset_slot"
 
 
+class FORM_SLOT_SET_TYPE(str, Enum):
+    current = "current"
+    custom = "custom"
+    slot = "slot"
+
+
 class SSO_TYPES(str, Enum):
     FACEBOOK = "facebook"
     LINKEDIN = "linkedin"

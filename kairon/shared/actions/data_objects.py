@@ -15,7 +15,7 @@ from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
     EvaluationType, DispatchType
-from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -218,6 +218,17 @@ class SlotSetAction(Auditlog):
             slot_to_set.validate()
 
 
+class FormSlotSet(EmbeddedDocument):
+    type = StringField(default=FORM_SLOT_SET_TYPE.current.value,
+                       choices=[type.value for type in FORM_SLOT_SET_TYPE])
+    value = DynamicField()
+
+    def validate(self, clean=True):
+        if self.type not in [FORM_SLOT_SET_TYPE.current.value, FORM_SLOT_SET_TYPE.custom.value,
+                             FORM_SLOT_SET_TYPE.slot.value]:
+            raise ValidationError("Invalid form_slot_set_type")
+
+
 @auditlogger.log
 @push_notification.apply
 class FormValidationAction(Auditlog):
@@ -231,6 +242,7 @@ class FormValidationAction(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    slot_set = EmbeddedDocumentField(FormSlotSet, default=FormSlotSet())
 
     def clean(self):
         self.name = self.name.strip().lower()
