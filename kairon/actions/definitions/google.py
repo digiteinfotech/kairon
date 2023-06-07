@@ -8,9 +8,9 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import GoogleSearchAction, ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
+from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, KaironSystemSlots
 
 
 class ActionGoogleSearch(ActionsBase):
@@ -93,7 +93,7 @@ class ActionGoogleSearch(ActionsBase):
             ).save()
         if action_config.get('dispatch_response', True):
             dispatcher.utter_message(bot_response)
-        slots_set.update({KAIRON_ACTION_RESPONSE_SLOT: bot_response})
+        slots_set.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return slots_set
 
     @property

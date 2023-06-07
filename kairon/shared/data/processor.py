@@ -44,8 +44,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
     LlmPrompt, FormSlotSet
-from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
-    ActionParameterType
+from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource
 from kairon.shared.utils import Utility, StoryValidator
@@ -90,6 +89,8 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
+
+from ..constants import KaironSystemSlots
 
 
 class MongoProcessor:
@@ -930,13 +931,14 @@ class MongoProcessor:
 
     def add_system_required_slots(self, bot: Text, user: Text):
         self.add_slot({
-            "name": BOT_ID_SLOT, "type": "any", "initial_value": bot, "auto_fill": False,
+            "name": KaironSystemSlots.bot.value, "type": "any", "initial_value": bot, "auto_fill": False,
             "influence_conversation": False}, bot, user, raise_exception_if_exists=False
         )
-        self.add_slot({
-            "name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "auto_fill": False, "initial_value": None,
-            "influence_conversation": False}, bot, user, raise_exception_if_exists=False
-        )
+        for slot in [s for s in KaironSystemSlots if s.value != KaironSystemSlots.bot.value]:
+            self.add_slot({
+                "name": slot, "type": "text", "auto_fill": True,
+                "initial_value": None, "influence_conversation": True}, bot, user, raise_exception_if_exists=False
+            )
 
     def fetch_slots(self, bot: Text, status=True):
         """
@@ -3068,7 +3070,9 @@ class MongoProcessor:
         """
 
         try:
-            if slot_name in {BOT_ID_SLOT, BOT_ID_SLOT.lower(), KAIRON_ACTION_RESPONSE_SLOT, KAIRON_ACTION_RESPONSE_SLOT.lower()}:
+            if slot_name in {KaironSystemSlots.bot.value, KaironSystemSlots.bot.value.upper(),
+                             KaironSystemSlots.kairon_action_response.value,
+                             KaironSystemSlots.kairon_action_response.value.upper()}:
                 raise AppException('Default kAIron slot deletion not allowed')
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)

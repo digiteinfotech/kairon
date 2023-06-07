@@ -1,8 +1,5 @@
 from enum import Enum
 
-KAIRON_ACTION_RESPONSE_SLOT = "kairon_action_response"
-BOT_ID_SLOT = 'bot'
-
 
 class ParameterType(str, Enum):
     user = "user"

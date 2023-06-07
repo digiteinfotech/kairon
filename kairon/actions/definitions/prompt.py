@@ -8,9 +8,9 @@ from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
+from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.constants import FAQ_DISABLED_ERR
+from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.models import LlmPromptType, LlmPromptSource
@@ -96,7 +96,7 @@ class ActionPrompt(ActionsBase):
                 is_from_cache=is_from_cache
             ).save()
         dispatcher.utter_message(text=bot_response, buttons=recommendations)
-        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
+        return {KaironSystemSlots.kairon_action_response.value: bot_response}
 
     async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         implementations = {
