@@ -148,8 +148,8 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         HttpActionConfig(
             action_name=action_name,
-            response=HttpActionResponse(value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                                        dispatch=True, evaluation_type="script", dispatch_type=DispatchType.json.value),
+            response=HttpActionResponse(value="${RESPONSE}", dispatch=True, evaluation_type="expression",
+                                        dispatch_type=DispatchType.json.value),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
@@ -186,37 +186,6 @@ class TestActionServer(AsyncHTTPTestCase):
             status=200,
             match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
                                                   "name": "udit", "contact": None})],
-        )
-
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": {"text": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
-        )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "${a.b.d}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
-        )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "red"},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "${a.b.d.0}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
         )
 
         request_object = {
@@ -256,9 +225,9 @@ class TestActionServer(AsyncHTTPTestCase):
             {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
             {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": {"text": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}}])
+             "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}])
         self.assertEqual(response_json['responses'][0]['custom'],
-                         {"text": "The value of 2 in red is ['red', 'buggy', 'bumpers']"})
+                         {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}})
 
     def test_http_action_execution_no_response_dispatch(self):
         action_name = "test_http_action_execution_no_response_dispatch"
@@ -623,8 +592,8 @@ class TestActionServer(AsyncHTTPTestCase):
             action_name=action_name,
             content_type="json",
             response=HttpActionResponse(
-                value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                dispatch=True, evaluation_type="script", dispatch_type=DispatchType.json.value),
+                value="${RESPONSE}",
+                dispatch=True, evaluation_type="expression", dispatch_type=DispatchType.json.value),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             dynamic_params=
@@ -675,36 +644,6 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[responses.matchers.json_params_matcher(
                 {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
         )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": {"text": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
-        )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "${a.b.d}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
-        )
-        responses.add(
-            method=responses.POST,
-            url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": "red"},
-            status=200,
-            match=[
-                responses.matchers.json_params_matcher(
-                    {'script': "${a.b.d.0}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
-        )
 
         request_object = {
             "next_action": action_name,
@@ -743,9 +682,9 @@ class TestActionServer(AsyncHTTPTestCase):
             {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
             {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": {"text": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}}])
+             "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}])
         self.assertEqual(response_json['responses'][0]['custom'],
-                         {"text": "The value of 2 in red is ['red', 'buggy', 'bumpers']"})
+                         {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}})
 
     def test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch"

@@ -1566,7 +1566,7 @@ class TestActions:
 
     def test_attach_response(self):
         output = ActionUtility.attach_response("I want $${RESPONSE}", {"dollars": "51"})
-        assert output == 'I want ${\'dollars\': \'51\'}'
+        assert output == 'I want ${\"dollars\": \"51\"}'
 
     def test_attach_response_int(self):
         output = ActionUtility.attach_response("I want $${RESPONSE}", 51)
