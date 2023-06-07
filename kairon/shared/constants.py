@@ -121,3 +121,13 @@ class GPT3ResourceTypes(str, Enum):
 class LLMResourceProvider(str, Enum):
     azure = "azure"
     openai = "openai"
+
+
+class KaironSystemSlots(str, Enum):
+    kairon_action_response = "kairon_action_response"
+    bot = 'bot'
+    image = "image"
+    audio = "audio"
+    video = "video"
+    document = "document"
+    doc_url = "doc_url"

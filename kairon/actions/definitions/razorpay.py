@@ -8,8 +8,9 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, RazorpayAction
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT
+from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.constants import KaironSystemSlots
 
 
 class ActionRazorpay(ActionsBase):
@@ -97,4 +98,4 @@ class ActionRazorpay(ActionsBase):
                 user_msg=tracker.latest_message.get('text')
             ).save()
         dispatcher.utter_message(bot_response)
-        return {KAIRON_ACTION_RESPONSE_SLOT: bot_response}
+        return {KaironSystemSlots.kairon_action_response.value: bot_response}

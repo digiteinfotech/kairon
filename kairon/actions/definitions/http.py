@@ -8,8 +8,9 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, HttpActionConfig
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, KAIRON_ACTION_RESPONSE_SLOT, DispatchType
+from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.constants import KaironSystemSlots
 
 
 class ActionHTTP(ActionsBase):
@@ -123,7 +124,7 @@ class ActionHTTP(ActionsBase):
                     dispatcher.utter_message(json_message=bot_response)
                 else:
                     dispatcher.utter_message(bot_response)
-        filled_slots.update({KAIRON_ACTION_RESPONSE_SLOT: bot_response})
+        filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return filled_slots
 
     @property

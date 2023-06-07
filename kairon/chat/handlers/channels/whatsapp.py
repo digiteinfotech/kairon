@@ -15,7 +15,7 @@ from tornado.escape import json_decode
 
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
-from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
+from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, KaironSystemSlots
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +49,7 @@ class Whatsapp:
             text = attachment_info.get("url")
             if Utility.check_empty_string(text):
                 logger.warning(f"Unable to find url for attachment. Message: {attachment_info}")
+            text = f"/k_multimedia_msg{{{message['type']}: {message[message['type']]['id']}, {KaironSystemSlots.doc_url.value}: {text}}}"
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
