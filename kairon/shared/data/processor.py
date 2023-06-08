@@ -3977,7 +3977,7 @@ class MongoProcessor:
 
         for slots_to_fill in path:
             slot = slots_to_fill.get('slot')
-            slot_set = slots_to_fill["slot_set"]
+            slot_set = slots_to_fill.get("slot_set", {})
             validation_semantic = slots_to_fill.get('validation_semantic')
             if slot in existing_validations:
                 validation = existing_slot_validations.get(slot=slot)
@@ -4061,7 +4061,7 @@ class MongoProcessor:
                            'valid_response': None, 'invalid_response': None, 'slot_set': {}}
                 if slot in slots_with_validations:
                     validations = form_validations.get(slot=slot).to_mongo().to_dict()
-                    mapping['validation'] = validations.get('validation_semantic')
+                    mapping['validation_semantic'] = validations.get('validation_semantic')
                     mapping['valid_response'] = validations.get('valid_response')
                     mapping['invalid_response'] = validations.get('invalid_response')
                     mapping['is_required'] = validations.get('is_required')

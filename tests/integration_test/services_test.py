@@ -9283,8 +9283,7 @@ def test_add_form():
              'slot_set': {'type': 'current', 'value': 10}},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
              'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
-            {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
-             'slot_set': {'type': 'custom', 'value': True}},
+            {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
              'slot_set': {'type': 'slot', 'value': 'preferences'}},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
@@ -9479,7 +9478,7 @@ def test_get_form_with_no_validations():
     assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
     assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 10}
     assert form['settings'][2]['slot_set'] == {'type': 'current', 'value': 'Indian Cuisine'}
-    assert form['settings'][3]['slot_set'] == {'type': 'custom', 'value': True}
+    assert form['settings'][3]['slot_set'] == {'type': 'current', 'value': None}
     assert form['settings'][4]['slot_set'] == {'type': 'slot', 'value': 'preferences'}
     assert form['settings'][5]['slot_set'] == {'type': 'custom', 'value': 'Very Nice!'}
 
@@ -9662,19 +9661,20 @@ def test_get_form_with_validations():
     assert form['settings'][1]['ask_questions'][0]['value']['text']
     assert form['settings'][2]['ask_questions'][0]['value']['text']
     assert form['settings'][3]['ask_questions'][0]['value']['text']
-    assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
-                                                "!name.contains(" ")) {return true;} else {return false;}"
+    assert form['settings'][0]['validation_semantic'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                         "!name.contains(" ")) {return true;} else {return false;}"
     assert form['settings'][0]['is_required']
     assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
-    assert form['settings'][1]['validation'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
+    assert form['settings'][1]['validation_semantic'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
     assert form['settings'][1]['is_required']
     assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
-    assert not form['settings'][2]['validation']
+    assert not form['settings'][2]['validation_semantic']
     assert form['settings'][2]['is_required']
     assert form['settings'][2]['slot_set'] == {'type': 'custom', 'value': 'Bangalore'}
-    assert form['settings'][3]['validation'] == "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
-                                                "&& !occupation.contains(" ") && occupation.length() > 20) " \
-                                                "{return true;} else {return false;}"
+    assert form['settings'][3]['validation_semantic'] == \
+           "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
+           "&& !occupation.contains(" ") && occupation.length() > 20) " \
+           "{return true;} else {return false;}"
     assert not form['settings'][3]['is_required']
     assert form['settings'][3]['slot_set'] == {'type': 'slot', 'value': 'occupation'}
 
@@ -9689,7 +9689,6 @@ def test_edit_form_add_validations():
                          {'type': 'from_entity', 'entity': 'name'}],
              'validation_semantic': name_validation, 'is_required': True},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'slot_set': {'type': 'current', 'value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}],
              'validation_semantic': num_people_validation,
              'is_required': False,
@@ -9699,7 +9698,6 @@ def test_edit_form_add_validations():
              'slot_set': {'type': 'custom', 'value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
-             'slot_set': {'type': 'current', 'value': False},
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
@@ -9801,19 +9799,19 @@ def test_get_form_after_edit():
     assert form['settings'][4]['ask_questions'][0]['value']['text'] == 'any preferences?'
     assert form['settings'][5]['ask_questions'][0]['value'][
                'text'] == 'Please give your feedback on your experience so far'
-    assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
-                                                "!name.contains(" ")) {return true;} else {return false;}"
+    assert form['settings'][0]['validation_semantic'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                         "!name.contains(" ")) {return true;} else {return false;}"
     assert form['settings'][0]['is_required']
     assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
-    assert form['settings'][1]['validation'] == \
+    assert form['settings'][1]['validation_semantic'] == \
            "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     assert not form['settings'][1]['is_required']
-    assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 10}
-    assert not form['settings'][2]['validation']
+    assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': None}
+    assert not form['settings'][2]['validation_semantic']
     assert form['settings'][2]['slot_set'] == {'type': 'custom', 'value': 'Indian Cuisine'}
-    assert not form['settings'][3]['validation']
-    assert form['settings'][3]['slot_set'] == {'type': 'current', 'value': False}
-    assert not form['settings'][4]['validation']
+    assert not form['settings'][3]['validation_semantic']
+    assert form['settings'][3]['slot_set'] == {'type': 'current', 'value': None}
+    assert not form['settings'][4]['validation_semantic']
     assert form['settings'][4]['slot_set'] == {'type': 'slot', 'value': 'preferences'}
 
     response = client.get(

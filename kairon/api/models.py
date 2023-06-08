@@ -595,7 +595,7 @@ class FormSettings(BaseModel):
     validation_semantic: str = None
     valid_response: str = None
     invalid_response: str = None
-    slot_set: FormSlotSetModel
+    slot_set: FormSlotSetModel = FormSlotSetModel()
 
     @validator("ask_questions")
     def validate_responses(cls, v, values, **kwargs):

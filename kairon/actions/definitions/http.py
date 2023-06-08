@@ -122,7 +122,8 @@ class ActionHTTP(ActionsBase):
             ).save()
             if dispatch_bot_response:
                 if dispatch_type == DispatchType.json.value:
-                    bot_response = json.loads(bot_response)
+                    if isinstance(bot_response, str):
+                        bot_response = json.loads(bot_response)
                     dispatcher.utter_message(json_message=bot_response)
                 else:
                     dispatcher.utter_message(bot_response)
