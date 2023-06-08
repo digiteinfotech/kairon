@@ -424,7 +424,7 @@ class ActionUtility:
         """
         parsed_output = template
         if template.__contains__('${RESPONSE}'):
-            parsed_output = template.replace('${RESPONSE}', str(http_response))
+            parsed_output = template.replace('${RESPONSE}', json.dumps(http_response))
         return parsed_output
 
     @staticmethod
