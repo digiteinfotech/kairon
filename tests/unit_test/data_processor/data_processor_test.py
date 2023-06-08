@@ -5749,10 +5749,8 @@ class TestMongoProcessor:
                  'slot_set': {'type': 'current', 'value': 10}},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
                  'slot_set': {'type': 'slot', 'value': 'cuisine'}},
-                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
-                 'slot_set': {'type': 'custom', 'value': True}},
-                {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-                 'slot_set': {'type': 'current'}},
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
+                {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
                 {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
                  'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
         bot = 'test'
@@ -5802,6 +5800,33 @@ class TestMongoProcessor:
                                  status=True).get().text.text == 'any preferences?'
         assert Responses.objects(name='utter_ask_restaurant_form_feedback', bot=bot,
                                  status=True).get().text.text == 'Please give your feedback on your experience so far'
+
+        validations_added = list(FormValidationAction.objects(name='validate_restaurant_form', bot=bot, status=True))
+        assert len(validations_added) == 6
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].is_required
+        assert validations_added[0].slot_set.type == 'custom'
+        assert validations_added[0].slot_set.value == 'Mahesh'
+        assert validations_added[1].slot == 'num_people'
+        assert validations_added[1].is_required
+        assert validations_added[1].slot_set.type == 'current'
+        assert validations_added[1].slot_set.value == 10
+        assert validations_added[2].slot == 'cuisine'
+        assert validations_added[2].is_required
+        assert validations_added[2].slot_set.type == 'slot'
+        assert validations_added[2].slot_set.value == 'cuisine'
+        assert validations_added[3].slot == 'outdoor_seating'
+        assert validations_added[3].is_required
+        assert validations_added[3].slot_set.type == 'current'
+        assert not validations_added[3].slot_set.value
+        assert validations_added[4].slot == 'preferences'
+        assert validations_added[4].is_required
+        assert validations_added[4].slot_set.type == 'current'
+        assert not validations_added[4].slot_set.value
+        assert validations_added[5].slot == 'feedback'
+        assert validations_added[5].is_required
+        assert validations_added[5].slot_set.type == 'custom'
+        assert validations_added[5].slot_set.value == "Very Nice!"
 
     def test_add_form_already_exists(self):
         processor = MongoProcessor()
@@ -5937,15 +5962,15 @@ class TestMongoProcessor:
         assert form['settings'][2]['ask_questions'][0]['value'] == {'text': 'occupation?'}
         assert form['settings'][2]['ask_questions'][1]['value'] == {'text': 'what is your occupation?'}
         assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
-        assert not form['settings'][0]['validation']
+        assert not form['settings'][0]['validation_semantic']
         assert not form['settings'][0]['invalid_response']
         assert not form['settings'][0]['valid_response']
         assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
-        assert not form['settings'][1]['validation']
+        assert not form['settings'][1]['validation_semantic']
         assert not form['settings'][1]['invalid_response']
         assert not form['settings'][1]['valid_response']
         assert form['settings'][2]['slot_set'] == {'type': 'slot', 'value': 'occupation'}
-        assert not form['settings'][2]['validation']
+        assert not form['settings'][2]['validation_semantic']
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
 
@@ -5967,18 +5992,19 @@ class TestMongoProcessor:
         assert form['settings'][2]['ask_questions'][0]['_id']
         assert form['settings'][2]['ask_questions'][0]['value']['text']
         assert form['settings'][2]['ask_questions'][1]['value']['text']
-        assert form['settings'][0]['validation'] == "if (&& name.contains('i') && name.length() > 4 || " \
-                                                    "!name.contains(" ")) {return true;} else {return false;}"
+        assert form['settings'][0]['validation_semantic'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                             "!name.contains(" ")) {return true;} else {return false;}"
         assert form['settings'][0]['invalid_response'] == 'please rephrase'
         assert form['settings'][0]['valid_response'] == 'got it'
         assert not form['settings'][0]['is_required']
         assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
-        assert form['settings'][1]['validation'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
+        assert form['settings'][1]['validation_semantic'] == \
+               "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert form['settings'][1]['invalid_response'] == 'please enter again'
         assert form['settings'][1]['valid_response'] == 'valid entry'
         assert form['settings'][1]['is_required']
         assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
-        assert form['settings'][2]['validation'] == \
+        assert form['settings'][2]['validation_semantic'] == \
                "if (occupation in ['teacher', 'programmer', 'student', 'manager'] && !occupation.contains(" ") " \
                "&& occupation.length() > 20) {return true;} else {return false;}"
         assert not form['settings'][2]['invalid_response']
