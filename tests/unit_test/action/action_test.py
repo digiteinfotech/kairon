@@ -1010,7 +1010,7 @@ class TestActions:
             http_url=http_url,
             request_method="GET",
             params_list=None,
-            bot="5f50fd0a56b698ca10d35d2e",
+            bot="5f50fd0a65b698ca10d35d2e",
             user="user"
         )
 
@@ -1027,7 +1027,7 @@ class TestActions:
         )
 
         action_name = "http_action"
-        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+        slots = {"bot": "5f50fd0a65b698ca10d35d2e",
                  "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
