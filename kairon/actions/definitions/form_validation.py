@@ -61,6 +61,7 @@ class ActionFormValidation(ActionsBase):
             msg.append(f'Slot is required: {is_required_slot}')
             utter_msg_on_valid = validation.valid_response
             utter_msg_on_invalid = validation.invalid_response
+            dispatch_slot_value = validation.dispatch_slot
 
             if not ActionUtility.is_empty(validation.validation_semantic):
                 is_valid, log = ActionUtility.evaluate_script(script=validation.validation_semantic, data=tracker_data)
@@ -80,9 +81,11 @@ class ActionFormValidation(ActionsBase):
                 if not ActionUtility.is_empty(utter_msg_on_valid):
                     dispatcher.utter_message(text=utter_msg_on_valid)
             else:
-                slot_value = None
-                if not ActionUtility.is_empty(utter_msg_on_invalid):
+                if dispatch_slot_value:
+                    dispatcher.utter_message(slot_value)
+                elif not ActionUtility.is_empty(utter_msg_on_invalid):
                     dispatcher.utter_message(utter_msg_on_invalid)
+                slot_value = None
         except DoesNotExist as e:
             logger.exception(e)
             msg.append(f'Skipping validation as no validation config found for slot: {slot}')

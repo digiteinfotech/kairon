@@ -594,6 +594,7 @@ class FormSettings(BaseModel):
     is_required: bool = True
     validation_semantic: str = None
     valid_response: str = None
+    dispatch_slot: bool = False
     invalid_response: str = None
     slot_set: FormSlotSetModel = FormSlotSetModel()
 
