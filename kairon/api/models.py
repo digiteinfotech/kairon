@@ -595,6 +595,7 @@ class FormSettings(BaseModel):
     validation_semantic: str = None
     valid_response: str = None
     invalid_response: str = None
+    pre_slot_set: FormSlotSetModel = FormSlotSetModel()
     slot_set: FormSlotSetModel = FormSlotSetModel()
 
     @validator("ask_questions")
@@ -615,6 +616,13 @@ class FormSettings(BaseModel):
 
         if Utility.check_empty_string(v):
             raise ValueError("Slot is required")
+        return v
+
+    @validator("slot_set")
+    def validate_slot_set(cls, v, values, **kwargs):
+
+        if v.type == FORM_SLOT_SET_TYPE.action.value:
+            raise ValueError("slot_set cannot be of type action!")
         return v
 
 

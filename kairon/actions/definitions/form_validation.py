@@ -61,6 +61,14 @@ class ActionFormValidation(ActionsBase):
             msg.append(f'Slot is required: {is_required_slot}')
             utter_msg_on_valid = validation.valid_response
             utter_msg_on_invalid = validation.invalid_response
+            pre_validation_slot_type = validation.slot_set_pre_validation.type
+            pre_validation_slot_value = validation.slot_set_pre_validation.value
+            form_slot_set_type = validation.slot_set.type
+            form_slot_set_value = validation.slot_set.value
+
+            slot_value = await self.__get_slot_value_pre_validation(
+                slot_value, pre_validation_slot_value, pre_validation_slot_type, dispatcher, tracker, domain
+            )
 
             if not ActionUtility.is_empty(validation.validation_semantic):
                 is_valid, log = ActionUtility.evaluate_script(script=validation.validation_semantic, data=tracker_data)
@@ -71,12 +79,8 @@ class ActionFormValidation(ActionsBase):
 
             if is_valid:
                 status = "SUCCESS"
-                form_slot_set_type = validation.slot_set.type
-                custom_value = validation.slot_set.value
-                if custom_value and form_slot_set_type == FORM_SLOT_SET_TYPE.custom.value:
-                    slot_value = custom_value
-                elif form_slot_set_type == FORM_SLOT_SET_TYPE.slot.value:
-                    slot_value = tracker.get_slot(custom_value)
+                slot_value = self.__get_slot_value_post_validation(
+                    slot_value, form_slot_set_value, form_slot_set_type, tracker)
                 if not ActionUtility.is_empty(utter_msg_on_valid):
                     dispatcher.utter_message(text=utter_msg_on_valid)
             else:
@@ -99,3 +103,34 @@ class ActionFormValidation(ActionsBase):
             ).save()
 
         return {slot: slot_value}
+
+    async def __execute_http_action(self, action_name: Text, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+        from kairon.actions.definitions.factory import ActionFactory
+
+        action = ActionFactory.get_instance(self.bot, action_name)
+        await action.execute(dispatcher, tracker, domain)
+        if action.is_success:
+            response = action.response
+        return response
+
+    async def __get_slot_value_pre_validation(
+            self, current_value: Any, expected_value: Any, expected_value_type: str,
+            dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any],
+    ):
+        if expected_value_type == FORM_SLOT_SET_TYPE.custom.value and expected_value is not None:
+            current_value = expected_value
+        elif expected_value_type == FORM_SLOT_SET_TYPE.slot.value:
+            current_value = tracker.get_slot(expected_value)
+        elif expected_value_type == FORM_SLOT_SET_TYPE.action.value:
+            current_value = await self.__execute_http_action(action_name=expected_value, dispatcher=dispatcher,
+                                                             tracker=tracker, domain=domain)
+        return current_value
+
+    def __get_slot_value_post_validation(
+            self, current_value: Any, expected_value: Any, expected_value_type: str, tracker: Tracker,
+    ):
+        if expected_value and expected_value_type == FORM_SLOT_SET_TYPE.custom.value:
+            current_value = expected_value
+        elif expected_value_type == FORM_SLOT_SET_TYPE.slot.value:
+            current_value = tracker.get_slot(expected_value)
+        return current_value

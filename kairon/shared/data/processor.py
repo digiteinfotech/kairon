@@ -43,7 +43,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet
+    LlmPrompt, FormSlotSet, FormSlotSetPreValidation
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource
@@ -3978,6 +3978,7 @@ class MongoProcessor:
         for slots_to_fill in path:
             slot = slots_to_fill.get('slot')
             slot_set = slots_to_fill.get("slot_set", {})
+            pre_slot_set = slots_to_fill.get("pre_slot_set", {})
             validation_semantic = slots_to_fill.get('validation_semantic')
             if slot in existing_validations:
                 validation = existing_slot_validations.get(slot=slot)
@@ -3985,6 +3986,8 @@ class MongoProcessor:
                 validation.valid_response = slots_to_fill.get('valid_response')
                 validation.invalid_response = slots_to_fill.get('invalid_response')
                 validation.is_required = slots_to_fill.get('is_required')
+                validation.slot_set_pre_validation.type = pre_slot_set.get('type')
+                validation.slot_set_pre_validation.value = pre_slot_set.get('value')
                 validation.slot_set.type = slot_set.get('type')
                 validation.slot_set.value = slot_set.get('value')
                 validation.user = user
@@ -3997,6 +4000,7 @@ class MongoProcessor:
                                      valid_response=slots_to_fill.get('valid_response'),
                                      invalid_response=slots_to_fill.get('invalid_response'),
                                      is_required=slots_to_fill.get('is_required'),
+                                     slot_set_pre_validation=FormSlotSetPreValidation(**pre_slot_set),
                                      slot_set=FormSlotSet(**slot_set)).save()
 
         slot_validations_to_delete = existing_validations.difference(slots_required_for_form)

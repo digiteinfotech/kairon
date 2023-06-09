@@ -5530,8 +5530,10 @@ class TestMongoProcessor:
     def test_add_form(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
+                 'pre_slot_set': {'type': 'custom', 'value': 'Nupur'},
                  'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
+                 'pre_slot_set': {'type': 'current', 'value': 22},
                  'slot_set': {'type': 'current', 'value': 22}},
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'slot_set': {'type': 'slot', 'value': 'occupation'}}]
@@ -5828,6 +5830,51 @@ class TestMongoProcessor:
         assert validations_added[5].slot_set.type == 'custom'
         assert validations_added[5].slot_set.value == "Very Nice!"
 
+    def test_add_form_pre_validation_values(self):
+        processor = MongoProcessor()
+        path = [{'ask_questions': ['please tell us your full name?'], 'slot': 'name',
+                 'pre_slot_set': {'type': 'custom', 'value': 'Nupur'},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                {'ask_questions': ['are seats required?'], 'slot': 'num_people',
+                 'pre_slot_set': {'type': 'custom'},
+                 'slot_set': {'type': 'current', 'value': 10}}]
+        bot = 'test'
+        user = 'user'
+        slot_one = {"slot": "num_people",
+                'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]}
+        Slots(name='num_people', type="float", bot=bot, user=user).save()
+        processor.add_or_update_slot_mapping(slot_one, bot, user)
+        slot_two = {"slot": "name", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                                     {'type': 'from_entity', 'entity': 'name'}]}
+        Slots(name='name', type="text", bot=bot, user=user).save()
+        processor.add_or_update_slot_mapping(slot_two, bot, user)
+
+        assert processor.add_form('restaurant_form_2', path, bot, user)
+        form = Forms.objects(name='restaurant_form_2', bot=bot, status=True).get()
+        assert form.required_slots == ['name', 'num_people']
+        assert Utterances.objects(name='utter_ask_restaurant_form_2_name', bot=bot, status=True).get()
+        assert Utterances.objects(name='utter_ask_restaurant_form_2_num_people', bot=bot, status=True).get()
+
+        assert Responses.objects(name='utter_ask_restaurant_form_2_name', bot=bot,
+                                 status=True).get().text.text == 'please tell us your full name?'
+        assert Responses.objects(name='utter_ask_restaurant_form_2_num_people', bot=bot,
+                                 status=True).get().text.text == 'are seats required?'
+
+        validations_added = list(FormValidationAction.objects(name='validate_restaurant_form_2', bot=bot, status=True))
+        assert len(validations_added) == 2
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].is_required
+        assert validations_added[0].slot_set.type == 'custom'
+        assert validations_added[0].slot_set.value == 'Mahesh'
+        assert validations_added[1].slot == 'num_people'
+        assert validations_added[1].is_required
+        assert validations_added[1].slot_set.type == 'current'
+        assert validations_added[1].slot_set.value == 10
+        assert validations_added[0].slot_set_pre_validation.type == 'custom'
+        assert validations_added[0].slot_set_pre_validation.value == 'Nupur'
+        assert validations_added[1].slot_set_pre_validation.type == 'custom'
+        assert validations_added[1].slot_set_pre_validation.value == None
+
     def test_add_form_already_exists(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -5864,12 +5911,14 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': False,
+                 'pre_slot_set': {'type': 'custom', 'value': 'Nupur'},
                  'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['your age?', 'ur age?'], 'slot': 'age',
                  'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
                  'is_required': True,
+                 'pre_slot_set': {'type': 'current', 'value': 22},
                  'slot_set': {'type': 'current', 'value': 22},
                  'invalid_response': 'please enter again'
                  },
@@ -5927,17 +5976,78 @@ class TestMongoProcessor:
         assert validations_added[2].slot_set.type == 'slot'
         assert validations_added[2].slot_set.value == 'occupation'
 
+    def test_add_form_with_pre_validation_action(self):
+        processor = MongoProcessor()
+        name_validation = "if (&& name.contains('i') && name.length() > 4 || !name.contains(" ")) " \
+                          "{return true;} else {return false;}"
+        slot = {"slot": "name", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                                     {'type': 'from_entity', 'entity': 'name'}]}
+        path = [{'ask_questions': ['tell me your name?', 'ur name ?'], 'slot': 'name',
+                 'validation_semantic': name_validation,
+                 'valid_response': 'got it',
+                 'is_required': False,
+                 'pre_slot_set': {'type': 'action', 'value': 'http_action'},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+                 'invalid_response': 'please rephrase'},
+                ]
+        bot = 'tester_user'
+        user = 'user_tester'
+        http_url = 'http://www.google.com'
+        action = 'http_action'
+        response = "Nupur"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            params_list=http_params_list,
+            headers=header
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        Slots(name='name', type="text", bot=bot, user=user).save()
+        processor.add_or_update_slot_mapping(slot, bot, user)
+        assert processor.add_form('know_user_form_action', path, bot, user)
+        form = Forms.objects(name='know_user_form_action', bot=bot).get()
+        assert form.required_slots == ['name']
+        assert Utterances.objects(name='utter_ask_know_user_form_action_name', bot=bot,
+                                  status=True).get().form_attached == 'know_user_form_action'
+
+        resp = list(Responses.objects(name='utter_ask_know_user_form_action_name', bot=bot, status=True))
+        assert resp[0].text.text == 'tell me your name?'
+        assert resp[1].text.text == 'ur name ?'
+
+
+        validations_added = list(FormValidationAction.objects(name='validate_know_user_form_action', bot=bot, status=True))
+        assert len(validations_added) == 1
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].validation_semantic == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                           "!name.contains(" ")) {return true;} else {return false;}"
+        assert validations_added[0].valid_response == 'got it'
+        assert validations_added[0].invalid_response == 'please rephrase'
+        assert not validations_added[0].is_required
+        assert validations_added[0].slot_set.type == 'custom'
+        assert validations_added[0].slot_set.value == 'Mahesh'
+        assert validations_added[0].slot_set_pre_validation.type == 'action'
+        assert validations_added[0].slot_set_pre_validation.value == 'http_action'
+
     def test_list_forms(self):
         processor = MongoProcessor()
         forms = list(processor.list_forms('test'))
         print(forms)
-        assert len(forms) == 5
-        assert len([f['name'] for f in forms]) == 5
-        assert len([f['_id'] for f in forms]) == 5
+        assert len(forms) == 6
+        assert len([f['name'] for f in forms]) == 6
+        assert len([f['_id'] for f in forms]) == 6
         required_slots = [f['required_slots'] for f in forms]
         assert required_slots == [['date_time', 'priority'], ['file'], ['name', 'age', 'occupation'],
                                   ['name', 'num_people', 'cuisine', 'outdoor_seating', 'preferences', 'feedback'],
-                                  ['name', 'age', 'occupation']]
+                                  ['name', 'num_people'], ['name', 'age', 'occupation']]
 
     def test_list_forms_no_form_added(self):
         processor = MongoProcessor()

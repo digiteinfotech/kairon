@@ -34,6 +34,7 @@ class FORM_SLOT_SET_TYPE(str, Enum):
     current = "current"
     custom = "custom"
     slot = "slot"
+    action = "action"
 
 
 class SSO_TYPES(str, Enum):

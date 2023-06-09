@@ -7,7 +7,8 @@ from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet
+    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
+    FormSlotSetPreValidation
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -2051,6 +2052,69 @@ class TestActionServer(AsyncHTTPTestCase):
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'}],
                           'responses': []})
 
+    def test_form_validation_action_with_pre_validation_custom_value(self):
+        action_name = "validate_location_with_pre_validation_custom_value"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'location'
+        semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                              "&& location.endsWith('i')) || location.length() > 20) " \
+                              "{return true;} else {return false;}"
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
+                             slot_set_pre_validation=FormSlotSetPreValidation(type=FORM_SLOT_SET_TYPE.custom.value, value="Bangalore")
+                             ).save()
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
+                                   'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Mumbai', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json,
+                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'}],
+                          'responses': []})
+
     def test_form_validation_action_with_custom_value_none(self):
         action_name = "validate_location_with_custom_value_none"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -2112,6 +2176,67 @@ class TestActionServer(AsyncHTTPTestCase):
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
                           'responses': []})
 
+    def test_form_validation_action_with_pre_validation_custom_value_none(self):
+        action_name = "validate_location_with_pre_validation_custom_value_none"
+        bot = '5f50fd0a56b698ca10d35d2f'
+        user = 'test_user'
+        slot = 'location'
+        semantic_expression = "if ((location in ['Mumbai', 'Bangalore'] && location.startsWith('M') " \
+                              "&& location.endsWith('i')) || location.length() > 20) " \
+                              "{return true;} else {return false;}"
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
+                             slot_set_pre_validation=FormSlotSetPreValidation(type=FORM_SLOT_SET_TYPE.custom.value)).save()
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2f', 'location': 'Mumbai',
+                                   'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Mumbai', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json,
+                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
+                          'responses': []})
+
     def test_form_validation_action_with_form_slot_type_slot(self):
         action_name = "validate_current_location_with_form_slot_type_slot"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -2123,6 +2248,160 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
                              slot_set=FormSlotSet(type=FORM_SLOT_SET_TYPE.slot.value, value="current_location")).save()
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
+                                   'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
+                          'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Delhi', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "current_location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json,
+                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location',
+                                      'value': 'Delhi'}], 'responses': []})
+
+    def test_form_validation_action_with_pre_validation_form_slot_type_action(self):
+        action_name = "validate_current_location_with_pre_validation_form_slot_type_action"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'current_location'
+        semantic_expression = "if ((current_location in ['Mumbai', 'Bangalore'] && current_location.startsWith('M') " \
+                              "&& current_location.endsWith('i')) || current_location.length() > 20) " \
+                              "{return true;} else {return false;}"
+        Actions(name='http_action', type=ActionType.http_action.value, bot=bot, user=user).save()
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
+                             slot_set_pre_validation=FormSlotSetPreValidation(type=FORM_SLOT_SET_TYPE.action.value, value='http_action')).save()
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        HttpActionConfig(
+            action_name='http_action',
+            response=HttpActionResponse(dispatch=False,
+                                        value="Chennai"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
+            bot=bot,
+            user=user
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = "Chennai"
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            json=resp_msg,
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        )
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": True},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Chennai',
+                                   'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
+                          'key_vault': {},
+                          'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: 'Chennai', 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "current_location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json,
+                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location',
+                                      'value': 'Chennai'}], 'responses': []})
+
+    def test_form_validation_action_with_pre_validation_form_slot_type_slot(self):
+        action_name = "validate_current_location_with_pre_validation_form_slot_type_slot"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'current_location'
+        semantic_expression = "if ((current_location in ['Mumbai', 'Bangalore'] && current_location.startsWith('M') " \
+                              "&& current_location.endsWith('i')) || current_location.length() > 20) " \
+                              "{return true;} else {return false;}"
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
+                             slot_set_pre_validation=FormSlotSetPreValidation(type=FORM_SLOT_SET_TYPE.slot.value, value="current_location")).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         responses.add(

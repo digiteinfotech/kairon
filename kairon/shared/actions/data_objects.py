@@ -218,9 +218,14 @@ class SlotSetAction(Auditlog):
             slot_to_set.validate()
 
 
+class FormSlotSetPreValidation(EmbeddedDocument):
+    type = StringField(default=FORM_SLOT_SET_TYPE.current.value, choices=[type.value for type in FORM_SLOT_SET_TYPE])
+    value = DynamicField()
+
+
 class FormSlotSet(EmbeddedDocument):
     type = StringField(default=FORM_SLOT_SET_TYPE.current.value,
-                       choices=[type.value for type in FORM_SLOT_SET_TYPE])
+                       choices=[FORM_SLOT_SET_TYPE.current.value, FORM_SLOT_SET_TYPE.custom.value, FORM_SLOT_SET_TYPE.slot.value])
     value = DynamicField()
 
     def validate(self, clean=True):
@@ -242,6 +247,7 @@ class FormValidationAction(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    slot_set_pre_validation = EmbeddedDocumentField(FormSlotSetPreValidation, default=FormSlotSetPreValidation())
     slot_set = EmbeddedDocumentField(FormSlotSet, default=FormSlotSet())
 
     def clean(self):
