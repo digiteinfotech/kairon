@@ -1,13 +1,14 @@
 from typing import List, Any, Dict, Optional
+
 import validators
 from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 
+from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
-from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
@@ -595,8 +596,8 @@ class FormSettings(BaseModel):
     validation_semantic: str = None
     valid_response: str = None
     invalid_response: str = None
-    pre_slot_set: FormSlotSetModel = FormSlotSetModel()
-    slot_set: FormSlotSetModel = FormSlotSetModel()
+    pre_validation_set_slot: FormSlotSetModel = FormSlotSetModel()
+    post_validation_set_slot: FormSlotSetModel = FormSlotSetModel()
 
     @validator("ask_questions")
     def validate_responses(cls, v, values, **kwargs):
@@ -618,11 +619,11 @@ class FormSettings(BaseModel):
             raise ValueError("Slot is required")
         return v
 
-    @validator("slot_set")
+    @validator("post_validation_set_slot")
     def validate_slot_set(cls, v, values, **kwargs):
 
         if v.type == FORM_SLOT_SET_TYPE.action.value:
-            raise ValueError("slot_set cannot be of type action!")
+            raise ValueError("post_validation_set_slot cannot be of type action!")
         return v
 
 

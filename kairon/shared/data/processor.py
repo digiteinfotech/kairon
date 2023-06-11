@@ -2,16 +2,13 @@ import itertools
 import json
 import os
 import uuid
-import networkx as nx
 from collections import ChainMap
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
-from pandas import DataFrame
-from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
-    DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
+import networkx as nx
 import yaml
 from fastapi import File
 from loguru import logger as logging
@@ -19,8 +16,11 @@ from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from mongoengine.queryset.visitor import Q
+from pandas import DataFrame
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
+    DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.events import SlotSet
@@ -35,16 +35,17 @@ from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
+from werkzeug.utils import secure_filename
 
 from kairon.api import models
 from kairon.exceptions import AppException
-from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, FormSlotSetPreValidation
+    LlmPrompt, FormPostValidationSetSlot, FormPreValidationSetSlot
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource
 from kairon.shared.utils import Utility, StoryValidator
@@ -88,9 +89,7 @@ from .data_objects import (
     MultiflowStories, MultiflowStoryEvents, BotContent
 )
 from .utils import DataUtility
-from werkzeug.utils import secure_filename
-
-from ..constants import KaironSystemSlots
+from ..constants import KaironSystemSlots, FORM_SLOT_SET_TYPE
 
 
 class MongoProcessor:
@@ -3977,8 +3976,8 @@ class MongoProcessor:
 
         for slots_to_fill in path:
             slot = slots_to_fill.get('slot')
-            slot_set = slots_to_fill.get("slot_set", {})
-            pre_slot_set = slots_to_fill.get("pre_slot_set", {})
+            slot_set = slots_to_fill.get("post_validation_set_slot", {})
+            pre_slot_set = slots_to_fill.get("pre_validation_set_slot", {})
             validation_semantic = slots_to_fill.get('validation_semantic')
             if slot in existing_validations:
                 validation = existing_slot_validations.get(slot=slot)
@@ -4000,8 +3999,8 @@ class MongoProcessor:
                                      valid_response=slots_to_fill.get('valid_response'),
                                      invalid_response=slots_to_fill.get('invalid_response'),
                                      is_required=slots_to_fill.get('is_required'),
-                                     slot_set_pre_validation=FormSlotSetPreValidation(**pre_slot_set),
-                                     slot_set=FormSlotSet(**slot_set)).save()
+                                     slot_set_pre_validation=FormPreValidationSetSlot(**pre_slot_set),
+                                     slot_set=FormPostValidationSetSlot(**slot_set)).save()
 
         slot_validations_to_delete = existing_validations.difference(slots_required_for_form)
         for slot in slot_validations_to_delete:
@@ -4062,7 +4061,8 @@ class MongoProcessor:
             for slot in form.get('required_slots') or []:
                 utterance = list(self.get_response(name=f'utter_ask_{name}_{slot}', bot=bot))
                 mapping = {'slot': slot, 'ask_questions': utterance, 'validation': None,
-                           'valid_response': None, 'invalid_response': None, 'slot_set': {}}
+                           'valid_response': None, 'invalid_response': None, 'slot_set': {},
+                           'slot_set_pre_validation': {}}
                 if slot in slots_with_validations:
                     validations = form_validations.get(slot=slot).to_mongo().to_dict()
                     mapping['validation_semantic'] = validations.get('validation_semantic')
@@ -4071,6 +4071,8 @@ class MongoProcessor:
                     mapping['is_required'] = validations.get('is_required')
                     mapping['slot_set']['type'] = validations["slot_set"].get("type")
                     mapping['slot_set']['value'] = validations["slot_set"].get("value")
+                    mapping['slot_set_pre_validation']['type'] = validations["slot_set_pre_validation"].get("type")
+                    mapping['slot_set_pre_validation']['value'] = validations["slot_set_pre_validation"].get("value")
                 slot_mapping.append(mapping)
             form['settings'] = slot_mapping
             return form
@@ -4241,6 +4243,9 @@ class MongoProcessor:
             Utility.is_exist(PromptAction, bot=bot, llm_prompts__source=LlmPromptSource.action.value,
                              llm_prompts__data=name,
                              exp_message=f"Action with name {name} is attached with PromptAction!")
+            Utility.is_exist(FormValidationAction, bot=bot, slot_set_pre_validation__type__exact=FORM_SLOT_SET_TYPE.action.value,
+                             slot_set_pre_validation__value__exact=name,
+                             exp_message=f"Action with name {name} is attached with FormValidationAction!")
             if action.type == ActionType.slot_set_action.value:
                 Utility.delete_document([SlotSetAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.form_validation_action.value:
@@ -4265,6 +4270,8 @@ class MongoProcessor:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.prompt_action.value:
                 PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
+            elif action.type == ActionType.form_validation_action.value:
+                FormValidationAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()

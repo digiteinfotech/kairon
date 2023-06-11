@@ -9065,9 +9065,9 @@ def test_list_form_none_exists():
 
 
 def test_add_form_invalid_parameters():
-    path = [{'ask_questions': [], 'slot': 'name', 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+    path = [{'ask_questions': [], 'slot': 'name', 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'}},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'slot_set': {'type': 'current', 'value': 10}}]
+             'post_validation_set_slot': {'type': 'current', 'value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9081,9 +9081,9 @@ def test_add_form_invalid_parameters():
         {'loc': ['body', 'settings', 0, 'ask_questions'], 'msg': 'Questions cannot be empty or contain spaces',
          'type': 'value_error'}]
 
-    path = [{'ask_questions': [" "], 'slot': 'name', 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+    path = [{'ask_questions': [" "], 'slot': 'name', 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'}},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'slot_set': {'type': 'current', 'value': 10}}]
+             'post_validation_set_slot': {'type': 'current', 'value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9097,7 +9097,7 @@ def test_add_form_invalid_parameters():
         {'loc': ['body', 'settings', 0, 'ask_questions'], 'msg': 'Questions cannot be empty or contain spaces',
          'type': 'value_error'}]
 
-    path = [{'ask_questions': ["Tell me your name?"], 'slot': 'name', 'slot_set': {'type': 'action', 'value': 'http_action'}}]
+    path = [{'ask_questions': ["Tell me your name?"], 'slot': 'name', 'post_validation_set_slot': {'type': 'action', 'value': 'http_action'}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9108,11 +9108,11 @@ def test_add_form_invalid_parameters():
     assert not actual["success"]
     assert actual["error_code"] == 422
     print(actual["message"])
-    assert actual["message"] == [{'loc': ['body', 'settings', 0, 'slot_set'], 'msg': 'slot_set cannot be of type action!', 'type': 'value_error'}]
+    assert actual["message"] == [{'loc': ['body', 'settings', 0, 'post_validation_set_slot'], 'msg': 'post_validation_set_slot cannot be of type action!', 'type': 'value_error'}]
 
-    path = [{'ask_questions': ["name ?"], 'slot': '', 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+    path = [{'ask_questions': ["name ?"], 'slot': '', 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'}},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'slot_set': {'type': 'current', 'value': 10}}]
+             'post_validation_set_slot': {'type': 'current', 'value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9183,9 +9183,9 @@ def test_add_empty_slot_mapping():
 
 def test_add_form_with_invalid_slot_set_type():
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-             'slot_set': {'type': 'invalid_type', 'value': 'Mahesh'}},
+             'post_validation_set_slot': {'type': 'invalid_type', 'value': 'Mahesh'}},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'slot_set': {'type': 'current', 'value': 10}}]
+             'post_validation_set_slot': {'type': 'current', 'value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9200,9 +9200,9 @@ def test_add_form_with_invalid_slot_set_type():
 
 def test_add_form_with_invalid_pre_slot_set_type():
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-             'pre_slot_set': {'type': 'invalid_type', 'value': 'Nupur'}},
+             'pre_validation_set_slot': {'type': 'invalid_type', 'value': 'Nupur'}},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'pre_slot_set': {'type': 'current', 'value': 20}}]
+             'pre_validation_set_slot': {'type': 'current', 'value': 20}}]
     request = {'name': 'restaurant_order_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9308,18 +9308,18 @@ def test_add_form():
     assert actual["success"]
 
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
-             'pre_slot_set': {'type': 'custom', 'value': 'Nupur'},
-             'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+             'pre_validation_set_slot': {'type': 'custom', 'value': 'Nupur'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'}},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'slot_set': {'type': 'current', 'value': 10}},
+             'post_validation_set_slot': {'type': 'current', 'value': 10}},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-             'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
+             'post_validation_set_slot': {'type': 'current', 'value': 'Indian Cuisine'}},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-             'pre_slot_set': {'type': 'slot', 'value': 'preferences'},
-             'slot_set': {'type': 'slot', 'value': 'preferences'}},
+             'pre_validation_set_slot': {'type': 'slot', 'value': 'preferences'},
+             'post_validation_set_slot': {'type': 'slot', 'value': 'preferences'}},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-             'slot_set': {'type': 'custom', 'value': 'Very Nice!'}},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Very Nice!'}},
             ]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
@@ -9530,26 +9530,26 @@ def test_get_form_with_no_validations():
 
 def test_add_form_slot_not_present():
     path = [{'ask_questions': ['please give us your location?'], 'slot': 'location',
-             'slot_set': {'type': 'custom', 'value': 'Bangalore'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Bangalore'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}]},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'slot_set': {'type': 'current', 'value': 10},
+             'post_validation_set_slot': {'type': 'current', 'value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-             'slot_set': {'type': 'current', 'value': 'Indian Cuisine'},
+             'post_validation_set_slot': {'type': 'current', 'value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
-             'slot_set': {'type': 'custom', 'value': True},
+             'post_validation_set_slot': {'type': 'custom', 'value': True},
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-             'slot_set': {'type': 'slot', 'value': 'preferences'},
+             'post_validation_set_slot': {'type': 'slot', 'value': 'preferences'},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-             'slot_set': {'type': 'custom', 'value': 'Very Nice!'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]},
             ]
@@ -9567,13 +9567,13 @@ def test_add_form_slot_not_present():
 
 def test_add_form_slot_not_present_pre_validation():
     path = [{'ask_questions': ['please give us your location?'], 'slot': 'location',
-             'pre_slot_set': {'type': 'custom', 'value': 'Mumbai'},
-             'slot_set': {'type': 'custom', 'value': 'Bangalore'},
+             'pre_validation_set_slot': {'type': 'custom', 'value': 'Mumbai'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Bangalore'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}]},
             {'ask_questions': ['seats required?'], 'slot': 'number_people_deets',
-             'pre_slot_set': {'type': 'custom', 'value': '20'},
-             'slot_set': {'type': 'current', 'value': 10},
+             'pre_validation_set_slot': {'type': 'custom', 'value': '20'},
+             'post_validation_set_slot': {'type': 'current', 'value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number_people_deets'}]}
             ]
     request = {'name': 'know_user_details', 'settings': path}
@@ -9659,20 +9659,20 @@ def test_add_form_with_validations():
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
              'validation_semantic': name_validation,
              'is_required': True,
-             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
              'valid_response': 'got it',
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
              'validation_semantic': age_validation,
              'is_required': True,
-             'slot_set': {'type': 'current', 'value': 22},
+             'post_validation_set_slot': {'type': 'current', 'value': 22},
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'
              },
             {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location',
-             'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Bangalore'}},
             {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-             'slot_set': {'type': 'slot', 'value': 'occupation'},
+             'post_validation_set_slot': {'type': 'slot', 'value': 'occupation'},
              'validation_semantic': occupation_validation, 'is_required': False}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.post(
@@ -9758,23 +9758,23 @@ def test_add_form_with_validations_pre_validation_slot_set():
     path = [{'ask_questions': ['What is your full name?', 'name ? '], 'slot': 'name',
              'validation_semantic': name_validation,
              'is_required': True,
-             'pre_slot_set': {'type': 'custom', 'value': 'Nupur'},
-             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+             'pre_validation_set_slot': {'type': 'custom', 'value': 'Nupur'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
              'valid_response': 'got it',
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your current age?', 'age ? '], 'slot': 'age_value',
              'validation_semantic': age_validation,
              'is_required': True,
-             'pre_slot_set': {'type': 'current', 'value': 22},
-             'slot_set': {'type': 'current', 'value': 22},
+             'pre_validation_set_slot': {'type': 'current', 'value': 22},
+             'post_validation_set_slot': {'type': 'current', 'value': 22},
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'
              },
             {'ask_questions': ['what is your location name?', 'location name?'], 'slot': 'location_value',
-             'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Bangalore'}},
             {'ask_questions': ['what is your occupation type?', 'occupation type ?'], 'slot': 'occupation_type',
-             'pre_slot_set': {'type': 'slot', 'value': 'occupation_type'},
-             'slot_set': {'type': 'slot', 'value': 'occupation_type'},
+             'pre_validation_set_slot': {'type': 'slot', 'value': 'occupation_type'},
+             'post_validation_set_slot': {'type': 'slot', 'value': 'occupation_type'},
              'validation_semantic': occupation_validation, 'is_required': False}]
     request = {'name': 'know_user_form_pre', 'settings': path}
     response = client.post(
@@ -9841,7 +9841,7 @@ def test_edit_form_add_validations():
                       "!name.contains(" ")) {return true;} else {return false;}"
     num_people_validation = "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
-             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}],
              'validation_semantic': name_validation, 'is_required': True},
@@ -9852,18 +9852,18 @@ def test_edit_form_add_validations():
              'valid_response': 'valid value',
              'invalid_response': 'invalid value. please enter again'},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-             'slot_set': {'type': 'custom', 'value': 'Indian Cuisine'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-             'slot_set': {'type': 'slot', 'value': "preferences"},
+             'post_validation_set_slot': {'type': 'slot', 'value': "preferences"},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-             'slot_set': {'type': 'custom', 'value': 'Very Nice!'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]},
             ]
@@ -9882,16 +9882,16 @@ def test_edit_form_add_validations():
 def test_edit_form_remove_validations():
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
              'valid_response': 'got it',
-             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
-             'slot_set': {'type': 'current', 'value': 22},
+             'post_validation_set_slot': {'type': 'current', 'value': 22},
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'},
             {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location',
-             'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Bangalore'}},
             {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-             'slot_set': {'type': 'slot', 'value': 'occupation'}}]
+             'post_validation_set_slot': {'type': 'slot', 'value': 'occupation'}}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.put(
         f"/api/bot/{pytest.bot}/forms",
@@ -10006,28 +10006,28 @@ def test_edit_form():
     assert actual["success"]
 
     path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
-             'slot_set': {'type': 'custom', 'value': 'Bangalore'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Bangalore'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
                          {'type': 'from_entity', 'entity': 'location'}]},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
-             'slot_set': {'type': 'current', 'value': 10},
+             'post_validation_set_slot': {'type': 'current', 'value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-             'slot_set': {'type': 'custom', 'value': 'Indian Cuisine'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
-             'slot_set': {'type': 'custom', 'value': True},
+             'post_validation_set_slot': {'type': 'custom', 'value': True},
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-             'slot_set': {'type': 'slot', 'value': 'preferences'},
+             'post_validation_set_slot': {'type': 'slot', 'value': 'preferences'},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
-             'slot_set': {'type': 'current', 'value': True},},
+             'post_validation_set_slot': {'type': 'current', 'value': True},},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-             'slot_set': {'type': 'custom', 'value': 'Very Nice!'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]}
             ]
@@ -10548,7 +10548,7 @@ def test_add_slot_case_insensitivity():
 
 def test_add_form_case_insensitivity():
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
-             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+             'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}]},
             ]

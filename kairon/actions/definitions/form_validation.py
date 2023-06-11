@@ -4,10 +4,10 @@ from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
+from rasa_sdk.forms import REQUESTED_SLOT
 
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, FormValidationAction
-from rasa_sdk.forms import REQUESTED_SLOT
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FORM_SLOT_SET_TYPE
@@ -61,14 +61,15 @@ class ActionFormValidation(ActionsBase):
             msg.append(f'Slot is required: {is_required_slot}')
             utter_msg_on_valid = validation.valid_response
             utter_msg_on_invalid = validation.invalid_response
-            pre_validation_slot_type = validation.slot_set_pre_validation.type
-            pre_validation_slot_value = validation.slot_set_pre_validation.value
+            pre_validation_slot_set_type = validation.slot_set_pre_validation.type
+            pre_validation_slot_set_value = validation.slot_set_pre_validation.value
             form_slot_set_type = validation.slot_set.type
             form_slot_set_value = validation.slot_set.value
 
             slot_value = await self.__get_slot_value_pre_validation(
-                slot_value, pre_validation_slot_value, pre_validation_slot_type, dispatcher, tracker, domain
+                slot_value, pre_validation_slot_set_value, pre_validation_slot_set_type, dispatcher, tracker, domain
             )
+            logger.info("pre_validation_slot_value: " + str(slot_value))
 
             if not ActionUtility.is_empty(validation.validation_semantic):
                 is_valid, log = ActionUtility.evaluate_script(script=validation.validation_semantic, data=tracker_data)
@@ -81,6 +82,7 @@ class ActionFormValidation(ActionsBase):
                 status = "SUCCESS"
                 slot_value = self.__get_slot_value_post_validation(
                     slot_value, form_slot_set_value, form_slot_set_type, tracker)
+                logger.info("post_validation_slot_value: " + str(slot_value))
                 if not ActionUtility.is_empty(utter_msg_on_valid):
                     dispatcher.utter_message(text=utter_msg_on_valid)
             else:

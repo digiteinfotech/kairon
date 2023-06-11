@@ -5530,13 +5530,13 @@ class TestMongoProcessor:
     def test_add_form(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-                 'pre_slot_set': {'type': 'custom', 'value': 'Nupur'},
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                 'pre_validation_set_slot': {'type': 'custom', 'value': 'Nupur'},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'}},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
-                 'pre_slot_set': {'type': 'current', 'value': 22},
-                 'slot_set': {'type': 'current', 'value': 22}},
+                 'pre_validation_set_slot': {'type': 'current', 'value': 22},
+                 'post_validation_set_slot': {'type': 'current', 'value': 22}},
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
+                 'post_validation_set_slot': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         assert processor.add_form('know_user', path, bot, user)
@@ -5746,15 +5746,15 @@ class TestMongoProcessor:
     def test_add_form_2(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'}},
                 {'ask_questions': ['seats required?'], 'slot': 'num_people',
-                 'slot_set': {'type': 'current', 'value': 10}},
+                 'post_validation_set_slot': {'type': 'current', 'value': 10}},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-                 'slot_set': {'type': 'slot', 'value': 'cuisine'}},
+                 'post_validation_set_slot': {'type': 'slot', 'value': 'cuisine'}},
                 {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
                 {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
                 {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Very Nice!'}}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "num_people",
@@ -5833,11 +5833,11 @@ class TestMongoProcessor:
     def test_add_form_pre_validation_values(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['please tell us your full name?'], 'slot': 'name',
-                 'pre_slot_set': {'type': 'custom', 'value': 'Nupur'},
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                 'pre_validation_set_slot': {'type': 'custom', 'value': 'Nupur'},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'}},
                 {'ask_questions': ['are seats required?'], 'slot': 'num_people',
-                 'pre_slot_set': {'type': 'custom'},
-                 'slot_set': {'type': 'current', 'value': 10}}]
+                 'pre_validation_set_slot': {'type': 'custom'},
+                 'post_validation_set_slot': {'type': 'current', 'value': 10}}]
         bot = 'test'
         user = 'user'
         slot_one = {"slot": "num_people",
@@ -5911,20 +5911,20 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': False,
-                 'pre_slot_set': {'type': 'custom', 'value': 'Nupur'},
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+                 'pre_validation_set_slot': {'type': 'custom', 'value': 'Nupur'},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['your age?', 'ur age?'], 'slot': 'age',
                  'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
                  'is_required': True,
-                 'pre_slot_set': {'type': 'current', 'value': 22},
-                 'slot_set': {'type': 'current', 'value': 22},
+                 'pre_validation_set_slot': {'type': 'current', 'value': 22},
+                 'post_validation_set_slot': {'type': 'current', 'value': 22},
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['your occupation?', 'ur occupation?'], 'slot': 'occupation',
                  'validation_semantic': occupation_validation, 'is_required': False,
-                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
+                 'post_validation_set_slot': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         assert processor.add_form('know_user_form', path, bot, user)
@@ -5986,8 +5986,8 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': False,
-                 'pre_slot_set': {'type': 'action', 'value': 'http_action'},
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+                 'pre_validation_set_slot': {'type': 'action', 'value': 'http_action'},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 ]
         bot = 'tester_user'
@@ -6191,18 +6191,18 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': True,
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again',
                  'is_required': False,
-                 'slot_set': {'type': 'current', 'value': 22}
+                 'post_validation_set_slot': {'type': 'current', 'value': 22}
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'validation_semantic': None, 'is_required': False,
-                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
+                 'post_validation_set_slot': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6258,14 +6258,14 @@ class TestMongoProcessor:
                              {'type': 'from_entity', 'entity': 'name'}],
                  'validation_semantic': None,
                  'is_required': True,
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
                  'valid_response': 'got it',
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
                  'validation_semantic': None,
                  'is_required': True,
-                 'slot_set': {'type': 'current', 'value': 22},
+                 'post_validation_set_slot': {'type': 'current', 'value': 22},
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
@@ -6277,7 +6277,7 @@ class TestMongoProcessor:
                      {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
                       'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
                  'validation_semantic': None, 'is_required': False,
-                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
+                 'post_validation_set_slot': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6328,18 +6328,18 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': False,
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'validation_semantic': None,
                  'is_required': True,
-                 'slot_set': {'type': 'current', 'value': 22},
+                 'post_validation_set_slot': {'type': 'current', 'value': 22},
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
                  'validation_semantic': None, 'is_required': False,
-                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
+                 'post_validation_set_slot': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6364,21 +6364,21 @@ class TestMongoProcessor:
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
-                 'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Bangalore'}},
                 {'ask_questions': ['seats required?'], 'slot': 'num_people',
-                 'slot_set': {'type': 'current', 'value': 10}},
+                 'post_validation_set_slot': {'type': 'current', 'value': 10}},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
                  'validation_semantic': "if (&& cuisine.contains('i') && cuisine.length() > 4 || "
                                         "!cuisine.contains(" ")) {return true;} else {return false;}",
-                 'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
+                 'post_validation_set_slot': {'type': 'current', 'value': 'Indian Cuisine'}},
                 {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
-                 'slot_set': {'type': 'custom', 'value': True}},
+                 'post_validation_set_slot': {'type': 'custom', 'value': True}},
                 {'ask_questions': ['any preferences?'], 'slot': 'preferences',
-                 'slot_set': {'type': 'current'}},
+                 'post_validation_set_slot': {'type': 'current'}},
                 {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
-                 'slot_set': {'type': 'slot', 'value': 'ac_required'}},
+                 'post_validation_set_slot': {'type': 'slot', 'value': 'ac_required'}},
                 {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Very Nice!'}}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "ac_required",
@@ -6443,9 +6443,9 @@ class TestMongoProcessor:
     def test_edit_form_utterance_not_exists(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['provide your age?'], 'slot': 'age',
-                 'slot_set': {'type': 'current', 'value': 27}},
+                 'post_validation_set_slot': {'type': 'current', 'value': 27}},
                 {'ask_questions': ['provide your location?'], 'slot': 'location',
-                 'slot_set': {'type': 'custom', 'value': 'Delhi'}}]
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Delhi'}}]
 
         bot = 'test'
         user = 'user'
@@ -6929,7 +6929,7 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
             processor.delete_action('action_custom', bot, user)
 
-    def test_delete_action_with_attached_http_action(self):
+    def test_delete_action_with_attached_http_action_prompt_action(self):
         processor = MongoProcessor()
         bot = 'tester_bot'
         http_url = 'http://www.google.com'
@@ -6966,6 +6966,49 @@ class TestMongoProcessor:
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)
         with pytest.raises(AppException, match=f'Action with name tester_action is attached with PromptAction!'):
             processor.delete_action('tester_action', bot, user)
+
+    def test_delete_action_with_attached_http_action_form_validation(self):
+        processor = MongoProcessor()
+        http_url = 'http://www.google.com'
+        action = 'tester_http_action'
+        response = "json"
+        request_method = 'GET'
+        http_params_list: List[HttpActionParameters] = [
+            HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param2", value="value2", parameter_type="value")]
+        header: List[HttpActionParameters] = [
+            HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
+            HttpActionParameters(key="param4", value="value2", parameter_type="value")]
+        http_action_config = HttpActionConfigRequest(
+            action_name=action,
+            response=ActionResponseEvaluation(value=response),
+            http_url=http_url,
+            request_method=request_method,
+            params_list=http_params_list,
+            headers=header
+        )
+        path = [{'ask_questions': ['please tell us your full name sir/mam?'], 'slot': 'name',
+                 'pre_validation_set_slot': {'type': 'action', 'value': 'tester_http_action'},
+                 'post_validation_set_slot': {'type': 'custom', 'value': 'Mahesh'}},
+                {'ask_questions': ['are any seats required?'], 'slot': 'num_people',
+                 'pre_validation_set_slot': {'type': 'custom'},
+                 'post_validation_set_slot': {'type': 'current', 'value': 10}}]
+        bot = 'test'
+        user = 'user'
+        slot_one = {"slot": "num_people",
+                    'mapping': [
+                        {'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]}
+        Slots(name='num_people', type="float", bot=bot, user=user).save()
+        processor.add_or_update_slot_mapping(slot_one, bot, user)
+        slot_two = {"slot": "name", 'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
+                                                {'type': 'from_entity', 'entity': 'name'}]}
+        Slots(name='name', type="text", bot=bot, user=user).save()
+        processor.add_or_update_slot_mapping(slot_two, bot, user)
+
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_form(name='restaurant_form_3', path=path, bot=bot, user=user)
+        with pytest.raises(AppException, match=f'Action with name tester_http_action is attached with FormValidationAction!'):
+            processor.delete_action('tester_http_action', bot, user)
 
     @responses.activate
     def test_push_notifications_enabled_create_type_event(self):

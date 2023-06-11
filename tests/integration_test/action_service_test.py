@@ -7,8 +7,8 @@ from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    FormSlotSetPreValidation
+    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormPostValidationSetSlot, \
+    FormPreValidationSetSlot
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -1999,7 +1999,7 @@ class TestActionServer(AsyncHTTPTestCase):
                               "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
-                             slot_set=FormSlotSet(type=FORM_SLOT_SET_TYPE.custom.value, value="Bangalore")
+                             slot_set=FormPostValidationSetSlot(type=FORM_SLOT_SET_TYPE.custom.value, value="Bangalore")
                              ).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
@@ -2062,7 +2062,7 @@ class TestActionServer(AsyncHTTPTestCase):
                               "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
-                             slot_set_pre_validation=FormSlotSetPreValidation(type=FORM_SLOT_SET_TYPE.custom.value, value="Bangalore")
+                             slot_set_pre_validation=FormPreValidationSetSlot(type=FORM_SLOT_SET_TYPE.custom.value, value="Bangalore")
                              ).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
@@ -2125,7 +2125,7 @@ class TestActionServer(AsyncHTTPTestCase):
                               "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
-                             slot_set=FormSlotSet(type=FORM_SLOT_SET_TYPE.custom.value)).save()
+                             slot_set=FormPostValidationSetSlot(type=FORM_SLOT_SET_TYPE.custom.value)).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         responses.add(
@@ -2186,7 +2186,7 @@ class TestActionServer(AsyncHTTPTestCase):
                               "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
-                             slot_set_pre_validation=FormSlotSetPreValidation(type=FORM_SLOT_SET_TYPE.custom.value)).save()
+                             slot_set_pre_validation=FormPreValidationSetSlot(type=FORM_SLOT_SET_TYPE.custom.value)).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         responses.add(
@@ -2247,7 +2247,7 @@ class TestActionServer(AsyncHTTPTestCase):
                               "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
-                             slot_set=FormSlotSet(type=FORM_SLOT_SET_TYPE.slot.value, value="current_location")).save()
+                             slot_set=FormPostValidationSetSlot(type=FORM_SLOT_SET_TYPE.slot.value, value="current_location")).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         responses.add(
@@ -2310,7 +2310,7 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name='http_action', type=ActionType.http_action.value, bot=bot, user=user).save()
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
-                             slot_set_pre_validation=FormSlotSetPreValidation(type=FORM_SLOT_SET_TYPE.action.value, value='http_action')).save()
+                             slot_set_pre_validation=FormPreValidationSetSlot(type=FORM_SLOT_SET_TYPE.action.value, value='http_action')).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         HttpActionConfig(
@@ -2350,7 +2350,7 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[responses.matchers.json_params_matcher(
                 {'script': semantic_expression,
                  'data': {'sender_id': 'default', 'user_message': 'get intents',
-                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Chennai',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Udupi',
                                    'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
                           'key_vault': {},
                           'kairon_user_msg': None, 'session_started': None}}
@@ -2361,7 +2361,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "tracker": {
                 "sender_id": "default",
                 "conversation_id": "default",
-                "slots": {"bot": bot, slot: 'Chennai', 'requested_slot': slot},
+                "slots": {"bot": bot, slot: 'Udupi', 'requested_slot': slot},
                 "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
                 "latest_event_time": 1537645578.314389,
                 "followup_action": "action_listen",
@@ -2395,13 +2395,13 @@ class TestActionServer(AsyncHTTPTestCase):
         action_name = "validate_current_location_with_pre_validation_form_slot_type_slot"
         bot = '5f50fd0a56b698ca10d35d2e'
         user = 'test_user'
-        slot = 'current_location'
+        slot = 'current_location_city'
         semantic_expression = "if ((current_location in ['Mumbai', 'Bangalore'] && current_location.startsWith('M') " \
                               "&& current_location.endsWith('i')) || current_location.length() > 20) " \
                               "{return true;} else {return false;}"
         Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
         FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, bot=bot, user=user,
-                             slot_set_pre_validation=FormSlotSetPreValidation(type=FORM_SLOT_SET_TYPE.slot.value, value="current_location")).save()
+                             slot_set_pre_validation=FormPreValidationSetSlot(type=FORM_SLOT_SET_TYPE.slot.value, value="current_location_city")).save()
         Slots(name=slot, type='text', bot=bot, user=user).save()
 
         responses.add(
@@ -2412,8 +2412,8 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[responses.matchers.json_params_matcher(
                 {'script': semantic_expression,
                  'data': {'sender_id': 'default', 'user_message': 'get intents',
-                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
-                                   'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location_city': 'Nagpur',
+                                   'requested_slot': 'current_location_city'}, 'intent': 'test_run', 'chat_log': [],
                           'key_vault': {},
                           'kairon_user_msg': None, 'session_started': None}}
             )],
@@ -2423,7 +2423,7 @@ class TestActionServer(AsyncHTTPTestCase):
             "tracker": {
                 "sender_id": "default",
                 "conversation_id": "default",
-                "slots": {"bot": bot, slot: 'Delhi', 'requested_slot': slot},
+                "slots": {"bot": bot, slot: 'Nagpur', 'requested_slot': slot},
                 "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
                 "latest_event_time": 1537645578.314389,
                 "followup_action": "action_listen",
@@ -2438,7 +2438,7 @@ class TestActionServer(AsyncHTTPTestCase):
                 "session_config": {},
                 "intents": [],
                 "entities": [],
-                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "current_location": None},
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "current_location_city": None},
                 "responses": {},
                 "actions": [],
                 "forms": {},
@@ -2450,8 +2450,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json,
-                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location',
-                                      'value': 'Delhi'}], 'responses': []})
+                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location_city',
+                                      'value': 'Nagpur'}], 'responses': []})
 
     def test_form_validation_action_no_requested_slot(self):
         action_name = "validate_requested_slot"
