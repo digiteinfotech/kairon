@@ -3070,10 +3070,10 @@ class MongoProcessor:
         """
 
         try:
-            if slot_name in {KaironSystemSlots.bot.value, KaironSystemSlots.bot.value.upper(),
-                             KaironSystemSlots.kairon_action_response.value,
-                             KaironSystemSlots.kairon_action_response.value.upper()}:
+            if slot_name.lower() in {s.value for s in KaironSystemSlots}:
                 raise AppException('Default kAIron slot deletion not allowed')
+            if self.get_row_count(SlotMapping, bot, slot=slot_name, status=True) > 0:
+                raise AppException("Cannot delete slot without removing its mappings!")
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)
             action_with_slot = GoogleSearchAction.objects(bot=bot, status=True, set_slot=slot_name)
