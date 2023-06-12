@@ -5744,15 +5744,15 @@ class TestMongoProcessor:
     def test_add_form_2(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
-                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}, 'dispatch_slot': True},
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}, 'dispatch_slot': True, 'dispatch_type': 'json'},
                 {'ask_questions': ['seats required?'], 'slot': 'num_people',
-                 'slot_set': {'type': 'current', 'value': 10}, 'dispatch_slot': True},
+                 'slot_set': {'type': 'current', 'value': 10}, 'dispatch_slot': True, 'dispatch_type': 'text'},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-                 'slot_set': {'type': 'slot', 'value': 'cuisine'}, 'dispatch_slot': False},
-                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
+                 'slot_set': {'type': 'slot', 'value': 'cuisine'}, 'dispatch_slot': False, 'dispatch_type': 'text'},
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating', 'dispatch_type': 'json'},
                 {'ask_questions': ['any preferences?'], 'slot': 'preferences', 'dispatch_slot': True},
                 {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
+                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}, 'dispatch_type': 'json'}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "num_people",
@@ -5805,31 +5805,37 @@ class TestMongoProcessor:
         assert len(validations_added) == 6
         assert validations_added[0].slot == 'name'
         assert validations_added[0].is_required
+        assert validations_added[0].dispatch_type == 'json'
         assert validations_added[0].dispatch_slot
         assert validations_added[0].slot_set.type == 'custom'
         assert validations_added[0].slot_set.value == 'Mahesh'
         assert validations_added[1].slot == 'num_people'
         assert validations_added[1].is_required
+        assert validations_added[1].dispatch_type == 'text'
         assert validations_added[1].dispatch_slot
         assert validations_added[1].slot_set.type == 'current'
         assert validations_added[1].slot_set.value == 10
         assert validations_added[2].slot == 'cuisine'
         assert validations_added[2].is_required
+        assert validations_added[2].dispatch_type == 'text'
         assert not validations_added[2].dispatch_slot
         assert validations_added[2].slot_set.type == 'slot'
         assert validations_added[2].slot_set.value == 'cuisine'
         assert validations_added[3].slot == 'outdoor_seating'
         assert validations_added[3].is_required
+        assert validations_added[3].dispatch_type == 'json'
         assert not validations_added[3].dispatch_slot
         assert validations_added[3].slot_set.type == 'current'
         assert not validations_added[3].slot_set.value
         assert validations_added[4].slot == 'preferences'
         assert validations_added[4].is_required
+        assert validations_added[4].dispatch_type == 'text'
         assert validations_added[4].dispatch_slot
         assert validations_added[4].slot_set.type == 'current'
         assert not validations_added[4].slot_set.value
         assert validations_added[5].slot == 'feedback'
         assert validations_added[5].is_required
+        assert validations_added[5].dispatch_type == 'json'
         assert not validations_added[5].dispatch_slot
         assert validations_added[5].slot_set.type == 'custom'
         assert validations_added[5].slot_set.value == "Very Nice!"
@@ -5870,6 +5876,7 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': False,
+                 'dispatch_type': 'text',
                  'dispatch_slot': True,
                  'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
@@ -5877,6 +5884,7 @@ class TestMongoProcessor:
                  'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
                  'is_required': True,
+                 'dispatch_type': 'json',
                  'dispatch_slot': False,
                  'slot_set': {'type': 'current', 'value': 22},
                  'invalid_response': 'please enter again'
@@ -5913,6 +5921,7 @@ class TestMongoProcessor:
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
         assert not validations_added[0].is_required
+        assert validations_added[0].dispatch_type == 'text'
         assert validations_added[0].dispatch_slot
         assert validations_added[0].slot_set.type == 'custom'
         assert validations_added[0].slot_set.value == 'Mahesh'
@@ -5923,6 +5932,7 @@ class TestMongoProcessor:
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
         assert validations_added[1].is_required
+        assert validations_added[1].dispatch_type == 'json'
         assert not validations_added[1].dispatch_slot
         assert validations_added[1].slot_set.type == 'current'
         assert validations_added[1].slot_set.value == 22
@@ -5934,6 +5944,7 @@ class TestMongoProcessor:
         assert not validations_added[2].valid_response
         assert not validations_added[2].invalid_response
         assert not validations_added[2].is_required
+        assert validations_added[2].dispatch_type == 'text'
         assert validations_added[2].dispatch_slot
         assert validations_added[2].slot_set.type == 'slot'
         assert validations_added[2].slot_set.value == 'occupation'
@@ -6008,6 +6019,7 @@ class TestMongoProcessor:
         assert form['settings'][0]['invalid_response'] == 'please rephrase'
         assert form['settings'][0]['valid_response'] == 'got it'
         assert not form['settings'][0]['is_required']
+        assert form['settings'][0]['dispatch_type'] == 'text'
         assert form['settings'][0]['dispatch_slot']
         assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
         assert form['settings'][1]['validation_semantic'] == \
@@ -6015,6 +6027,7 @@ class TestMongoProcessor:
         assert form['settings'][1]['invalid_response'] == 'please enter again'
         assert form['settings'][1]['valid_response'] == 'valid entry'
         assert form['settings'][1]['is_required']
+        assert form['settings'][1]['dispatch_type'] == 'json'
         assert not form['settings'][1]['dispatch_slot']
         assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
         assert form['settings'][2]['validation_semantic'] == \
@@ -6023,6 +6036,7 @@ class TestMongoProcessor:
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
         assert not form['settings'][2]['is_required']
+        assert form['settings'][2]['dispatch_type'] == 'text'
         assert form['settings'][2]['dispatch_slot']
         assert form['settings'][2]['slot_set'] == {'type': 'slot', 'value': 'occupation'}
 
@@ -6095,6 +6109,7 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': True,
+                 'dispatch_type': 'text',
                  'dispatch_slot': True,
                  'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
@@ -6103,6 +6118,7 @@ class TestMongoProcessor:
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again',
                  'is_required': False,
+                 'dispatch_type': 'json',
                  'dispatch_slot': True,
                  'slot_set': {'type': 'current', 'value': 22}
                  },
@@ -6139,6 +6155,7 @@ class TestMongoProcessor:
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
         assert validations_added[0].is_required
+        assert validations_added[0].dispatch_type == 'text'
         assert validations_added[0].dispatch_slot
         assert validations_added[0].slot_set.type == 'custom'
         assert validations_added[0].slot_set.value == 'Mahesh'
@@ -6149,6 +6166,7 @@ class TestMongoProcessor:
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
         assert not validations_added[1].is_required
+        assert validations_added[1].dispatch_type == 'json'
         assert validations_added[1].dispatch_slot
         assert validations_added[1].slot_set.type == 'current'
         assert validations_added[1].slot_set.value == 22
@@ -6156,6 +6174,7 @@ class TestMongoProcessor:
         assert validations_added[2].slot == 'occupation'
         assert not validations_added[2].validation_semantic
         assert not validations_added[2].is_required
+        assert validations_added[2].dispatch_type == 'text'
         assert validations_added[2].dispatch_slot
         assert validations_added[2].slot_set.type == 'slot'
         assert validations_added[2].slot_set.value == 'occupation'
@@ -6167,6 +6186,7 @@ class TestMongoProcessor:
                              {'type': 'from_entity', 'entity': 'name'}],
                  'validation_semantic': None,
                  'is_required': True,
+                 'dispatch_type': 'json',
                  'dispatch_slot': False,
                  'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'valid_response': 'got it',
@@ -6175,6 +6195,7 @@ class TestMongoProcessor:
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
                  'validation_semantic': None,
                  'is_required': True,
+                 'dispatch_type': 'json',
                  'dispatch_slot': False,
                  'slot_set': {'type': 'current', 'value': 22},
                  'valid_response': 'valid entry',
@@ -6216,6 +6237,7 @@ class TestMongoProcessor:
         assert validations[0].valid_response == 'got it'
         assert validations[0].invalid_response == 'please rephrase'
         assert validations[0].is_required
+        assert validations[0].dispatch_type == 'json'
         assert not validations[0].dispatch_slot
         assert validations[0].slot_set.type == 'custom'
         assert validations[0].slot_set.value == 'Mahesh'
@@ -6223,6 +6245,7 @@ class TestMongoProcessor:
         assert validations[1].valid_response == 'valid entry'
         assert validations[1].invalid_response == 'please enter again'
         assert validations[1].is_required
+        assert validations[1].dispatch_type == 'json'
         assert not validations[1].dispatch_slot
         assert validations[1].slot_set.type == 'current'
         assert validations[1].slot_set.value == 22
@@ -6230,6 +6253,7 @@ class TestMongoProcessor:
         assert not validations[2].valid_response
         assert not validations[2].invalid_response
         assert not validations[2].is_required
+        assert validations[2].dispatch_type == 'text'
         assert validations[2].dispatch_slot
         assert validations[2].slot_set.type == 'slot'
         assert validations[2].slot_set.value == 'occupation'
@@ -6242,6 +6266,7 @@ class TestMongoProcessor:
                  'validation_semantic': name_validation,
                  'valid_response': 'got it',
                  'is_required': False,
+                 'dispatch_type': 'text',
                  'dispatch_slot': False,
                  'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
@@ -6254,7 +6279,7 @@ class TestMongoProcessor:
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'validation_semantic': None, 'is_required': False, 'dispatch_slot': True,
+                 'validation_semantic': None, 'is_required': False, 'dispatch_slot': True, 'dispatch_type': 'json',
                  'slot_set': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
@@ -6268,14 +6293,17 @@ class TestMongoProcessor:
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
         assert not validations_added[0].is_required
+        assert validations_added[0].dispatch_type == 'text'
         assert not validations_added[0].dispatch_slot
         assert validations_added[0].slot_set.type == 'custom'
         assert validations_added[0].slot_set.value == 'Mahesh'
         assert validations_added[1].is_required
+        assert validations_added[1].dispatch_type == 'text'
         assert not validations_added[1].dispatch_slot
         assert validations_added[1].slot_set.type == 'current'
         assert validations_added[1].slot_set.value == 22
         assert not validations_added[2].is_required
+        assert validations_added[2].dispatch_type == 'json'
         assert validations_added[2].dispatch_slot
         assert validations_added[2].slot_set.type == 'slot'
         assert validations_added[2].slot_set.value == 'occupation'
@@ -6362,7 +6390,7 @@ class TestMongoProcessor:
     def test_edit_form_utterance_not_exists(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['provide your age?'], 'slot': 'age',
-                 'slot_set': {'type': 'current', 'value': 27}, 'dispatch_slot': False},
+                 'slot_set': {'type': 'current', 'value': 27}, 'dispatch_slot': False, 'dispatch_type': 'json'},
                 {'ask_questions': ['provide your location?'], 'slot': 'location',
                  'slot_set': {'type': 'custom', 'value': 'Delhi'}, 'dispatch_slot': True}]
 
@@ -6386,10 +6414,12 @@ class TestMongoProcessor:
                                  status=True).get().text.text == 'provide your location?'
         validations_added = list(FormValidationAction.objects(name='validate_know_user', bot=bot, status=True))
         assert validations_added[0].is_required
+        assert validations_added[0].dispatch_type == 'json'
         assert not validations_added[0].dispatch_slot
         assert validations_added[0].slot_set.type == 'current'
         assert validations_added[0].slot_set.value == 27
         assert validations_added[1].is_required
+        assert validations_added[1].dispatch_type == 'text'
         assert validations_added[1].dispatch_slot
         assert validations_added[1].slot_set.type == 'custom'
         assert validations_added[1].slot_set.value == 'Delhi'

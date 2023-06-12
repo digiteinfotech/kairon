@@ -2533,6 +2533,73 @@ class TestActionServer(AsyncHTTPTestCase):
                                          'attachment': None}]}
                          )
 
+    def test_form_validation_action_invalid_slot_value_with_dispatch_slot_json_utterance(self):
+        action_name = "test_form_validation_action_invalid_slot_value_with_dispatch_slot_json_utterance"
+        bot = '5f50fd0a56b698ca10d35d2e'
+        user = 'test_user'
+        slot = 'profession'
+        semantic_expression = "if (!profession.isEmpty() && profession.endsWith('.com) && " \
+                              "(profession.length() > 4 || !profession.contains(" ")) " \
+                              "{return true;} else {return false;}"
+        Actions(name=action_name, type=ActionType.form_validation_action.value, bot=bot, user=user).save()
+        FormValidationAction(name=action_name, slot=slot, validation_semantic=semantic_expression, dispatch_type='json',
+                             bot=bot, user=user, valid_response='that is great!', dispatch_slot=True,
+                             invalid_response='Invalid value. Please type again!').save().to_mongo().to_dict()
+        Slots(name=slot, type='text', bot=bot, user=user).save()
+
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": False},
+            status=200,
+            match=[responses.matchers.json_params_matcher(
+                {'script': semantic_expression,
+                 'data': {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e',
+                                   'profession': {'profession': 'computer programmer'},
+                                   'requested_slot': 'profession'}, 'intent': 'test_run', 'chat_log': [],
+                          'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}}
+            )],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": bot, slot: {'profession': 'computer programmer'}, 'requested_slot': slot},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json,
+                         {'events': [{'event': 'slot', 'timestamp': None, 'name': 'profession', 'value': None}],
+                          'responses': [{'text': None, 'buttons': [], 'elements': [],
+                                         'custom': {'profession': 'computer programmer'},
+                                         'template': None, 'response': None, 'image': None, 'attachment': None}]}
+                         )
+
     def test_form_validation_action_no_validation_configured(self):
         action_name = "validate_user_details"
         bot = '5f50fd0a56b698ca10d35d2e'

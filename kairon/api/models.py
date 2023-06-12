@@ -595,6 +595,7 @@ class FormSettings(BaseModel):
     validation_semantic: str = None
     valid_response: str = None
     dispatch_slot: bool = False
+    dispatch_type: DispatchType = DispatchType.text.value
     invalid_response: str = None
     slot_set: FormSlotSetModel = FormSlotSetModel()
 

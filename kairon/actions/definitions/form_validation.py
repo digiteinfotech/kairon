@@ -8,7 +8,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, FormValidationAction
 from rasa_sdk.forms import REQUESTED_SLOT
-from kairon.shared.actions.models import ActionType
+from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FORM_SLOT_SET_TYPE
 
@@ -59,9 +59,6 @@ class ActionFormValidation(ActionsBase):
             msg.append(f'Validation Expression: {validation.validation_semantic}')
             is_required_slot = validation.is_required
             msg.append(f'Slot is required: {is_required_slot}')
-            utter_msg_on_valid = validation.valid_response
-            utter_msg_on_invalid = validation.invalid_response
-            dispatch_slot_value = validation.dispatch_slot
 
             if not ActionUtility.is_empty(validation.validation_semantic):
                 is_valid, log = ActionUtility.evaluate_script(script=validation.validation_semantic, data=tracker_data)
@@ -69,23 +66,7 @@ class ActionFormValidation(ActionsBase):
                 msg.append(f'Expression evaluation result: {is_valid}')
             elif (is_required_slot and tracker.get_slot(slot) is not None) or not is_required_slot:
                 is_valid = True
-
-            if is_valid:
-                status = "SUCCESS"
-                form_slot_set_type = validation.slot_set.type
-                custom_value = validation.slot_set.value
-                if custom_value and form_slot_set_type == FORM_SLOT_SET_TYPE.custom.value:
-                    slot_value = custom_value
-                elif form_slot_set_type == FORM_SLOT_SET_TYPE.slot.value:
-                    slot_value = tracker.get_slot(custom_value)
-                if not ActionUtility.is_empty(utter_msg_on_valid):
-                    dispatcher.utter_message(text=utter_msg_on_valid)
-            else:
-                if dispatch_slot_value:
-                    dispatcher.utter_message(slot_value)
-                elif not ActionUtility.is_empty(utter_msg_on_invalid):
-                    dispatcher.utter_message(utter_msg_on_invalid)
-                slot_value = None
+            status, slot_value = self.__utter_message_on_validation(is_valid, validation, dispatcher, tracker)
         except DoesNotExist as e:
             logger.exception(e)
             msg.append(f'Skipping validation as no validation config found for slot: {slot}')
@@ -102,3 +83,33 @@ class ActionFormValidation(ActionsBase):
             ).save()
 
         return {slot: slot_value}
+
+    def __utter_message_on_validation(self, is_valid: bool, validation: FormValidationAction,
+                                      dispatcher: CollectingDispatcher, tracker: Tracker):
+        slot = tracker.get_slot(REQUESTED_SLOT)
+        slot_value = tracker.get_slot(slot)
+        utter_msg_on_valid = validation.valid_response
+        utter_msg_on_invalid = validation.invalid_response
+        dispatch_slot_value = validation.dispatch_slot
+        dispatch_type = validation.dispatch_type
+        status = "FAILURE"
+        if is_valid:
+            status = "SUCCESS"
+            form_slot_set_type = validation.slot_set.type
+            custom_value = validation.slot_set.value
+            if custom_value and form_slot_set_type == FORM_SLOT_SET_TYPE.custom.value:
+                slot_value = custom_value
+            elif form_slot_set_type == FORM_SLOT_SET_TYPE.slot.value:
+                slot_value = tracker.get_slot(custom_value)
+            if not ActionUtility.is_empty(utter_msg_on_valid):
+                dispatcher.utter_message(text=utter_msg_on_valid)
+        else:
+            if dispatch_slot_value:
+                if dispatch_type == DispatchType.json.value:
+                    dispatcher.utter_message(json_message=slot_value)
+                else:
+                    dispatcher.utter_message(text=slot_value)
+            elif not ActionUtility.is_empty(utter_msg_on_invalid):
+                dispatcher.utter_message(utter_msg_on_invalid)
+            slot_value = None
+        return status, slot_value
