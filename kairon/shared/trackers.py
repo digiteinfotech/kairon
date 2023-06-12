@@ -156,6 +156,7 @@ class KMongoTrackerStore(TrackerStore):
 
         stored = list(self.conversations.aggregate([
             {"$match": filter_query},
+            {"$sort": {"event.timestamp": 1}},
             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
             {"$project": {"sender_id": "$_id", "events": 1, "_id": 0}}
         ]))
