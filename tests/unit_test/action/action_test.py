@@ -35,7 +35,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction
 from kairon.actions.handlers.processor import ActionProcessor
-from kairon.shared.actions.utils import ActionUtility, ExpressionEvaluator
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
 from unittest.mock import patch
@@ -1566,7 +1566,7 @@ class TestActions:
 
     def test_attach_response(self):
         output = ActionUtility.attach_response("I want $${RESPONSE}", {"dollars": "51"})
-        assert output == 'I want ${\'dollars\': \'51\'}'
+        assert output == 'I want ${\"dollars\": \"51\"}'
 
     def test_attach_response_int(self):
         output = ActionUtility.attach_response("I want $${RESPONSE}", 51)
@@ -1820,7 +1820,8 @@ class TestActions:
 
         config = ActionHTTP(bot, 'action_hit_endpoint').retrieve_config()
         assert config['action_name'] == 'action_hit_endpoint'
-        assert config['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
+        assert config['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json',
+                                      'dispatch_type': 'text'}
         assert config['http_url'] == "http://test.com"
         assert config['request_method'] == 'GET'
 
@@ -1914,451 +1915,6 @@ class TestActions:
         bot = 'test_actions'
         with pytest.raises(ActionFailure, match='Slot not found in database: non_existant'):
             ActionUtility.get_slot_type(bot, 'non_existant')
-
-    def test_is_valid_slot_value_multiple_expressions_1(self):
-        slot_type = 'text'
-        slot_value = 'valid_slot_value'
-        semantic_expression = {'and': [{'operator': '==', 'value': 'valid_slot_value'},
-                                       {'operator': 'contains', 'value': '_slot_'},
-                                       {'operator': 'in', 'value': ['valid_slot_value', 'slot_value']},
-                                       {'operator': 'startswith', 'value': 'valid'},
-                                       {'operator': 'endswith', 'value': 'value'},
-                                       {'operator': 'has_length', 'value': 16},
-                                       {'operator': 'has_length_greater_than', 'value': 15},
-                                       {'operator': 'has_length_less_than', 'value': 20},
-                                       {'operator': 'has_no_whitespace'},
-                                       {'operator': 'matches_regex', 'value': '^[v]+.*[e]$'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert final_expr == '{("valid_slot_value" == "valid_slot_value")and("_slot_" in "valid_slot_value")and("valid_slot_value" in [\'valid_slot_value\', \'slot_value\'])and("valid_slot_value".startswith("valid"))and("valid_slot_value".endswith("value"))and(len("valid_slot_value") == 16)and(len("valid_slot_value") > 15)and(len("valid_slot_value") < 20)and(" " not in "valid_slot_value")and(valid_slot_value.matches_regex(^[v]+.*[e]$))}'
-        assert is_slot_data_valid
-
-        semantic_expression = {'or': [{'operator': '==', 'value': 'valid_slot_value'},
-                                      {'operator': 'is_an_email_address'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert final_expr == '{("valid_slot_value" == "valid_slot_value")or(is_an_email_address(valid_slot_value))}'
-        assert is_slot_data_valid
-
-    def test_is_valid_slot_value_multiple_expressions_2(self):
-        slot_type = 'text'
-        slot_value = 'valid_slot_value'
-        semantic_expression = {'and': [{'and': [{'operator': 'contains', 'value': '_slot_'},
-                                                {'operator': 'in', 'value': ['valid_slot_value', 'slot_value']},
-                                                {'operator': 'startswith', 'value': 'valid'},
-                                                {'operator': 'endswith', 'value': 'value'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                                               {'operator': 'has_no_whitespace'},
-                                               {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{{("_slot_" in "valid_slot_value")and("valid_slot_value" in [\'valid_slot_value\', \'slot_value\'])and("valid_slot_value".startswith("valid"))and("valid_slot_value".endswith("value"))}and{(len("valid_slot_value") > 20)or(" " not in "valid_slot_value")or(valid_slot_value.matches_regex(^[e]+.*[e]$))}}'
-
-        semantic_expression = {'and': [{'and': [{'operator': 'contains', 'value': '_slot_'},
-                                                {'operator': 'in', 'value': ['valid_slot_value', 'slot_value']},
-                                                {'operator': 'startswith', 'value': 'valid'},
-                                                {'operator': 'endswith', 'value': 'value'},
-                                                ]},
-                                       {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                                               {'operator': 'is_an_email_address'},
-                                               {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{{("_slot_" in "valid_slot_value")and("valid_slot_value" in [\'valid_slot_value\', \'slot_value\'])and("valid_slot_value".startswith("valid"))and("valid_slot_value".endswith("value"))}and{(len("valid_slot_value") > 20)or(is_an_email_address(valid_slot_value))or(valid_slot_value.matches_regex(^[e]+.*[e]$))}}'
-
-    def test_is_valid_slot_value_text_type(self):
-        slot_type = 'text'
-        slot_value = 'valid_slot_value'
-
-        semantic_expression = {'and': [{'operator': 'matches_regex', 'value': '^[r]+.*[e]$'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert final_expr == '{(valid_slot_value.matches_regex(^[r]+.*[e]$))}'
-        assert not is_slot_data_valid
-
-        semantic_expression = {'and': [{'operator': 'matches_regex', 'value': '^[v]+.*[e]$'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(valid_slot_value.matches_regex(^[v]+.*[e]$))}'
-
-        semantic_expression = {'and': [{'operator': 'is_an_email_address'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'pandey.udit867@gmail.com',
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(is_an_email_address(pandey.udit867@gmail.com))}'
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(is_an_email_address(valid_slot_value))}'
-
-        semantic_expression = {'and': [{'operator': '==', 'value': 'valid_slot_value'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert final_expr == '{("valid_slot_value" == "valid_slot_value")}'
-        assert is_slot_data_valid
-
-        semantic_expression = {'and': [{'operator': '!=', 'value': 'valid_slot_value'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert final_expr == '{("valid_slot_value" != "valid_slot_value")}'
-        assert not is_slot_data_valid
-
-        semantic_expression = {'and': [{'operator': 'contains', 'value': 'valid'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{("valid" in "valid_slot_value")}'
-
-        semantic_expression = {'and': [{'operator': 'contains', 'value': 'not_present'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{("not_present" in "valid_slot_value")}'
-
-        semantic_expression = {'and': [{'operator': 'in', 'value': ['valid_slot_value', 'slot_value']}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{("valid_slot_value" in [\'valid_slot_value\', \'slot_value\'])}'
-
-        semantic_expression = {'and': [{'operator': 'in', 'value': ['another_value', 'slot_value']}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{("valid_slot_value" in [\'another_value\', \'slot_value\'])}'
-
-        semantic_expression = {'and': [{'operator': 'startswith', 'value': 'valid'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{("valid_slot_value".startswith("valid"))}'
-
-        semantic_expression = {'and': [{'operator': 'startswith', 'value': 'slot'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{("valid_slot_value".startswith("slot"))}'
-
-        semantic_expression = {'and': [{'operator': 'endswith', 'value': 'value'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{("valid_slot_value".endswith("value"))}'
-
-        semantic_expression = {'and': [{'operator': 'endswith', 'value': 'slot'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{("valid_slot_value".endswith("slot"))}'
-
-        semantic_expression = {'and': [{'operator': 'has_length', 'value': 16}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(len("valid_slot_value") == 16)}'
-
-        semantic_expression = {'and': [{'operator': 'has_length', 'value': 15}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(len("valid_slot_value") == 15)}'
-
-        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 15}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(len("valid_slot_value") > 15)}'
-
-        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 16}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(len("valid_slot_value") > 16)}'
-
-        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 17}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(len("valid_slot_value") < 17)}'
-
-        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 16}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(len("valid_slot_value") < 16)}'
-
-        semantic_expression = {'and': [{'operator': 'has_no_whitespace'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(" " not in "valid_slot_value")}'
-
-        semantic_expression = {'and': [{'operator': 'has_no_whitespace'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'valid slot value',
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(" " not in "valid slot value")}'
-
-        with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator ">" for current slot type'):
-            semantic_expression = {'and': [{'operator': '>'}]}
-            ExpressionEvaluator.is_valid_slot_value(slot_type, 'valid slot value', semantic_expression)
-
-    def test_is_valid_slot_value_float_type(self):
-        slot_type = 'float'
-        slot_value = 5
-
-        semantic_expression = {'and': [{'operator': '==', 'value': 5}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(5.0 == 5)}'
-
-        semantic_expression = {'and': [{'operator': '==', 'value': 6}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(5.0 == 6)}'
-
-        semantic_expression = {'and': [{'operator': '>', 'value': 5}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(5.0 > 5)}'
-        semantic_expression = {'and': [{'operator': '>', 'value': 4}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(5.0 > 4)}'
-
-        semantic_expression = {'and': [{'operator': '<', 'value': 5}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(5.0 < 5)}'
-        semantic_expression = {'and': [{'operator': '<', 'value': 6}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(5.0 < 6)}'
-
-        semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 5, 6]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(5.0 in [1, 2, 5, 6])}'
-        semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 3, 4]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(5.0 in [1, 2, 3, 4])}'
-
-        semantic_expression = {'and': [{'operator': '==', 'value': 5.0}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(5.0 == 5.0)}'
-        semantic_expression = {'and': [{'operator': '<', 'value': 6.12}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 6.10, semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(6.1 < 6.12)}'
-
-        semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 5, 6]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 7, semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(7.0 not in [1, 2, 5, 6])}'
-        semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 5, 6]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 6, semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(6.0 not in [1, 2, 5, 6])}'
-
-        with pytest.raises(ActionFailure, match='Cannot evaluate invalid operator "has_length" for slot type "float"'):
-            semantic_expression = {'and': [{'operator': 'has_length', 'value': 6}]}
-            ExpressionEvaluator.is_valid_slot_value(slot_type, 6, semantic_expression)
-
-    def test_is_valid_slot_value_boolean_type(self):
-        slot_type = 'bool'
-        slot_value = 'true'
-
-        semantic_expression = {'and': [{'operator': 'is_true'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(true is true)}'
-        semantic_expression = {'and': [{'operator': 'is_true'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'false',
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(false is true)}'
-
-        semantic_expression = {'and': [{'operator': 'is_false'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'false',
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(false is False)}'
-        semantic_expression = {'and': [{'operator': 'is_false'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(true is False)}'
-
-        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, '', semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(is_empty())}'
-        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
-        # assert ExpressionEvaluator.is_valid_slot_value(slot_type, '    ', semantic_expression)
-        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(is_empty(None))}'
-        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, True, semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(is_empty(True))}'
-        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'False',
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(is_empty(False))}'
-
-        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, '', semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(is_not_empty())}'
-        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
-        # assert not ExpressionEvaluator.is_valid_slot_value(slot_type, '    ', semantic_expression)
-        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(is_not_empty(None))}'
-        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, str(slot_value),
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(is_not_empty(true))}'
-        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, 'False',
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(is_not_empty(False))}'
-
-    def test_is_valid_slot_value_list_type(self):
-        slot_type = 'list'
-        slot_value = [1, 2, 3, 4]
-
-        semantic_expression = {'and': [{'operator': '==', 'value': [1, 2, 3, 4]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{([1, 2, 3, 4] == [1, 2, 3, 4])}'
-        semantic_expression = {'and': [{'operator': '==', 'value': [1, 2, 3, 5]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{([1, 2, 3, 4] == [1, 2, 3, 5])}'
-
-        semantic_expression = {'and': [{'operator': 'contains', 'value': 1}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(1 in [1, 2, 3, 4])}'
-        semantic_expression = {'and': [{'operator': 'contains', 'value': 10}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(10 in [1, 2, 3, 4])}'
-
-        semantic_expression = {'and': [{'operator': 'in', 'value': [1, 2, 3, 4, 5, 6, 7, 8, 9]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{([1, 2, 3, 4] in [1, 2, 3, 4, 5, 6, 7, 8, 9])}'
-        semantic_expression = {'and': [{'operator': 'in', 'value': [4, 5, 6, 7, 8, 9]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{([1, 2, 3, 4] in [4, 5, 6, 7, 8, 9])}'
-
-        semantic_expression = {'and': [{'operator': 'not in', 'value': [6, 7, 8, 9]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{([1, 2, 3, 4] not in [6, 7, 8, 9])}'
-        semantic_expression = {'and': [{'operator': 'not in', 'value': [4, 5, 6, 7, 8, 9]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{([1, 2, 3, 4] not in [4, 5, 6, 7, 8, 9])}'
-        semantic_expression = {'and': [{'operator': 'not in', 'value': [1, 2, 3, 4]}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{([1, 2, 3, 4] not in [1, 2, 3, 4])}'
-
-        semantic_expression = {'and': [{'operator': 'has_length', 'value': 4}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(len([1, 2, 3, 4]) == 4)}'
-        semantic_expression = {'and': [{'operator': 'has_length', 'value': 5}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(len([1, 2, 3, 4]) == 5)}'
-
-        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 2}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(len([1, 2, 3, 4]) > 2)}'
-        semantic_expression = {'and': [{'operator': 'has_length_greater_than', 'value': 4}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(len([1, 2, 3, 4]) > 4)}'
-
-        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 5}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(len([1, 2, 3, 4]) < 5)}'
-        semantic_expression = {'and': [{'operator': 'has_length_less_than', 'value': 4}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(len([1, 2, 3, 4]) < 4)}'
-
-        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, [], semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(is_null_or_empty(None))}'
-        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(is_null_or_empty(None))}'
-        semantic_expression = {'and': [{'operator': 'is_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(is_null_or_empty(None))}'
-
-        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, [], semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(is_not_null_or_empty(None))}'
-        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, None, semantic_expression)
-        assert not is_slot_data_valid
-        assert final_expr == '{(is_not_null_or_empty(None))}'
-        semantic_expression = {'and': [{'operator': 'is_not_null_or_empty'}]}
-        final_expr, is_slot_data_valid = ExpressionEvaluator.is_valid_slot_value(slot_type, slot_value,
-                                                                                 semantic_expression)
-        assert is_slot_data_valid
-        assert final_expr == '{(is_not_null_or_empty(None))}'
 
     def test_get_email_action_config(self):
         with patch('kairon.shared.utils.SMTP', autospec=True) as mock:
@@ -3421,15 +2977,53 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
-        assert bot_responses == [{'role': 'user', 'content': 'What is kairon simply?'},
-                                 {'role': 'assistant',
-                                  'content': 'Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.'},
-                                 {'role': 'user', 'content': 'Do you know any language other than English.'},
-                                 {'role': 'assistant', 'content': "I'm sorry, I didn't quite understand that. Could you rephrase?"},
-                                 {'role': 'user', 'content': 'How to add forms in kairon?'},
-                                 {'role': 'assistant',
-                                  'content': 'To add forms in Kairon, follow these steps:\n- Click on "View"\n- Click on "Add new" button on the top right corner\n- Click on the option "Forms"\n- Type in the desired title on the top left corner\n- Add the desired component from the mapped slots\n- Click on the added slots and type in the bot\'s reply for valid user response, invalid user response, and questions in the respective type boxes\n- To add the questions, press shift and enter keys together\n- Click on "Save" button on the top right corner\n- Retrain the bot to add the form successfully after adding the form.'},
-                                 {'role': 'assistant',
-                                  'content': 'Kairon uses two main approaches for training its chatbots: GPT-based models and Rasa-based models.'},
-                                 {'role': 'user', 'content': 'In how many ways can we train in kairon?'},
+        print(bot_responses)
+        assert bot_responses == [{'role': 'user', 'content': 'Kairon pricing'},
                                  {'role': 'assistant', 'content': "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."}]
+
+    def test_if_last_n_is_less_than_or_equal_to_zero(self):
+        events = Utility.read_yaml("tests/testing_data/history/bot_user_tracker_events.json")
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
+        print(bot_responses)
+        assert bot_responses == [{'role': 'user', 'content': 'How can I use it?'},
+                                 {'role': 'assistant', 'content': 'It depends on what "it" refers to. Can you please provide more context or specify what you are referring to?'},
+                                 {'role': 'user', 'content': 'How can I use kairon?'},
+                                 {'role': 'assistant', 'content': "Kairon can be used to create and deploy digital assistants for various purposes, such as providing customer support, helping customers find the right products, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, and analyzing customer data. Kairon's low-code/no-code interface makes it easy for functional users to define how the digital assistant responds to user queries without needing extensive coding skills. Additionally, Kairon's telemetry feature monitors how users are interacting with the website/product where Kairon was injected and proactively intervenes if they are facing problems, improving the overall user experience. To know more about Kairon, you can visit their website at https://www.digite.com/kairon/."},
+                                 {'role': 'user', 'content': 'Is there any example for how can I use it?'},
+                                 {'role': 'assistant', 'content': 'Yes, there are several examples provided in the context. For example, one article discusses how to integrate kAIron with Slack or Telegram to create a digital assistant or chatbot. Another article provides best practices and guidelines for building conversational interfaces using kAIron. Additionally, there are articles discussing the use of chatbots for millennials, the effectiveness of AI agents in intent generation, and the potential for conversational AI in the gaming world.'},
+                                 {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'},
+                                 {'role': 'assistant', 'content': 'Kairon is a versatile conversational digital transformation platform that offers a range of capabilities to businesses. Its features include end-to-end lifecycle management, tethered digital assistants, low-code/no-code interface, secure script injection, Kairon Telemetry, chat client designer, analytics module, robust integration suite, and real-time struggle analytics. Additionally, Kairon offers natural language processing, artificial intelligence, and machine learning for developing sophisticated chatbots for e-commerce purposes. Kairon chatbots can perform a wide range of tasks, including providing customer support, helping customers find the right products, answering customer queries, processing orders, managing inventory, generating leads, promoting sales and discounts, gathering customer feedback, analyzing customer data, and much more.'},
+                                 {'role': 'user', 'content': 'What is kairon simply?'},
+                                 {'role': 'assistant', 'content': 'Kairon is a digital transformation platform that simplifies the process of building, deploying, and monitoring digital assistants. It allows companies to create intelligent digital assistants without the need for separate infrastructure or technical expertise.'}
+                                 ]
+
+    def test_prepare_bot_responses_messages_pop(self):
+        events = Utility.read_yaml("tests/testing_data/history/tracker_file.json")
+        latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}
+        slots = {"bot": "5j59kk1a76b698ca10d35d2e", "param2": "param2value", "email": "nkhare@digite.com",
+                 "firstname": "nupur"}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
+        print(bot_responses)
+        assert bot_responses == [
+            {'role': 'assistant', 'content': 'Kairon is a versatile conversational digital transformation platform '
+                                             'that offers a range of capabilities to businesses. Its features include '
+                                             'end-to-end lifecycle management, tethered digital assistants, '
+                                             'low-code/no-code interface, secure script injection, Kairon Telemetry, '
+                                             'chat client designer, analytics module, robust integration suite, '
+                                             'and real-time struggle analytics. Additionally, Kairon offers natural '
+                                             'language processing, artificial intelligence, and machine learning for '
+                                             'developing sophisticated chatbots for e-commerce purposes. Kairon '
+                                             'chatbots can perform a wide range of tasks, including providing '
+                                             'customer support, helping customers find the right products, '
+                                             'answering customer queries, processing orders, managing inventory, '
+                                             'generating leads, promoting sales and discounts, gathering customer '
+                                             'feedback, analyzing customer data, and much more.'},
+            {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'}
+        ]

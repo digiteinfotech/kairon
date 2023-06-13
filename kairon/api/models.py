@@ -5,8 +5,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
-from ..shared.actions.models import SlotValidationOperators, LogicalOperators, ActionParameterType, EvaluationType
-from ..shared.constants import SLOT_SET_TYPE
+from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType
+from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
@@ -308,6 +308,7 @@ class ActionResponseEvaluation(BaseModel):
     value: str = None
     dispatch: bool = True
     evaluation_type: EvaluationType = EvaluationType.expression
+    dispatch_type: DispatchType = DispatchType.text.value
 
     @root_validator
     def check(cls, values):
@@ -582,27 +583,19 @@ class SlotMappingRequest(BaseModel):
         return v
 
 
-class Validation(BaseModel):
-    operator: SlotValidationOperators
-    value: Any
-
-
-class Expression(BaseModel):
-    logical_operator: LogicalOperators = None
-    validations: List[Validation]
-
-
-class SlotValidation(BaseModel):
-    logical_operator: LogicalOperators = LogicalOperators.and_operator.value
-    expressions: List[Expression]
+class FormSlotSetModel(BaseModel):
+    type: FORM_SLOT_SET_TYPE = FORM_SLOT_SET_TYPE.current.value
+    value: Any = None
 
 
 class FormSettings(BaseModel):
     ask_questions: List[str]
     slot: str
-    validation: SlotValidation = None
+    is_required: bool = True
+    validation_semantic: str = None
     valid_response: str = None
     invalid_response: str = None
+    slot_set: FormSlotSetModel = FormSlotSetModel()
 
     @validator("ask_questions")
     def validate_responses(cls, v, values, **kwargs):

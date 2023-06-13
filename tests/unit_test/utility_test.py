@@ -2272,6 +2272,32 @@ class TestUtility:
                    responses.matchers.header_matcher(request_header)],
             json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
+
+        resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
+        assert resp == generated_text
+
+    @responses.activate
+    def test_trigger_gp3_client_completion(self):
+        api_key = "test"
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+
+        responses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=200,
+            match=[responses.matchers.json_params_matcher(mock_completion_request),
+                   responses.matchers.header_matcher(request_header)],
+            json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        )
         formatted_response, raw_response = GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
         assert formatted_response == generated_text
         assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
@@ -2608,3 +2634,40 @@ data: [DONE]\n\n"""
         client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
         with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
             client.invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+    @pytest.mark.asyncio
+    async def test_messageConverter_whatsapp_dropdown(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input")
+        whatsapp = ConverterFactory.getConcreteInstance("dropdown", "whatsapp")
+        response = await whatsapp.messageConverter(input_json)
+        expected_output = json_data.get("whatsapp_drop_down_output")
+        print(f"expected {expected_output}..{response}")
+        assert expected_output == response
+
+    def test_dropdown_transformer_whatsapp(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
+        response = whatsapp.dropdown_transformer(input_json)
+        expected_output = json_data.get("whatsapp_drop_down_output")
+        assert expected_output == response
+
+    def test_dropdown_transformer_whatsapp_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_input_exception")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
+        with pytest.raises(Exception):
+            whatsapp.dropdown_transformer(input_json)
+
+    def test_dropdown_transformer_header_input_whatsapp(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("whatsapp_drop_down_header_input")
+        from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
+        whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
+        response = whatsapp.dropdown_transformer(input_json)
+        expected_output = json_data.get("whatsapp_drop_down_header_output")
+        print(f"expectedoutput {expected_output}")
+        assert expected_output == response

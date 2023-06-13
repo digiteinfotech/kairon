@@ -1,8 +1,10 @@
 import asyncio
 import json
 import os
+from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
+import responses
 from mock import patch
 from mongoengine import connect
 from rasa.core.agent import Agent
@@ -15,8 +17,12 @@ from kairon.chat.agent.agent import KaironAgent
 from kairon.chat.handlers.channels.messenger import MessengerHandler
 from kairon.chat.server import make_app
 from kairon.chat.utils import ChatUtils
+from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.auth import Authentication
+from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import INTEGRATION_STATUS
+from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.live_agent.processor import LiveAgentsProcessor
@@ -24,11 +30,6 @@ from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 from kairon.train import start_training
-import responses
-from kairon.shared.account.data_objects import UserActivityLog
-from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.auth import Authentication
-from kairon.shared.data.constant import TOKEN_TYPE
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
@@ -267,6 +268,80 @@ class TestChatServer(AsyncHTTPTestCase):
             assert Utility.check_empty_string(actual["message"])
             assert MeteringProcessor.get_metric_count(bot_account, metric_type=MetricType.test_chat,
                                                       channel_type="chat_client") >= 2
+
+    def test_chat_empty_data(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps({"data": ""}).encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == 'data is required!'
+
+    def test_chat_with_data_not_present(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps({"name": "nupur"}).encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == 'data is required!'
+
+    def test_chat_data_is_not_a_string(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps({"data": 123}).encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            print(actual)
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == "Invalid request body: 'data' field must be a string!"
+
+    def test_chat_invalid_json(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=''.encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            print(actual)
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == "Invalid JSON request: Expecting value: line 1 column 1 (char 0)"
 
     def test_chat_fetch_from_cache(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -1009,48 +1084,61 @@ class TestChatServer(AsyncHTTPTestCase):
             "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
         )
         responses.add(
-            "POST", "https://graph.facebook.com/v13.0/sdfghj567", json={}
+            "GET", "https://graph.facebook.com/v13.0/sdfghj567",
+            json={
+                "messaging_product": "whatsapp",
+                "url": "http://kairon-media.url",
+                "id": "sdfghj567"
+            }
         )
 
         with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
-            response = self.fetch(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                method="POST",
-                body=json.dumps({
-                    "object": "whatsapp_business_account",
-                    "entry": [{
-                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                        "changes": [{
-                            "value": {
-                                "messaging_product": "whatsapp",
-                                "metadata": {
-                                    "display_phone_number": "910123456789",
-                                    "phone_number_id": "12345678"
+            with mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message", autospec=True) as whatsapp_msg_handler:
+                response = self.fetch(
+                    f"/api/bot/whatsapp/{bot}/{token}",
+                    headers={"hub.verify_token": "valid"},
+                    method="POST",
+                    body=json.dumps({
+                        "object": "whatsapp_business_account",
+                        "entry": [{
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [{
+                                "value": {
+                                    "messaging_product": "whatsapp",
+                                    "metadata": {
+                                        "display_phone_number": "910123456789",
+                                        "phone_number_id": "12345678"
+                                    },
+                                    "contacts": [{
+                                        "profile": {
+                                            "name": "udit"
+                                        },
+                                        "wa_id": "wa-123456789"
+                                    }],
+                                    "messages": [{
+                                        "from": "910123456789",
+                                        "id": "wappmsg.ID",
+                                        "timestamp": "21-09-2022 12:05:00",
+                                        "document": {
+                                            "id": "sdfghj567"
+                                        },
+                                        "type": "document"
+                                    }]
                                 },
-                                "contacts": [{
-                                    "profile": {
-                                        "name": "udit"
-                                    },
-                                    "wa_id": "wa-123456789"
-                                }],
-                                "messages": [{
-                                    "from": "910123456789",
-                                    "id": "wappmsg.ID",
-                                    "timestamp": "21-09-2022 12:05:00",
-                                    "text": {
-                                        "id": "sdfghj567"
-                                    },
-                                    "type": "doument"
-                                }]
-                            },
-                            "field": "messages"
+                                "field": "messages"
+                            }]
                         }]
-                    }]
-                }))
+                    }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
+        assert len(whatsapp_msg_handler.call_args[0]) == 5
+        assert whatsapp_msg_handler.call_args[0][1] == '/k_multimedia_msg{"document": "sdfghj567", "doc_url": "http://kairon-media.url"}'
+        assert whatsapp_msg_handler.call_args[0][2] == '910123456789'
+        metadata = whatsapp_msg_handler.call_args[0][3]
+        metadata.pop("timestamp")
+        assert metadata == {'from': '910123456789', 'id': 'wappmsg.ID', 'document': {'id': 'sdfghj567'}, 'type': 'document', 'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp', 'bsp_type': 'meta', 'display_phone_number': '910123456789', 'phone_number_id': '12345678'}
+        assert whatsapp_msg_handler.call_args[0][4] == bot
 
     @responses.activate
     def test_whatsapp_valid_unsupported_message_request(self):

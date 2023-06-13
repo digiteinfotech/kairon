@@ -45,7 +45,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction
-from kairon.shared.actions.models import ActionType
+from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.auth import Authentication
@@ -944,9 +944,9 @@ class TestMongoProcessor:
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 2
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 2
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 8
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 7
 
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
@@ -1129,10 +1129,11 @@ class TestMongoProcessor:
         assert story_graph.story_steps[1].block_name == 'say goodbye'
         domain = processor.load_domain("test_upload_case_insensitivity")
         assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id',
-                                 'location', 'user', 'kairon_action_response'] for slot in domain.slots)
+                                 'location', 'user', 'kairon_action_response', 'image', 'video', 'audio', 'doc_url', 'document'] for slot in domain.slots)
         assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                  'utter_default']
-        assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response']
+        assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
+                                   'image',  'audio','video', 'document', 'doc_url']
         assert domain.forms == {'ask_user': {'required_slots': {'user': [{'type': 'from_entity', 'entity': 'user'}],
                                                                 'email_id': [
                                                                     {'type': 'from_entity', 'entity': 'email_id'}]}},
@@ -1157,7 +1158,7 @@ class TestMongoProcessor:
         assert actions == {'http_action': [
             {'action_name': 'action_get_google_application', 'http_url': 'http://www.alphabet.com',
              'content_type': 'json',
-             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
+             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'},
              'request_method': 'GET', 'headers': [
                 {'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': '', 'parameter_type': 'chat_log',
                  'encrypt': False},
@@ -1176,7 +1177,7 @@ class TestMongoProcessor:
                              {'_cls': 'HttpActionRequestBody', 'key': 'testParam2', 'value': 'testvalue1',
                               'parameter_type': 'slot', 'encrypt': False}]},
             {'action_name': 'action_get_microsoft_application',
-             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression'},
+             'response': {'value': 'json', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'},
              'http_url': 'http://www.alphabet.com', 'request_method': 'GET', 'content_type': 'json',
              'params_list': [{'_cls': 'HttpActionRequestBody', 'key': 'testParam1', 'value': 'testValue1',
                               'parameter_type': 'value', 'encrypt': False},
@@ -1228,16 +1229,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.slots.__len__() == 17
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 11
+        assert domain.entities.__len__() == 16
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {
@@ -1255,9 +1256,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
-        assert domain.slots[2].type_name == "any"
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 4
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
@@ -1302,9 +1300,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 11
+        assert domain.slots.__len__() == 16
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 10
+        assert domain.entities.__len__() == 15
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
@@ -1316,8 +1314,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
         assert Utterances.objects(bot='all').count() == 27
 
     @pytest.mark.asyncio
@@ -1350,9 +1346,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 11
+        assert domain.slots.__len__() == 16
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 10
+        assert domain.entities.__len__() == 15
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 40
@@ -1363,8 +1359,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
         assert Utterances.objects(bot='all').count() == 27
 
     def test_load_nlu(self):
@@ -1380,11 +1374,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 3
-        assert domain.slots[0].name == 'kairon_action_response'
-        assert domain.slots[0].value is None
+        assert domain.slots.__len__() == 8
+        assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.templates.keys().__len__() == 11
-        assert domain.entities.__len__() == 2
+        assert domain.entities.__len__() == 7
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
@@ -1631,7 +1624,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 3
+        assert slots.__len__() == 8
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -1664,7 +1657,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 4
+        assert slots.__len__() == 9
         assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -1706,7 +1699,7 @@ class TestMongoProcessor:
 
     def test_get_entities(self):
         processor = MongoProcessor()
-        expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response']
+        expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio', 'doc_url', 'document']
         actual = processor.get_entities("tests")
         assert actual.__len__() == expected.__len__()
         assert all(item["name"] in expected for item in actual)
@@ -3449,16 +3442,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.slots.__len__() == 17
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 11
+        assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
@@ -3467,9 +3460,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
-        assert domain.slots[2].type_name == "any"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -3516,9 +3506,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 11
+        assert domain.slots.__len__() == 16
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 10
+        assert domain.entities.__len__() == 15
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 40
         assert domain.intents.__len__() == 29
@@ -3527,8 +3517,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert rules == ['ask the user to rephrase whenever they send a message with low nlu confidence']
         actions = mongo_processor.load_http_action(bot)
@@ -3573,16 +3561,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.slots.__len__() == 17
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 2
         assert domain.templates.keys().__len__() == 27
-        assert domain.entities.__len__() == 11
+        assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 45
         assert domain.intents.__len__() == 29
@@ -3591,9 +3579,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
-        assert domain.slots[2].type_name == "any"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -3639,16 +3624,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.slots.__len__() == 17
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
         assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 11
+        assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
@@ -3657,9 +3642,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
-        assert domain.slots[2].type_name == "any"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -3692,16 +3674,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.slots.__len__() == 17
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
         assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 11
+        assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
@@ -3710,9 +3692,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
-        assert domain.slots[2].type_name == "any"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -3752,16 +3731,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 12
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 2
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.slots.__len__() == 17
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 3
         assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 11
+        assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 30
@@ -3770,9 +3749,6 @@ class TestMongoProcessor:
         )
         assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
         assert domain.templates["utter_offer_help"][0]["custom"]
-        assert domain.slots[0].type_name == "any"
-        assert domain.slots[1].type_name == "any"
-        assert domain.slots[2].type_name == "any"
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
         actions = mongo_processor.load_http_action(bot)
@@ -3819,10 +3795,10 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 12
+        assert domain.slots.__len__() == 17
         assert domain.intent_properties.__len__() == 30
         assert domain.templates.keys().__len__() == 29
-        assert domain.entities.__len__() == 11
+        assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 44
         assert domain.intents.__len__() == 30
@@ -3895,10 +3871,10 @@ class TestMongoProcessor:
         assert len(rules) == 3
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 12
+        assert domain.slots.__len__() == 17
         assert domain.intent_properties.__len__() == 29
         assert domain.templates.keys().__len__() == 25
-        assert domain.entities.__len__() == 11
+        assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 29
@@ -5485,14 +5461,25 @@ class TestMongoProcessor:
              'min_value': 0.0, 'influence_conversation': True, '_has_been_set': False},
             {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'auto_fill': False, 'influence_conversation': False,
              '_has_been_set': False},
-            {'name': 'kairon_action_response', 'type': 'any', 'auto_fill': False, 'influence_conversation': False,
+            {'name': 'kairon_action_response', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'image', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'audio', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'video', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'document', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'doc_url', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
              '_has_been_set': False},
             {'name': 'date_time', 'type': 'any', 'auto_fill': True, 'influence_conversation': False,
              '_has_been_set': False},
             {'name': 'age', 'type': 'float', 'auto_fill': True, 'max_value': 1.0, 'min_value': 0.0,
              'influence_conversation': True, '_has_been_set': False},
             {'name': 'occupation', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False}]
+             '_has_been_set': False},
+        ]
 
     def test_update_slot_add_value_intent_and_not_intent(self):
         processor = MongoProcessor()
@@ -5542,9 +5529,12 @@ class TestMongoProcessor:
 
     def test_add_form(self):
         processor = MongoProcessor()
-        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name'},
-                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age'},
-                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation'}]
+        path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
+                 'slot_set': {'type': 'current', 'value': 22}},
+                {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         assert processor.add_form('know_user', path, bot, user)
@@ -5753,12 +5743,16 @@ class TestMongoProcessor:
 
     def test_add_form_2(self):
         processor = MongoProcessor()
-        path = [{'ask_questions': ['please give us your name?'], 'slot': 'name'},
-                {'ask_questions': ['seats required?'], 'slot': 'num_people'},
-                {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine'},
+        path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+                {'ask_questions': ['seats required?'], 'slot': 'num_people',
+                 'slot_set': {'type': 'current', 'value': 10}},
+                {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+                 'slot_set': {'type': 'slot', 'value': 'cuisine'}},
                 {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
                 {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
-                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback'}]
+                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "num_people",
@@ -5807,6 +5801,33 @@ class TestMongoProcessor:
         assert Responses.objects(name='utter_ask_restaurant_form_feedback', bot=bot,
                                  status=True).get().text.text == 'Please give your feedback on your experience so far'
 
+        validations_added = list(FormValidationAction.objects(name='validate_restaurant_form', bot=bot, status=True))
+        assert len(validations_added) == 6
+        assert validations_added[0].slot == 'name'
+        assert validations_added[0].is_required
+        assert validations_added[0].slot_set.type == 'custom'
+        assert validations_added[0].slot_set.value == 'Mahesh'
+        assert validations_added[1].slot == 'num_people'
+        assert validations_added[1].is_required
+        assert validations_added[1].slot_set.type == 'current'
+        assert validations_added[1].slot_set.value == 10
+        assert validations_added[2].slot == 'cuisine'
+        assert validations_added[2].is_required
+        assert validations_added[2].slot_set.type == 'slot'
+        assert validations_added[2].slot_set.value == 'cuisine'
+        assert validations_added[3].slot == 'outdoor_seating'
+        assert validations_added[3].is_required
+        assert validations_added[3].slot_set.type == 'current'
+        assert not validations_added[3].slot_set.value
+        assert validations_added[4].slot == 'preferences'
+        assert validations_added[4].is_required
+        assert validations_added[4].slot_set.type == 'current'
+        assert not validations_added[4].slot_set.value
+        assert validations_added[5].slot == 'feedback'
+        assert validations_added[5].is_required
+        assert validations_added[5].slot_set.type == 'custom'
+        assert validations_added[5].slot_set.value == "Very Nice!"
+
     def test_add_form_already_exists(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -5833,34 +5854,28 @@ class TestMongoProcessor:
 
     def test_add_form_with_validations(self):
         processor = MongoProcessor()
-        name_validation = {'logical_operator': 'and',
-                           'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                            {'operator': 'has_no_whitespace'}]}]}
-        age_validation = {'logical_operator': 'and',
-                          'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10},
-                                                           {'operator': 'is_less_than', 'value': 70},
-                                                           {'operator': 'starts_with', 'value': 'valid'},
-                                                           {'operator': 'ends_with', 'value': 'value'}]}]}
-        occupation_validation = {'logical_operator': 'and', 'expressions': [
-            {'logical_operator': 'and',
-             'validations': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
-                             {'operator': 'has_no_whitespace'},
-                             {'operator': 'ends_with', 'value': 'value'}]},
-            {'logical_operator': 'or',
-             'validations': [{'operator': 'has_length_greater_than', 'value': 20},
-                             {'operator': 'has_no_whitespace'},
-                             {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        name_validation = "if (&& name.contains('i') && name.length() > 4 || !name.contains(" ")) " \
+                          "{return true;} else {return false;}"
+        age_validation = "if (age > 10 && age < 70) {return true;} else {return false;}"
+        occupation_validation = "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
+                                "&& !occupation.contains(" ") && occupation.length() > 20) " \
+                                "{return true;} else {return false;}"
         path = [{'ask_questions': ['your name?', 'ur name?'], 'slot': 'name',
-                 'validation': name_validation,
+                 'validation_semantic': name_validation,
                  'valid_response': 'got it',
+                 'is_required': False,
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['your age?', 'ur age?'], 'slot': 'age',
-                 'validation': age_validation,
+                 'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
+                 'is_required': True,
+                 'slot_set': {'type': 'current', 'value': 22},
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['your occupation?', 'ur occupation?'], 'slot': 'occupation',
-                 'validation': occupation_validation}]
+                 'validation_semantic': occupation_validation, 'is_required': False,
+                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         assert processor.add_form('know_user_form', path, bot, user)
@@ -5885,30 +5900,32 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
-        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                                    {'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].validation_semantic == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                           "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
+        assert not validations_added[0].is_required
+        assert validations_added[0].slot_set.type == 'custom'
+        assert validations_added[0].slot_set.value == 'Mahesh'
 
         assert validations_added[1].slot == 'age'
-        assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10},
-                                                                    {'operator': 'is_less_than', 'value': 70},
-                                                                    {'operator': 'starts_with', 'value': 'valid'},
-                                                                    {'operator': 'ends_with', 'value': 'value'},
-                                                                    ]}
+        assert validations_added[1].validation_semantic == \
+               "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
+        assert validations_added[1].is_required
+        assert validations_added[1].slot_set.type == 'current'
+        assert validations_added[1].slot_set.value == 22
 
         assert validations_added[2].slot == 'occupation'
-        assert validations_added[2].validation_semantic == {'and': [
-            {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
-                     {'operator': 'has_no_whitespace'},
-                     {'operator': 'ends_with', 'value': 'value'}]},
-            {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                    {'operator': 'has_no_whitespace'},
-                    {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert validations_added[2].validation_semantic == \
+               "if (occupation in ['teacher', 'programmer', 'student', 'manager'] && !occupation.contains(" ") " \
+               "&& occupation.length() > 20) {return true;} else {return false;}"
         assert not validations_added[2].valid_response
         assert not validations_added[2].invalid_response
+        assert not validations_added[2].is_required
+        assert validations_added[2].slot_set.type == 'slot'
+        assert validations_added[2].slot_set.value == 'occupation'
 
     def test_list_forms(self):
         processor = MongoProcessor()
@@ -5944,13 +5961,16 @@ class TestMongoProcessor:
         assert form['settings'][2]['ask_questions'][0]['_id']
         assert form['settings'][2]['ask_questions'][0]['value'] == {'text': 'occupation?'}
         assert form['settings'][2]['ask_questions'][1]['value'] == {'text': 'what is your occupation?'}
-        assert not form['settings'][0]['validation']
+        assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
+        assert not form['settings'][0]['validation_semantic']
         assert not form['settings'][0]['invalid_response']
         assert not form['settings'][0]['valid_response']
-        assert not form['settings'][1]['validation']
+        assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
+        assert not form['settings'][1]['validation_semantic']
         assert not form['settings'][1]['invalid_response']
         assert not form['settings'][1]['valid_response']
-        assert not form['settings'][2]['validation']
+        assert form['settings'][2]['slot_set'] == {'type': 'slot', 'value': 'occupation'}
+        assert not form['settings'][2]['validation_semantic']
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
 
@@ -5972,26 +5992,25 @@ class TestMongoProcessor:
         assert form['settings'][2]['ask_questions'][0]['_id']
         assert form['settings'][2]['ask_questions'][0]['value']['text']
         assert form['settings'][2]['ask_questions'][1]['value']['text']
-        assert form['settings'][0]['validation'] == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                             {'operator': 'has_no_whitespace'}]}
+        assert form['settings'][0]['validation_semantic'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                             "!name.contains(" ")) {return true;} else {return false;}"
         assert form['settings'][0]['invalid_response'] == 'please rephrase'
         assert form['settings'][0]['valid_response'] == 'got it'
-        assert form['settings'][1]['validation'] == {'and': [{'operator': 'is_greater_than', 'value': 10},
-                                                             {'operator': 'is_less_than', 'value': 70},
-                                                             {'operator': 'starts_with', 'value': 'valid'},
-                                                             {'operator': 'ends_with', 'value': 'value'},
-                                                             ]}
+        assert not form['settings'][0]['is_required']
+        assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
+        assert form['settings'][1]['validation_semantic'] == \
+               "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert form['settings'][1]['invalid_response'] == 'please enter again'
         assert form['settings'][1]['valid_response'] == 'valid entry'
-        assert form['settings'][2]['validation'] == {'and': [
-            {'and': [{'operator': 'is_in', 'value': ['teacher', 'programmer', 'student', 'manager']},
-                     {'operator': 'has_no_whitespace'},
-                     {'operator': 'ends_with', 'value': 'value'}]},
-            {'or': [{'operator': 'has_length_greater_than', 'value': 20},
-                    {'operator': 'has_no_whitespace'},
-                    {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+        assert form['settings'][1]['is_required']
+        assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
+        assert form['settings'][2]['validation_semantic'] == \
+               "if (occupation in ['teacher', 'programmer', 'student', 'manager'] && !occupation.contains(" ") " \
+               "&& occupation.length() > 20) {return true;} else {return false;}"
         assert not form['settings'][2]['invalid_response']
         assert not form['settings'][2]['valid_response']
+        assert not form['settings'][2]['is_required']
+        assert form['settings'][2]['slot_set'] == {'type': 'slot', 'value': 'occupation'}
 
     def test_get_form_not_added(self):
         import mongomock
@@ -6055,22 +6074,25 @@ class TestMongoProcessor:
 
     def test_edit_form_change_validations(self):
         processor = MongoProcessor()
-        name_validation = {'logical_operator': 'and',
-                           'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                            {'operator': 'has_no_whitespace'}]}]}
-        age_validation = {'logical_operator': 'and',
-                          'expressions': [{'validations': [{'operator': 'is_greater_than', 'value': 10}]}]}
+        name_validation = "if (&& name.contains('i') && name.length() > 4 || " \
+                          "!name.contains(" ")) {return true;} else {return false;}"
+        age_validation = "if (age > 10 && age < 70) {return true;} else {return false;}"
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-                 'validation': name_validation,
+                 'validation_semantic': name_validation,
                  'valid_response': 'got it',
+                 'is_required': True,
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
-                 'validation': age_validation,
+                 'validation_semantic': age_validation,
                  'valid_response': 'valid entry',
-                 'invalid_response': 'please enter again'
+                 'invalid_response': 'please enter again',
+                 'is_required': False,
+                 'slot_set': {'type': 'current', 'value': 22}
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'validation': None}]
+                 'validation_semantic': None, 'is_required': False,
+                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6095,30 +6117,45 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
-        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                                    {'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].validation_semantic == \
+               "if (&& name.contains('i') && name.length() > 4 || " \
+               "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
+        assert validations_added[0].is_required
+        assert validations_added[0].slot_set.type == 'custom'
+        assert validations_added[0].slot_set.value == 'Mahesh'
 
         assert validations_added[1].slot == 'age'
-        assert validations_added[1].validation_semantic == {'and': [{'operator': 'is_greater_than', 'value': 10}]}
+        assert validations_added[1].validation_semantic == \
+               "if (age > 10 && age < 70) {return true;} else {return false;}"
         assert validations_added[1].valid_response == 'valid entry'
         assert validations_added[1].invalid_response == 'please enter again'
+        assert not validations_added[1].is_required
+        assert validations_added[1].slot_set.type == 'current'
+        assert validations_added[1].slot_set.value == 22
 
         assert validations_added[2].slot == 'occupation'
         assert not validations_added[2].validation_semantic
+        assert not validations_added[2].is_required
+        assert validations_added[2].slot_set.type == 'slot'
+        assert validations_added[2].slot_set.value == 'occupation'
 
     def test_edit_form_remove_validations(self):
         processor = MongoProcessor()
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
                  'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                              {'type': 'from_entity', 'entity': 'name'}],
-                 'validation': None,
+                 'validation_semantic': None,
+                 'is_required': True,
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'valid_response': 'got it',
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
                  'mapping': [{'type': 'from_intent', 'intent': ['get_age'], 'entity': 'age', 'value': '18'}],
-                 'validation': None,
+                 'validation_semantic': None,
+                 'is_required': True,
+                 'slot_set': {'type': 'current', 'value': 22},
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
@@ -6129,7 +6166,8 @@ class TestMongoProcessor:
                      {'type': 'from_entity', 'entity': 'occupation'},
                      {'type': 'from_trigger_intent', 'entity': 'occupation', 'value': 'tester',
                       'intent': ['get_business', 'is_engineer', 'is_tester'], 'not_intent': ['get_age', 'get_name']}],
-                 'validation': None}]
+                 'validation_semantic': None, 'is_required': False,
+                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6153,31 +6191,45 @@ class TestMongoProcessor:
 
         validations = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations) == 3
-        assert validations[0].validation_semantic == {}
+        assert not validations[0].validation_semantic
         assert validations[0].valid_response == 'got it'
         assert validations[0].invalid_response == 'please rephrase'
-        assert validations[1].validation_semantic == {}
+        assert validations[0].is_required
+        assert validations[0].slot_set.type == 'custom'
+        assert validations[0].slot_set.value == 'Mahesh'
+        assert not validations[1].validation_semantic
         assert validations[1].valid_response == 'valid entry'
         assert validations[1].invalid_response == 'please enter again'
-        assert validations[2].validation_semantic == {}
+        assert validations[1].is_required
+        assert validations[1].slot_set.type == 'current'
+        assert validations[1].slot_set.value == 22
+        assert not validations[2].validation_semantic
         assert not validations[2].valid_response
         assert not validations[2].invalid_response
+        assert not validations[2].is_required
+        assert validations[2].slot_set.type == 'slot'
+        assert validations[2].slot_set.value == 'occupation'
 
     def test_edit_form_add_validations(self):
         processor = MongoProcessor()
-        name_validation = {'logical_operator': 'and',
-                           'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}
+        name_validation = "if (&& name.contains('i') && name.length() > 4 || " \
+                          "!name.contains(" ")) {return true;} else {return false;}"
         path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-                 'validation': name_validation,
+                 'validation_semantic': name_validation,
                  'valid_response': 'got it',
+                 'is_required': False,
+                 'slot_set': {'type': 'custom', 'value': 'Mahesh'},
                  'invalid_response': 'please rephrase'},
                 {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
-                 'validation': None,
+                 'validation_semantic': None,
+                 'is_required': True,
+                 'slot_set': {'type': 'current', 'value': 22},
                  'valid_response': 'valid entry',
                  'invalid_response': 'please enter again'
                  },
                 {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-                 'validation': None}]
+                 'validation_semantic': None, 'is_required': False,
+                 'slot_set': {'type': 'slot', 'value': 'occupation'}}]
         bot = 'test'
         user = 'user'
         processor.edit_form('know_user_form', path, bot, user)
@@ -6185,21 +6237,38 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_know_user_form', bot=bot, status=True))
         assert len(validations_added) == 3
         assert validations_added[0].slot == 'name'
-        assert validations_added[0].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
+        assert validations_added[0].validation_semantic == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                           "!name.contains(" ")) {return true;} else {return false;}"
         assert validations_added[0].valid_response == 'got it'
         assert validations_added[0].invalid_response == 'please rephrase'
+        assert not validations_added[0].is_required
+        assert validations_added[0].slot_set.type == 'custom'
+        assert validations_added[0].slot_set.value == 'Mahesh'
+        assert validations_added[1].is_required
+        assert validations_added[1].slot_set.type == 'current'
+        assert validations_added[1].slot_set.value == 22
+        assert not validations_added[2].is_required
+        assert validations_added[2].slot_set.type == 'slot'
+        assert validations_added[2].slot_set.value == 'occupation'
 
     def test_edit_form_remove_and_add_slots(self):
         processor = MongoProcessor()
-        path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location'},
-                {'ask_questions': ['seats required?'], 'slot': 'num_people'},
+        path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
+                 'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+                {'ask_questions': ['seats required?'], 'slot': 'num_people',
+                 'slot_set': {'type': 'current', 'value': 10}},
                 {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
-                 'validation': {'logical_operator': 'and',
-                                'expressions': [{'validations': [{'operator': 'has_no_whitespace'}]}]}},
-                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
-                {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
-                {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required'},
-                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback'}]
+                 'validation_semantic': "if (&& cuisine.contains('i') && cuisine.length() > 4 || "
+                                        "!cuisine.contains(" ")) {return true;} else {return false;}",
+                 'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
+                {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+                 'slot_set': {'type': 'custom', 'value': True}},
+                {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+                 'slot_set': {'type': 'current'}},
+                {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
+                 'slot_set': {'type': 'slot', 'value': 'ac_required'}},
+                {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+                 'slot_set': {'type': 'custom', 'value': 'Very Nice!'}}]
         bot = 'test'
         user = 'user'
         slot = {"slot": "ac_required",
@@ -6250,7 +6319,11 @@ class TestMongoProcessor:
         validations_added = list(FormValidationAction.objects(name='validate_restaurant_form', bot=bot, status=True))
         assert len(validations_added) == 7
         assert validations_added[1].slot == 'cuisine'
-        assert validations_added[1].validation_semantic == {'and': [{'operator': 'has_no_whitespace'}]}
+        assert validations_added[1].validation_semantic == \
+               "if (&& cuisine.contains('i') && cuisine.length() > 4 || !cuisine.contains(" ")) " \
+               "{return true;} else {return false;}"
+        assert validations_added[1].slot_set.type == 'current'
+        assert validations_added[1].slot_set.value == 'Indian Cuisine'
 
     def test_edit_form_not_exists(self):
         processor = MongoProcessor()
@@ -6259,8 +6332,11 @@ class TestMongoProcessor:
 
     def test_edit_form_utterance_not_exists(self):
         processor = MongoProcessor()
-        path = [{'ask_questions': ['provide your age?'], 'slot': 'age'},
-                {'ask_questions': ['provide your location?'], 'slot': 'location'}]
+        path = [{'ask_questions': ['provide your age?'], 'slot': 'age',
+                 'slot_set': {'type': 'current', 'value': 27}},
+                {'ask_questions': ['provide your location?'], 'slot': 'location',
+                 'slot_set': {'type': 'custom', 'value': 'Delhi'}}]
+
         bot = 'test'
         user = 'user'
         utterance = Utterances.objects(name='utter_ask_know_user_name', bot=bot).get()
@@ -6279,6 +6355,13 @@ class TestMongoProcessor:
         assert len(Responses.objects(name='utter_ask_know_user_age', bot=bot, status=True)) == 2
         assert Responses.objects(name='utter_ask_know_user_location', bot=bot,
                                  status=True).get().text.text == 'provide your location?'
+        validations_added = list(FormValidationAction.objects(name='validate_know_user', bot=bot, status=True))
+        assert validations_added[0].is_required
+        assert validations_added[0].slot_set.type == 'current'
+        assert validations_added[0].slot_set.value == 27
+        assert validations_added[1].is_required
+        assert validations_added[1].slot_set.type == 'custom'
+        assert validations_added[1].slot_set.value == 'Delhi'
 
     def test_delete_form_with_validations(self):
         bot = 'test'
@@ -8057,7 +8140,8 @@ class TestMongoProcessor:
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression",
+                                                  "dispatch_type": "text"}
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] is not None
         assert actual_http_action['params_list'][0]['key'] == "param1"
@@ -8116,7 +8200,8 @@ class TestMongoProcessor:
                  'encrypt': False},
                 {'_cls': 'HttpActionRequestBody', 'key': 'param4', 'value': 'value2', 'parameter_type': 'value',
                  'encrypt': False}],
-                                      'response': {'dispatch': False, 'evaluation_type': 'script'}, 'set_slots': [
+                                      'response': {'dispatch': False, 'evaluation_type': 'script'
+                                          , "dispatch_type": "text"}, 'set_slots': [
                 {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                 {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
                                       'user': 'test_user', 'status': True}
@@ -8159,7 +8244,8 @@ class TestMongoProcessor:
                               {'key': 'param2', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True}],
                           'headers': [{'key': 'param3', 'value': 'param1', 'parameter_type': 'slot', 'encrypt': False},
                                       {'key': 'param4', 'value': 'value2', 'parameter_type': 'value', 'encrypt': True}],
-                          'response': {'value': '${RESPONSE}', 'dispatch': True, 'evaluation_type': 'expression'},
+                          'response': {'value': '${RESPONSE}', 'dispatch': True, 'evaluation_type': 'expression',
+                                       "dispatch_type": "text"},
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                                         {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}],
                           'bot': 'test_bot_1', 'user': 'test_user', 'status': True}
@@ -8182,7 +8268,7 @@ class TestMongoProcessor:
         http_action_config = HttpActionConfigRequest(
             auth_token=auth_token,
             action_name=action,
-            response=ActionResponseEvaluation(value=response),
+            response=ActionResponseEvaluation(value=response, dispatch_type=DispatchType.json.value),
             http_url=http_url,
             request_method=request_method,
             params_list=http_params_list
@@ -8192,6 +8278,10 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Action name cannot be empty"):
             processor.add_http_action_config(http_dict, user, bot)
         http_dict['action_name'] = action
+        http_dict['response']['dispatch_type'] = 'invalid_dispatch_type'
+        with pytest.raises(ValidationError, match="Invalid dispatch_type"):
+            processor.add_http_action_config(http_dict, user, bot)
+        http_dict['response']['dispatch_type'] = DispatchType.json.value
         http_dict['http_url'] = None
         with pytest.raises(ValidationError, match="URL cannot be empty"):
             processor.add_http_action_config(http_dict, user, bot)
@@ -8362,7 +8452,8 @@ class TestMongoProcessor:
         assert actual_test_user1 is not None
         assert actual_test_user1['action_name'] == action
         assert actual_test_user1['content_type'] == 'application/json'
-        assert actual_test_user1['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
+        assert actual_test_user1['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json',
+                                                 "dispatch_type": "text"}
         assert actual_test_user1['http_url'] == http_url
         assert actual_test_user1['request_method'] == request_method
 
@@ -8383,7 +8474,8 @@ class TestMongoProcessor:
         actual_test_user2 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user2 is not None
         assert actual_test_user2['action_name'] == action
-        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json'}
+        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': 'json',
+                                                 "dispatch_type": "text"}
         assert actual_test_user2['http_url'] == http_url
         assert actual_test_user2['request_method'] == request_method
 
@@ -8403,7 +8495,8 @@ class TestMongoProcessor:
         actual_test_user2 = processor.get_http_action_config(bot=bot, action_name=action)
         assert actual_test_user2 is not None
         assert actual_test_user2['action_name'] == action
-        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': "json"}
+        assert actual_test_user2['response'] == {'dispatch': True, 'evaluation_type': 'expression', 'value': "json",
+                                                 "dispatch_type": "text"}
         assert actual_test_user2['http_url'] == http_url
         assert actual_test_user2['request_method'] == request_method
 
@@ -8440,12 +8533,13 @@ class TestMongoProcessor:
         request_method = 'GET'
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        dispatch_type="json"
         header: List[HttpActionParameters] = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
-            response=ActionResponseEvaluation(value=response),
+            response=ActionResponseEvaluation(value=response, dispatch_type=dispatch_type),
             http_url=http_url,
             request_method=request_method,
             dynamic_params=dynamic_params,
@@ -8457,7 +8551,8 @@ class TestMongoProcessor:
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression",
+                                                  "dispatch_type": "json"}
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] == []
         assert actual_http_action['dynamic_params'] == dynamic_params
@@ -8478,6 +8573,7 @@ class TestMongoProcessor:
         user = 'test_user'
         response = "json"
         request_method = 'GET'
+        dispatch_type = 'json'
         http_action_config = HttpActionConfigRequest(
             action_name=action,
             content_type=HttpContentType.application_json.value,
@@ -8494,13 +8590,14 @@ class TestMongoProcessor:
         request_method = 'POST'
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+        dispatch_type = "text"
         header = [
             HttpActionParameters(key="param3", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param4", value="value2", parameter_type="value")]
         http_action_config = HttpActionConfigRequest(
             action_name=action,
             content_type=HttpContentType.urlencoded_form_data.value,
-            response=ActionResponseEvaluation(value=response),
+            response=ActionResponseEvaluation(value=response, dispatch_type=dispatch_type),
             http_url=http_url,
             request_method=request_method,
             dynamic_params=dynamic_params,
@@ -8514,7 +8611,8 @@ class TestMongoProcessor:
         assert actual_http_action is not None
         assert actual_http_action['action_name'] == action
         assert actual_http_action['http_url'] == http_url
-        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression"}
+        assert actual_http_action['response'] == {"value": response, "dispatch": True, "evaluation_type": "expression",
+                                                  "dispatch_type": "text"}
         assert actual_http_action['request_method'] == request_method
         assert actual_http_action['params_list'] == []
         assert actual_http_action['dynamic_params'] == dynamic_params
@@ -8598,7 +8696,8 @@ class TestMongoProcessor:
                                        'encrypt': False},
                                       {'key': 'param5', 'value': '', 'parameter_type': 'chat_log', 'encrypt': False},
                                       {'key': 'param6', 'value': '', 'parameter_type': 'intent', 'encrypt': False}],
-                          'response': {'value': 'string', 'dispatch': True, 'evaluation_type': 'expression'},
+                          'response': {'value': 'string', 'dispatch': True, 'evaluation_type': 'expression',
+                                       "dispatch_type": "text"},
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'}],
                           'bot': 'test_bot', 'user': 'test_user', 'status': True}
 

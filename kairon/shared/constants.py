@@ -30,6 +30,12 @@ class SLOT_SET_TYPE(str, Enum):
     RESET_SLOT = "reset_slot"
 
 
+class FORM_SLOT_SET_TYPE(str, Enum):
+    current = "current"
+    custom = "custom"
+    slot = "slot"
+
+
 class SSO_TYPES(str, Enum):
     FACEBOOK = "facebook"
     LINKEDIN = "linkedin"
@@ -100,6 +106,7 @@ class ElementTypes(str, Enum):
     IMAGE = "image"
     VIDEO = "video"
     BUTTON = "button"
+    DROPDOWN = "dropdown"
 
 
 class WhatsappBSPTypes(str, Enum):
@@ -114,3 +121,13 @@ class GPT3ResourceTypes(str, Enum):
 class LLMResourceProvider(str, Enum):
     azure = "azure"
     openai = "openai"
+
+
+class KaironSystemSlots(str, Enum):
+    kairon_action_response = "kairon_action_response"
+    bot = 'bot'
+    image = "image"
+    audio = "audio"
+    video = "video"
+    document = "document"
+    doc_url = "doc_url"

@@ -43,9 +43,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt
-from kairon.shared.actions.models import KAIRON_ACTION_RESPONSE_SLOT, ActionType, BOT_ID_SLOT, HttpRequestContentType, \
-    ActionParameterType
+    LlmPrompt, FormSlotSet
+from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource
 from kairon.shared.utils import Utility, StoryValidator
@@ -90,6 +89,8 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from werkzeug.utils import secure_filename
+
+from ..constants import KaironSystemSlots
 
 
 class MongoProcessor:
@@ -930,13 +931,14 @@ class MongoProcessor:
 
     def add_system_required_slots(self, bot: Text, user: Text):
         self.add_slot({
-            "name": BOT_ID_SLOT, "type": "any", "initial_value": bot, "auto_fill": False,
+            "name": KaironSystemSlots.bot.value, "type": "any", "initial_value": bot, "auto_fill": False,
             "influence_conversation": False}, bot, user, raise_exception_if_exists=False
         )
-        self.add_slot({
-            "name": KAIRON_ACTION_RESPONSE_SLOT, "type": "any", "auto_fill": False, "initial_value": None,
-            "influence_conversation": False}, bot, user, raise_exception_if_exists=False
-        )
+        for slot in [s for s in KaironSystemSlots if s.value != KaironSystemSlots.bot.value]:
+            self.add_slot({
+                "name": slot, "type": "text", "auto_fill": True,
+                "initial_value": None, "influence_conversation": True}, bot, user, raise_exception_if_exists=False
+            )
 
     def fetch_slots(self, bot: Text, status=True):
         """
@@ -3068,7 +3070,9 @@ class MongoProcessor:
         """
 
         try:
-            if slot_name in {BOT_ID_SLOT, BOT_ID_SLOT.lower(), KAIRON_ACTION_RESPONSE_SLOT, KAIRON_ACTION_RESPONSE_SLOT.lower()}:
+            if slot_name in {KaironSystemSlots.bot.value, KaironSystemSlots.bot.value.upper(),
+                             KaironSystemSlots.kairon_action_response.value,
+                             KaironSystemSlots.kairon_action_response.value.upper()}:
                 raise AppException('Default kAIron slot deletion not allowed')
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)
@@ -3554,6 +3558,42 @@ class MongoProcessor:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME):
                 self.add_text_response(DEFAULT_ACTION_FALLBACK_RESPONSE, DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, bot, user)
 
+    def add_default_training_data(self, bot: Text, user: Text):
+        data = Utility.read_yaml("template/use-cases/GPT-FAQ/data/nlu.yml")
+        utterance = Utility.read_yaml("template/use-cases/GPT-FAQ/domain.yml")
+
+        self.add_intent('bye', bot, user, is_integration=False)
+        examples_bye = next(intent["examples"] for intent in data["nlu"] if intent['intent'] == "bye")
+        list(self.add_training_example(examples_bye, 'bye', bot, user, is_integration=False))
+        self.add_utterance_name('utter_bye', bot, user)
+        utter_bye_exmp = utterance['responses']['utter_bye']
+        utter_bye = [item['text'] for item in utter_bye_exmp]
+        for text in utter_bye:
+            self.add_text_response(text, 'utter_bye', bot, user)
+        steps_goodbye = [
+            {"name": 'bye', "type": "INTENT"},
+            {"name": 'utter_bye', "type": "BOT"},
+        ]
+        story_dict_bye = {'name': "Bye", 'steps': steps_goodbye, 'type': 'STORY',
+                          'template_type': 'CUSTOM'}
+        self.add_complex_story(story_dict_bye, bot, user)
+
+        self.add_intent('greet', bot, user, is_integration=False)
+        examples_greet = next(intent["examples"] for intent in data["nlu"] if intent['intent'] == "greet")
+        list(self.add_training_example(examples_greet, 'greet', bot, user, is_integration=False))
+        self.add_utterance_name('utter_greet', bot, user)
+        utter_greet_exmp = utterance['responses']['utter_greet']
+        utter_greet = [item['text'] for item in utter_greet_exmp]
+        for text in utter_greet:
+            self.add_text_response(text, 'utter_greet', bot, user)
+        steps_greet = [
+            {"name": 'greet', "type": "INTENT"},
+            {"name": 'utter_greet', "type": "BOT"},
+        ]
+        story_dict_greet = {'name': "Greet", 'steps': steps_greet, 'type': 'STORY',
+                            'template_type': 'CUSTOM'}
+        self.add_complex_story(story_dict_greet, bot, user)
+
     def add_synonym(self, synonyms_dict: Dict, bot, user):
         if Utility.check_empty_string(synonyms_dict.get('name')):
             raise AppException("Synonym name cannot be an empty string")
@@ -3937,12 +3977,16 @@ class MongoProcessor:
 
         for slots_to_fill in path:
             slot = slots_to_fill.get('slot')
-            validation_semantic = Utility.prepare_form_validation_semantic(slots_to_fill.get('validation'))
+            slot_set = slots_to_fill.get("slot_set", {})
+            validation_semantic = slots_to_fill.get('validation_semantic')
             if slot in existing_validations:
                 validation = existing_slot_validations.get(slot=slot)
                 validation.validation_semantic = validation_semantic
                 validation.valid_response = slots_to_fill.get('valid_response')
                 validation.invalid_response = slots_to_fill.get('invalid_response')
+                validation.is_required = slots_to_fill.get('is_required')
+                validation.slot_set.type = slot_set.get('type')
+                validation.slot_set.value = slot_set.get('value')
                 validation.user = user
                 validation.timestamp = datetime.utcnow()
                 validation.save()
@@ -3951,7 +3995,9 @@ class MongoProcessor:
                                      validation_semantic=validation_semantic,
                                      bot=bot, user=user,
                                      valid_response=slots_to_fill.get('valid_response'),
-                                     invalid_response=slots_to_fill.get('invalid_response')).save()
+                                     invalid_response=slots_to_fill.get('invalid_response'),
+                                     is_required=slots_to_fill.get('is_required'),
+                                     slot_set=FormSlotSet(**slot_set)).save()
 
         slot_validations_to_delete = existing_validations.difference(slots_required_for_form)
         for slot in slot_validations_to_delete:
@@ -4012,12 +4058,15 @@ class MongoProcessor:
             for slot in form.get('required_slots') or []:
                 utterance = list(self.get_response(name=f'utter_ask_{name}_{slot}', bot=bot))
                 mapping = {'slot': slot, 'ask_questions': utterance, 'validation': None,
-                           'valid_response': None, 'invalid_response': None}
+                           'valid_response': None, 'invalid_response': None, 'slot_set': {}}
                 if slot in slots_with_validations:
                     validations = form_validations.get(slot=slot).to_mongo().to_dict()
-                    mapping['validation'] = validations.get('validation_semantic')
+                    mapping['validation_semantic'] = validations.get('validation_semantic')
                     mapping['valid_response'] = validations.get('valid_response')
                     mapping['invalid_response'] = validations.get('invalid_response')
+                    mapping['is_required'] = validations.get('is_required')
+                    mapping['slot_set']['type'] = validations["slot_set"].get("type")
+                    mapping['slot_set']['value'] = validations["slot_set"].get("value")
                 slot_mapping.append(mapping)
             form['settings'] = slot_mapping
             return form

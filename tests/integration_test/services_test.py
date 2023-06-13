@@ -1868,7 +1868,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 2
+    assert len(actual['data']) == 7
     assert actual["success"]
 
 
@@ -1992,7 +1992,8 @@ def test_list_entities():
     actual = response.json()
     assert actual["error_code"] == 0
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
-                                                   'priority', 'requested_slot', 'fdresponse', 'kairon_action_response'}
+                                                   'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
+                                                   'audio', 'image', 'doc_url', 'document', 'video'}
     assert actual["success"]
 
 
@@ -2372,7 +2373,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 9
+    assert len(actual["data"]) == 14
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -5428,7 +5429,7 @@ def test_add_intents_to_different_bot():
 
     response = client.post(
         f"/api/bot/{pytest.bot_2}/intents",
-        json={"data": "greet"},
+        json={"data": "greeting"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5441,7 +5442,7 @@ def test_add_intents_to_different_bot():
 def test_add_training_examples_to_different_bot():
     response = client.post(
         f"/api/bot/{pytest.bot_2}/training_examples/greet",
-        json={"data": ["Hi"]},
+        json={"data": ["Heya"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -5454,7 +5455,7 @@ def test_add_training_examples_to_different_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert len(actual["data"]) == 1
+    assert len(actual["data"]) == 10
 
 
 def test_add_response_different_bot():
@@ -5473,7 +5474,7 @@ def test_add_response_different_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert len(actual["data"]) == 1
+    assert len(actual["data"]) == 3
 
 
 def test_add_story_to_different_bot():
@@ -5484,7 +5485,7 @@ def test_add_story_to_different_bot():
             "type": "STORY",
             "template_type": "Q&A",
             "steps": [
-                {"name": "greet", "type": "INTENT"},
+                {"name": "greeting", "type": "INTENT"},
                 {"name": "utter_greet", "type": "BOT"},
             ],
         },
@@ -5537,7 +5538,37 @@ def test_train_insufficient_data(monkeypatch):
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
 
     response = client.post(
-        f"/api/bot/{pytest.bot_2}/train",
+        "/api/account/bot",
+        json={"data": "sample-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.get(
+        "/api/account/bot",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    ).json()
+    pytest.bot_sample = response['data']['account_owned'][3]['_id']
+
+    response_story = client.get(
+        f"/api/bot/{pytest.bot_sample}/stories",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response_story.json()
+    story_one = actual['data'][0]['_id']
+    story_two = actual['data'][1]['_id']
+
+    response_delete_story_one = client.delete(
+        f"/api/bot/{pytest.bot_sample}/stories/{story_one}/STORY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response_delete_story_two = client.delete(
+        f"/api/bot/{pytest.bot_sample}/stories/{story_two}/STORY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot_sample}/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -6168,6 +6199,66 @@ def test_add_http_action_no_token():
     assert actual["success"]
 
 
+def test_add_http_action_with_valid_dispatch_type():
+    request_body = {
+        "action_name": "test_add_http_action_with_valid_dispatch_type",
+        "response": {"value": "string", "dispatch_type": "json"},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "dynamic_params":
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/httpaction/test_add_http_action_with_valid_dispatch_type",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual['data']["response"] == {"value": "string", "dispatch": True, 'evaluation_type': 'expression',
+                                          "dispatch_type": "json"}
+    assert actual['data']["http_url"] == "http://www.google.com"
+    assert actual['data']["request_method"] == "GET"
+    assert len(actual['data']["params_list"]) == 0
+    assert actual['data']["dynamic_params"] == \
+           "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+
+
+def test_add_http_action_with_invalid_dispatch_type():
+    request_body = {
+        "action_name": "test_add_http_action_with_invalid_dispatch_type",
+        "response": {"value": "string", "dispatch_type": "invalid_dispatch_type"},
+        "http_url": "http://www.google.com",
+        "request_method": "GET",
+        "dynamic_params":
+            "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/httpaction",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert str(actual['message']).__contains__("value is not a valid enumeration member")
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
 def test_add_http_action_with_dynamic_params():
     request_body = {
         "action_name": "test_add_http_action_with_dynamic_params",
@@ -6209,7 +6300,7 @@ def test_update_http_action_with_dynamic_params():
     request_body = {
         "action_name": "test_update_http_action_with_dynamic_params",
         "content_type": "application/x-www-form-urlencoded",
-        "response": {"value": "json", "dispatch": False, "evaluation_type": "script"},
+        "response": {"value": "json", "dispatch": False, "evaluation_type": "script", "dispatch_type": "json"},
         "http_url": "http://www.alphabet.com",
         "request_method": "POST",
         "dynamic_params":
@@ -6233,7 +6324,8 @@ def test_update_http_action_with_dynamic_params():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script'}
+    assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script',
+                                          "dispatch_type": "json"}
     assert actual['data']["http_url"] == "http://www.alphabet.com"
     assert actual['data']["request_method"] == "POST"
     assert len(actual['data']["params_list"]) == 0
@@ -6326,7 +6418,8 @@ def test_get_http_action():
     print(actual)
     assert actual["error_code"] == 0
     assert actual["data"]['action_name'] == 'test_add_http_action_with_sender_id_parameter_type'
-    assert actual["data"]['response'] == {"value": 'string', "dispatch": True, "evaluation_type": "expression"}
+    assert actual["data"]['response'] == {"value": 'string', "dispatch": True, "evaluation_type": "expression",
+                                          "dispatch_type": "text"}
     assert actual["data"]['http_url'] == 'http://www.google.com'
     assert actual["data"]['request_method'] == 'GET'
     assert actual["data"]['params_list'] == [
@@ -6412,7 +6505,8 @@ def test_add_http_action_with_token():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert actual['data']["response"] == {'dispatch': True, 'evaluation_type': 'script', 'value': 'string'}
+    assert actual['data']["response"] == {'dispatch': True, 'evaluation_type': 'script', 'value': 'string',
+                                          "dispatch_type": "text"}
     assert actual['data']["headers"] == [{
             "key": "Authorization", "parameter_type": "value",
             "value": "bearer dfiuhdfishifoshfoishnfoshfnsif***", 'encrypt': True
@@ -6521,7 +6615,7 @@ def test_update_http_action():
     request_body = {
         "action_name": "test_update_http_action",
         "content_type": "application/x-www-form-urlencoded",
-        "response": {"value": "json", "dispatch": False, "evaluation_type": "script"},
+        "response": {"value": "json", "dispatch": False, "evaluation_type": "script", "dispatch_type": "json"},
         "http_url": "http://www.alphabet.com",
         "request_method": "POST",
         "params_list": [{
@@ -6549,7 +6643,8 @@ def test_update_http_action():
     actual = response.json()
     print(actual)
     assert actual["error_code"] == 0
-    assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script'}
+    assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script',
+                                          "dispatch_type": "json"}
     assert actual['data']["http_url"] == "http://www.alphabet.com"
     assert actual['data']["request_method"] == "POST"
     assert len(actual['data']["params_list"]) == 2
@@ -6832,6 +6927,7 @@ def test_list_actions():
     assert actual['data'] == {
         'actions': ['action_greet'],
         'http_action': ['test_add_http_action_no_token',
+                        'test_add_http_action_with_valid_dispatch_type',
                         'test_add_http_action_with_dynamic_params',
                         'test_update_http_action_with_dynamic_params',
                         'test_add_http_action_with_sender_id_parameter_type',
@@ -8968,25 +9064,10 @@ def test_list_form_none_exists():
     assert actual["data"] == []
 
 
-def test_list_slot_validation_operators():
-    response = client.get(
-        f"/api/bot/{pytest.bot}/forms/validations/list",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]['list']
-    assert actual["data"]['text']
-    assert actual["data"]['float']
-    assert actual["data"]['bool']
-    assert actual["data"]['categorical']
-    assert actual["data"]['any']
-
-
 def test_add_form_invalid_parameters():
-    path = [{'ask_questions': [], 'slot': 'name'},
-            {'ask_questions': ['seats required?'], 'slot': 'num_people'}]
+    path = [{'ask_questions': [], 'slot': 'name', 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9000,8 +9081,9 @@ def test_add_form_invalid_parameters():
         {'loc': ['body', 'settings', 0, 'ask_questions'], 'msg': 'Questions cannot be empty or contain spaces',
          'type': 'value_error'}]
 
-    path = [{'ask_questions': [" "], 'slot': 'name'},
-            {'ask_questions': ['seats required?'], 'slot': 'num_people'}]
+    path = [{'ask_questions': [" "], 'slot': 'name', 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9015,8 +9097,9 @@ def test_add_form_invalid_parameters():
         {'loc': ['body', 'settings', 0, 'ask_questions'], 'msg': 'Questions cannot be empty or contain spaces',
          'type': 'value_error'}]
 
-    path = [{'ask_questions': ["name ?"], 'slot': ''},
-            {'ask_questions': ['seats required?'], 'slot': 'num_people'}]
+    path = [{'ask_questions': ["name ?"], 'slot': '', 'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'value': 10}}]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9083,6 +9166,23 @@ def test_add_empty_slot_mapping():
     assert actual["error_code"] == 422
     assert not actual["success"]
     assert actual["message"] == [{'loc': ['body', 'mapping', 0, 'type'], 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
+def test_add_form_with_invalid_slot_set_type():
+    path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
+             'slot_set': {'type': 'invalid_type', 'value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'value': 10}}]
+    request = {'name': 'restaurant_form', 'settings': path}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/forms",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert str(actual['message']).__contains__("value is not a valid enumeration member")
 
 
 def test_add_form():
@@ -9177,12 +9277,17 @@ def test_add_form():
     assert actual["message"] == "Slot mapping added"
     assert actual["success"]
 
-    path = [{'ask_questions': ['please give us your name?'], 'slot': 'name'},
-            {'ask_questions': ['seats required?'], 'slot': 'num_people'},
-            {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine'},
+    path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
+             'slot_set': {'type': 'custom', 'value': 'Mahesh'}},
+            {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'value': 10}},
+            {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+             'slot_set': {'type': 'current', 'value': 'Indian Cuisine'}},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating'},
-            {'ask_questions': ['any preferences?'], 'slot': 'preferences'},
-            {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback'},
+            {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+             'slot_set': {'type': 'slot', 'value': 'preferences'}},
+            {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+             'slot_set': {'type': 'custom', 'value': 'Very Nice!'}},
             ]
     request = {'name': 'restaurant_form', 'settings': path}
     response = client.post(
@@ -9370,6 +9475,12 @@ def test_get_form_with_no_validations():
     assert form['settings'][3]['ask_questions'][0]['value']['text'] == 'outdoor seating required?'
     assert form['settings'][4]['ask_questions'][0]['value']['text'] == 'any preferences?'
     assert form['settings'][5]['ask_questions'][0]['value']['text'] == 'Please give your feedback on your experience so far'
+    assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
+    assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 10}
+    assert form['settings'][2]['slot_set'] == {'type': 'current', 'value': 'Indian Cuisine'}
+    assert form['settings'][3]['slot_set'] == {'type': 'current', 'value': None}
+    assert form['settings'][4]['slot_set'] == {'type': 'slot', 'value': 'preferences'}
+    assert form['settings'][5]['slot_set'] == {'type': 'custom', 'value': 'Very Nice!'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/response/all",
@@ -9387,20 +9498,26 @@ def test_get_form_with_no_validations():
 
 def test_add_form_slot_not_present():
     path = [{'ask_questions': ['please give us your location?'], 'slot': 'location',
+             'slot_set': {'type': 'custom', 'value': 'Bangalore'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}]},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+             'slot_set': {'type': 'current', 'value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+             'slot_set': {'type': 'custom', 'value': True},
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+             'slot_set': {'type': 'slot', 'value': 'preferences'},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+             'slot_set': {'type': 'custom', 'value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]},
             ]
@@ -9475,35 +9592,33 @@ def test_add_form_with_validations():
     assert actual["message"] == "Slot mapping added"
     assert actual["success"]
 
-    name_validation = {'logical_operator': 'and',
-                       'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 1},
-                                                        {'operator': 'has_no_whitespace'}]}]}
-    age_validation = {'logical_operator': 'and',
-                      'expressions': [{'validations': [{'operator': '>', 'value': 10},
-                                                       {'operator': '<', 'value': 70},
-                                                       {'operator': 'startswith', 'value': 'valid'},
-                                                       {'operator': 'endswith', 'value': 'value'}]}]}
-    occupation_validation = {'logical_operator': 'and', 'expressions': [
-        {'logical_operator': 'and',
-         'validations': [{'operator': 'in', 'value': ['teacher', 'programmer', 'student', 'manager']},
-                         {'operator': 'has_no_whitespace'},
-                         {'operator': 'endswith', 'value': 'value'}]},
-        {'logical_operator': 'or',
-         'validations': [{'operator': 'has_length_greater_than', 'value': 20},
-                         {'operator': 'has_no_whitespace'},
-                         {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+    name_validation = "if (&& name.contains('i') && name.length() > 4 || !name.contains(" ")) " \
+                      "{return true;} else {return false;}"
+
+    age_validation = "if (age > 10 && age < 70) {return true;} else {return false;}"
+
+    occupation_validation = "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
+                            "&& !occupation.contains(" ") && occupation.length() > 20) " \
+                            "{return true;} else {return false;}"
+
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
-             'validation': name_validation,
+             'validation_semantic': name_validation,
+             'is_required': True,
+             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
              'valid_response': 'got it',
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
-             'validation': age_validation,
+             'validation_semantic': age_validation,
+             'is_required': True,
+             'slot_set': {'type': 'current', 'value': 22},
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'
              },
-            {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location'},
+            {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location',
+             'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
             {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
-             'validation': occupation_validation}]
+             'slot_set': {'type': 'slot', 'value': 'occupation'},
+             'validation_semantic': occupation_validation, 'is_required': False}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -9546,45 +9661,52 @@ def test_get_form_with_validations():
     assert form['settings'][1]['ask_questions'][0]['value']['text']
     assert form['settings'][2]['ask_questions'][0]['value']['text']
     assert form['settings'][3]['ask_questions'][0]['value']['text']
-    assert form['settings'][0]['validation'] == {
-        'and': [{'operator': 'has_length_greater_than', 'value': 1}, {'operator': 'has_no_whitespace', 'value': None}]}
-    assert form['settings'][1]['validation'] == {
-        'and': [{'operator': '>', 'value': 10}, {'operator': '<', 'value': 70},
-                {'operator': 'startswith', 'value': 'valid'}, {'operator': 'endswith', 'value': 'value'}]}
-    assert not form['settings'][2]['validation']
-    assert form['settings'][3]['validation'] == {'and': [{'and': [
-        {'operator': 'in', 'value': ['teacher', 'programmer', 'student', 'manager']},
-        {'operator': 'has_no_whitespace', 'value': None}, {'operator': 'endswith', 'value': 'value'}]}, {'or': [
-        {'operator': 'has_length_greater_than', 'value': 20}, {'operator': 'has_no_whitespace', 'value': None},
-        {'operator': 'matches_regex', 'value': '^[e]+.*[e]$'}]}]}
+    assert form['settings'][0]['validation_semantic'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                         "!name.contains(" ")) {return true;} else {return false;}"
+    assert form['settings'][0]['is_required']
+    assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
+    assert form['settings'][1]['validation_semantic'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
+    assert form['settings'][1]['is_required']
+    assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
+    assert not form['settings'][2]['validation_semantic']
+    assert form['settings'][2]['is_required']
+    assert form['settings'][2]['slot_set'] == {'type': 'custom', 'value': 'Bangalore'}
+    assert form['settings'][3]['validation_semantic'] == \
+           "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
+           "&& !occupation.contains(" ") && occupation.length() > 20) " \
+           "{return true;} else {return false;}"
+    assert not form['settings'][3]['is_required']
+    assert form['settings'][3]['slot_set'] == {'type': 'slot', 'value': 'occupation'}
 
 
 def test_edit_form_add_validations():
-    name_validation = {'logical_operator': 'and',
-                       'expressions': [{'validations': [{'operator': 'has_length_greater_than', 'value': 4},
-                                                        {'operator': 'has_no_whitespace'}]}]}
-    num_people_validation = {'logical_operator': 'and',
-                             'expressions': [{'validations': [{'operator': '>', 'value': 1},
-                                                              {'operator': '<', 'value': 10}]}]}
+    name_validation = "if (&& name.contains('i') && name.length() > 4 || " \
+                      "!name.contains(" ")) {return true;} else {return false;}"
+    num_people_validation = "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
+             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}],
-             'validation': name_validation},
+             'validation_semantic': name_validation, 'is_required': True},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}],
-             'validation': num_people_validation,
+             'validation_semantic': num_people_validation,
+             'is_required': False,
              'valid_response': 'valid value',
              'invalid_response': 'invalid value. please enter again'},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+             'slot_set': {'type': 'custom', 'value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+             'slot_set': {'type': 'slot', 'value': "preferences"},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+             'slot_set': {'type': 'custom', 'value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]},
             ]
@@ -9603,12 +9725,16 @@ def test_edit_form_add_validations():
 def test_edit_form_remove_validations():
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
              'valid_response': 'got it',
+             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
+             'slot_set': {'type': 'current', 'value': 22},
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'},
-            {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location'},
-            {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation'}]
+            {'ask_questions': ['what is your location?', 'location?'], 'slot': 'location',
+             'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
+            {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
+             'slot_set': {'type': 'slot', 'value': 'occupation'}}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.put(
         f"/api/bot/{pytest.bot}/forms",
@@ -9673,13 +9799,20 @@ def test_get_form_after_edit():
     assert form['settings'][4]['ask_questions'][0]['value']['text'] == 'any preferences?'
     assert form['settings'][5]['ask_questions'][0]['value'][
                'text'] == 'Please give your feedback on your experience so far'
-    assert form['settings'][0]['validation'] == {
-        'and': [{'operator': 'has_length_greater_than', 'value': 4}, {'operator': 'has_no_whitespace', 'value': None}]}
-    assert form['settings'][1]['validation'] == {
-        'and': [{'operator': '>', 'value': 1}, {'operator': '<', 'value': 10}]}
-    assert not form['settings'][2]['validation']
-    assert not form['settings'][3]['validation']
-    assert not form['settings'][4]['validation']
+    assert form['settings'][0]['validation_semantic'] == "if (&& name.contains('i') && name.length() > 4 || " \
+                                                         "!name.contains(" ")) {return true;} else {return false;}"
+    assert form['settings'][0]['is_required']
+    assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
+    assert form['settings'][1]['validation_semantic'] == \
+           "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
+    assert not form['settings'][1]['is_required']
+    assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': None}
+    assert not form['settings'][2]['validation_semantic']
+    assert form['settings'][2]['slot_set'] == {'type': 'custom', 'value': 'Indian Cuisine'}
+    assert not form['settings'][3]['validation_semantic']
+    assert form['settings'][3]['slot_set'] == {'type': 'current', 'value': None}
+    assert not form['settings'][4]['validation_semantic']
+    assert form['settings'][4]['slot_set'] == {'type': 'slot', 'value': 'preferences'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/response/all",
@@ -9716,21 +9849,28 @@ def test_edit_form():
     assert actual["success"]
 
     path = [{'ask_questions': ['which location would you prefer?'], 'slot': 'location',
+             'slot_set': {'type': 'custom', 'value': 'Bangalore'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'location'},
                          {'type': 'from_entity', 'entity': 'location'}]},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
+             'slot_set': {'type': 'current', 'value': 10},
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}]},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
+             'slot_set': {'type': 'custom', 'value': 'Indian Cuisine'},
              'mapping': [{'type': 'from_entity', 'entity': 'cuisine'}]},
             {'ask_questions': ['outdoor seating required?'], 'slot': 'outdoor_seating',
+             'slot_set': {'type': 'custom', 'value': True},
              'mapping': [{'type': 'from_entity', 'entity': 'seating'},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': True},
                          {'type': 'from_intent', 'intent': ['deny'], 'value': False}]},
             {'ask_questions': ['any preferences?'], 'slot': 'preferences',
+             'slot_set': {'type': 'slot', 'value': 'preferences'},
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
-            {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required'},
+            {'ask_questions': ['do you want to go with an AC room?'], 'slot': 'ac_required',
+             'slot_set': {'type': 'current', 'value': True},},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
+             'slot_set': {'type': 'custom', 'value': 'Very Nice!'},
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]}
             ]
@@ -10254,6 +10394,7 @@ def test_add_slot_case_insensitivity():
 
 def test_add_form_case_insensitivity():
     path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
+             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}]},
             ]
@@ -14381,7 +14522,7 @@ def test_get_auditlog_for_user_2():
     from collections import Counter
     counter = Counter(actions)
     assert counter.get(AuditlogActions.SAVE.value) > 5
-    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 2
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
     assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value

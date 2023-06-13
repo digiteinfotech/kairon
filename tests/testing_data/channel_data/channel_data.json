@@ -240,6 +240,164 @@
                 }
           ]},
   "msteams_multilink_op": "This is http://www.google.com use for search and you can also see news on https://www.indiatoday.in/ and slatejs details on https://www.slatejs.org/examples/richtext",
-  "msteams_video_op": "https://www.youtube.com/watch?v=YFbCaahCWQ0"
+  "msteams_video_op": "https://www.youtube.com/watch?v=YFbCaahCWQ0",
 
+  "whatsapp_drop_down_input": [{
+		"rule": "/dropdown",
+		"slot": "defect",
+		"type": "dropdown",
+		"dropdownLabel": "Select the fertilizer",
+		"options": [{
+				"label": "fertilizer1",
+				"value": "/fertilizer1"
+			},
+			{
+				"label": "fertilizer2",
+				"value": "/fertilizer2"
+			},
+			{
+				"label": "fertilizer3",
+				"value": "/fertilizer3"
+			}
+		],
+		"children": [{
+			"text": ""
+		}]
+	}],
+  "whatsapp_drop_down_output":{
+        "type": "list",
+  "body": {
+    "text": "Select the fertilizer"
+  },
+  "action": {
+    "sections":[
+      {
+
+        "rows": [
+          {
+            "id":"/fertilizer1",
+            "title": "fertilizer1",
+            "description": "fertilizer1"
+          },
+          {
+            "id":"/fertilizer2",
+            "title": "fertilizer2",
+            "description": "fertilizer2"
+          },
+          {
+            "id":"/fertilizer3",
+            "title": "fertilizer3",
+            "description": "fertilizer3"
+          }
+        ]
+      }
+    ],
+    "button": "Submit Option"
+  }
+    },
+
+  "whatsapp_drop_down_input_exception": [{
+		"rule": "/dropdown",
+		"slot": "defect",
+		"type": "dropdown",
+		"dropdownLabel_exp": "Select the fertilizer",
+		"options": [{
+				"label": "fertilizer1",
+				"value": "/fertilizer1"
+			},
+			{
+				"label": "fertilizer2",
+				"value": "/fertilizer2"
+			},
+			{
+				"label": "fertilizer3",
+				"value": "/fertilizer3"
+			}
+		],
+		"children": [{
+			"text": ""
+		}]
+	}],
+
+  "whatsapp_drop_down_header_input": [{
+		"rule": "/dropdown",
+		"slot": "defect",
+		"type": "dropdown",
+		"dropdownLabel": "Select the fertilizer",
+		"options": [{
+				"label": "fertilizer1",
+				"value": "/fertilizer1",
+                "optionHeader": "Fertilizer"
+			},
+			{
+				"label": "fertilizer2",
+				"value": "/fertilizer2",
+              "optionHeader": "Fertilizer"
+			},
+			{
+				"label": "fertilizer3",
+				"value": "/fertilizer3",
+              "optionHeader": "Fertilizer"
+			},
+            {
+				"label": "crop1",
+				"value": "/crop1",
+              "optionHeader": "Crop"
+			},
+           {
+				"label": "crop2",
+				"value": "/crop2",
+              "optionHeader": "Crop"
+			}
+		],
+		"children": [{
+			"text": ""
+		}]
+	}],
+  "whatsapp_drop_down_header_output":{
+        "type": "list",
+  "body": {
+    "text": "Select the fertilizer"
+  },
+  "action": {
+    "sections":[
+      {
+        "title": "Fertilizer",
+        "rows": [
+          {
+            "id":"/fertilizer1",
+            "title": "fertilizer1",
+            "description": "fertilizer1"
+          },
+          {
+            "id":"/fertilizer2",
+            "title": "fertilizer2",
+            "description": "fertilizer2"
+          },
+          {
+            "id":"/fertilizer3",
+            "title": "fertilizer3",
+            "description": "fertilizer3"
+          }
+        ]
+      },
+      {
+        "title": "Crop",
+        "rows": [
+          {
+            "id":"/crop1",
+            "title": "crop1",
+            "description": "crop1"
+          },
+          {
+            "id":"/crop2",
+            "title": "crop2",
+            "description": "crop2"
+          }
+        ]
+      }
+    ],
+    "button": "Submit Option"
+  }
+    }
 }
