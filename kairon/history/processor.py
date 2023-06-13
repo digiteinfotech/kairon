@@ -284,6 +284,7 @@ class HistoryProcessor:
                     conversations.aggregate([{"$match": {"event.event": "user",
                                                          "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                                              "$lte": Utility.get_timestamp_from_date(to_date)}}},
+                                             {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": "$sender_id",
                                                          "latest_event_time": {"$last": "$event.timestamp"},
                                                          "steps": {"$sum": 1},}
@@ -374,6 +375,7 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 values = list(
                     conversations.aggregate([{"$match": { "event.name": {"$regex": ".*session_start*."}}},
+                                             {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": '$sender_id',
                                                          "latest_event_time": {"$first": "$event.timestamp"},
                                                           "count": {"$sum": 1}
@@ -493,6 +495,7 @@ class HistoryProcessor:
                 total = list(conversations.distinct("sender_id")).__len__()
                 repeating_users = list(
                     conversations.aggregate([{"$match": { "event.name": {"$regex": ".*session_start*."}}},
+                                             {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": '$sender_id',
                                                          "latest_event_time": {"$last": "$event.timestamp"},
                                                           "count": {"$sum": 1}
@@ -598,6 +601,7 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 values = list(
                     conversations.aggregate([{"$match": {"event.name": {"$regex": ".*session_start*."}}},
+                                             {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": '$sender_id',
                                                          "latest_event_time": {"$first": "$event.timestamp"},
                                                          "count": {"$sum": 1}
@@ -1156,6 +1160,7 @@ class HistoryProcessor:
                                                  "event.name": {"$ne": "action_listen"},
                                                  "event.event": {
                                                      "$nin": ["session_started", "restart", "bot"]}}},
+                                            {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
                                                          "allevents": {"$push": "$event"}}},
                                              {"$unwind": "$events"},
@@ -1186,6 +1191,7 @@ class HistoryProcessor:
                                                  "event.name": {"$ne": "action_listen"},
                                                  "event.event": {
                                                      "$nin": ["session_started", "restart", "bot"]}}},
+                                            {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
                                              {"$addFields": {"last_event": {"$last": "$events"}}},
                                              {"$match": {'$or': [{"last_event.name": fallback_action},
@@ -1238,6 +1244,7 @@ class HistoryProcessor:
                                              }}},
                                              {"$match": {"$or": [{"event.event": "user"},
                                                                  {"event.name": "action_session_start"}]}},
+                                            {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
                                                          "allevents": {"$push": "$event"}}},
                                              {"$unwind": "$events"},
@@ -1273,6 +1280,7 @@ class HistoryProcessor:
                                              }}},
                                              {"$match": {"$or": [{"event.event": "user"},
                                                                  {"event.name": "action_session_start"}]}},
+                                              {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
                                              {"$addFields": {"last_event": {"$last": "$events"}}},
                                              {"$match": {"last_event.event": "user"}},
@@ -1337,6 +1345,7 @@ class HistoryProcessor:
                                                          }
 
                                              },
+                                            {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
                                                          "allevents": {"$push": "$event"}}},
                                              {"$unwind": "$events"},
@@ -1367,6 +1376,7 @@ class HistoryProcessor:
                                                          }
 
                                              },
+                                             {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
                                              {"$addFields": {"last_event": {"$last": "$events"}}},
                                              {"$match": {'$or': [{"last_event.name": fallback_action},
@@ -1428,6 +1438,7 @@ class HistoryProcessor:
                                                                  {"event.name": "action_session_start"}]
                                                         }
                                               },
+                                             {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
                                              {"$addFields": {"first_event": {"$first": "$events"}}},
                                              {"$match": {"first_event.event": "user"}},
@@ -1491,6 +1502,7 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 conversations.aggregate([{"$match": {"sender_id": sender_id}},
                                          {"$match": {"event.timestamp": {"$lte": till_date_timestamp}}},
+                                         {"$sort": {"event.timestamp": 1}},
                                          {"$project": {"_id":0}},
                                          {"$merge": {"into": {"db": archive_db, "coll": archive_collection},
                                                      "on": "_id",
