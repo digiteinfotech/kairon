@@ -2995,6 +2995,38 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
             processor.delete_slot(slot_name='kairon_action_response', bot=bot, user=user)
 
+        with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
+            processor.delete_slot(slot_name='image', bot=bot, user=user)
+
+        with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
+            processor.delete_slot(slot_name='video', bot=bot, user=user)
+
+        with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
+            processor.delete_slot(slot_name='audio', bot=bot, user=user)
+
+        with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
+            processor.delete_slot(slot_name='document', bot=bot, user=user)
+
+        with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
+            processor.delete_slot(slot_name='doc_url', bot=bot, user=user)
+
+
+    def test_delete_slot_having_slot_mapping_attached(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        slot_name = 'is_new_user'
+        slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": False}
+        mapping = {"slot": slot_name, 'mapping': [{'type': 'from_entity', 'entity': 'name'}]}
+        processor.add_slot(slot_value=slot, bot=bot, user=user)
+        processor.add_or_update_slot_mapping(mapping, bot, user)
+
+        with pytest.raises(AppException, match="Cannot delete slot without removing its mappings!"):
+            processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
+
+        processor.delete_slot_mapping(slot_name, bot, user)
+        processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
+
     def test_delete_inexistent_slot(self):
         processor = MongoProcessor()
         bot = 'test_add_slot'
