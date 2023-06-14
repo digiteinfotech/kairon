@@ -1133,7 +1133,7 @@ class TestChatServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         assert actual == 'success'
         assert len(whatsapp_msg_handler.call_args[0]) == 5
-        assert whatsapp_msg_handler.call_args[0][1] == '/k_multimedia_msg{document: sdfghj567, doc_url: http://kairon-media.url}'
+        assert whatsapp_msg_handler.call_args[0][1] == '/k_multimedia_msg{"document": "sdfghj567", "doc_url": "http://kairon-media.url"}'
         assert whatsapp_msg_handler.call_args[0][2] == '910123456789'
         metadata = whatsapp_msg_handler.call_args[0][3]
         metadata.pop("timestamp")
