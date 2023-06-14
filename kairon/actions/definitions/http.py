@@ -94,6 +94,8 @@ class ActionHTTP(ActionsBase):
             self.__is_success = True
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(http_action_config.get('set_slots', []),
                                                                                 http_response)
+            if dispatch_type == DispatchType.json.value and isinstance(bot_response, str):
+                bot_response = json.loads(bot_response)
             msg_logger.extend(slot_eval_log)
             filled_slots.update(slot_values)
             logger.info("response: " + str(bot_response))
@@ -122,8 +124,6 @@ class ActionHTTP(ActionsBase):
             ).save()
             if dispatch_bot_response:
                 if dispatch_type == DispatchType.json.value:
-                    if isinstance(bot_response, str):
-                        bot_response = json.loads(bot_response)
                     dispatcher.utter_message(json_message=bot_response)
                 else:
                     dispatcher.utter_message(bot_response)
