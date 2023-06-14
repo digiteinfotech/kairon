@@ -59,10 +59,14 @@ class KMongoTrackerStore(TrackerStore):
         return self.db[self.collection]
 
     def _ensure_indices(self) -> None:
-        index1 = IndexModel([("event.event", pymongo.ASCENDING), ("event.timestamp", pymongo.DESCENDING)])
-        index2 = IndexModel([("type", pymongo.ASCENDING)])
-        index3 = IndexModel([("sender_id", pymongo.ASCENDING), ("conversation_id", pymongo.ASCENDING)])
-        self.conversations.create_indexes([index1, index2, index3])
+        indexes = [
+            IndexModel([("type", pymongo.ASCENDING)]),
+            IndexModel([("sender_id", pymongo.ASCENDING)]),
+            IndexModel([("sender_id", pymongo.ASCENDING), ("conversation_id", pymongo.ASCENDING)]),
+            IndexModel([("event.event", pymongo.ASCENDING), ("event.timestamp", pymongo.DESCENDING)]),
+            IndexModel([("event.name", pymongo.ASCENDING), ("event.timestamp", pymongo.DESCENDING)])
+        ]
+        self.conversations.create_indexes(indexes)
 
     def save(self, tracker, timeout=None):
         """Saves the current conversation state."""
@@ -147,6 +151,7 @@ class KMongoTrackerStore(TrackerStore):
         if not fetch_events_from_all_sessions:
             last_session = list(self.conversations.aggregate([
                 {"$match": {"sender_id": sender_id, "event.event": "session_started"}},
+                {"$sort": {"event.timestamp": 1}},
                 {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
             ]))
             filter_query["event.event"] = {"$ne": "session_started"}

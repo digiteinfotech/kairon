@@ -122,6 +122,7 @@ class ChatUtils:
                     {"$match": {"event.event": {"$in": ["session_started", "user", "bot"]}}},
                     {"$project": {"sender_id": 1, "event.event": 1, "event.timestamp": 1, "event.text": 1,
                                   "event.data": 1}},
+                    {"$sort": {"event.timestamp": 1}},
                     {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
                 ]))
                 print(events)
@@ -139,6 +140,7 @@ class ChatUtils:
     def get_last_session(conversations: Collection, sender_id: Text):
         last_session = list(conversations.aggregate([
             {"$match": {"sender_id": sender_id, "event.event": "session_started"}},
+            {"$sort": {"event.timestamp": 1}},
             {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
         ]))
         return last_session[0] if last_session else None
