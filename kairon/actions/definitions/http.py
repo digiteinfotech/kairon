@@ -1,4 +1,5 @@
 import json
+from json import JSONDecodeError
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -99,6 +100,11 @@ class ActionHTTP(ActionsBase):
             msg_logger.extend(slot_eval_log)
             filled_slots.update(slot_values)
             logger.info("response: " + str(bot_response))
+        except JSONDecodeError as e:
+            exception = str(e)
+            logger.exception(e)
+            status = "FAILURE"
+            bot_response = "Response is not a valid json"
         except Exception as e:
             exception = str(e)
             logger.exception(e)

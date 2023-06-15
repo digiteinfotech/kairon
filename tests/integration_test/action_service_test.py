@@ -309,8 +309,8 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(len(response_json['responses']), 1)
         self.assertEqual(response_json['events'], [
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": "I have failed to process your request"}])
-        self.assertEqual(response_json['responses'][0]['custom'], "I have failed to process your request")
+             "value": "Response is not a valid json"}])
+        self.assertEqual(response_json['responses'][0]['custom'], "Response is not a valid json")
 
     def test_http_action_execution_return_custom_json_with_script_evaluation(self):
         action_name = "test_http_action_execution_return_custom_json_with_script_evaluation"
