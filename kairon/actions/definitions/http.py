@@ -95,22 +95,27 @@ class ActionHTTP(ActionsBase):
             self.__is_success = True
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(http_action_config.get('set_slots', []),
                                                                                 http_response)
-            if dispatch_type == DispatchType.json.value and isinstance(bot_response, str):
-                bot_response = json.loads(bot_response)
             msg_logger.extend(slot_eval_log)
             filled_slots.update(slot_values)
             logger.info("response: " + str(bot_response))
-        except JSONDecodeError as e:
-            exception = str(e)
-            logger.exception(e)
-            status = "FAILURE"
-            bot_response = "Response is not a valid json"
         except Exception as e:
             exception = str(e)
             logger.exception(e)
             status = "FAILURE"
             bot_response = "I have failed to process your request"
         finally:
+            if dispatch_bot_response:
+                if dispatch_type == DispatchType.json.value:
+                    try:
+                        if isinstance(bot_response, str):
+                            bot_response = json.loads(bot_response)
+                        dispatcher.utter_message(json_message=bot_response)
+                    except JSONDecodeError as e:
+                        msg_logger.append(str(e))
+                        logger.exception(e)
+                        dispatcher.utter_message(bot_response)
+                else:
+                    dispatcher.utter_message(bot_response)
             ActionServerLogs(
                 type=ActionType.http_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -128,11 +133,6 @@ class ActionHTTP(ActionsBase):
                 status=status,
                 user_msg=tracker.latest_message.get('text')
             ).save()
-            if dispatch_bot_response:
-                if dispatch_type == DispatchType.json.value:
-                    dispatcher.utter_message(json_message=bot_response)
-                else:
-                    dispatcher.utter_message(bot_response)
         filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return filled_slots
 
