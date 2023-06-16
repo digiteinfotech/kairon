@@ -305,12 +305,15 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
-        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(len(response_json['events']), 3)
         self.assertEqual(len(response_json['responses']), 1)
         self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": "Response is not a valid json"}])
-        self.assertEqual(response_json['responses'][0]['custom'], "Response is not a valid json")
+             "value": 'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'}])
+        self.assertEqual(response_json['responses'][0]['text'],
+                         'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}')
 
     def test_http_action_execution_return_custom_json_with_script_evaluation(self):
         action_name = "test_http_action_execution_return_custom_json_with_script_evaluation"
