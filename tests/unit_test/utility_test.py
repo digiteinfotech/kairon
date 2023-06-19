@@ -2251,7 +2251,7 @@ class TestUtility:
         assert resp == generated_text
 
     @responses.activate
-    def test_trigger_gp3_client_completion(self):
+    def test_trigger_gpt3_client_completion_with_response(self):
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         hyperparameters = Utility.get_llm_hyperparameters()
@@ -2273,8 +2273,9 @@ class TestUtility:
             json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
 
-        resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
-        assert resp == generated_text
+        formatted_response, raw_response = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        assert formatted_response == generated_text
+        assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
     @responses.activate
     def test_trigger_gp3_client_completion(self):
