@@ -2,16 +2,13 @@ import itertools
 import json
 import os
 import uuid
-import networkx as nx
 from collections import ChainMap
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
-from pandas import DataFrame
-from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
-    DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
+import networkx as nx
 import yaml
 from fastapi import File
 from loguru import logger as logging
@@ -19,8 +16,11 @@ from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
 from mongoengine.queryset.visitor import Q
+from pandas import DataFrame
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
+    DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.events import SlotSet
@@ -35,16 +35,17 @@ from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
+from werkzeug.utils import secure_filename
 
 from kairon.api import models
 from kairon.exceptions import AppException
-from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionRequestBody, ActionServerLogs, Actions, \
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
     LlmPrompt, FormSlotSet
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource
 from kairon.shared.utils import Utility, StoryValidator
@@ -88,8 +89,6 @@ from .data_objects import (
     MultiflowStories, MultiflowStoryEvents, BotContent
 )
 from .utils import DataUtility
-from werkzeug.utils import secure_filename
-
 from ..constants import KaironSystemSlots
 
 
@@ -3565,34 +3564,34 @@ class MongoProcessor:
         self.add_intent('bye', bot, user, is_integration=False)
         examples_bye = next(intent["examples"] for intent in data["nlu"] if intent['intent'] == "bye")
         list(self.add_training_example(examples_bye, 'bye', bot, user, is_integration=False))
-        self.add_utterance_name('utter_bye', bot, user)
         utter_bye_exmp = utterance['responses']['utter_bye']
         utter_bye = [item['text'] for item in utter_bye_exmp]
-        for text in utter_bye:
-            self.add_text_response(text, 'utter_bye', bot, user)
+        if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
+                                name__iexact='utter_bye'):
+            for text in utter_bye:
+                self.add_text_response(text, 'utter_bye', bot, user)
         steps_goodbye = [
             {"name": 'bye', "type": "INTENT"},
             {"name": 'utter_bye', "type": "BOT"},
         ]
-        story_dict_bye = {'name': "Bye", 'steps': steps_goodbye, 'type': 'STORY',
-                          'template_type': 'CUSTOM'}
-        self.add_complex_story(story_dict_bye, bot, user)
+        rule_bye = {'name': "Bye", 'steps': steps_goodbye, 'type': 'RULE'}
+        self.add_complex_story(rule_bye, bot, user)
 
         self.add_intent('greet', bot, user, is_integration=False)
         examples_greet = next(intent["examples"] for intent in data["nlu"] if intent['intent'] == "greet")
         list(self.add_training_example(examples_greet, 'greet', bot, user, is_integration=False))
-        self.add_utterance_name('utter_greet', bot, user)
         utter_greet_exmp = utterance['responses']['utter_greet']
         utter_greet = [item['text'] for item in utter_greet_exmp]
-        for text in utter_greet:
-            self.add_text_response(text, 'utter_greet', bot, user)
+        if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
+                                name__iexact='utter_greet'):
+            for text in utter_greet:
+                self.add_text_response(text, 'utter_greet', bot, user)
         steps_greet = [
             {"name": 'greet', "type": "INTENT"},
             {"name": 'utter_greet', "type": "BOT"},
         ]
-        story_dict_greet = {'name': "Greet", 'steps': steps_greet, 'type': 'STORY',
-                            'template_type': 'CUSTOM'}
-        self.add_complex_story(story_dict_greet, bot, user)
+        rule_greet = {'name': "Greet", 'steps': steps_greet, 'type': 'RULE'}
+        self.add_complex_story(rule_greet, bot, user)
 
     def add_synonym(self, synonyms_dict: Dict, bot, user):
         if Utility.check_empty_string(synonyms_dict.get('name')):
