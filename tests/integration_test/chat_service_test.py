@@ -343,6 +343,24 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["data"] is None
             assert actual["message"] == "Invalid JSON request: Expecting value: line 1 column 1 (char 0)"
 
+    def test_chat_string_with_blank_spaces(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps({"data": "  "}).encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["data"] is None
+            assert actual["message"] == 'data is required!'
+
     def test_chat_fetch_from_cache(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store

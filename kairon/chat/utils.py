@@ -152,9 +152,9 @@ class ChatUtils:
         except Exception as e:
             raise AppException("Invalid JSON request: " + str(e))
 
-        if not request_body.get('data') or request_body.get('data') == "":
-            raise AppException("data is required!")
-
-        if not isinstance(request_body.get('data'), str):
+        if request_body.get('data') and not isinstance(request_body.get('data'), str):
             raise AppException("Invalid request body: 'data' field must be a string!")
+
+        if not request_body.get('data') or Utility.check_empty_string(request_body.get('data')):
+            raise AppException("data is required!")
         return request_body
