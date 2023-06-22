@@ -229,6 +229,92 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['responses'][0]['custom'],
                          {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}})
 
+    def test_http_action_execution_custom_json_with_invalid_json_response(self):
+        action_name = "test_http_action_execution_custom_json_with_invalid_json_response"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
+            action_name=action_name,
+            response=HttpActionResponse(value="INVALID ${RESPONSE}", dispatch=True, evaluation_type="expression",
+                                        dispatch_type=DispatchType.json.value),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                     HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                         HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=False),
+                         HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=False)],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
+                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
+                                                  "name": "udit", "contact": None})],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": 'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'}])
+        self.assertEqual(response_json['responses'][0]['text'],
+                         'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}')
+
     def test_http_action_execution_return_custom_json_with_script_evaluation(self):
         action_name = "test_http_action_execution_return_custom_json_with_script_evaluation"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
