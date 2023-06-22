@@ -5554,16 +5554,17 @@ def test_train_insufficient_data(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response_story.json()
-    story_one = actual['data'][0]['_id']
-    story_two = actual['data'][1]['_id']
+    print(actual['data'])
+    rule_one = actual['data'][1]['_id']
+    rule_two = actual['data'][2]['_id']
 
     response_delete_story_one = client.delete(
-        f"/api/bot/{pytest.bot_sample}/stories/{story_one}/STORY",
+        f"/api/bot/{pytest.bot_sample}/stories/{rule_one}/RULE",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     response_delete_story_two = client.delete(
-        f"/api/bot/{pytest.bot_sample}/stories/{story_two}/STORY",
+        f"/api/bot/{pytest.bot_sample}/stories/{rule_two}/RULE",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 

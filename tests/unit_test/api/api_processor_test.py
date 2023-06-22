@@ -98,7 +98,8 @@ class TestAccountProcessor:
         print(expected_config)
         assert config['pipeline'] == expected_config['pipeline']
         assert config['policies'] == expected_config['policies']
-        assert Rules.objects(bot=bot['_id'].__str__()).get()
+        rules = Rules.objects.filter(bot=bot['_id'].__str__())
+        assert len(rules) == 3
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot['_id'].__str__(), status=True).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
         pytest.bot = bot_response['_id'].__str__()
@@ -165,7 +166,8 @@ class TestAccountProcessor:
         assert config['policies'][2]['name'] == 'RulePolicy'
         assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
         assert config['policies'][2]['core_fallback_threshold'] == 0.5
-        assert Rules.objects(bot=bot['_id'].__str__()).get()
+        rules = Rules.objects.filter(bot=bot['_id'].__str__())
+        assert len(rules) == 3
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
 
     def test_add_member_already_exists(self):
