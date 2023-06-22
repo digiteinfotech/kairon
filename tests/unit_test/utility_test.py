@@ -2219,7 +2219,7 @@ class TestUtility:
             Utility.get_llm_hyperparameters()
 
     @responses.activate
-    def test_trigger_gp3_client_completion(self):
+    def test_trigger_gpt3_client_completion_with_generated_text(self):
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         messages = {"messages": [
@@ -2230,12 +2230,7 @@ class TestUtility:
                ]}
         hyperparameters = Utility.get_llm_hyperparameters()
         request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {"messages": [
-            {"role": "system",
-             "content": DEFAULT_SYSTEM_PROMPT},
-            {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
-        ]}
+        mock_completion_request = messages
         mock_completion_request.update(hyperparameters)
 
         responses.add(
@@ -2247,11 +2242,11 @@ class TestUtility:
             json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
 
-        resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
-        assert resp == generated_text
+        resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        assert resp[0] == generated_text
 
     @responses.activate
-    def test_trigger_gp3_client_completion(self):
+    def test_trigger_gpt3_client_completion_with_response(self):
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         hyperparameters = Utility.get_llm_hyperparameters()
@@ -2273,8 +2268,9 @@ class TestUtility:
             json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
 
-        resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
-        assert resp == generated_text
+        formatted_response, raw_response = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        assert formatted_response == generated_text
+        assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
     @responses.activate
     def test_trigger_gp3_client_completion(self):
