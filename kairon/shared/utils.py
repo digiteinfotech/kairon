@@ -10,8 +10,6 @@ import string
 import tempfile
 import uuid
 from datetime import datetime, timedelta, date
-from dateutil import tz
-import pytz
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
@@ -20,16 +18,16 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict, Union
+from typing import Text, List, Dict, Union, Any
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
 import pandas as pd
+import pytz
 import requests
-from requests.adapters import HTTPAdapter, Retry
-
 import yaml
 from botocore.exceptions import ClientError
+from dateutil import tz
 from fastapi import File, UploadFile
 from jwt import encode, decode, PyJWTError
 from loguru import logger
@@ -51,6 +49,7 @@ from pymongo.uri_parser import (
     parse_userinfo,
 )
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
+from requests.adapters import HTTPAdapter, Retry
 from smart_config import ConfigLoader
 from urllib3.util import parse_url
 from validators import ValidationFailure
@@ -58,8 +57,8 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
 from .constants import EventClass
+from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
 from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK
 from .data.dto import KaironStoryStep
@@ -132,6 +131,21 @@ class Utility:
             return True
         else:
             return False
+
+    @staticmethod
+    def is_empty(value: Any):
+        if isinstance(value, str):
+            return not bool(value.strip())
+        if isinstance(value, bool):
+            return not bool(value)
+        elif isinstance(value, list) or isinstance(value, tuple) or isinstance(value, dict):
+            return not bool(value)
+        elif isinstance(value, int) or isinstance(value, float):
+            return False
+        elif value is None:
+            return True
+        else:
+            return True
 
     @staticmethod
     def validate_document_list(documents: List[BaseDocument]):
@@ -1622,7 +1636,7 @@ class Utility:
 
     @staticmethod
     def verify_email(email: Text):
-        from kairon.shared.verification.email import EmailVerficationFactory, Verification
+        from kairon.shared.verification.email import EmailVerficationFactory
 
         if Utility.environment['verify']['email']['enable']:
             ver = EmailVerficationFactory.get_instance()
