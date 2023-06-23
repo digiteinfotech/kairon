@@ -82,28 +82,30 @@ slot_set_action:
 form_validation_action:
 - name: form_validation_action_1
   slot: name
+  slot_set:
+    type: current
+    value: ''
 - name: form_validation_action_2
   slot: cuisine
-  validation_semantic:
-    or:
-      - operator: equal_to
-        value: indian
-      - operator: equal_to
-        value: nepalese
+  validation_semantic: if(size(slot['location'])<10) { return true; } else { return false; }
   valid_response: perfect
   invalid_response: not found in database
+  slot_set:
+    type: current
+    value: ''
 - name: form_validation_action_3
   slot: name
   valid_response: accepted
+  slot_set:
+    type: custom
+    value: ''
 - name: form_validation_action_4
   slot: seating
-  validation_semantic:
-    or:
-      - operator: greater_than
-        value: 0
-      - operator: less_than
-        value: 10
+  validation_semantic: if(size(slot['location'])<10) { return true; } else { return false; }
   invalid_response: value not acceptable
+  slot_set:
+    type: slot
+    value: cuisine
 
 google_search_action:
 - name: google_search_action_1
