@@ -443,8 +443,10 @@ class TestTrainingDataValidator:
                           'valid_response': 'valid value', 'invalid_response': 'invalid value',
                           'slot_set': {'type': '', 'value': ''}
                           },
-                         {'slot': 'outside_seat', 'slot_set': {'type': 'current', 'value': 'Nupur'}},
+                         {'slot': 'outside_seat'},
                          {'name': 'validate_action', 'slot': 'num_people', 'slot_set': {'type': 'slot', 'value': ''}},
+                         {'name': 'validate_action_one', 'slot': 'num_people'},
+                         {'name': 'validate_action', 'slot': 'num_people', 'slot_set': {'type': 'current', 'value': 'Khare'}},
                          {'': 'validate_action', 'slot': 'preference', 'slot_set': {'type': 'form', 'value': ''}},
                          {'name': 'validate_action_again', 'slot': 'num_people', 'slot_set': {'type': 'custom', 'value': ''}},
                          [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
@@ -532,12 +534,12 @@ class TestTrainingDataValidator:
         assert is_data_invalid
         assert len(error_summary['http_actions']) == 4
         assert len(error_summary['slot_set_actions']) == 7
-        assert len(error_summary['form_validation_actions']) == 7
+        assert len(error_summary['form_validation_actions']) == 10
         assert len(error_summary['email_actions']) == 3
         assert len(error_summary['jira_actions']) == 4
         assert len(error_summary['google_search_actions']) == 2
         assert len(error_summary['zendesk_actions']) == 2
         assert len(error_summary['pipedrive_leads_actions']) == 3
-        assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 7,
+        assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
                                    'zendesk_actions': 4, 'pipedrive_leads_actions': 5}
