@@ -61,7 +61,7 @@ from .actions.models import ActionParameterType
 from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
 from .constants import EventClass
 from .data.base_data import AuditLogData
-from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK
+from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
@@ -132,6 +132,38 @@ class Utility:
             return True
         else:
             return False
+
+    @staticmethod
+    def validate_slot_initial_value_and_values(slot_value: Dict):
+        initial_value = slot_value.get('initial_value')
+        slot_type = slot_value.get('type')
+        if isinstance(initial_value, str) and Utility.check_empty_string(initial_value):
+            raise AppException("initial value must not be an empty string")
+
+        if initial_value:
+            if slot_type == SLOT_TYPE.TEXT.value and not isinstance(initial_value, str):
+                raise AppException("initial value for type Text must be a string")
+            elif slot_type == SLOT_TYPE.BOOLEAN.value and not isinstance(initial_value, bool):
+                raise AppException("initial value for type Boolean must be a true or false")
+            elif slot_type == SLOT_TYPE.LIST.value and not isinstance(initial_value, list):
+                raise AppException("initial value for type List must be a list of elements")
+            elif slot_type == SLOT_TYPE.FLOAT.value:
+                if not isinstance(initial_value, int) and not isinstance(initial_value, float):
+                    raise AppException("initial value for type Float must be a numeric value")
+
+        if slot_type == SLOT_TYPE.FLOAT.value:
+            min_value = slot_value.get('min_value')
+            max_value = slot_value.get('max_value')
+            if min_value and not isinstance(min_value, int) and not isinstance(min_value, float):
+                raise AppException("min_value must be a numeric value")
+            if max_value and not isinstance(max_value, int) and not isinstance(max_value, float):
+                raise AppException("max_value must be a numeric value")
+            if min_value and max_value and min_value > max_value:
+                raise AppException("min_value must be less than max_value")
+        elif slot_type == SLOT_TYPE.CATEGORICAL.value:
+            values = slot_value.get('values')
+            if values and len(values) == values.count(None):
+                raise AppException("only None is not valid values for Categorical type")
 
     @staticmethod
     def validate_document_list(documents: List[BaseDocument]):

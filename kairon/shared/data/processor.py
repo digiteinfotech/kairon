@@ -3032,6 +3032,8 @@ class MongoProcessor:
         if slot_value.get('type') not in [item for item in SLOT_TYPE]:
             raise AppException("Invalid slot type.")
 
+        Utility.validate_slot_initial_value_and_values(slot_value)
+
         try:
             slot = Slots.objects(name__iexact=slot_value.get('name'), bot=bot, status=True).get()
             if raise_exception_if_exists:
