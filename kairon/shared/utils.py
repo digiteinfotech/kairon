@@ -138,13 +138,9 @@ class Utility:
             return not bool(value.strip())
         if isinstance(value, bool):
             return not bool(value)
-        elif isinstance(value, list) or isinstance(value, tuple) or isinstance(value, dict):
-            return not bool(value)
-        elif isinstance(value, int) or isinstance(value, float):
+        if isinstance(value, int) or isinstance(value, float):
             return False
-        elif value is None:
-            return True
-        else:
+        if value is None:
             return True
 
     @staticmethod

@@ -9921,6 +9921,84 @@ class TestMongoProcessor:
         assert actual_action[0] is None
         assert actual_action[1] is None
 
+    def test_get_utterance_from_intent_non_existing_one(self):
+        processor = MongoProcessor()
+        user = "test_user_one"
+        story = 15
+        action = story
+        bot = "bot_one"
+        intent = "greet_you_one"
+        story_event = [StoryEvents(name=intent, type="user"),
+                       StoryEvents(name="bot", type="slot", value=bot),
+                       StoryEvents(name="http_action_config", type="slot", value=action),
+                       StoryEvents(name="kairon_http_action", type="action")]
+        cust = ResponseCustom(custom={"key": "value"})
+        text = ResponseText(text="hello_one")
+
+        Responses(
+            name=intent,
+            text=text,
+            custom=cust,
+            bot=bot,
+            user=user
+        ).save(validate=False).to_mongo()
+        Stories(
+            block_name=story,
+            bot=bot,
+            user=user,
+            events=story_event
+        ).save(validate=False).to_mongo()
+        HttpActionConfig(
+            action_name='action_one',
+            response=HttpActionResponse(value="", dispatch=False),
+            http_url="http://www.google.com",
+            request_method="GET",
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        actual_action = processor.get_utterance_from_intent(intent="intent", bot=bot)
+        assert actual_action[0] is None
+        assert actual_action[1] is None
+
+    def test_get_utterance_from_intent_non_existing_two(self):
+        processor = MongoProcessor()
+        user = "test_user_two"
+        story = True
+        action = story
+        bot = "bot_two"
+        intent = "greet_you_two"
+        story_event = [StoryEvents(name=intent, type="user"),
+                       StoryEvents(name="bot", type="slot", value=bot),
+                       StoryEvents(name="http_action_config", type="slot", value=action),
+                       StoryEvents(name="kairon_http_action", type="action")]
+        cust = ResponseCustom(custom={"key": "value"})
+        text = ResponseText(text="hello_two")
+
+        Responses(
+            name=intent,
+            text=text,
+            custom=cust,
+            bot=bot,
+            user=user
+        ).save(validate=False).to_mongo()
+        Stories(
+            block_name=story,
+            bot=bot,
+            user=user,
+            events=story_event
+        ).save(validate=False).to_mongo()
+        HttpActionConfig(
+            action_name='action_two',
+            response=HttpActionResponse(value="", dispatch=False),
+            http_url="http://www.google.com",
+            request_method="GET",
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        actual_action = processor.get_utterance_from_intent(intent="intent", bot=bot)
+        assert actual_action[0] is None
+        assert actual_action[1] is None
+
     def test_add_and_delete_non_integration_intent_by_integration_user(self):
         processor = MongoProcessor()
         processor.add_intent("TestingDelGreeting", "tests", "testUser", is_integration=False)
