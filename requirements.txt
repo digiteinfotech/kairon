@@ -47,7 +47,7 @@ networkx==2.6
 fastapi_sso
 pytest-httpx==0.15.0
 json2html
-numpy==1.22.0
+numpy==1.22.2
 protobuf==3.20.2
 google-api-python-client
 nltk==3.6.6
@@ -72,3 +72,9 @@ croniter
 faiss-cpu
 urllib3==1.26.15
 pytest-metadata==2.0.4
+joblib>=1.1.1 # not directly required, pinned by Snyk to avoid a vulnerability
+rasa>=3.5.6 # not directly required, pinned by Snyk to avoid a vulnerability
+redis>=4.3.6 # not directly required, pinned by Snyk to avoid a vulnerability
+sanic>=20.12.6 # not directly required, pinned by Snyk to avoid a vulnerability
+sentry-sdk>=1.14.0 # not directly required, pinned by Snyk to avoid a vulnerability
+starlette>=0.25.0 # not directly required, pinned by Snyk to avoid a vulnerability
