@@ -480,7 +480,7 @@ class StoryEvents(EmbeddedDocument):
     def validate(self, clean=True):
         if clean:
             self.clean()
-        if not Utility.is_empty(self.value) and self.type != 'slot':
+        if not Utility.check_is_empty(self.value) and self.type != 'slot':
             raise ValidationError("Value is allowed only for slot")
         if Utility.check_empty_string(self.name) and self.type != 'active_loop':
             raise ValidationError("Empty name is allowed only for active_loop")

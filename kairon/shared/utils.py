@@ -133,7 +133,7 @@ class Utility:
             return False
 
     @staticmethod
-    def is_empty(value: Any):
+    def check_is_empty(value: Any):
         if isinstance(value, str):
             return not bool(value.strip())
         if isinstance(value, bool):
