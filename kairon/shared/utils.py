@@ -134,14 +134,10 @@ class Utility:
 
     @staticmethod
     def check_is_empty(value: Any):
-        if isinstance(value, str):
-            return not bool(value.strip())
-        if isinstance(value, bool):
-            return not bool(value)
-        if isinstance(value, int) or isinstance(value, float):
-            return False
-        if value is None:
+        if not value:
             return True
+        else:
+            return False
 
     @staticmethod
     def validate_document_list(documents: List[BaseDocument]):
