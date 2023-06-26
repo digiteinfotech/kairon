@@ -10,8 +10,6 @@ import string
 import tempfile
 import uuid
 from datetime import datetime, timedelta, date
-from dateutil import tz
-import pytz
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
@@ -25,11 +23,11 @@ from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
 import pandas as pd
+import pytz
 import requests
-from requests.adapters import HTTPAdapter, Retry
-
 import yaml
 from botocore.exceptions import ClientError
+from dateutil import tz
 from fastapi import File, UploadFile
 from jwt import encode, decode, PyJWTError
 from loguru import logger
@@ -51,6 +49,7 @@ from pymongo.uri_parser import (
     parse_userinfo,
 )
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
+from requests.adapters import HTTPAdapter, Retry
 from smart_config import ConfigLoader
 from urllib3.util import parse_url
 from validators import ValidationFailure
@@ -58,8 +57,8 @@ from validators import email as mail_check
 from websockets import connect
 
 from .actions.models import ActionParameterType
-from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
 from .constants import EventClass
+from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
 from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
@@ -1654,7 +1653,7 @@ class Utility:
 
     @staticmethod
     def verify_email(email: Text):
-        from kairon.shared.verification.email import EmailVerficationFactory, Verification
+        from kairon.shared.verification.email import EmailVerficationFactory
 
         if Utility.environment['verify']['email']['enable']:
             ver = EmailVerficationFactory.get_instance()
