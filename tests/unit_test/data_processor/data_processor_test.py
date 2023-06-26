@@ -5746,6 +5746,17 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="slot values must be either None or of type int, str or boolean"):
             processor.add_complex_story(story_dict, bot, user)
 
+    def test_create_flow_with_invalid_events(self):
+        bot = 'test'
+        user = 'user'
+        steps = [
+            {"name": "hi", "type": "user"},
+            {"name": "utter_hi", "type": "action", "value": "Hello"},
+        ]
+        events = [StoryEvents(**step) for step in steps]
+        with pytest.raises(ValidationError, match="Value is allowed only for slot events"):
+            Stories(block_name="invalid events flow", bot=bot, user=user, events=events).save()
+
     def test_create_flow_with_int_slot_value(self):
         processor = MongoProcessor()
         story_name = "slot form two"
