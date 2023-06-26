@@ -5748,7 +5748,7 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Invalid value"):
             processor.add_complex_story(story_dict, bot, user)
 
-    def test_create_flow_with_Int_slot_value(self):
+    def test_create_flow_with_int_slot_value(self):
         processor = MongoProcessor()
         story_name = "slot form two"
         bot = 'test'
@@ -5763,7 +5763,7 @@ class TestMongoProcessor:
         story = Stories.objects(block_name=story_name, bot=bot).get()
         assert len(story['events']) == 3
 
-    def test_create_flow_with_None_slot_value(self):
+    def test_create_flow_with_none_slot_value(self):
         processor = MongoProcessor()
         story_name = "slot form three"
         bot = 'test'
@@ -5778,7 +5778,7 @@ class TestMongoProcessor:
         story = Stories.objects(block_name=story_name, bot=bot).get()
         assert len(story['events']) == 3
 
-    def test_create_flow_with_Bool_slot_value(self):
+    def test_create_flow_with_bool_slot_value(self):
         processor = MongoProcessor()
         story_name = "slot form four"
         bot = 'test'
