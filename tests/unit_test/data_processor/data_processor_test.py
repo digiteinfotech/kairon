@@ -5743,7 +5743,7 @@ class TestMongoProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         story_dict = {'name': "slot form one", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        with pytest.raises(ValidationError, match="Invalid value"):
+        with pytest.raises(ValidationError, match="slot values must be either None or of type int, str or boolean"):
             processor.add_complex_story(story_dict, bot, user)
 
     def test_create_flow_with_int_slot_value(self):
