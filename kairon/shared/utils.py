@@ -20,7 +20,7 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict, Union
+from typing import Text, List, Dict, Union, Any
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 

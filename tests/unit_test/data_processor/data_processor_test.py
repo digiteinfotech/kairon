@@ -5735,6 +5735,78 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Empty name is allowed only for active_loop"):
             processor.add_complex_story(story_dict, bot, user)
 
+    def test_create_flow_with_invalid_slot_value(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'user'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "utter_name", "type": "BOT", "value": 'Nupur'},
+        ]
+        story_dict = {'name': "slot form one", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        with pytest.raises(ValidationError, match="Value is allowed only for slot"):
+            processor.add_complex_story(story_dict, bot, user)
+
+    def test_create_flow_with_Int_slot_value(self):
+        processor = MongoProcessor()
+        story_name = "slot form two"
+        bot = 'test'
+        user = 'user'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "age", "type": "SLOT", "value": 23},
+            {"name": "utter_greet", "type": "BOT"},
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name=story_name, bot=bot).get()
+        assert len(story['events']) == 3
+
+    def test_create_flow_with_None_slot_value(self):
+        processor = MongoProcessor()
+        story_name = "slot form three"
+        bot = 'test'
+        user = 'user'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "age", "type": "SLOT", "value": None},
+            {"name": "utter_greet", "type": "BOT"},
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name=story_name, bot=bot).get()
+        assert len(story['events']) == 3
+
+    def test_create_flow_with_Bool_slot_value(self):
+        processor = MongoProcessor()
+        story_name = "slot form four"
+        bot = 'test'
+        user = 'user'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "food", "type": "SLOT", "value": True},
+            {"name": "utter_greet", "type": "BOT"},
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name=story_name, bot=bot).get()
+        assert len(story['events']) == 3
+
+    def test_create_flow_with_str_slot_value(self):
+        processor = MongoProcessor()
+        story_name = "slot form five"
+        bot = 'test'
+        user = 'user'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "cuisine", "type": "SLOT", "value": 'Indian'},
+            {"name": "utter_greet", "type": "BOT"},
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name=story_name, bot=bot).get()
+        assert len(story['events']) == 3
+
     def test_create_two_stage_fallback_rule(self):
         processor = MongoProcessor()
         bot = 'test'
