@@ -680,7 +680,6 @@ def test_api_login():
         data={"username": email, "password": "Welcome@1"},
     )
     actual = response.json()
-    print(actual)
 
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -698,7 +697,6 @@ def test_api_login():
         f"/api/auth/token/refresh", headers={"Authorization": pytest.token_type + " " + access_token}
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -708,7 +706,6 @@ def test_api_login():
         f"/api/auth/token/refresh", headers={"Authorization": pytest.token_type + " " + refresh_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]["access_token"]
@@ -991,7 +988,6 @@ def test_content_upload_api_with_gpt_feature_disabled():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Faq feature is disabled for the bot! Please contact support."
     assert not actual["data"]
     assert actual["error_code"] == 422
@@ -1051,7 +1047,6 @@ def test_content_upated_api():
 
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["message"] == "Text updated!"
     assert actual["error_code"] == 0
@@ -2177,7 +2172,6 @@ def test_get_data_importer_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 4
@@ -5615,7 +5609,6 @@ def test_list_bots_for_different_user():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    print(response)
     assert len(response['data']['shared']) == 1
     pytest.bot = response['data']['shared'][0]['_id']
 
@@ -5667,7 +5660,6 @@ def test_list_bots_for_different_user_2():
         "/api/account/bot",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
-    print(response)
     assert len(response['data']['shared']) == 1
     pytest.bot = response['data']['shared'][0]['_id']
     pytest.account = response['data']['shared'][0]['account']
@@ -5873,7 +5865,6 @@ def test_add_secret_invalid_request():
         json=request
     )
     actual = response.json()
-    print(actual)
     assert actual['data'] is None
     assert actual['error_code'] == 422
     assert not actual['success']
@@ -5887,7 +5878,6 @@ def test_add_secret_invalid_request():
         json=request
     )
     actual = response.json()
-    print(actual)
     assert actual['data'] is None
     assert actual['error_code'] == 422
     assert not actual['success']
@@ -6004,7 +5994,6 @@ def test_update_secret_not_exists():
         json=request
     )
     actual = response.json()
-    print(actual)
     assert Utility.check_empty_string(actual['data'])
     assert actual['error_code'] == 422
     assert actual['message'] == "key 'GCP_KEY' does not exists!"
@@ -6416,7 +6405,6 @@ def test_get_http_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual["data"]['action_name'] == 'test_add_http_action_with_sender_id_parameter_type'
     assert actual["data"]['response'] == {"value": 'string', "dispatch": True, "evaluation_type": "expression",
@@ -6642,7 +6630,6 @@ def test_update_http_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual['data']["response"] == {"value": "json", "dispatch": False, 'evaluation_type': 'script',
                                           "dispatch_type": "json"}
@@ -8357,7 +8344,6 @@ def test_refresh_token(monkeypatch):
         f"/api/auth/{pytest.bot}/token/refresh", headers={"Authorization": pytest.token_type + " " + refresh_token}
     )
     actual = response.json()
-    print(actual)
     # assert 1 == 0
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -9119,7 +9105,6 @@ def test_get_slot_mapping_empty():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual['data'] == []
 
@@ -9905,7 +9890,6 @@ def test_get_slot_mapping():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual['data'] == [{'slot': 'name', 'mapping': [{'type': 'from_text', 'value': 'user'},
                                                            {'type': 'from_entity', 'entity': 'name'}]},
@@ -10745,7 +10729,6 @@ def test_add_email_action(mock_smtp):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Action added"
@@ -10865,7 +10848,6 @@ def test_list_email_actions():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 3
@@ -11612,7 +11594,6 @@ def test_use_inactive_token():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
 
@@ -11624,7 +11605,6 @@ def test_use_inactive_token():
         },
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual['data']
@@ -14545,7 +14525,6 @@ def test_upload_invalid_csv():
         headers = {"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files)
     actual = response.json()
-    print(actual)
     assert actual['data'] is None
     assert not actual['success']
     assert actual['error_code'] == 422
@@ -14566,7 +14545,6 @@ def test_upload_faq():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=files)
     actual = response.json()
-    print(actual)
     assert actual['message'] == "Upload in progress! Check logs."
     assert actual['data'] is None
     assert actual['success']
@@ -14755,7 +14733,6 @@ def test_delete_account_already_deleted():
         "/api/account/delete",
         headers={"Authorization": pytest.token_type_delete + " " + pytest.access_token_delete},
     ).json()
-    print(response)
     assert not response["success"]
     assert response["message"] == "User does not exist!"
 

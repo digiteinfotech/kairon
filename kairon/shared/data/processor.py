@@ -3439,7 +3439,6 @@ class MongoProcessor:
             error_summary['config'] = errors
         if os.path.exists(chat_client_config_path):
             chat_client_config = Utility.read_yaml(chat_client_config_path)
-            print(chat_client_config)
             chat_client_config = chat_client_config["config"]
 
         if not validation_failed and not error_summary.get('config'):
@@ -5024,7 +5023,6 @@ class MongoProcessor:
         ))
         custom_rule_intents = set(custom_rule_intents[0].get('intents')) if custom_rule_intents else set()
         delete_intents = qna_intents - story_intents - custom_rule_intents
-        print(delete_intents)
 
         qna_utterances = list(Rules.objects(bot=bot, status=True, template_type=TemplateType.QNA.value).aggregate(
             get_utterances_pipelines
@@ -5039,7 +5037,6 @@ class MongoProcessor:
         ))
         story_utterances = set(story_utterances[0].get('utterances')) if story_utterances else set()
         delete_utterances = qna_utterances - story_utterances - custom_rule_utterances
-        print(delete_utterances)
 
         Utility.hard_delete_document([TrainingExamples], bot, intent__in=delete_intents)
         Utility.hard_delete_document([Intents], bot, name__in=delete_intents)

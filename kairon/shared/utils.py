@@ -629,9 +629,9 @@ class Utility:
         if token:
             headers['Authorization'] = 'Bearer ' + token
         if method.lower() == 'get':
-            response = requests.request(method, url, headers=headers, params=json_dict)
+            response = requests.request(method, url, headers=headers, params=json_dict, timeout=5)
         else:
-            response = requests.request(method, url, headers=headers, json=json_dict)
+            response = requests.request(method, url, headers=headers, json=json_dict, timeout=5)
         logger.info("agent event completed" + response.content.decode('utf8'))
         return response.content.decode('utf8')
 

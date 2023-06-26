@@ -95,7 +95,6 @@ class TestAccountProcessor:
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
         expected_config = Utility.read_yaml(Utility.environment["model"]["train"]["default_model_training_config_path"])
         assert config['language'] == expected_config['language']
-        print(expected_config)
         assert config['pipeline'] == expected_config['pipeline']
         assert config['policies'] == expected_config['policies']
         rules = Rules.objects.filter(bot=bot['_id'].__str__())
@@ -159,7 +158,6 @@ class TestAccountProcessor:
             AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned']) == 2
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
         expected_config = Utility.read_yaml(Utility.environment["model"]["train"]["default_model_training_config_path"])
-        print(expected_config)
         assert config['language'] == expected_config['language']
         assert config['pipeline'] == expected_config['pipeline']
         assert config['policies'] == expected_config['policies']
@@ -1224,8 +1222,6 @@ class TestAccountProcessor:
         assert payload.get("iat")
         assert payload.get("exp")
         data = Utility.decode_limited_access_token(new_refresh_token)
-        print(data)
-        # assert 1 == 0
         assert data.get("sub") == username
         assert data.get("exp")
         iat = datetime.datetime.fromtimestamp(data.get('iat'), tz=datetime.timezone.utc)
@@ -1274,8 +1270,6 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token, refresh_token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        print(payload)
-        # assert 1 == 0
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
@@ -1480,9 +1474,7 @@ class TestAccountProcessor:
         access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token,
                                                                                                           user)
         data_stack = Utility.decode_limited_access_token(refresh)
-        print(data_stack)
         value = list(Metering.objects(username="nupurrkhare@digite.com").order_by("-timestamp"))
-        print(value)
         assert value[0]["metric_type"] == "login_refresh_token"
         assert value[0]["username"] == "nupurrkhare@digite.com"
         assert value[0]["timestamp"]
@@ -1509,16 +1501,13 @@ class TestAccountProcessor:
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
         assert round((refresh_token_expiry - iat).total_seconds() / 60) == Utility.environment['security']["refresh_token_expire"]
         metering = list(Metering.objects(username="nupur.khare@digite.com").order_by("-timestamp"))
-        print(metering)
         assert metering[0]["metric_type"] == "login"
         assert metering[0]["username"] == "nupur.khare@digite.com"
         assert metering[0]["timestamp"]
 
         access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token, user)
         data_stack = Utility.decode_limited_access_token(refresh)
-        print(data_stack)
         value = list(Metering.objects(username="nupur.khare@digite.com").order_by("-timestamp"))
-        print(value)
         assert value[0]["metric_type"] == "login_refresh_token"
         assert value[0]["username"] == "nupur.khare@digite.com"
         assert value[0]["timestamp"]

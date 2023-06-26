@@ -524,7 +524,6 @@ class TestMongoProcessor:
         pytest.action_id = processor.add_prompt_action(request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
         assert action == [
             {'name': 'test_add_prompt_action_faq_action_with_default_values',
              'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
@@ -849,7 +848,6 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
         assert action == [
             {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
              'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
@@ -877,7 +875,6 @@ class TestMongoProcessor:
         bot = 'test_bot'
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
         assert action == [
             {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
              'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
@@ -1154,7 +1151,6 @@ class TestMongoProcessor:
         assert rules == ['rule which will not wait for user message once it was applied',
                          'ask the user to rephrase whenever they send a message with low nlu confidence']
         actions = processor.load_http_action("test_upload_case_insensitivity")
-        print(actions)
         assert actions == {'http_action': [
             {'action_name': 'action_get_google_application', 'http_url': 'http://www.alphabet.com',
              'content_type': 'json',
@@ -2542,7 +2538,6 @@ class TestMongoProcessor:
         story_dict = {"name": "a different story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, "tester", "TesterUser")
         stories = list(processor.get_multiflow_stories("tester"))
-        # print(stories)
         assert stories.__len__() == 1
         assert stories[0]['name'] == 'a different story'
         assert stories[0]['type'] == 'MULTIFLOW'
@@ -4180,7 +4175,6 @@ class TestMongoProcessor:
         is_event_data = await processor.validate_and_log(pytest.bot, 'user@integration.com', training_file, True)
         chat_client_config = processor.load_chat_client_config(pytest.bot, 'user@integration.com')
         assert not is_event_data
-        print(chat_client_config)
         assert chat_client_config["config"]
         assert chat_client_config['white_listed_domain'] == ["*"]
         assert chat_client_config['config']['welcomeMessage'] == "Hello! How are you? This is Testing Welcome Message."
@@ -4647,7 +4641,6 @@ class TestMongoProcessor:
                     'response_epochs': 300}
         processor = MongoProcessor()
         config = processor.list_epoch_and_fallback_config('test_all')
-        print(config)
         assert config == expected
 
     def test_save_component_properties_epoch_only(self):
@@ -4689,7 +4682,6 @@ class TestMongoProcessor:
                     'action_fallback_threshold': 0.5, 'ted_epochs': 400, 'nlu_epochs': 200, 'response_epochs': 300}
         processor = MongoProcessor()
         config = processor.list_epoch_and_fallback_config('test_epoch_only')
-        print(config)
         assert config == expected
 
     def test_save_component_properties_empty(self, monkeypatch):
@@ -4700,7 +4692,6 @@ class TestMongoProcessor:
             processor.save_component_properties({}, 'test_properties_empty', 'test')
         assert str(e).__contains__('At least one field is required')
         config = processor.load_config('test_properties_empty')
-        print(config)
         assert config == Utility.read_yaml('./template/config/kairon-default.yml')
         nlu = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), None)
         assert nlu['name'] == 'DIETClassifier'
@@ -5642,7 +5633,6 @@ class TestMongoProcessor:
         processor.add_or_update_slot_mapping(slots[0], bot, user)
         processor.add_or_update_slot_mapping(slots[1], bot, user)
         slots = list(processor.get_slot_mappings(bot))
-        print(slots)
         assert slots == [{'slot': 'date_time', 'mapping': [{'type': 'from_entity', 'entity': 'date_time'}]},
                          {'slot': 'priority', 'mapping': [{'type': 'from_entity', 'entity': 'priority'}]},
                          {'slot': 'file', 'mapping': [{'type': 'from_entity', 'entity': 'file'}]}, {'slot': 'name',
@@ -6070,7 +6060,6 @@ class TestMongoProcessor:
     def test_list_forms(self):
         processor = MongoProcessor()
         forms = list(processor.list_forms('test'))
-        print(forms)
         assert len(forms) == 5
         assert len([f['name'] for f in forms]) == 5
         assert len([f['_id'] for f in forms]) == 5
@@ -6119,7 +6108,6 @@ class TestMongoProcessor:
         forms = list(processor.list_forms('test'))
         form_id = [f['_id'] for f in forms if f['name'] == 'know_user_form'][0]
         form = processor.get_form(form_id, 'test')
-        print(form)
         assert form['settings'][0]['slot'] == 'name'
         assert form['settings'][1]['slot'] == 'age'
         assert form['settings'][2]['slot'] == 'occupation'
@@ -6829,7 +6817,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         actions = processor.list_slot_set_actions(bot)
-        print(actions)
         for action in actions:
             assert type(action['_id']) is str
         [action.pop('_id') for action in actions]
@@ -8896,7 +8883,6 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story without action", bot="test_without_http").get()
         assert len(story.events) == 5
         actions = processor.list_actions("test_without_http")
-        print(actions)
         assert actions == {
             'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
             'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
@@ -8919,7 +8905,6 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="test_with_action").get()
         assert len(story.events) == 6
         actions = processor.list_actions("test_with_action")
-        print(actions)
         assert actions == {
             'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
@@ -8942,7 +8927,6 @@ class TestMongoProcessor:
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
-        print(actions)
         assert actions == {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                            'hubspot_forms_action': [],
                            'http_action': [], 'google_search_action': [], 'jira_action': [], 'two_stage_fallback': [],
@@ -9954,7 +9938,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
-        print(actions)
         assert actions == {
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
@@ -10062,7 +10045,6 @@ class TestMongoProcessor:
         assert story.events[0].name == "..."
         assert story.events[0].type == "action"
         actions = processor.list_actions("tests")
-        print(actions)
         assert actions == {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
@@ -10924,7 +10906,6 @@ class TestMongoProcessor:
         config = list(processor.get_two_stage_fallback_action_config(bot, KAIRON_TWO_STAGE_FALLBACK))
         assert config[0].get("timestamp") is None
         config[0].pop("_id")
-        print(config)
         assert config == [{'name': 'kairon_two_stage_fallback',
                            'text_recommendations': {"count": 3, "use_intent_ranking": True}, 'trigger_rules': [],
                            "fallback_message": "I could not understand you! Did you mean any of the suggestions below?"

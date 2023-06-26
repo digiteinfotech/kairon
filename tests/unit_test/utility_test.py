@@ -2671,5 +2671,4 @@ data: [DONE]\n\n"""
         whatsapp = WhatsappResponseConverter("dropdown", "whatsapp")
         response = whatsapp.dropdown_transformer(input_json)
         expected_output = json_data.get("whatsapp_drop_down_header_output")
-        print(f"expectedoutput {expected_output}")
         assert expected_output == response

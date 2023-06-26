@@ -3748,7 +3748,6 @@ class TestActionServer(AsyncHTTPTestCase):
         }
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
-        print(response_json)
         self.assertEqual(response.code, 200)
         self.assertEqual(len(response_json['events']), 0)
         self.assertEqual(len(response_json['responses']), 0)
@@ -6894,8 +6893,6 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
               'response': None, 'image': None, 'attachment': None}
              ])
-        print(mock_completion.call_args.kwargs[
-                   'messages'])
         assert mock_completion.call_args.kwargs['messages'] == [
             {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
             {'role': 'user',
@@ -7235,7 +7232,6 @@ class TestActionServer(AsyncHTTPTestCase):
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
-        print(response_json)
         self.assertEqual(response.code, 200)
         self.assertEqual(len(response_json['events']), 0)
         self.assertEqual(len(response_json['responses']), 0)

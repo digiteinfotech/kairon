@@ -184,7 +184,6 @@ class TelegramHandler(InputChannel, BaseHandler):
         return message.callback_query is not None
 
     async def get(self, bot: str, token: str):
-        print(self.request.body)
         self.write(json_encode({"status": "ok"}))
 
     async def post(self, bot: str, token: str):

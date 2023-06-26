@@ -153,7 +153,6 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 422
     assert actual["data"] is None
     assert actual["message"].__contains__('Unable to connect to history server: ')

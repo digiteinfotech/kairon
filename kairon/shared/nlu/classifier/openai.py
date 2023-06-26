@@ -148,7 +148,6 @@ class OpenAIClassifier(IntentClassifier):
             label, reason = self.predict(message.get(TEXT))
             intent = {"name": label, "confidence": 1, "reason": reason}
             intent_ranking = []
-            print(intent)
 
         message.set("intent", intent, add_to_output=True)
         message.set("intent_ranking", intent_ranking, add_to_output=True)

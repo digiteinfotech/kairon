@@ -2915,7 +2915,6 @@ class TestActions:
         bot = "test_bot"
         bot_settings = ActionUtility.get_bot_settings(bot=bot)
         bot_settings.pop('timestamp')
-        print(bot_settings)
         assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
                                 'website_data_generator_depth_search_limit': 2,
                                 'chat_token_expiry': 30, 'llm_settings': {'enable_faq': False, 'provider': 'azure'},
@@ -2931,7 +2930,6 @@ class TestActions:
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
         k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
         k_faq_action_config.pop('timestamp')
-        print(k_faq_action_config)
         assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
                                        'similarity_threshold': 0.7,
                                        'enable_response_cache': False,
@@ -2977,7 +2975,6 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
-        print(bot_responses)
         assert bot_responses == [{'role': 'user', 'content': 'Kairon pricing'},
                                  {'role': 'assistant', 'content': "Kairon's pricing ranges from $60 to $160 per month for simple digital assistants, while more complex ones require custom pricing. However, since Kairon offers a large array of features to build digital assistants of varying complexity, the pricing may vary. If you are interested in Kairon, please provide your name, company name, and email address, and our sales team will reach out to you with more information."}]
 
@@ -2989,7 +2986,6 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
-        print(bot_responses)
         assert bot_responses == [{'role': 'user', 'content': 'How can I use it?'},
                                  {'role': 'assistant', 'content': 'It depends on what "it" refers to. Can you please provide more context or specify what you are referring to?'},
                                  {'role': 'user', 'content': 'How can I use kairon?'},
@@ -3010,7 +3006,6 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         bot_responses = ActionUtility.prepare_bot_responses(tracker, 5)
-        print(bot_responses)
         assert bot_responses == [
             {'role': 'assistant', 'content': 'Kairon is a versatile conversational digital transformation platform '
                                              'that offers a range of capabilities to businesses. Its features include '

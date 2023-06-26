@@ -12,10 +12,9 @@ from kairon.shared.data.data_objects import BotContent
 from urllib.parse import urljoin
 from kairon.exceptions import AppException
 from loguru import logger as logging
-
+from tqdm import tqdm
 
 class GPT3FAQEmbedding(LLMBase):
-
     __embedding__ = 1536
 
     def __init__(self, bot: Text, llm_settings: dict):
@@ -29,18 +28,23 @@ class GPT3FAQEmbedding(LLMBase):
         self.vector_config = {'size': 1536, 'distance': 'Cosine'}
         self.llm_settings = llm_settings
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
-        self.client = LLMClientFactory.get_resource_provider(llm_settings["provider"])(self.api_key, **self.llm_settings)
+        self.client = LLMClientFactory.get_resource_provider(llm_settings["provider"])(self.api_key,
+                                                                                       **self.llm_settings)
         self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:
         self.__create_collection__(self.bot + self.suffix)
         self.__create_collection__(self.bot + self.cached_resp_suffix)
-        points = [{'id': content.vector_id,
-                   'vector': self.__get_embedding(content.data),
-                   'payload': {"content": content.data}} for content in BotContent.objects(bot=self.bot)]
-        if points:
-            self.__collection_upsert__(self.bot + self.suffix, {'points': points}, err_msg="Unable to train faq! contact support")
-        return {"faq": points.__len__()}
+        count = 0
+        contents = list(BotContent.objects(bot=self.bot))
+        for content in tqdm(contents, desc="Training FAQ"):
+            points = [{'id': content.vector_id,
+                       'vector': self.__get_embedding(content.data),
+                       'payload': {"content": content.data}}]
+            self.__collection_upsert__(self.bot + self.suffix, {'points': points},
+                                       err_msg="Unable to train faq! contact support")
+            count += 1
+        return {"faq": count}
 
     def predict(self, query: Text, *args, **kwargs) -> Dict:
         embeddings_created = False
@@ -57,7 +61,8 @@ class GPT3FAQEmbedding(LLMBase):
                 response = {"content": cached_response, "is_from_cache": True}
             else:
                 context = self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
-                response = {"content": self.__get_answer(query, system_prompt, context, **kwargs), "is_from_cache": False}
+                response = {"content": self.__get_answer(query, system_prompt, context, **kwargs),
+                            "is_from_cache": False}
                 self.__cache_response(query, query_embedding, response["content"], **kwargs)
         except openai.error.APIConnectionError as e:
             logging.exception(e)
@@ -67,13 +72,15 @@ class GPT3FAQEmbedding(LLMBase):
                 failure_stage = "Creating a new embedding for the provided query."
             self.__logs.append({'error': f"{failure_stage} {str(e)}"})
             response = {
-                "content": self.__search_cache(query, query_embedding, err_msg=str(e), raise_err_if_not_exists=True, **kwargs),
+                "content": self.__search_cache(query, query_embedding, err_msg=str(e), raise_err_if_not_exists=True,
+                                               **kwargs),
                 "is_from_cache": True, "is_failure": True, "exception": str(e)
             }
         except Exception as e:
             logging.exception(e)
             response = {
-                "content": self.__search_cache(query, query_embedding, err_msg=str(e), raise_err_if_not_exists=True, **kwargs),
+                "content": self.__search_cache(query, query_embedding, err_msg=str(e), raise_err_if_not_exists=True,
+                                               **kwargs),
                 "is_from_cache": True, "is_failure": True, "exception": str(e)
             }
 
@@ -98,9 +105,10 @@ class GPT3FAQEmbedding(LLMBase):
             messages.extend(previous_bot_responses)
         messages.append({"role": "user", "content": f"{context} \n Q: {query}\n A:"})
 
-        completion, raw_response = self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
+        completion, raw_response = self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages,
+                                                      **hyperparameters)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
-                          'type': 'answer_query', 'hyperparameters': hyperparameters})
+                            'type': 'answer_query', 'hyperparameters': hyperparameters})
         return completion
 
     def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, **kwargs):
@@ -110,7 +118,8 @@ class GPT3FAQEmbedding(LLMBase):
         ]
         hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyperparameters())
 
-        completion, raw_response = self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages, **hyperparameters)
+        completion, raw_response = self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages,
+                                                      **hyperparameters)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return completion
@@ -119,20 +128,23 @@ class GPT3FAQEmbedding(LLMBase):
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                      request_method="DELETE",
                                      headers=self.headers,
-                                     return_json=False)
+                                     return_json=False,
+                                     timeout=5)
 
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                      request_method="PUT",
                                      headers=self.headers,
                                      request_body={'name': collection_name, 'vectors': self.vector_config},
-                                     return_json=False)
+                                     return_json=False,
+                                     timeout=5)
 
-    def __collection_upsert__(self, collection_name: Text, data: Union[List, Dict], err_msg: Text, raise_err=True):
+    def __collection_upsert__(self, collection_name: Text, data: Dict, err_msg: Text, raise_err=True):
         response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points"),
                                                 request_method="PUT",
                                                 headers=self.headers,
                                                 request_body=data,
-                                                return_json=True)
+                                                return_json=True,
+                                                timeout=5)
         if not response.get('result'):
             if "status" in response:
                 logging.exception(response['status'].get('error'))
@@ -145,7 +157,8 @@ class GPT3FAQEmbedding(LLMBase):
             request_method="POST",
             headers=self.headers,
             request_body={'vector': vector, 'limit': limit, 'with_payload': True, 'score_threshold': score_threshold},
-            return_json=True)
+            return_json=True,
+            timeout=5)
         return response
 
     @property
@@ -159,7 +172,8 @@ class GPT3FAQEmbedding(LLMBase):
             point = [{'id': vector_id, 'vector': query_embedding, 'payload': {"query": query, "response": response}}]
             self.__collection_upsert__(self.bot + self.cached_resp_suffix, {'points': point},
                                        err_msg="Unable to add response to cache!", raise_err=False)
-            self.__logs.append({"message": "Response added to cache as `enable_response_cache` is enabled.", 'type': 'response_cached'})
+            self.__logs.append({"message": "Response added to cache as `enable_response_cache` is enabled.",
+                                'type': 'response_cached'})
         else:
             self.__logs.append({"message": "Skipping response caching as `enable_response_cache` is disabled."})
 
@@ -172,11 +186,13 @@ class GPT3FAQEmbedding(LLMBase):
         if enable_response_cache:
             if not query_embedding:
                 query_embedding = self.__get_embedding(query)
-            self.__logs.append({"message": "Searching recommendations from cache as `enable_response_cache` is enabled."})
+            self.__logs.append(
+                {"message": "Searching recommendations from cache as `enable_response_cache` is enabled."})
             search_result = self.__collection_search__(self.bot + self.cached_resp_suffix, vector=query_embedding,
                                                        limit=3, score_threshold=score_threshold)
         else:
-            self.__logs.append({"message": "Skipping recommendation search from cache as `enable_response_cache` is disabled."})
+            self.__logs.append(
+                {"message": "Skipping recommendation search from cache as `enable_response_cache` is disabled."})
 
         if (not search_result or not search_result.get('result')) and raise_err:
             raise AppException(err_msg)

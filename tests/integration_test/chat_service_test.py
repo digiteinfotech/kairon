@@ -317,7 +317,6 @@ class TestChatServer(AsyncHTTPTestCase):
                 headers={"Authorization": token_type + " " + token},
             )
             actual = json.loads(response.body.decode("utf8"))
-            print(actual)
             self.assertEqual(response.code, 200)
             assert not actual["success"]
             assert actual["error_code"] == 422
@@ -336,7 +335,6 @@ class TestChatServer(AsyncHTTPTestCase):
                 headers={"Authorization": token_type + " " + token},
             )
             actual = json.loads(response.body.decode("utf8"))
-            print(actual)
             self.assertEqual(response.code, 200)
             assert not actual["success"]
             assert actual["error_code"] == 422
@@ -664,7 +662,6 @@ class TestChatServer(AsyncHTTPTestCase):
             f"/api/bot/slack/{bot}/{token}?{encoded_url_}",
             method="GET",
         )
-        print(response)
         assert 'https://app.slack.com/client/T03BNQE7HLZ' == response.effective_url
         self.assertEqual(response.code, 200)
 

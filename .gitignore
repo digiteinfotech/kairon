@@ -17,3 +17,5 @@ coverage_html
 # Logs
 *.log
 /models/
+/enable_gpt.py
+/sample.py
