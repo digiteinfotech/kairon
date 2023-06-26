@@ -2846,6 +2846,114 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             Utterances.objects(name__iexact=utterance, bot=bot, status=True).get()
 
+    def test_add_slot_invalid_values(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot'
+        user = 'test_user'
+        with pytest.raises(AppException, match='initial value must not be an empty string'):
+            processor.add_slot(
+                {"name": "bot", "type": "any", "initial_value": "", "influence_conversation": True},
+                bot, user, raise_exception_if_exists=True
+            )
+
+        with pytest.raises(AppException, match='initial value must not be an empty string'):
+            processor.add_slot(
+                {"name": "bot", "type": "unfeaturized", "initial_value": " ", "influence_conversation": False},
+                bot, user, raise_exception_if_exists=True
+            )
+
+        with pytest.raises(AppException, match='initial value for type Text must be a string'):
+            processor.add_slot(
+                {"name": "bot", "type": "text", "initial_value": 123, "influence_conversation": True},
+                bot, user, raise_exception_if_exists=False)
+
+        with pytest.raises(AppException, match='initial value for type Boolean must be a true or false'):
+            processor.add_slot(
+                {"name": "bot", "type": "bool", "initial_value": "true", "influence_conversation": True},
+                bot, user, raise_exception_if_exists=False)
+
+        with pytest.raises(AppException, match='initial value for type List must be a list of elements'):
+            processor.add_slot(
+                {"name": "bot", "type": "list", "initial_value": "sample value", "influence_conversation": True},
+                bot, user, raise_exception_if_exists=False)
+
+        with pytest.raises(AppException, match='initial value for type Float must be a numeric value'):
+            processor.add_slot(
+                {"name": "bot", "type": "float", "initial_value": "invalid value", "min_value": 1, "max_value": 3,
+                 "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+
+        with pytest.raises(AppException, match='initial value for type Float must be a numeric value'):
+            processor.add_slot(
+                {"name": "bot", "type": "float", "initial_value": '0.7', "min_value": 0.5, "max_value": 1.0,
+                 "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+
+        with pytest.raises(AppException, match='min_value must be a numeric value'):
+            processor.add_slot(
+                {"name": "bot", "type": "float", "initial_value": 0.7, "min_value": '0.5', "max_value": 1.0,
+                 "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+
+        with pytest.raises(AppException, match='min_value must be less than max_value'):
+            processor.add_slot(
+                {"name": "bot", "type": "float", "initial_value": 0.7, "min_value": 1.0, "max_value": 0.5,
+                 "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+
+        with pytest.raises(AppException, match='only None is not valid values for Categorical type'):
+            processor.add_slot(
+                {"name": "bot", "type": "categorical", "values": [None], "influence_conversation": True},
+                bot, user, raise_exception_if_exists=False)
+
+    def test_add_slot_with_none(self):
+        processor = MongoProcessor()
+        bot = 'test_add_slot_with_none'
+        user = 'test_user'
+        processor.add_slot(
+            {"name": "bot", "type": "text", "initial_value": None, "influence_conversation": True},
+            bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='bot', bot=bot, user=user).get()
+        assert slot['name'] == 'bot'
+        assert slot['type'] == 'text'
+        assert slot['initial_value'] is None
+        assert slot['influence_conversation']
+
+        processor.add_slot(
+            {"name": "is_authenticated", "type": "bool", "initial_value": None, "influence_conversation": True},
+            bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='is_authenticated', bot=bot, user=user).get()
+        assert slot['name'] == 'is_authenticated'
+        assert slot['type'] == 'bool'
+        assert slot['initial_value'] is None
+        assert slot['influence_conversation']
+
+        processor.add_slot({"name": "color", "type": "categorical", "values": ["red", None, "blue"],
+                            "initial_value": None, "influence_conversation": True},
+                           bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='color', bot=bot, user=user).get()
+        assert slot['name'] == 'color'
+        assert slot['type'] == 'categorical'
+        assert slot['values'] == ["red", None, "blue"]
+        assert slot['initial_value'] is None
+        assert slot['influence_conversation']
+
+        processor.add_slot(
+            {"name": "range", "type": "float", "initial_value": None, "min_value": 0.1, "max_value": 0.3,
+             "influence_conversation": True}, bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='range', bot=bot, user=user).get()
+        assert slot['name'] == 'range'
+        assert slot['type'] == 'float'
+        assert slot['min_value'] == 0.1
+        assert slot['max_value'] == 0.3
+        assert slot['initial_value'] is None
+        assert slot['influence_conversation']
+
+        processor.add_slot(
+            {"name": "colors", "type": "list", "initial_value": None, "influence_conversation": True},
+            bot, user, raise_exception_if_exists=False)
+        slot = Slots.objects(name__iexact='colors', bot=bot, user=user).get()
+        assert slot['name'] == 'colors'
+        assert slot['type'] == 'list'
+        assert slot['initial_value'] is None
+        assert slot['influence_conversation']
+
     def test_add_slot(self):
         processor = MongoProcessor()
         bot = 'test_add_slot'
