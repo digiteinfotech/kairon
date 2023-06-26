@@ -89,12 +89,13 @@ class ActionHTTP(ActionsBase):
                                                                request_method=request_method, request_body=body,
                                                                content_type=http_action_config['content_type'])
             logger.info("http response: " + str(http_response))
-            bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'], http_response)
+            bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'], http_response,
+                                                                        tracker_data)
             msg_logger.append(bot_resp_log)
             self.__response = bot_response
             self.__is_success = True
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(http_action_config.get('set_slots', []),
-                                                                                http_response)
+                                                                                http_response, tracker_data)
             msg_logger.extend(slot_eval_log)
             filled_slots.update(slot_values)
             logger.info("response: " + str(bot_response))

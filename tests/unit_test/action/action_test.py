@@ -1435,7 +1435,11 @@ class TestActions:
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
+                              'sender_id': 'default_sender', 'user_message': 'get intents',
+                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
         )
         responses.add(
             method=responses.POST,
@@ -1445,7 +1449,11 @@ class TestActions:
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
+                              'sender_id': 'default_sender', 'user_message': 'get intents',
+                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
         )
         responses.add(
             method=responses.POST,
@@ -1455,7 +1463,11 @@ class TestActions:
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d.0}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
+                              'sender_id': 'default_sender', 'user_message': 'get intents',
+                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
         )
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -2790,7 +2802,7 @@ class TestActions:
     def test_compose_response_using_expression(self):
         response_config = {"value": "${a.b.d}", "evaluation_type": "expression"}
         http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
-        result, log = ActionUtility.compose_response(response_config, http_response)
+        result, log = ActionUtility.compose_response(response_config, http_response, {})
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
         assert log == 'expression: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || response: [\'red\', \'buggy\', \'bumpers\']'
 
@@ -2798,7 +2810,7 @@ class TestActions:
         response_config = {"value": "${a.b.d}", "evaluation_type": "expression"}
         http_response = {'a': {'b': {'3': 2, '43': 30, 'c': []}}}
         with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: 'd'"):
-            ActionUtility.compose_response(response_config, http_response)
+            ActionUtility.compose_response(response_config, http_response, {})
 
     @responses.activate
     def test_compose_response_using_script(self):
@@ -2812,7 +2824,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
         )
-        result, log = ActionUtility.compose_response(response_config, http_response)
+        result, log = ActionUtility.compose_response(response_config, http_response, {})
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
         assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}'
 
@@ -2829,12 +2841,12 @@ class TestActions:
             match=[responses.matchers.json_params_matcher({'script': script, 'data': http_response})],
         )
         with pytest.raises(ActionFailure, match="Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False, 'data': \"['red', 'buggy', 'bumpers']\"}"):
-            ActionUtility.compose_response(response_config, http_response)
+            ActionUtility.compose_response(response_config, http_response, {})
 
     def test_fill_slots_from_response_using_expression(self):
         set_slots = [{"name": "experience", "value": "${a.b.d}"}, {"name": "score", "value": "${a.b.3}"}]
         http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response, {})
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation',
                                 "slot: experience || expression: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
@@ -2858,7 +2870,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
         )
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response, {})
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation',
             "slot: experience || expression: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
@@ -2884,7 +2896,7 @@ class TestActions:
             status=200,
             match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
         )
-        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
+        evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response, {})
         assert evaluated_slot_values == {'experience': None, 'score': 2, "percentage": "30"}
         assert response_log == ['initiating slot evaluation',
             "slot: experience || Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False}",
