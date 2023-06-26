@@ -1,8 +1,7 @@
 import json
 import re
 from datetime import datetime
-from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
-from .base_data import Auditlog
+
 from mongoengine import (
     Document,
     EmbeddedDocument,
@@ -27,13 +26,15 @@ from rasa.shared.core.slots import (
     TextSlot,
     BooleanSlot, AnySlot,
 )
-from validators import url, ValidationFailure
-from kairon.shared.data.signals import push_notification, auditlogger
-from kairon.exceptions import AppException
-from kairon.shared.utils import Utility
-from kairon.shared.models import TemplateType, StoryStepType
 from validators import domain
+from validators import url, ValidationFailure
 
+from kairon.exceptions import AppException
+from kairon.shared.data.signals import push_notification, auditlogger
+from kairon.shared.models import TemplateType, StoryStepType
+from kairon.shared.utils import Utility
+from .base_data import Auditlog
+from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
 
 
@@ -479,8 +480,10 @@ class StoryEvents(EmbeddedDocument):
     def validate(self, clean=True):
         if clean:
             self.clean()
-        if not Utility.check_empty_string(self.value) and self.type != 'slot':
-            raise ValidationError("Value is allowed only for slot")
+        if self.type != 'slot' and self.value is not None:
+            raise ValidationError("Value is allowed only for slot events")
+        if self.type == 'slot' and self.value is not None and not isinstance(self.value, (str, int, bool)):
+            raise ValidationError("slot values must be either None or of type int, str or boolean")
         if Utility.check_empty_string(self.name) and self.type != 'active_loop':
             raise ValidationError("Empty name is allowed only for active_loop")
 
