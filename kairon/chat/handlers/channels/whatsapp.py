@@ -44,6 +44,8 @@ class Whatsapp:
             text = message["interactive"][interactive_type]["id"]
         elif message.get("type") == "text":
             text = message["text"]['body']
+        elif message.get("type") == "button":
+            text = message["button"]['text']
         elif message.get("type") in {"image", "audio", "document", "video"}:
             attachment_info = self.client.get_attachment(message[message["type"]]['id'])
             text = attachment_info.get("url")
