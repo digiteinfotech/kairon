@@ -5741,10 +5741,11 @@ class TestMongoProcessor:
         user = 'user'
         steps = [
             {"name": "greet", "type": "INTENT"},
-            {"name": "utter_name", "type": "BOT", "value": 'Nupur'},
+            {"name": "age", "type": "SLOT", "value": {'a': 1}},
+            {"name": "utter_greet", "type": "BOT"},
         ]
         story_dict = {'name': "slot form one", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        with pytest.raises(ValidationError, match="Value is allowed only for slot"):
+        with pytest.raises(ValidationError, match="Invalid value"):
             processor.add_complex_story(story_dict, bot, user)
 
     def test_create_flow_with_Int_slot_value(self):
@@ -6734,13 +6735,13 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         stories = list(processor.get_stories(bot))
-        assert stories[16]['name'] == 'story with form'
-        assert stories[16]['type'] == 'STORY'
-        assert stories[16]['steps'][0]['name'] == 'greet'
-        assert stories[16]['steps'][0]['type'] == 'INTENT'
-        assert stories[16]['steps'][1]['name'] == 'restaurant_form'
-        assert stories[16]['steps'][1]['type'] == 'FORM_ACTION'
-        assert stories[16]['template_type'] == 'CUSTOM'
+        assert stories[21]['name'] == 'story with form'
+        assert stories[21]['type'] == 'STORY'
+        assert stories[21]['steps'][0]['name'] == 'greet'
+        assert stories[21]['steps'][0]['type'] == 'INTENT'
+        assert stories[21]['steps'][1]['name'] == 'restaurant_form'
+        assert stories[21]['steps'][1]['type'] == 'FORM_ACTION'
+        assert stories[21]['template_type'] == 'CUSTOM'
 
     def test_delete_form_attached_to_story(self):
         processor = MongoProcessor()
