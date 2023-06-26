@@ -1050,45 +1050,57 @@ class TestChatServer(AsyncHTTPTestCase):
         )
 
         with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
-            response = self.fetch(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                method="POST",
-                body=json.dumps({
-                    "object": "whatsapp_business_account",
-                    "entry": [{
-                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                        "changes": [{
-                            "value": {
-                                "messaging_product": "whatsapp",
-                                "metadata": {
-                                    "display_phone_number": "910123456789",
-                                    "phone_number_id": "12345678"
+            with mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                            autospec=True) as whatsapp_msg_handler:
+                response = self.fetch(
+                    f"/api/bot/whatsapp/{bot}/{token}",
+                    headers={"hub.verify_token": "valid"},
+                    method="POST",
+                    body=json.dumps({
+                        "object": "whatsapp_business_account",
+                        "entry": [{
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [{
+                                "value": {
+                                    "messaging_product": "whatsapp",
+                                    "metadata": {
+                                        "display_phone_number": "910123456789",
+                                        "phone_number_id": "12345678"
+                                    },
+                                    "contacts": [{
+                                        "profile": {
+                                            "name": "udit"
+                                        },
+                                        "wa_id": "wa-123456789"
+                                    }],
+                                    "messages": [{
+                                        "from": "910123456789",
+                                        "id": "wappmsg.ID",
+                                        "timestamp": "21-09-2022 12:05:00",
+                                        "button": {
+                                            "text": "buy now",
+                                            "payload": "buy kairon for 1 billion"
+                                        },
+                                        "type": "button"
+                                    }]
                                 },
-                                "contacts": [{
-                                    "profile": {
-                                        "name": "udit"
-                                    },
-                                    "wa_id": "wa-123456789"
-                                }],
-                                "messages": [{
-                                    "from": "910123456789",
-                                    "id": "wappmsg.ID",
-                                    "timestamp": "21-09-2022 12:05:00",
-                                    "button": {
-                                        "text": "buy now",
-                                        "payload": "buy kairon for 1 billion"
-                                    },
-                                    "type": "button"
-                                }]
-                            },
-                            "field": "messages"
+                                "field": "messages"
+                            }]
                         }]
-                    }]
-                }))
+                    }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
+        assert len(whatsapp_msg_handler.call_args[0]) == 5
+        assert whatsapp_msg_handler.call_args[0][1] == 'buy now'
+        assert whatsapp_msg_handler.call_args[0][2] == '910123456789'
+        metadata = whatsapp_msg_handler.call_args[0][3]
+        metadata.pop("timestamp")
+        assert metadata == {'from': '910123456789', 'id': 'wappmsg.ID',
+                            'button': {'text': 'buy now', 'payload': 'buy kairon for 1 billion'}, 'type': 'button',
+                            'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                            'bsp_type': 'meta', 'display_phone_number': '910123456789', 'phone_number_id': '12345678'}
+        assert whatsapp_msg_handler.call_args[0][4] == bot
 
     @responses.activate
     def test_whatsapp_valid_attachment_message_request(self):
