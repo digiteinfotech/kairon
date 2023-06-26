@@ -4,26 +4,26 @@ from typing import Optional, Dict, Text
 
 from loguru import logger
 from rasa.core.training.story_conflict import find_story_conflicts
+from rasa.shared.constants import UTTER_PREFIX
 from rasa.shared.core.domain import Domain
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.generator import TrainingDataGenerator
 from rasa.shared.core.training_data.structures import StoryStep, RuleStep
-from rasa.shared.importers.rasa import RasaFileImporter
-from rasa.shared.constants import UTTER_PREFIX
-from rasa.validator import Validator
 from rasa.shared.exceptions import YamlSyntaxException
 from rasa.shared.importers.importer import TrainingDataImporter
+from rasa.shared.importers.rasa import RasaFileImporter
 from rasa.shared.nlu import constants
 from rasa.shared.utils.validation import YamlValidationException
+from rasa.validator import Validator
 
+from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
     ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
-from kairon.shared.utils import Utility
-from kairon.exceptions import AppException
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.utils import Utility
 
 
 class TrainingDataValidator(Validator):
@@ -475,8 +475,19 @@ class TrainingDataValidator(Validator):
                 if len(required_fields.difference(set(action.keys()))) > 0:
                     data_error.append(f'Required fields {required_fields} not found in action: {action.get("name")}')
                     continue
-                if action.get('validation_semantic') and not isinstance(action['validation_semantic'], dict):
+                if action.get('validation_semantic') and not isinstance(action['validation_semantic'], str):
                     data_error.append(f'Invalid validation semantic: {action["name"]}')
+                if action.get('slot_set'):
+                    if Utility.check_empty_string(action['slot_set'].get('type')):
+                        data_error.append('slot_set should have type current as default!')
+                    if action['slot_set'].get('type') == 'current' and not Utility.check_empty_string(action['slot_set'].get('value')):
+                        data_error.append('slot_set with type current should not have any value!')
+                    if action['slot_set'].get('type') == 'slot' and Utility.check_empty_string(action['slot_set'].get('value')):
+                        data_error.append('slot_set with type slot should have a valid slot value!')
+                    if action['slot_set'].get('type') not in ['current', 'custom', 'slot']:
+                        data_error.append('Invalid slot_set type!')
+                else:
+                    data_error.append('slot_set must be present')
                 if f"{action['name']}_{action['slot']}" in actions_present:
                     data_error.append(f"Duplicate form validation action found for slot {action['slot']}: {action['name']}")
                 actions_present.add(f"{action['name']}_{action['slot']}")
