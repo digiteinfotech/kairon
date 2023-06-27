@@ -5,7 +5,7 @@
 
 
 
-# Kairon : You can directly converse with Kairon on Whatsapp and stay informed of our latest releases !
+# Kairon : You can directly converse with Kairon on Whatsapp and stay informed of our latest releases !   Our latest release will introduce visual chaining of LLM actions
 
 ![qrcode](https://user-images.githubusercontent.com/7289292/233619670-4b9adad4-b736-4a18-ad38-0b9e58d506ea.jpeg)
 
