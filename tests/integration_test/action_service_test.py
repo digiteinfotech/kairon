@@ -49,7 +49,7 @@ class TestActionServer(AsyncHTTPTestCase):
         KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         HttpActionConfig(
             action_name=action_name,
-            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
@@ -61,8 +61,8 @@ class TestActionServer(AsyncHTTPTestCase):
                          HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
                          HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=False),
                          HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=False)],
-            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
-                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${data.a.b.d}"),
+                       SetSlotsFromResponse(name="val_d_0", value="${data.a.b.d.0}")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         ).save()
@@ -139,12 +139,11 @@ class TestActionServer(AsyncHTTPTestCase):
                                           'name': '****', 'contact': None},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
-                "expression: The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}, 'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'} || response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                "expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
                 'initiating slot evaluation',
-                "slot: val_d || expression: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}, 'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'} || response: ['red', 'buggy', 'bumpers']",
-                "slot: val_d_0 || expression: ${a.b.d.0} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}, 'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'} || response: red"],
+                "slot: val_d || expression: ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: ['red', 'buggy', 'bumpers']",
+                "slot: val_d_0 || expression: ${data.a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: red"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
-
 
     def test_http_action_execution_returns_custom_json(self):
         action_name = "test_http_action_execution_returns_custom_json"
@@ -164,8 +163,8 @@ class TestActionServer(AsyncHTTPTestCase):
                          HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
                          HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=False),
                          HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=False)],
-            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
-                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${data.a.b.d}"),
+                       SetSlotsFromResponse(name="val_d_0", value="${data.a.b.d.0}")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         ).save()
@@ -228,17 +227,19 @@ class TestActionServer(AsyncHTTPTestCase):
             {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
             {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                       'sender_id': 'default', 'user_message': 'get intents',
-                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                       'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None,
-                       'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}])
+             "value": {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                       'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                   'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                                   'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                   'kairon_user_msg': None, 'session_started': None,
+                                   'bot': '5f50fd0a56b698ca10d35d2e'}}}])
         self.assertEqual(response_json['responses'][0]['custom'],
-                         {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                          'sender_id': 'default', 'user_message': 'get intents',
-                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None,
-                          'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'})
+                         {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                          'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                      'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
+                                      'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                      'kairon_user_msg': None, 'session_started': None,
+                                      'bot': '5f50fd0a56b698ca10d35d2e'}})
 
     def test_http_action_execution_custom_json_with_invalid_json_response(self):
         action_name = "test_http_action_execution_custom_json_with_invalid_json_response"
@@ -258,8 +259,8 @@ class TestActionServer(AsyncHTTPTestCase):
                          HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
                          HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=False),
                          HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=False)],
-            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
-                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${data.a.b.d}"),
+                       SetSlotsFromResponse(name="val_d_0", value="${data.a.b.d.0}")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         ).save()
@@ -322,9 +323,9 @@ class TestActionServer(AsyncHTTPTestCase):
             {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
             {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": 'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}, "sender_id": "default", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}'}])
+             "value": 'INVALID {"data": {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}, "context": {"sender_id": "default", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}}'}])
         self.assertEqual(response_json['responses'][0]['text'],
-                         'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}, "sender_id": "default", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}')
+                         'INVALID {"data": {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}, "context": {"sender_id": "default", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}}')
 
     def test_http_action_execution_return_custom_json_with_script_evaluation(self):
         action_name = "test_http_action_execution_return_custom_json_with_script_evaluation"
@@ -376,11 +377,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${RESPONSE}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
 
         request_object = {
@@ -428,7 +431,8 @@ class TestActionServer(AsyncHTTPTestCase):
         HttpActionConfig(
             action_name=action_name,
             content_type="data",
-            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}", dispatch=False),
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}",
+                                        dispatch=False),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=False),
@@ -437,8 +441,8 @@ class TestActionServer(AsyncHTTPTestCase):
             params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=False),
                          HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
                          HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True)],
-            set_slots=[SetSlotsFromResponse(name="val_d", value="${a.b.d}"),
-                       SetSlotsFromResponse(name="val_d_0", value="${a.b.d.0}")],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${data.a.b.d}"),
+                       SetSlotsFromResponse(name="val_d_0", value="${data.a.b.d.0}")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         ).save()
@@ -512,10 +516,10 @@ class TestActionServer(AsyncHTTPTestCase):
                        'request_params': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': '******ot'},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
-                "expression: The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}, 'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'} || response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                "expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
                 'initiating slot evaluation',
-                "slot: val_d || expression: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}, 'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'} || response: ['red', 'buggy', 'bumpers']",
-                "slot: val_d_0 || expression: ${a.b.d.0} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}, 'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'} || response: red"],
+                "slot: val_d || expression: ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: ['red', 'buggy', 'bumpers']",
+                "slot: val_d_0 || expression: ${data.a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: red"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation(self):
@@ -568,11 +572,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -582,11 +588,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -596,11 +604,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d.0}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
 
         request_object = {
@@ -710,11 +720,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -724,11 +736,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -738,11 +752,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d.0}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
 
         request_object = {
@@ -796,10 +812,10 @@ class TestActionServer(AsyncHTTPTestCase):
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
                 'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"} || data: {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'intent\': \'test_run\'}}',
-                'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}, \'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
+                'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || data: {\'data\': {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}}, \'context\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
                 'initiating slot evaluation',
-                'slot: val_d || script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}, \'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
-                "slot: val_d_0 || script: ${a.b.d.0} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}, 'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'} || raise_err_on_failure: True || response: {'success': True, 'data': 'red'}"],
+                'slot: val_d || script: ${a.b.d} || data: {\'data\': {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}}, \'context\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
+                "slot: val_d_0 || script: ${a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || raise_err_on_failure: True || response: {'success': True, 'data': 'red'}"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json(self):
@@ -899,17 +915,9 @@ class TestActionServer(AsyncHTTPTestCase):
             {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
             {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                       'sender_id': 'default', 'user_message': 'get intents',
-                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                       'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None,
-                       'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}])
+             "value": {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}}])
         self.assertEqual(response_json['responses'][0]['custom'],
-                         {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                          'sender_id': 'default', 'user_message': 'get intents',
-                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None,
-                          'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'})
+                         {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})
 
     def test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch"
@@ -1392,10 +1400,10 @@ class TestActionServer(AsyncHTTPTestCase):
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
                 'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}", "EMAIL": "${key_vault.EMAIL}"} || data: {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'intent\': \'test_run\', \'user_details\': {\'email\': \'uditpandey@digite.com\'}}}',
-                'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}, \'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
+                'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || data: {\'data\': {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}}, \'context\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
                 'initiating slot evaluation',
-                'slot: val_d || script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}, \'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
-                "slot: val_d_0 || script: ${a.b.d.0} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}, 'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'} || raise_err_on_failure: True || response: {'success': True, 'data': 'red'}"],
+                'slot: val_d || script: ${a.b.d} || data: {\'data\': {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}}, \'context\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
+                "slot: val_d_0 || script: ${a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || raise_err_on_failure: True || response: {'success': True, 'data': 'red'}"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation_failure_no_dispatch(self):
@@ -1449,11 +1457,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1463,11 +1473,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${e}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
 
         request_object = {
@@ -1561,11 +1573,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1575,11 +1589,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${e}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}},
-                              'sender_id': 'default', 'user_message': 'get intents',
-                              'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [],
-                              'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
-                              'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
 
         request_object = {

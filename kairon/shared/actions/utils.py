@@ -458,29 +458,26 @@ class ActionUtility:
         return parsed_output
 
     @staticmethod
-    def compose_response(response_config: dict, http_response: Any, tracker_data: dict):
-        extended_response = http_response
-        if isinstance(extended_response, dict):
-            extended_response = dict(http_response, **tracker_data)
+    def compose_response(response_config: dict, http_response: Any):
         response = response_config.get('value')
         evaluation_type = response_config.get('evaluation_type', EvaluationType.expression.value)
         if Utility.check_empty_string(response):
             result = None
-            log = f"{evaluation_type}: {response} || data: {extended_response} || Skipping evaluation as value is empty"
+            log = f"{evaluation_type}: {response} || data: {http_response} || Skipping evaluation as value is empty"
         elif evaluation_type == EvaluationType.script.value:
-            result, log = ActionUtility.evaluate_script(response, extended_response)
+            result, log = ActionUtility.evaluate_script(response, http_response)
         else:
-            result = ActionUtility.prepare_response(response, extended_response)
-            log = f"{evaluation_type}: {response} || data: {extended_response} || response: {result}"
+            result = ActionUtility.prepare_response(response, http_response)
+            log = f"{evaluation_type}: {response} || data: {http_response} || response: {result}"
         return result, log
 
     @staticmethod
-    def fill_slots_from_response(set_slots: list, http_response: Any, tracker_data: dict):
+    def fill_slots_from_response(set_slots: list, http_response: Any):
         evaluated_slot_values = {}
         response_log = ["initiating slot evaluation"]
         for slot in set_slots:
             try:
-                value, log = ActionUtility.compose_response(slot, http_response, tracker_data)
+                value, log = ActionUtility.compose_response(slot, http_response)
             except Exception as e:
                 logger.exception(e)
                 value = None
