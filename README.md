@@ -261,7 +261,7 @@ The repository is being maintained and supported by **NimbleWork Inc.**
 * [Fahad Ali Shaikh](https://github.com/sfahad1414)
 * [Deepak Naik](https://github.com/deenaik)
 * [Nirmal Parwate](https://github.com/nirmal495)
-* [Adurthi Ashwin Swarup]
+* [Adurthi Ashwin Swarup](https://github.com/Leothorn)
 * [Udit Pandey](https://github.com/udit-pandey)
 * [Rohan Patwardhan]
 * [Hitesh Ghuge]
