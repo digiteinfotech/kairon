@@ -10,3 +10,5 @@ class Metering(DynamicDocument):
     metric_type = StringField(required=True, choices=[m_type.value for m_type in MetricType])
     data = DynamicField()
     timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["account", ("metric_type", "timestamp"), ("account", "bot", "metric_type", "timestamp")]}]}
