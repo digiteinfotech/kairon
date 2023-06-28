@@ -1244,7 +1244,10 @@ class TestEventExecution:
                                                   'method': 'GET',
                                                   'api_response': {'contacts': ['9876543210', '876543212345']}},
                               'recipients': [9876543210, 876543212345],
-                              'evaluation_log': "script: ${contacts} || data: {'contacts': ['9876543210', '876543212345']} || raise_err_on_failure: True || response: {'data': [9876543210, 876543212345], 'success': True}",
+                              'evaluation_log': ['evaluation_type: script', 'script: ${contacts}',
+                                                 "data: {'contacts': ['9876543210', '876543212345']}",
+                                                 'raise_err_on_failure: True',
+                                                 "Evaluator response: {'data': [9876543210, 876543212345], 'success': True}"],
                               'template_params': [[{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                                   'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [

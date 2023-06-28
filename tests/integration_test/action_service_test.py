@@ -130,6 +130,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        print(log)
         assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
                        'sender': 'default',
                        'headers': {'botid': '**********************2e', 'userid': '****', 'tag': '******ot',
@@ -141,16 +142,16 @@ class TestActionServer(AsyncHTTPTestCase):
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                        'messages': ['evaluation_type: expression',
                                     'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     "response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
                                     'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
-                                    'expression: ${a.b.d}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    'expression: ${data.a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     "response: ['red', 'buggy', 'bumpers']", 'Slot: val_d_0',
-                                    'evaluation_type: expression', 'expression: ${a.b.d.0}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     'response: red'],
-                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS'}
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_returns_custom_json(self):
         action_name = "test_http_action_execution_returns_custom_json"
@@ -525,17 +526,17 @@ class TestActionServer(AsyncHTTPTestCase):
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
                        'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                        'messages': ['evaluation_type: expression',
-                                    'expression: The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     "response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
                                     'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
-                                    'expression: ${a.b.d}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    'expression: ${data.a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     "response: ['red', 'buggy', 'bumpers']", 'Slot: val_d_0',
-                                    'evaluation_type: expression', 'expression: ${a.b.d.0}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     'response: red'],
-                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS'}
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation(self):
         action_name = "test_http_action_execution_script_evaluation"
@@ -834,19 +835,19 @@ class TestActionServer(AsyncHTTPTestCase):
                                     "Evaluator response: {'success': True, 'data': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}}",
                                     'evaluation_type: script',
                                     "script: 'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     'raise_err_on_failure: True',
                                     'Evaluator response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
                                     'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: script',
                                     'script: ${a.b.d}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     'raise_err_on_failure: True',
                                     'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
                                     'Slot: val_d_0', 'evaluation_type: script', 'script: ${a.b.d.0}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     'raise_err_on_failure: True',
                                     "Evaluator response: {'success': True, 'data': 'red'}"],
-                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS'}
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json"
@@ -1420,6 +1421,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        print(log)
         assert log == {'type': 'http_action', 'intent': 'test_run',
                        'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list',
                        'sender': 'default',
@@ -1436,19 +1438,19 @@ class TestActionServer(AsyncHTTPTestCase):
                                     "Evaluator response: {'success': True, 'data': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run', 'user_details': {'email': 'uditpandey@digite.com'}}}",
                                     'evaluation_type: script',
                                     "script: 'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     'raise_err_on_failure: True',
                                     'Evaluator response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
                                     'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: script',
                                     'script: ${a.b.d}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     'raise_err_on_failure: True',
                                     'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
                                     'Slot: val_d_0', 'evaluation_type: script', 'script: ${a.b.d.0}',
-                                    "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
                                     'raise_err_on_failure: True',
                                     "Evaluator response: {'success': True, 'data': 'red'}"],
-                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS'}
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation_failure_no_dispatch(self):
         action_name = "test_http_action_execution_script_evaluation_failure_no_dispatch"
