@@ -2006,7 +2006,7 @@ class TestActions:
                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                          'llm_prompts': llm_prompts}
+                                 'dispatch_response': True, 'set_slots': [], 'llm_prompts': llm_prompts}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
         bot_settings.pop("status")
@@ -2675,7 +2675,10 @@ class TestActions:
         )
         result, log = ActionUtility.evaluate_script(script, data)
         assert result == "['red', 'buggy', 'bumpers']"
-        assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}'
+        assert log == ['evaluation_type: script', 'script: ${a.b.d}',
+                       "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                       'raise_err_on_failure: True',
+                       'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}']
 
     @responses.activate
     def test_evaluate_script_evaluation_failure(self):
@@ -2710,7 +2713,9 @@ class TestActions:
         )
         result, log = ActionUtility.evaluate_script(script, data, False)
         assert result is None
-        assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: False || response: {\'success\': False}'
+        assert log == ['evaluation_type: script', 'script: ${a.b.d}',
+                       "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                       'raise_err_on_failure: False', "Evaluator response: {'success': False}"]
 
     @responses.activate
     def test_prepare_email_text(self):
@@ -2792,7 +2797,9 @@ class TestActions:
         http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
         result, log = ActionUtility.compose_response(response_config, http_response)
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
-        assert log == 'expression: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || response: [\'red\', \'buggy\', \'bumpers\']'
+        assert log == ['evaluation_type: expression', 'expression: ${a.b.d}',
+                       "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                       "response: ['red', 'buggy', 'bumpers']"]
 
     def test_compose_response_using_expression_failure(self):
         response_config = {"value": "${a.b.d}", "evaluation_type": "expression"}
@@ -2814,7 +2821,10 @@ class TestActions:
         )
         result, log = ActionUtility.compose_response(response_config, http_response)
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
-        assert log == 'script: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}'
+        assert log == ['evaluation_type: script', 'script: ${a.b.d}',
+                       "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                       'raise_err_on_failure: True',
+                       'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}']
 
     @responses.activate
     def test_compose_response_using_script_failure(self):
@@ -2836,9 +2846,13 @@ class TestActions:
         http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
-        assert response_log == ['initiating slot evaluation',
-                                "slot: experience || expression: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
-                                "slot: score || expression: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 2"]
+        assert response_log == ['initiating slot evaluation', 'Slot: experience', 'evaluation_type: expression',
+                                'expression: ${a.b.d}',
+                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                "response: ['red', 'buggy', 'bumpers']", 'Slot: score', 'evaluation_type: expression',
+                                'expression: ${a.b.3}',
+                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'response: 2']
 
     @responses.activate
     def test_fill_slots_from_response_using_script(self):
@@ -2860,9 +2874,13 @@ class TestActions:
         )
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
-        assert response_log == ['initiating slot evaluation',
-            "slot: experience || expression: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
-            "slot: score || expression: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 2"]
+        assert response_log == ['initiating slot evaluation', 'Slot: experience', 'evaluation_type: expression',
+                                'expression: ${a.b.d}',
+                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                "response: ['red', 'buggy', 'bumpers']", 'Slot: score', 'evaluation_type: expression',
+                                'expression: ${a.b.3}',
+                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'response: 2']
 
     @responses.activate
     def test_fill_slots_from_response_failure(self):
@@ -2886,10 +2904,15 @@ class TestActions:
         )
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': None, 'score': 2, "percentage": "30"}
-        assert response_log == ['initiating slot evaluation',
-            "slot: experience || Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False}",
-            "slot: score || script: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': True, 'data': 2}",
-            "slot: percentage || expression: ${a.b.43} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 30"]
+        assert response_log == ['initiating slot evaluation', 'Slot: experience',
+                                "Evaluation error for experience: Expression evaluation failed: {'success': False}",
+                                'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script',
+                                'script: ${a.b.3}',
+                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'raise_err_on_failure: True', "Evaluator response: {'success': True, 'data': 2}",
+                                'Slot: percentage', 'evaluation_type: expression', 'expression: ${a.b.43}',
+                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'response: 30']
     
     def test_retrieve_config_two_stage_fallback(self):
         bot = "test_bot"
@@ -2938,7 +2961,7 @@ class TestActions:
                                        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                            'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                                            'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                                           'logit_bias': {}},
+                                                           'logit_bias': {}}, 'dispatch_response': True, 'set_slots': [],
                                        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                                         'type': 'system', 'source': 'static', 'is_enabled': True},
                                                        {'name': 'History Prompt', 'type': 'user', 'source': 'history',

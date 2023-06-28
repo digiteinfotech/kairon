@@ -57,6 +57,7 @@ class ActionPrompt(ActionsBase):
         bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         user_msg = tracker.latest_message.get('text')
         is_from_cache = False
+        slots_to_fill = {}
 
         try:
             k_faq_action_config, bot_settings = self.retrieve_config()
@@ -70,6 +71,10 @@ class ActionPrompt(ActionsBase):
                 recommendations, bot_response = ActionUtility.format_recommendations(llm_response, k_faq_action_config)
             else:
                 bot_response = llm_response['content']
+            slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(k_faq_action_config.get('set_slots', []),
+                                                                                bot_response)
+            if slot_values:
+                slots_to_fill.update(slot_values)
         except Exception as e:
             logger.exception(e)
             logger.debug(e)
@@ -95,8 +100,11 @@ class ActionPrompt(ActionsBase):
                 user_msg=user_msg,
                 is_from_cache=is_from_cache
             ).save()
-        dispatcher.utter_message(text=bot_response, buttons=recommendations)
-        return {KaironSystemSlots.kairon_action_response.value: bot_response}
+        if k_faq_action_config.get('dispatch_response', True):
+            dispatcher.utter_message(text=bot_response, buttons=recommendations)
+        slots_to_fill.update({KaironSystemSlots.kairon_action_response.value: bot_response})
+
+        return slots_to_fill
 
     async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
         implementations = {

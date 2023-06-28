@@ -773,6 +773,8 @@ class PromptActionConfigRequest(BaseModel):
     enable_response_cache: bool = False
     hyperparameters: dict = None
     llm_prompts: List[LlmPromptRequest]
+    set_slots: List[SetSlotsUsingActionResponse] = []
+    dispatch_response: bool = True
 
     @validator("similarity_threshold")
     def validate_similarity_threshold(cls, v, values, **kwargs):

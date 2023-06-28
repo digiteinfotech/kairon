@@ -532,6 +532,8 @@ class PromptAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = ListField(EmbeddedDocumentField(LlmPrompt), required=True)
+    set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
+    dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)
 
     def clean(self):
