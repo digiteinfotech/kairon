@@ -669,6 +669,12 @@ class GoogleSearchActionRequest(BaseModel):
     dispatch_response: bool = True
     set_slot: str = None
 
+    @validator("num_results")
+    def validate_num_results(cls, v, values, **kwargs):
+        if not v or v < 1:
+            raise ValueError("num_results must be greater than or equal to 1!")
+        return v
+
 
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)

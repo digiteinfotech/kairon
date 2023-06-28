@@ -11063,6 +11063,26 @@ def test_add_google_search_exists():
     assert actual["message"] == 'Action exists!'
 
 
+def test_add_google_search_invalid_parameters():
+    action = {
+        'name': 'google_custom_search',
+        'api_key': {'value': '12345678'},
+        'search_engine_id': 'asdfg:123456',
+        "num_results": 0,
+        'failure_response': 'I have failed to process your request'
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'num_results'], 'msg': 'num_results must be greater than or equal to 1!', 'type': 'value_error'}]
+
+
 def test_add_google_search_different_parameter_types():
     action = {
         'name': 'google_custom_search_slot',

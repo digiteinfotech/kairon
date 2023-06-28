@@ -7572,6 +7572,7 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=google_action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
         GoogleSearchAction(name=google_action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user, dispatch_response=False,
+                           num_results=3,
                            set_slot="google_response").save()
         BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -7582,6 +7583,14 @@ class TestActionServer(AsyncHTTPTestCase):
                 'title': 'Kanban',
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
                 'link': "https://www.digite.com/kanban/what-is-kanban/"
+            },{
+                'title': 'Kanban Project management',
+                'text': 'Kanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.',
+                'link': "https://www.digite.com/kanban/what-is-kanban-project-mgmt/"
+            },{
+                'title': 'Kanban agile',
+                'text': 'Kanban is a popular framework used to implement agile and DevOps software development.',
+                'link': "https://www.digite.com/kanban/what-is-kanban-agile/"
             }]
 
         llm_prompts = [
@@ -7623,7 +7632,8 @@ class TestActionServer(AsyncHTTPTestCase):
                                    {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
         assert mock_completion.call_args.args[1] == 'What is kanban'
         assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
-        assert mock_completion.call_args.args[3] == 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n'
+        assert mock_completion.call_args.args[
+                   3] == 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n'
 
     def test_prompt_response_action_with_action_not_found(self):
         action_name = "kairon_faq_action"

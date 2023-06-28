@@ -387,8 +387,11 @@ class ActionUtility:
 
     @staticmethod
     def format_search_result(results: list):
-        link = f'<a href = "{results[0]["link"]}" target="_blank" >{results[0]["title"]}</a>'
-        return f'{results[0]["text"]}\nTo know more, please visit: {link}'
+        formatted_result = ""
+        for result in results:
+            link = f'<a href = "{results[0]["link"]}" target="_blank" >{results[0]["title"]}</a>'
+            formatted_result = f'{formatted_result}{result["text"]}\nTo know more, please visit: {link}\n\n'
+        return formatted_result.strip()
 
     @staticmethod
     def retrieve_value_from_response(grouped_keys: List[str], http_response: Any):
