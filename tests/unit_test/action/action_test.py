@@ -1175,7 +1175,7 @@ class TestActions:
     async def test_run_with_post(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_post",
-            response=HttpActionResponse(value="Data added successfully, ${RESPONSE}"),
+            response=HttpActionResponse(value="Data added successfully, id:${data}"),
             http_url="http://localhost:8080/mock",
             request_method="POST",
             params_list=None,
@@ -1214,7 +1214,7 @@ class TestActions:
                                                                              "test_run_with_post")
         assert actual is not None
         assert actual[0]['name'] == 'kairon_action_response'
-        assert actual[0]['value'] == 'Data added successfully, {"data": 5000, "context": {"sender_id": "sender1", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit", "API_KEY": "asdfghjkertyuio", "API_SECRET": "sdfghj345678dfghj"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}}'
+        assert actual[0]['value'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
     async def test_run_with_post_and_parameters(self, monkeypatch):
@@ -1222,7 +1222,7 @@ class TestActions:
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
             action_name="test_run_with_post_and_parameters",
-            response=HttpActionResponse(value="Data added successfully, ${RESPONSE}"),
+            response=HttpActionResponse(value="Data added successfully, id:${data}"),
             http_url="http://localhost:8080/mock",
             request_method="POST",
             params_list=request_params,
@@ -1265,7 +1265,7 @@ class TestActions:
         responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
-        assert str(actual[0]['value']) == 'Data added successfully, {"data": 5000, "context": {"sender_id": "sender_test_run_with_post", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit", "API_KEY": "asdfghjkertyuio", "API_SECRET": "sdfghj345678dfghj"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}}'
+        assert str(actual[0]['value']) == 'Data added successfully, id:5000'
         log = ActionServerLogs.objects(sender="sender_test_run_with_post",
                                        action="test_run_with_post_and_parameters",
                                        status="SUCCESS").get()
@@ -1275,7 +1275,7 @@ class TestActions:
         assert log['action'] == "test_run_with_post_and_parameters"
         assert log['request_params'] == {"key1": "value1", "key2": "value2"}
         assert log['api_response'] == '5000'
-        assert log['bot_response'] == 'Data added successfully, {"data": 5000, "context": {"sender_id": "sender_test_run_with_post", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit", "API_KEY": "asdfghjkertyuio", "API_SECRET": "sdfghj345678dfghj"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}}'
+        assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
     async def test_run_with_post_and_dynamic_params(self, monkeypatch):
@@ -1283,7 +1283,7 @@ class TestActions:
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
         action = HttpActionConfig(
             action_name="test_run_with_post_and_dynamic_params",
-            response=HttpActionResponse(value="Data added successfully, ${RESPONSE}"),
+            response=HttpActionResponse(value="Data added successfully, id:${data}"),
             http_url="http://localhost:8080/mock",
             request_method="POST",
             dynamic_params=dynamic_params,
@@ -1332,7 +1332,7 @@ class TestActions:
         responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
-        assert str(actual[0]['value']) == 'Data added successfully, {"data": 5000, "context": {"sender_id": "default_sender", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit", "API_KEY": "asdfghjkertyuio", "API_SECRET": "sdfghj345678dfghj"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}}'
+        assert str(actual[0]['value']) == 'Data added successfully, id:5000'
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_post_and_dynamic_params",
                                        status="SUCCESS").get()
@@ -1343,7 +1343,7 @@ class TestActions:
         assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
                                          'intent': 'test_run'}
         assert log['api_response'] == '5000'
-        assert log['bot_response'] == 'Data added successfully, {"data": 5000, "context": {"sender_id": "default_sender", "user_message": "get intents", "slot": {"bot": "5f50fd0a56b698ca10d35d2e"}, "intent": "test_run", "chat_log": [], "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit", "API_KEY": "asdfghjkertyuio", "API_SECRET": "sdfghj345678dfghj"}, "kairon_user_msg": null, "session_started": null, "bot": "5f50fd0a56b698ca10d35d2e"}}'
+        assert str(actual[0]['value']) == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
     async def test_run_with_get(self, monkeypatch):
@@ -1511,7 +1511,6 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get_with_dynamic_params")
         responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'val_d'
         assert str(actual[0]['value']) == "['red', 'buggy', 'bumpers']"
@@ -1581,7 +1580,6 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8082/mock'
         resp_msg = "This is string http response"
-        responses.reset()
         responses.start()
         responses.add(
             method=responses.GET,
@@ -1600,7 +1598,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(
@@ -1693,7 +1690,7 @@ class TestActions:
 
         responses.add(
             responses.GET, http_url, json=resp_msg,
-            match=[responses.matchers.json_params_matcher({'key1': 'value1', 'key2': 'value2'})],
+            match=[responses.matchers.urlencoded_params_matcher({'key1': 'value1', 'key2': 'value2'})],
         )
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}

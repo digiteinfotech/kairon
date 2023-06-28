@@ -145,6 +145,110 @@ class TestActionServer(AsyncHTTPTestCase):
                 "slot: val_d_0 || expression: ${data.a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: red"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
+    def test_http_action_execution_with_context_data(self):
+        action_name = "test_http_action_execution_with_context_data"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2d", user="user").save()
+        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2d", user="user").save()
+        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2d", user="user").save()
+        HttpActionConfig(
+            action_name=action_name,
+            response=HttpActionResponse(value=
+                                        "The email id of ${context.key_vault.FIRSTNAME} is ${context.key_vault.EMAIL}"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                     HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                         HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=False),
+                         HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=False)],
+            set_slots=[SetSlotsFromResponse(name="user_name", value="${context.key_vault.FIRSTNAME}"),
+                       SetSlotsFromResponse(name="user_email", value="${context.key_vault.EMAIL}")],
+            bot="5f50fd0a56b698ca10d35d2d",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:8081/mock'
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.start()
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
+                                                           "tag": "from_bot", "name": "udit", "contact": None})],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2d"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2d"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "user_name", "value": "udit"},
+            {"event": "slot", "timestamp": None, "name": "user_email", "value": "uditpandey@digite.com"},
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": "The email id of udit is uditpandey@digite.com"}])
+        self.assertEqual(response_json['responses'][0]['text'], "The email id of udit is uditpandey@digite.com")
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {'type': 'http_action', 'intent': 'test_run',
+                       'action': 'test_http_action_execution_with_context_data', 'sender': 'default',
+                       'headers': {'botid': '**********************2d', 'userid': '****', 'tag': '******ot',
+                                   'email': '*******************om'}, 'url': 'http://localhost:8081/mock',
+                       'request_method': 'GET',
+                       'request_params': {'bot': '**********************2d', 'user': '1011', 'tag': '******ot',
+                                          'name': '****', 'contact': None},
+                       'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                       'bot_response': 'The email id of udit is uditpandey@digite.com', 'messages': [
+                "expression: The email id of ${context.key_vault.FIRSTNAME} is ${context.key_vault.EMAIL} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2d'}} || response: The email id of udit is uditpandey@digite.com",
+                'initiating slot evaluation',
+                "slot: user_name || expression: ${context.key_vault.FIRSTNAME} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2d'}} || response: udit",
+                "slot: user_email || expression: ${context.key_vault.EMAIL} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2d'}} || response: uditpandey@digite.com"],
+                       'bot': '5f50fd0a56b698ca10d35d2d', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+
     def test_http_action_execution_returns_custom_json(self):
         action_name = "test_http_action_execution_returns_custom_json"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
