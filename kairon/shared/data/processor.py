@@ -86,7 +86,7 @@ from .data_objects import (
     ModelDeployment,
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
-    MultiflowStories, MultiflowStoryEvents, BotContent
+    MultiflowStories, MultiflowStoryEvents, BotContent, MultiFlowStoryMetadata
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots
@@ -2212,6 +2212,7 @@ class MongoProcessor:
 
         name = story['name']
         steps = story['steps']
+        metadata = story.get('story_metadata')
 
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
@@ -2221,8 +2222,12 @@ class MongoProcessor:
         Utility.is_exist(MultiflowStories,
                          bot=bot, status=True, block_name__iexact=name,
                          exp_message="Multiflow Story with the name already exists")
-        StoryValidator.validate_steps(steps)
+        StoryValidator.validate_steps(steps, metadata)
         events = [MultiflowStoryEvents(**step) for step in steps]
+        if metadata:
+            path_metadata = [MultiFlowStoryMetadata(**path) for path in metadata]
+        else:
+            path_metadata = None
         Utility.is_exist_query(MultiflowStories,
                                query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
                                exp_message="Story flow already exists!")
@@ -2230,6 +2235,7 @@ class MongoProcessor:
         story_obj = MultiflowStories()
         story_obj.block_name = name
         story_obj.events = events
+        story_obj.metadata = path_metadata
         story_obj.bot = bot
         story_obj.user = user
         story_obj.start_checkpoints = [STORY_START]
@@ -2307,16 +2313,22 @@ class MongoProcessor:
         """
         name = story['name']
         steps = story['steps']
+        metadata = story.get('story_metadata')
+
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
 
         if not steps:
             raise AppException("steps are required")
-        StoryValidator.validate_steps(steps)
+        StoryValidator.validate_steps(steps, metadata)
         Utility.is_exist(MultiflowStories,
                          bot=bot, status=True, block_name__iexact=name, id__ne=story_id,
                          exp_message="Multiflow Story with the name already exists")
         events = [MultiflowStoryEvents(**step) for step in steps]
+        if metadata:
+            path_metadata = [MultiFlowStoryMetadata(**path) for path in metadata]
+        else:
+            path_metadata = None
         Utility.is_exist_query(MultiflowStories,
                                query=(Q(id__ne=story_id) & Q(bot=bot) & Q(status=True) & Q(events=events)),
                                exp_message="Story flow already exists!")
@@ -2324,6 +2336,7 @@ class MongoProcessor:
         try:
             story_obj = MultiflowStories.objects(bot=bot, status=True, id=story_id).get()
             story_obj.events = events
+            story_obj.metadata = path_metadata
             story_obj.block_name = name
             story_id = (
                 story_obj.save().to_mongo().to_dict()["_id"].__str__()

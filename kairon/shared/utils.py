@@ -1757,25 +1757,52 @@ class StoryValidator:
         vertices = {}
         for story_step in steps:
             vertices[story_step['step']['node_id']] = KaironStoryStep(story_step["step"]["name"],
-                                                                   story_step["step"]["type"])
+                                                                    story_step["step"]["type"], story_step['step']['node_id'],
+                                                                    story_step["step"].get('value'))
         for story_step in steps:
             story_step_object = vertices[story_step["step"]["node_id"]]
             for connected_story_step in story_step['connections'] or []:
                 if connected_story_step['node_id'] in vertices.keys():
                     connection_object = vertices[connected_story_step["node_id"]]
                 else:
-                    connection_object = KaironStoryStep(connected_story_step["name"], connected_story_step["type"])
+                    connection_object = KaironStoryStep(connected_story_step["name"], connected_story_step["type"],
+                                                        connected_story_step["node_id"])
                 graph.add_edge(story_step_object, connection_object)
         return graph
 
     @staticmethod
-    def validate_steps(steps: List):
+    def get_leaf_nodes(story_graph: DiGraph):
+        return [node for node in story_graph.nodes() if story_graph.out_degree(node) == 0]
+
+    @staticmethod
+    def get_leaf_nodes_with_intent(story_graph: DiGraph):
+        return [node for node in story_graph.nodes() if story_graph.out_degree(node) == 0
+                                    and node.step_type == 'INTENT']
+
+    @staticmethod
+    def get_source_node(story_graph: DiGraph):
+        return [x for x in story_graph.nodes() if story_graph.in_degree(x) == 0]
+
+    @staticmethod
+    def validate_graph_slot(story_graph: DiGraph):
+        for node in story_graph.nodes():
+            if node.step_type == 'SLOT' and node.value:
+                if node.value is not None and not isinstance(node.value, (str, int, bool)):
+                    raise ValidationError(
+                        "slot values in multiflow story must be either None or of type int, str or boolean")
+            if node.step_type != 'SLOT' and node.value is not None:
+                raise ValidationError("Value is allowed only for slot events in multiflow story")
+
+    @staticmethod
+    def validate_steps(steps: List, path: List):
         story_graph = StoryValidator.get_graph(steps)
+
+        StoryValidator.validate_graph_slot(story_graph)
 
         if not is_connected(Graph(story_graph)):
             raise AppException("All steps must be connected!")
 
-        source = [x for x in story_graph.nodes() if story_graph.in_degree(x) == 0]
+        source = StoryValidator.get_source_node(story_graph)
         if len(source) > 1:
             raise AppException("Story cannot have multiple sources!")
 
@@ -1785,17 +1812,23 @@ class StoryValidator:
         if recursive_simple_cycles(story_graph):
             raise AppException("Story cannot contain cycle!")
 
-        leaf_nodes_with_intent = [node for node in story_graph.nodes() if story_graph.out_degree(node) == 0
-                                    and node.step_type == 'INTENT']
+        leaf_nodes_with_intent = StoryValidator.get_leaf_nodes_with_intent(story_graph)
         if leaf_nodes_with_intent:
             raise AppException("Leaf nodes cannot be intent")
 
         for story_node in story_graph.nodes():
             if story_node.step_type == "INTENT":
                 if [successor for successor in story_graph.successors(story_node) if successor.step_type == "INTENT"]:
-                    raise AppException("Intent should be followed by an Action")
+                    raise AppException("Intent should be followed by an Action or Slot type event")
                 if len(list(story_graph.successors(story_node))) > 1:
-                    raise AppException("Intent can only have one connection of action type")
+                    raise AppException("Intent can only have one connection of action type or slot type")
+
+        leaf_nodes = StoryValidator.get_leaf_nodes(story_graph)
+        leaf_node_ids = [value.node_id for value in leaf_nodes]
+        if path:
+            for value in path:
+                if value['node_id'] not in leaf_node_ids:
+                    raise ValidationError("Only leaf nodes can be tagged with a flow")
 
 
 class MailUtility:

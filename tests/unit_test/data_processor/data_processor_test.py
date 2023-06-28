@@ -64,7 +64,8 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
                                              TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
-                                             SlotMapping, KeyVault, MultiflowStories, BotContent, LLMSettings
+                                             SlotMapping, KeyVault, MultiflowStories, BotContent, LLMSettings,
+                                             MultiflowStoryEvents
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -9006,7 +9007,7 @@ class TestMongoProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        pytest.story_id = processor.add_complex_story(story_dict, "tests", "testUser")
+        pytest.story_id_two = processor.add_complex_story(story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert len(story.events) == 6
         actions = processor.list_actions("tests")
@@ -9183,6 +9184,525 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict, "test", "TestUser")
         story = MultiflowStories.objects(block_name="story", bot="test").get()
         assert len(story.events) == 6
+
+    def test_add_multiflow_story_with_slot(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with slot"
+        bot = "test_slot"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "food", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "food", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_food", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        pytest.story_id = processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(block_name=story_name, bot=bot).get()
+        assert len(multiflow_story.events) == 6
+        stories = list(processor.get_multiflow_stories("test_slot"))
+        assert stories[0]['type'] == "MULTIFLOW"
+        assert len(stories[0]['steps']) == 6
+        updated_steps = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "food", "type": "SLOT", "value": "Indian", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_food", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        updated_story_dict = {'name': story_name, 'steps': updated_steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.update_multiflow_story(pytest.story_id, updated_story_dict, bot)
+        updated_multiflow_story = MultiflowStories.objects(block_name=story_name, bot=bot).get()
+        assert len(updated_multiflow_story.events) == 6
+        stories = list(processor.get_multiflow_stories("test_slot"))
+        assert stories[0]['type'] == "MULTIFLOW"
+        assert len(stories[0]['steps']) == 6
+
+    def test_add_multiflow_story_with_slot_value_int(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with slot int"
+        bot = "test_slot_int"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "age", "type": "SLOT", "value": 23, "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_age", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "age", "type": "SLOT", "value": 23, "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_age", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(block_name=story_name, bot=bot).get()
+        assert len(multiflow_story.events) == 6
+        stories = list(processor.get_multiflow_stories("test_slot_int"))
+        assert stories[0]['type'] == "MULTIFLOW"
+        assert len(stories[0]['steps']) == 6
+
+    def test_add_multiflow_story_with_slot_value_bool(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with slot bool"
+        bot = "test_slot_bool"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "SLOT", "value": True, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "SLOT", "value": True, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(block_name=story_name, bot=bot).get()
+        assert len(multiflow_story.events) == 6
+        stories = list(processor.get_multiflow_stories("test_slot_bool"))
+        assert stories[0]['type'] == "MULTIFLOW"
+        assert len(stories[0]['steps']) == 6
+
+    def test_add_multiflow_story_with_slot_value_None(self):
+        processor = MongoProcessor()
+        story_name = "Multiflow None"
+        bot = "test_slot_none"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "hobbies", "type": "SLOT", "value": None, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_hobbies", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_hobbies", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(bot=bot).get()
+        assert len(multiflow_story.events) == 6
+        stories = list(processor.get_multiflow_stories("test_slot_none"))
+        assert stories[0]['type'] == "MULTIFLOW"
+        assert len(stories[0]['steps']) == 6
+
+    def test_add_multiflow_story_with_slot_value_invalid(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with slot invalid"
+        bot = "test_slot_invalid"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_games", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        with pytest.raises(ValidationError, match="slot values in multiflow story must be either None or of type int, str or boolean"):
+            processor.add_multiflow_story(story_dict, bot, user)
+
+    def test_add_multiflow_story_with_slot_value_invalid_type(self):
+        story_name = "multiflow story with slot invalid"
+        bot = "test_slot_invalid"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_games", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        events = [MultiflowStoryEvents(**step) for step in steps]
+        with pytest.raises(ValidationError, match="slot values must be either None or of type int, str or boolean"):
+            MultiflowStories(block_name="multiflow story with slot invalid", bot=bot, user=user, events=events).save()
+
+    def test_add_multiflow_story_with_invalid_events(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with invalid events"
+        bot = "test_slot_invalid"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "hello", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_games", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        with pytest.raises(ValidationError, match="Value is allowed only for slot events in multiflow story"):
+            processor.add_multiflow_story(story_dict, bot, user)
+
+    def test_add_multiflow_story_with_value_for_invalid_event(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with value for invalid events"
+        bot = "test_slot_invalid"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "hello", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_games", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        events = [MultiflowStoryEvents(**step) for step in steps]
+        with pytest.raises(ValidationError, match="Value is allowed only for slot events"):
+            MultiflowStories(block_name="multiflow story with value for invalid events", bot=bot, user=user, events=events).save()
+
+    def test_add_multiflow_story_with_path_type_as_STORY(self):
+        processor = MongoProcessor()
+        story_name = "multiflow_story_STORY"
+        bot = "test_path_story"
+        user = "test_user_path_story"
+        steps = [
+            {"step": {"name": "ask", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_ask", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_ask", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "food", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "food", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_food", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
+        story_dict = {'name': story_name, 'steps': steps, "story_metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(bot=bot).get()
+        assert len(multiflow_story.events) == 6
+        assert len(multiflow_story.metadata) == 2
+
+    def test_add_multiflow_story_with_path_type_as_RULE(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with path as RULE"
+        bot = "test_path_rule"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "asking", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_asking", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_asking", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "story_metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(bot=bot).get()
+        assert len(multiflow_story.events) == 6
+        assert len(multiflow_story.metadata) == 2
+
+    def test_add_multiflow_story_with_no_path_type(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with no path type"
+        bot = "test_no_path_type"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "welcome", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_welcome", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_welcome", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "coffee", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "tea", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "tea", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_tea", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_tea", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_coffee", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "coffee", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_coffee", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6'}, {"node_id": "5"}]
+        story_dict = {'name': story_name, 'steps': steps, "story_metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(bot=bot).get()
+        assert len(multiflow_story.events) == 6
+        assert multiflow_story.metadata[0]['flow_type'] == 'STORY'
+        assert multiflow_story.metadata[0]['flow_type'] == 'STORY'
+
+    def test_add_multiflow_story_with_path_type_for_invalid_node(self):
+        processor = MongoProcessor()
+        story_name = "multiflow story with path for invalid node"
+        bot = "test_invalid_node_path"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "weather", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_weather", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_weather", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "sunny", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "rainy", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "sunny", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_sunny", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_sunny", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_rainy", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "rainy", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_rainy", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '2', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
+        story_dict = {'name': story_name, 'steps': steps, "story_metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        with pytest.raises(ValidationError, match="Only leaf nodes can be tagged with a flow"):
+            processor.add_multiflow_story(story_dict, bot, user)
 
     def test_add_multiflow_story_same_action_intent_name(self):
         processor = MongoProcessor()
@@ -9368,7 +9888,7 @@ class TestMongoProcessor:
              }
         ]
 
-        with pytest.raises(AppException, match="Intent can only have one connection of action type"):
+        with pytest.raises(AppException, match="Intent can only have one connection of action type or slot type"):
             story_dict = {'name': "story with multiple action for an intent", 'steps': steps, 'type': 'MULTIFLOW',
                           'template_type': 'CUSTOM'}
             processor.add_multiflow_story(story_dict, "test", "TestUser")
@@ -9726,7 +10246,7 @@ class TestMongoProcessor:
              }
         ]
         rule_dict = {'name': "story", 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-        with pytest.raises(AppException, match="Intent should be followed by an Action"):
+        with pytest.raises(AppException, match="Intent should be followed by an Action or Slot type event"):
             processor.update_multiflow_story(pytest.multiflow_story_id, rule_dict, "test")
 
     def test_update_multiflow_story_name(self):
@@ -9863,7 +10383,7 @@ class TestMongoProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         story_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
+        processor.update_complex_story(pytest.story_id_two, story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
 
@@ -9880,7 +10400,7 @@ class TestMongoProcessor:
             ]
             story_dict = {'name': "story with same events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
             with pytest.raises(AppException, match="FLow already exists!"):
-                processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
+                processor.update_complex_story(pytest.story_id_two, story_dict, "tests", "testUser")
 
     def test_add_complex_story_with_same_events(self):
         processor = MongoProcessor()
@@ -9907,7 +10427,7 @@ class TestMongoProcessor:
             {"name": "test_update_http_config_invalid", "type": "HTTP_ACTION"}
         ]
         story_dict = {'name': "story with same events", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
+        processor.update_complex_story(pytest.story_id_two, story_dict, "tests", "testUser")
 
     def test_case_insensitive_update_complex_story(self):
         processor = MongoProcessor()
@@ -9922,7 +10442,7 @@ class TestMongoProcessor:
             {"name": "utter_greet", "type": "BOT"},
         ]
         story_dict = {'name': "STory with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
-        processor.update_complex_story(pytest.story_id, story_dict, "tests", "testUser")
+        processor.update_complex_story(pytest.story_id_two, story_dict, "tests", "testUser")
         story = Stories.objects(block_name="story with action", bot="tests").get()
         assert story.events[1].name == "utter_nonsense"
 
@@ -9951,7 +10471,7 @@ class TestMongoProcessor:
         ]
         rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="First event should be an user"):
-            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id_two, rule_dict, "tests", "testUser")
 
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -9961,7 +10481,7 @@ class TestMongoProcessor:
         ]
         rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="user event should be followed by action"):
-            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id_two, rule_dict, "tests", "testUser")
 
         steps = [
             {"name": "greet", "type": "INTENT"},
@@ -9973,7 +10493,7 @@ class TestMongoProcessor:
         ]
         rule_dict = {'name': "story with action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Found 2 consecutive user events"):
-            processor.update_complex_story(pytest.story_id, rule_dict, "tests", "testUser")
+            processor.update_complex_story(pytest.story_id_two, rule_dict, "tests", "testUser")
 
     def test_update_complex_story_name(self):
         processor = MongoProcessor()
@@ -10054,7 +10574,7 @@ class TestMongoProcessor:
 
     def test_delete_complex_story(self):
         processor = MongoProcessor()
-        processor.delete_complex_story(pytest.story_id, "STORY", "tests", "testUser")
+        processor.delete_complex_story(pytest.story_id_two, "STORY", "tests", "testUser")
 
     def test_get_utterance_from_intent_non_existing(self):
         processor = MongoProcessor()
