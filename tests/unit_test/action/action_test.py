@@ -1182,10 +1182,6 @@ class TestActions:
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
-        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="API_KEY", value="asdfghjkertyuio", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}
@@ -1229,10 +1225,6 @@ class TestActions:
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
-        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="API_KEY", value="asdfghjkertyuio", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}
@@ -1290,10 +1282,6 @@ class TestActions:
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         )
-        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="API_KEY", value="asdfghjkertyuio", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
 
         def _get_action(*args, **kwargs):
             return {"type": ActionType.http_action.value}
@@ -1343,7 +1331,7 @@ class TestActions:
         assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
                                          'intent': 'test_run'}
         assert log['api_response'] == '5000'
-        assert str(actual[0]['value']) == 'Data added successfully, id:5000'
+        assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
     async def test_run_with_get(self, monkeypatch):
@@ -1402,6 +1390,8 @@ class TestActions:
                          "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
         KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="API_KEY", value="asdfghjkertyuio", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         action = HttpActionConfig(
             action_name="test_run_with_get_with_dynamic_params",
             response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
