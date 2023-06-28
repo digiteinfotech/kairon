@@ -1077,15 +1077,18 @@ class MongoProcessor:
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
-    def __prepare_training_multiflow_story_events(self, events, timestamp):
+    def __prepare_training_multiflow_story_events(self, events, metadata, timestamp):
         roots = []
         leaves = []
+        leaves_node_id = set()
         paths = []
         events = StoryValidator.get_graph(events)
+        metadata = {item["node_id"]: item["flow_type"] for item in metadata} if metadata else None
         for node in events.nodes:
             if events.in_degree(node) == 0:
                 roots.append(node)
             elif events.out_degree(node) == 0:
+                leaves_node_id.add(node.node_id)
                 leaves.append(node)
 
         for root in roots:
@@ -1093,8 +1096,14 @@ class MongoProcessor:
                 for path in nx.all_simple_paths(events, root, leaf):
                     paths.append(path)
         for path in paths:
+            flow_type = 'STORY'
             story_events = []
             for event in path:
+                if event.node_id in leaves_node_id:
+                    if not metadata or event.node_id not in metadata:
+                        flow_type = 'STORY'
+                    else:
+                        flow_type = metadata[event.node_id]
                 if event.step_type == StoryStepType.intent.value:
                     intent = {
                         STORY_EVENT.NAME.value: event.name,
@@ -1113,9 +1122,13 @@ class MongoProcessor:
                         timestamp=timestamp,
                         entities=[],
                     ))
+                elif event.step_type == StoryStepType.slot.value:
+                    story_events.append(SlotSet(key=event.name, value=event.value, timestamp=timestamp))
                 else:
                     story_events.append(ActionExecuted(action_name=event.name, timestamp=timestamp))
-            yield story_events
+            if flow_type == StoryType.rule.value:
+                story_events.insert(0, ActionExecuted(action_name=RULE_SNIPPET_ACTION_NAME, timestamp=timestamp))
+            yield story_events, flow_type
 
     def fetch_stories(self, bot: Text, status=True):
         """
@@ -1148,16 +1161,20 @@ class MongoProcessor:
             )
 
     def __prepare_training_multiflow_story_step(self, bot: Text):
+        flows = {StoryType.story.value: StoryStep, StoryType.rule.value: RuleStep}
         for story in MultiflowStories.objects(bot=bot, status=True):
             events = story.to_mongo().to_dict()['events']
+            metadata = story.to_mongo().to_dict()['metadata'] if story['metadata'] else None
             stories = list(
                 self.__prepare_training_multiflow_story_events(
-                    events, datetime.now().timestamp()
+                    events, metadata, datetime.now().timestamp()
                 )
             )
-            for story_events in stories:
-                yield StoryStep(
-                    block_name=story.block_name,
+            count = 1
+            for story_events, flow_type in stories:
+                block_name = f"{story.block_name}_{count}"
+                yield flows[flow_type](
+                    block_name=block_name,
                     events=story_events,
                     start_checkpoints=[
                         Checkpoint(start_checkpoint)
@@ -1168,6 +1185,8 @@ class MongoProcessor:
                         for end_checkpoints in story.end_checkpoints
                     ],
                 )
+                count += 1
+
 
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))

@@ -9260,6 +9260,12 @@ class TestMongoProcessor:
         stories = list(processor.get_multiflow_stories("test_slot"))
         assert stories[0]['type'] == "MULTIFLOW"
         assert len(stories[0]['steps']) == 6
+        load_story = processor.load_multiflow_stories(bot)
+        assert load_story.story_steps[0].events[2].key == 'food'
+        assert load_story.story_steps[0].events[2].value == 'Indian'
+        assert load_story.story_steps[1].events[2].key == 'mood'
+        assert load_story.story_steps[1].events[2].value == 'Happy'
+
 
     def test_add_multiflow_story_with_slot_value_int(self):
         processor = MongoProcessor()
@@ -9619,6 +9625,7 @@ class TestMongoProcessor:
         assert len(multiflow_story.events) == 6
         assert len(multiflow_story.metadata) == 2
 
+
     def test_add_multiflow_story_with_no_path_type(self):
         processor = MongoProcessor()
         story_name = "multiflow story with no path type"
@@ -9663,6 +9670,131 @@ class TestMongoProcessor:
         assert multiflow_story.metadata[0]['flow_type'] == 'STORY'
         assert multiflow_story.metadata[0]['flow_type'] == 'STORY'
 
+    def test_load_multiflow_stories(self):
+        processor = MongoProcessor()
+        story_name_one = "greeting story"
+        story_name_two = "farmer story"
+        story_name_three = "shopping story"
+        bot = "load_multiflow_stories"
+        user = "test_user"
+        steps_one = [
+            {"step": {"name": "welcome", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_welcome", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_welcome", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "coffee", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "tea", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "tea", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_tea", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_tea", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_coffee", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "coffee", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_coffee", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        steps_two = [
+            {"step": {"name": "farmer", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_farmer", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_farmer", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "rice", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "wheat", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "wheat", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_wheat", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_wheat", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_rice", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "rice", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_rice", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        steps_three = [
+            {"step": {"name": "shopping", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_shopping", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_shopping", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "clothes", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "handbags", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "handbags", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_handbags", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_handbags", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_clothes", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "clothes", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_clothes", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata_one = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'STORY'}]
+        metadata_two = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
+        metadata_three = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+
+        story_dict_one = {'name': story_name_one, 'steps': steps_one, "story_metadata": metadata_one, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        story_dict_two = {'name': story_name_two, 'steps': steps_two, "story_metadata": metadata_two,
+                          'type': 'MULTIFLOW',
+                          'template_type': 'CUSTOM'}
+        story_dict_three = {'name': story_name_three, 'steps': steps_three, "story_metadata": metadata_three,
+                          'type': 'MULTIFLOW',
+                          'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict_one, bot, user)
+        processor.add_multiflow_story(story_dict_two, bot, user)
+        processor.add_multiflow_story(story_dict_three, bot, user)
+        multiflow_story = processor.load_multiflow_stories(bot)
+        assert multiflow_story.story_steps[0].block_name == 'greeting story_1'
+        assert multiflow_story.story_steps[1].block_name == 'greeting story_2'
+        assert multiflow_story.story_steps[2].block_name == 'farmer story_1'
+        assert multiflow_story.story_steps[3].block_name == 'farmer story_2'
+        assert multiflow_story.story_steps[4].block_name == 'shopping story_1'
+        assert multiflow_story.story_steps[5].block_name == 'shopping story_2'
+        assert multiflow_story.story_steps[1].events[0].action_name == '...'
+        assert multiflow_story.story_steps[4].events[0].action_name == '...'
+        assert multiflow_story.story_steps[5].events[0].action_name == '...'
     def test_add_multiflow_story_with_path_type_for_invalid_node(self):
         processor = MongoProcessor()
         story_name = "multiflow story with path for invalid node"
