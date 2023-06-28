@@ -1018,6 +1018,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        responses.reset()
         responses.start()
         responses.add(
             method=responses.GET,
@@ -1070,6 +1071,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        responses.reset()
         responses.start()
         responses.add(
             method=responses.GET,
@@ -1124,6 +1126,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        responses.reset()
         responses.start()
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
@@ -1172,7 +1175,7 @@ class TestActions:
     async def test_run_with_post(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_post",
-            response=HttpActionResponse(value="Data added successfully, id:${RESPONSE}"),
+            response=HttpActionResponse(value="Data added successfully, id:${data}"),
             http_url="http://localhost:8080/mock",
             request_method="POST",
             params_list=None,
@@ -1186,6 +1189,7 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
+        responses.reset()
         responses.start()
         responses.add(
             method=responses.POST,
@@ -1214,7 +1218,7 @@ class TestActions:
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
             action_name="test_run_with_post_and_parameters",
-            response=HttpActionResponse(value="Data added successfully, id:${RESPONSE}"),
+            response=HttpActionResponse(value="Data added successfully, id:${data}"),
             http_url="http://localhost:8080/mock",
             request_method="POST",
             params_list=request_params,
@@ -1229,6 +1233,7 @@ class TestActions:
 
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
+        responses.reset()
         responses.start()
         responses.add(
             method=responses.POST,
@@ -1249,6 +1254,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post_and_parameters")
         responses.stop()
+        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
@@ -1269,7 +1275,7 @@ class TestActions:
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
         action = HttpActionConfig(
             action_name="test_run_with_post_and_dynamic_params",
-            response=HttpActionResponse(value="Data added successfully, id:${RESPONSE}"),
+            response=HttpActionResponse(value="Data added successfully, id:${data}"),
             http_url="http://localhost:8080/mock",
             request_method="POST",
             dynamic_params=dynamic_params,
@@ -1281,7 +1287,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-
+        responses.reset()
         responses.start()
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
@@ -1311,6 +1317,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post_and_dynamic_params")
         responses.stop()
+        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
@@ -1330,7 +1337,7 @@ class TestActions:
     async def test_run_with_get(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_get",
-            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             params_list=None,
@@ -1343,6 +1350,8 @@ class TestActions:
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
+        responses.reset()
+        responses.start()
         resp_msg = json.dumps({
             "a": {
                 "b": {
@@ -1359,7 +1368,6 @@ class TestActions:
             body=resp_msg,
             status=200,
         )
-        responses.start()
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         dispatcher: CollectingDispatcher = CollectingDispatcher()
@@ -1371,6 +1379,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get")
         responses.stop()
+        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
@@ -1381,9 +1390,11 @@ class TestActions:
                          "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
         KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="API_KEY", value="asdfghjkertyuio", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
         action = HttpActionConfig(
             action_name="test_run_with_get_with_dynamic_params",
-            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             dynamic_params=dynamic_params,
@@ -1397,6 +1408,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        responses.reset()
         responses.start()
         resp_msg = {
             "sender_id": "default_sender",
@@ -1435,7 +1447,14 @@ class TestActions:
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj',
+                                                        'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1445,7 +1464,14 @@ class TestActions:
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj',
+                                                        'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1455,7 +1481,14 @@ class TestActions:
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d.0}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj',
+                                                        'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -1621,7 +1654,7 @@ class TestActions:
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
             action_name="test_run_get_with_parameters",
-            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             params_list=request_params,
@@ -1669,7 +1702,7 @@ class TestActions:
     async def test_run_get_with_parameters_2(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_get_with_parameters_2",
-            response=HttpActionResponse(value="The value of ${a.b.3} in ${a.b.d.0} is ${a.b.d}"),
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
             http_url="http://localhost:8081/mock",
             request_method="GET",
             params_list=None,
