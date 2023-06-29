@@ -9794,6 +9794,7 @@ class TestMongoProcessor:
         assert multiflow_story.story_steps[1].events[0].action_name == '...'
         assert multiflow_story.story_steps[4].events[0].action_name == '...'
         assert multiflow_story.story_steps[5].events[0].action_name == '...'
+
     def test_add_multiflow_story_with_path_type_for_invalid_node(self):
         processor = MongoProcessor()
         story_name = "multiflow story with path for invalid node"

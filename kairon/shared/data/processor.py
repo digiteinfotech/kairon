@@ -1101,11 +1101,6 @@ class MongoProcessor:
             for event in path:
                 if event.node_id in leaves_node_id and metadata:
                     flow_type = metadata.get(event.node_id, StoryType.story.value)
-                # if event.node_id in leaves_node_id:
-                #     if not metadata or event.node_id not in metadata:
-                #         flow_type = 'STORY'
-                #     else:
-                #         flow_type = metadata[event.node_id]
                 if event.step_type == StoryStepType.intent.value:
                     intent = {
                         STORY_EVENT.NAME.value: event.name,
