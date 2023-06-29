@@ -9266,7 +9266,6 @@ class TestMongoProcessor:
         assert load_story.story_steps[1].events[2].key == 'mood'
         assert load_story.story_steps[1].events[2].value == 'Happy'
 
-
     def test_add_multiflow_story_with_slot_value_int(self):
         processor = MongoProcessor()
         story_name = "multiflow story with slot int"
