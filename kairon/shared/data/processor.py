@@ -1083,7 +1083,7 @@ class MongoProcessor:
         leaves_node_id = set()
         paths = []
         events = StoryValidator.get_graph(events)
-        metadata = {item["node_id"]: item["flow_type"] for item in metadata} if metadata else None
+        metadata = {item["node_id"]: item["flow_type"] for item in metadata} if metadata else {}
         for node in events.nodes:
             if events.in_degree(node) == 0:
                 roots.append(node)
@@ -1099,11 +1099,13 @@ class MongoProcessor:
             flow_type = 'STORY'
             story_events = []
             for event in path:
-                if event.node_id in leaves_node_id:
-                    if not metadata or event.node_id not in metadata:
-                        flow_type = 'STORY'
-                    else:
-                        flow_type = metadata[event.node_id]
+                if event.node_id in leaves_node_id and metadata:
+                    flow_type = metadata.get(event.node_id, StoryType.story.value)
+                # if event.node_id in leaves_node_id:
+                #     if not metadata or event.node_id not in metadata:
+                #         flow_type = 'STORY'
+                #     else:
+                #         flow_type = metadata[event.node_id]
                 if event.step_type == StoryStepType.intent.value:
                     intent = {
                         STORY_EVENT.NAME.value: event.name,
@@ -1164,7 +1166,7 @@ class MongoProcessor:
         flows = {StoryType.story.value: StoryStep, StoryType.rule.value: RuleStep}
         for story in MultiflowStories.objects(bot=bot, status=True):
             events = story.to_mongo().to_dict()['events']
-            metadata = story.to_mongo().to_dict()['metadata'] if story['metadata'] else None
+            metadata = story.to_mongo().to_dict()['metadata'] if story['metadata'] else {}
             stories = list(
                 self.__prepare_training_multiflow_story_events(
                     events, metadata, datetime.now().timestamp()
@@ -2231,7 +2233,7 @@ class MongoProcessor:
 
         name = story['name']
         steps = story['steps']
-        metadata = story.get('story_metadata')
+        metadata = story.get('metadata')
 
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
@@ -2243,10 +2245,7 @@ class MongoProcessor:
                          exp_message="Multiflow Story with the name already exists")
         StoryValidator.validate_steps(steps, metadata)
         events = [MultiflowStoryEvents(**step) for step in steps]
-        if metadata:
-            path_metadata = [MultiFlowStoryMetadata(**path) for path in metadata]
-        else:
-            path_metadata = None
+        path_metadata = [MultiFlowStoryMetadata(**path) for path in metadata or []]
         Utility.is_exist_query(MultiflowStories,
                                query=(Q(bot=bot) & Q(status=True)) & (Q(block_name__iexact=name) | Q(events=events)),
                                exp_message="Story flow already exists!")
@@ -2332,7 +2331,7 @@ class MongoProcessor:
         """
         name = story['name']
         steps = story['steps']
-        metadata = story.get('story_metadata')
+        metadata = story.get('metadata')
 
         if Utility.check_empty_string(name):
             raise AppException("Story name cannot be empty or blank spaces")
@@ -2344,10 +2343,7 @@ class MongoProcessor:
                          bot=bot, status=True, block_name__iexact=name, id__ne=story_id,
                          exp_message="Multiflow Story with the name already exists")
         events = [MultiflowStoryEvents(**step) for step in steps]
-        if metadata:
-            path_metadata = [MultiFlowStoryMetadata(**path) for path in metadata]
-        else:
-            path_metadata = None
+        path_metadata = [MultiFlowStoryMetadata(**path) for path in metadata or []]
         Utility.is_exist_query(MultiflowStories,
                                query=(Q(id__ne=story_id) & Q(bot=bot) & Q(status=True) & Q(events=events)),
                                exp_message="Story flow already exists!")

@@ -399,7 +399,7 @@ class StoryMetadata(BaseModel):
 class MultiFlowStoryRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     steps: List[StoryStepData]
-    story_metadata: List[StoryMetadata] = None
+    metadata: List[StoryMetadata] = None
 
     @validator("steps")
     def validate_request_method(cls, v, values, **kwargs):

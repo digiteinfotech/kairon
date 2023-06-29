@@ -9575,7 +9575,7 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
-        story_dict = {'name': story_name, 'steps': steps, "story_metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -9618,7 +9618,7 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
-        story_dict = {'name': story_name, 'steps': steps, "story_metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -9662,7 +9662,7 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '6'}, {"node_id": "5"}]
-        story_dict = {'name': story_name, 'steps': steps, "story_metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict, bot, user)
         multiflow_story = MultiflowStories.objects(bot=bot).get()
         assert len(multiflow_story.events) == 6
@@ -9773,12 +9773,12 @@ class TestMongoProcessor:
         metadata_two = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
         metadata_three = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
 
-        story_dict_one = {'name': story_name_one, 'steps': steps_one, "story_metadata": metadata_one, 'type': 'MULTIFLOW',
+        story_dict_one = {'name': story_name_one, 'steps': steps_one, "metadata": metadata_one, 'type': 'MULTIFLOW',
                       'template_type': 'CUSTOM'}
-        story_dict_two = {'name': story_name_two, 'steps': steps_two, "story_metadata": metadata_two,
+        story_dict_two = {'name': story_name_two, 'steps': steps_two, "metadata": metadata_two,
                           'type': 'MULTIFLOW',
                           'template_type': 'CUSTOM'}
-        story_dict_three = {'name': story_name_three, 'steps': steps_three, "story_metadata": metadata_three,
+        story_dict_three = {'name': story_name_three, 'steps': steps_three, "metadata": metadata_three,
                           'type': 'MULTIFLOW',
                           'template_type': 'CUSTOM'}
         processor.add_multiflow_story(story_dict_one, bot, user)
@@ -9831,7 +9831,7 @@ class TestMongoProcessor:
              }
         ]
         metadata = [{"node_id": '2', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
-        story_dict = {'name': story_name, 'steps': steps, "story_metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
         with pytest.raises(ValidationError, match="Only leaf nodes can be tagged with a flow"):
             processor.add_multiflow_story(story_dict, bot, user)
 

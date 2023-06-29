@@ -1784,20 +1784,10 @@ class StoryValidator:
         return [x for x in story_graph.nodes() if story_graph.in_degree(x) == 0]
 
     @staticmethod
-    def validate_graph_slot(story_graph: DiGraph):
-        for node in story_graph.nodes():
-            if node.step_type == 'SLOT' and node.value:
-                if node.value is not None and not isinstance(node.value, (str, int, bool)):
-                    raise ValidationError(
-                        "slot values in multiflow story must be either None or of type int, str or boolean")
-            if node.step_type != 'SLOT' and node.value is not None:
-                raise ValidationError("Value is allowed only for slot events in multiflow story")
-
-    @staticmethod
-    def validate_steps(steps: List, path: List):
+    def validate_steps(steps: List, flow_metadata: List):
         story_graph = StoryValidator.get_graph(steps)
-
-        StoryValidator.validate_graph_slot(story_graph)
+        leaf_nodes = StoryValidator.get_leaf_nodes(story_graph)
+        leaf_node_ids = [value.node_id for value in leaf_nodes]
 
         if not is_connected(Graph(story_graph)):
             raise AppException("All steps must be connected!")
@@ -1822,13 +1812,15 @@ class StoryValidator:
                     raise AppException("Intent should be followed by an Action or Slot type event")
                 if len(list(story_graph.successors(story_node))) > 1:
                     raise AppException("Intent can only have one connection of action type or slot type")
-
-        leaf_nodes = StoryValidator.get_leaf_nodes(story_graph)
-        leaf_node_ids = [value.node_id for value in leaf_nodes]
-        if path:
-            for value in path:
-                if value['node_id'] not in leaf_node_ids:
-                    raise ValidationError("Only leaf nodes can be tagged with a flow")
+            if story_node.step_type == 'SLOT' and story_node.value:
+                if story_node.value is not None and not isinstance(story_node.value, (str, int, bool)):
+                    raise ValidationError(
+                        "slot values in multiflow story must be either None or of type int, str or boolean")
+            if story_node.step_type != 'SLOT' and story_node.value is not None:
+                raise ValidationError("Value is allowed only for slot events in multiflow story")
+        if flow_metadata:
+            if any(value['node_id'] not in leaf_node_ids for value in flow_metadata):
+                raise ValidationError("Only leaf nodes can be tagged with a flow")
 
 
 class MailUtility:

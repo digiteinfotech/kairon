@@ -3408,7 +3408,7 @@ def test_add_multiflow_story_with_path():
                 "connections": [{"name": "utter_frontend", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"}]
             }
         ],
-            "story_metadata": [{"node_id": "5", "flow_type": "RULE"}, {"node_id": "6", "flow_type": "STORY"}]
+            "metadata": [{"node_id": "5", "flow_type": "RULE"}, {"node_id": "6", "flow_type": "STORY"}]
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
