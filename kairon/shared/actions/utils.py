@@ -426,8 +426,11 @@ class ActionUtility:
         :return: Http response added to the user defined output string.
         """
         parsed_output = template
+        data = http_response
+        if isinstance(http_response, dict):
+            data = http_response['data']
         if template.__contains__('${RESPONSE}'):
-            parsed_output = template.replace('${RESPONSE}', json.dumps(http_response))
+            parsed_output = template.replace('${RESPONSE}', json.dumps(data))
         return parsed_output
 
     @staticmethod
