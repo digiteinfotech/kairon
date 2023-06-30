@@ -853,7 +853,9 @@ class TestActions:
                 }
             }
         }
-        response = ActionUtility.prepare_response("The value of ${a.b.3} in ${a.b.d.0} is ${a.b.c}", json1)
+        http_response = {"data": json1, "context": {}}
+        response = ActionUtility.prepare_response("The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.c}",
+                                                  http_response)
         assert response == 'The value of 2 in red is []'
 
         json2 = {
@@ -886,8 +888,9 @@ class TestActions:
                 }
             }
         })
+        http_response = {"data": json1, "context": {}}
         try:
-            ActionUtility.prepare_response("The value of ${a.b.3} in ${a.b.d.0} is ${a.b.e}", json1)
+            ActionUtility.prepare_response("The value of ${a.b.3} in ${a.b.d.0} is ${a.b.e}", http_response)
             assert False
         except ActionFailure:
             assert True
@@ -903,7 +906,8 @@ class TestActions:
                 }
             }
         })
-        response = ActionUtility.prepare_response("The value of red is 0", json1)
+        http_response = {"data": json1, "context": {}}
+        response = ActionUtility.prepare_response("The value of red is 0", http_response)
         assert response == "The value of red is 0"
 
     def test_prepare_response_string_empty_response_string(self):
@@ -917,13 +921,16 @@ class TestActions:
                 }
             }
         })
-        response = ActionUtility.prepare_response("", json1)
-        assert response == '{"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'
+        http_response = {"data": json1, "context": {}}
+        response = ActionUtility.prepare_response("", http_response)
+        assert response == {'data': '{"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}',
+                            'context': {}}
 
     def test_prepare_response_string_empty_request_output(self):
         json1 = json.dumps("{}")
+        http_response = {"data": json1, "context": {}}
         try:
-            ActionUtility.prepare_response("The value of ${a.b.3} in ${a.b.d.0} is ${a.b.e}", json1)
+            ActionUtility.prepare_response("The value of ${a.b.3} in ${a.b.d.0} is ${a.b.e}", http_response)
             assert False
         except ActionFailure:
             assert True
@@ -938,11 +945,13 @@ class TestActions:
 
     def test_prepare_response_as_json_and_expected_as_plain_string(self):
         json_as_string = "Not a json string"
-        response = ActionUtility.prepare_response("The value of 2 in red is []", json_as_string)
+        http_response = {"data": json_as_string, "context": {}}
+        response = ActionUtility.prepare_response("The value of 2 in red is []", http_response)
         assert response == 'The value of 2 in red is []'
 
     def test_prepare_response_as_string_and_expected_as_none(self):
-        response = ActionUtility.prepare_response("The value of 2 in red is []", None)
+        http_response = {"data": None, "context": {}}
+        response = ActionUtility.prepare_response("The value of 2 in red is []", http_response)
         assert response == 'The value of 2 in red is []'
 
     @pytest.mark.asyncio
@@ -1385,6 +1394,89 @@ class TestActions:
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
+    async def test_run_with_get_dispatch_type_text_with_json_response(self, monkeypatch):
+        action = HttpActionConfig(
+            action_name="test_run_with_get_with_json_response",
+            response=HttpActionResponse(value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                                        dispatch=True, evaluation_type="script"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            params_list=None,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="API_KEY", value="asdfghjkertyuio", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        http_url = 'http://localhost:8081/mock'
+        responses.reset()
+        responses.start()
+        resp_msg = json.dumps({
+            "a": {
+                "b": {
+                    "3": 2,
+                    "43": 30,
+                    "c": [],
+                    "d": ['red', 'buggy', 'bumpers'],
+                }
+            }
+        })
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": {"key": "name", "value": "Mahesh"}},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default_sender', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'API_KEY': 'asdfghjkertyuio', 'API_SECRET': 'sdfghj345678dfghj',
+                                                        'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None,
+                                          'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+        )
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="default_sender", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
+                                                                             "test_run_with_get_with_json_response")
+        responses.stop()
+        responses.reset()
+        assert actual is not None
+        assert str(actual[0]['name']) == 'kairon_action_response'
+        assert str(actual[0]['value']) == "{'key': 'name', 'value': 'Mahesh'}"
+        log = ActionServerLogs.objects(sender="default_sender",
+                                       action="test_run_with_get_with_json_response",
+                                       status="SUCCESS").get()
+        print(log.to_mongo().to_dict())
+        assert not log['exception']
+        assert log['timestamp']
+        assert log['intent'] == "test_run"
+        assert log['action'] == "test_run_with_get_with_json_response"
+        assert log['api_response'] == "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}"
+        assert log['bot_response'] == "{'key': 'name', 'value': 'Mahesh'}"
+
+    @pytest.mark.asyncio
     async def test_run_with_get_with_dynamic_params(self, monkeypatch):
         dynamic_params = "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "\
                          "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
@@ -1594,11 +1686,13 @@ class TestActions:
             actual[0]['value']) == 'I have failed to process your request'
 
     def test_attach_response_no_placeholder(self):
-        output = ActionUtility.attach_response("This has no placeholder", {"a": "b"})
+        http_response = {"data": {"a": "b"}, "context": {}}
+        output = ActionUtility.attach_response("This has no placeholder", http_response)
         assert output == "This has no placeholder"
 
     def test_attach_response(self):
-        output = ActionUtility.attach_response("I want $${RESPONSE}", {"dollars": "51"})
+        http_response = {"data": {"dollars": "51"}, "context": {}}
+        output = ActionUtility.attach_response("I want $${RESPONSE}", http_response)
         assert output == 'I want ${\"dollars\": \"51\"}'
 
     def test_attach_response_int(self):
@@ -1606,8 +1700,9 @@ class TestActions:
         assert output == 'I want $51'
 
     def test_prepare_response_with_prefix(self):
-        output = ActionUtility.prepare_response("I want rupee${price.1.rupee}. Also, want $${price.0.dollars}",
-                                                {"price": [{"dollars": "51"}, {"rupee": "151"}]})
+        http_response = {"data": {"price": [{"dollars": "51"}, {"rupee": "151"}]}, "context": {}}
+        output = ActionUtility.prepare_response("I want rupee${data.price.1.rupee}. Also, want $${data.price.0.dollars}",
+                                                http_response)
         assert output == 'I want rupee151. Also, want $51'
 
     def test_retrieve_value_from_response(self):
@@ -2821,15 +2916,16 @@ class TestActions:
             ActionUtility.prepare_email_text(custom_text, tracker_data, "test@kairon.com")
 
     def test_compose_response_using_expression(self):
-        response_config = {"value": "${a.b.d}", "evaluation_type": "expression"}
-        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        response_config = {"value": "${data.a.b.d}", "evaluation_type": "expression"}
+        http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                         "context": {}}
         result, log = ActionUtility.compose_response(response_config, http_response)
         assert result == '[\'red\', \'buggy\', \'bumpers\']'
-        assert log == 'expression: ${a.b.d} || data: {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}} || response: [\'red\', \'buggy\', \'bumpers\']'
+        assert log == "expression: ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}} || response: ['red', 'buggy', 'bumpers']"
 
     def test_compose_response_using_expression_failure(self):
-        response_config = {"value": "${a.b.d}", "evaluation_type": "expression"}
-        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': []}}}
+        response_config = {"value": "${data.a.b.d}", "evaluation_type": "expression"}
+        http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': []}}}, "context": {}}
         with pytest.raises(ActionFailure, match="Unable to retrieve value for key from HTTP response: 'd'"):
             ActionUtility.compose_response(response_config, http_response)
 
@@ -2865,18 +2961,20 @@ class TestActions:
             ActionUtility.compose_response(response_config, http_response)
 
     def test_fill_slots_from_response_using_expression(self):
-        set_slots = [{"name": "experience", "value": "${a.b.d}"}, {"name": "score", "value": "${a.b.3}"}]
-        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        set_slots = [{"name": "experience", "value": "${data.a.b.d}"}, {"name": "score", "value": "${data.a.b.3}"}]
+        http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                         "context": {}}
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation',
-                                "slot: experience || expression: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
-                                "slot: score || expression: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 2"]
+                                "slot: experience || expression: ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}} || response: ['red', 'buggy', 'bumpers']",
+                                "slot: score || expression: ${data.a.b.3} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}} || response: 2"]
 
     @responses.activate
     def test_fill_slots_from_response_using_script(self):
-        set_slots = [{"name": "experience", "value": "${a.b.d}"}, {"name": "score", "value": "${a.b.3}"}]
-        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        set_slots = [{"name": "experience", "value": "${data.a.b.d}"}, {"name": "score", "value": "${data.a.b.3}"}]
+        http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                         "context": {}}
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
@@ -2894,35 +2992,36 @@ class TestActions:
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation',
-            "slot: experience || expression: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: ['red', 'buggy', 'bumpers']",
-            "slot: score || expression: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 2"]
+                                "slot: experience || expression: ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}} || response: ['red', 'buggy', 'bumpers']",
+                                "slot: score || expression: ${data.a.b.3} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}} || response: 2"]
 
     @responses.activate
     def test_fill_slots_from_response_failure(self):
-        set_slots = [{"name": "experience", "value": "${a.b.d}", "evaluation_type": "script"},
-                     {"name": "score", "value": "${a.b.3}", "evaluation_type": "script"},
-                     {"name": "percentage", "value": "${a.b.43}"}]
-        http_response = {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
+        set_slots = [{"name": "experience", "value": "${data.a.b.d}", "evaluation_type": "script"},
+                     {"name": "score", "value": "${data.a.b.3}", "evaluation_type": "script"},
+                     {"name": "percentage", "value": "${data.a.b.43}"}]
+        http_response = {"data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                         "context": {}}
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
             json={"success": False},
             status=200,
-            match=[responses.matchers.json_params_matcher({'script': "${a.b.d}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${data.a.b.d}", 'data': http_response})],
         )
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
             json={"success": True, "data": 2},
             status=200,
-            match=[responses.matchers.json_params_matcher({'script': "${a.b.3}", 'data': http_response})],
+            match=[responses.matchers.json_params_matcher({'script': "${data.a.b.3}", 'data': http_response})],
         )
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': None, 'score': 2, "percentage": "30"}
         assert response_log == ['initiating slot evaluation',
-            "slot: experience || Expression evaluation failed: script: ${a.b.d} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': False}",
-            "slot: score || script: ${a.b.3} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || raise_err_on_failure: True || response: {'success': True, 'data': 2}",
-            "slot: percentage || expression: ${a.b.43} || data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}} || response: 30"]
+                                "slot: experience || Expression evaluation failed: script: ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}} || raise_err_on_failure: True || response: {'success': False}",
+                                "slot: score || script: ${data.a.b.3} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}} || raise_err_on_failure: True || response: {'success': True, 'data': 2}",
+                                "slot: percentage || expression: ${data.a.b.43} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}} || response: 30"]
     
     def test_retrieve_config_two_stage_fallback(self):
         bot = "test_bot"
