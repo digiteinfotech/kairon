@@ -3345,6 +3345,81 @@ def test_add_multiflow_story():
     assert actual["error_code"] == 0
 
 
+def test_add_multiflow_story_with_slot_values():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_path_with_slot",
+            "steps": [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "Mnvehd"},
+                "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"}]
+            },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"},
+                "connections": [{"name": "more_queries", "type": "SLOT", "value": "Yes", "node_id": "3", "component_id": "MNbcg"},
+                                {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "QQAA"}]
+            },
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "QQAA"},
+                "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNXX"}]
+            },
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NNXX"},
+                "connections": None
+            },
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"},
+             "connections": None
+            },
+            {"step": {"name": "more_queries", "type": "SLOT", "value": "Yes", "node_id": "3", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"}]
+            }
+        ],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == "Story flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_multiflow_story_with_path():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/v2/stories",
+        json={
+            "name": "test_multiflow_with_path_type",
+            "steps": [
+            {"step": {"name": "hobby", "type": "INTENT", "node_id": "1", "component_id": "Mnvehd"},
+                "connections": [{"name": "utter_hobby", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"}]
+            },
+            {"step": {"name": "utter_hobby", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"},
+                "connections": [{"name": "frontend", "type": "SLOT", "value": "Yes", "node_id": "3", "component_id": "MNbcg"},
+                                {"name": "backend", "type": "INTENT", "node_id": "4", "component_id": "QQAA"}]
+            },
+            {"step": {"name": "backend", "type": "INTENT", "node_id": "4", "component_id": "QQAA"},
+                "connections": [{"name": "utter_backend", "type": "BOT", "node_id": "5", "component_id": "NNXX"}]
+            },
+            {"step": {"name": "utter_backend", "type": "BOT", "node_id": "5", "component_id": "NNXX"},
+                "connections": None
+            },
+            {"step": {"name": "utter_frontend", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"},
+             "connections": None
+            },
+            {"step": {"name": "frontend", "type": "SLOT", "value": "Yes", "node_id": "3", "component_id": "MNbcg"},
+                "connections": [{"name": "utter_frontend", "type": "BOT", "node_id": "6", "component_id": "MnveRRhd"}]
+            }
+        ],
+            "metadata": [{"node_id": "5", "flow_type": "RULE"}, {"node_id": "6", "flow_type": "STORY"}]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual["message"])
+    assert actual["message"] == "Story flow added successfully"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
 def test_add_multiflow_story_with_name_already_exists():
     response = client.post(
         f"/api/bot/{pytest.bot}/v2/stories",

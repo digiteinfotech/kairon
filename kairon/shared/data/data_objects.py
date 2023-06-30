@@ -31,7 +31,7 @@ from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
 from kairon.shared.data.signals import push_notification, auditlogger
-from kairon.shared.models import TemplateType, StoryStepType
+from kairon.shared.models import TemplateType, StoryStepType, StoryType
 from kairon.shared.utils import Utility
 from .base_data import Auditlog
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
@@ -503,7 +503,7 @@ class StoryEvents(EmbeddedDocument):
 class StepFlowEvent(EmbeddedDocument):
     name = StringField(required=True)
     type = StringField(required=True, choices=[step_type.value for step_type in StoryStepType])
-    value = StringField(required=True)
+    value = DynamicField()
     node_id = StringField(required=True)
     component_id = StringField(required=True)
 
@@ -512,6 +512,10 @@ class StepFlowEvent(EmbeddedDocument):
             self.clean()
         if Utility.check_empty_string(self.name):
             raise ValidationError("Name cannot be empty")
+        if self.type != StoryStepType.slot.value and self.value is not None:
+            raise ValidationError("Value is allowed only for slot events")
+        if self.type == StoryStepType.slot.value and self.value is not None and not isinstance(self.value, (str, int, bool)):
+            raise ValidationError("slot values must be either None or of type int, str or boolean")
 
     def clean(self):
         if not Utility.check_empty_string(self.name):
@@ -521,6 +525,15 @@ class StepFlowEvent(EmbeddedDocument):
 class MultiflowStoryEvents(EmbeddedDocument):
     step = EmbeddedDocumentField(StepFlowEvent, required=True)
     connections = ListField(EmbeddedDocumentField(StepFlowEvent))
+
+
+class MultiFlowStoryMetadata(EmbeddedDocument):
+    node_id = StringField(required=True)
+    flow_type = StringField(default=StoryType.story.value, choices=[StoryType.story.value, StoryType.rule.value])
+
+    def clean(self):
+        if Utility.check_empty_string(self.flow_type):
+            self.flow_type = StoryType.story.value
 
 
 @auditlogger.log
@@ -563,6 +576,7 @@ class MultiflowStories(Auditlog):
     start_checkpoints = ListField(StringField(), required=True)
     end_checkpoints = ListField(StringField())
     events = ListField(EmbeddedDocumentField(MultiflowStoryEvents))
+    metadata = ListField(EmbeddedDocumentField(MultiFlowStoryMetadata), default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
