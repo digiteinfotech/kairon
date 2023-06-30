@@ -115,9 +115,9 @@ class ActionHTTP(ActionsBase):
                     except JSONDecodeError as e:
                         msg_logger.append(f'Failed to convert http response to json: {str(e)}')
                         logger.exception(e)
-                        dispatcher.utter_message(bot_response)
+                        dispatcher.utter_message(str(bot_response))
                 else:
-                    dispatcher.utter_message(bot_response)
+                    dispatcher.utter_message(str(bot_response))
             ActionServerLogs(
                 type=ActionType.http_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
