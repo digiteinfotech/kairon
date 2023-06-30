@@ -2977,11 +2977,11 @@ class TestActions:
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation', 'Slot: experience', 'evaluation_type: expression',
-                                'expression: ${a.b.d}',
-                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'expression: ${data.a.b.d}',
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
                                 "response: ['red', 'buggy', 'bumpers']", 'Slot: score', 'evaluation_type: expression',
-                                'expression: ${a.b.3}',
-                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'expression: ${data.a.b.3}',
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
                                 'response: 2']
 
     @responses.activate
@@ -3006,11 +3006,11 @@ class TestActions:
         evaluated_slot_values, response_log = ActionUtility.fill_slots_from_response(set_slots, http_response)
         assert evaluated_slot_values == {'experience': "['red', 'buggy', 'bumpers']", 'score': '2'}
         assert response_log == ['initiating slot evaluation', 'Slot: experience', 'evaluation_type: expression',
-                                'expression: ${a.b.d}',
-                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'expression: ${data.a.b.d}',
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
                                 "response: ['red', 'buggy', 'bumpers']", 'Slot: score', 'evaluation_type: expression',
-                                'expression: ${a.b.3}',
-                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'expression: ${data.a.b.3}',
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
                                 'response: 2']
 
     @responses.activate
@@ -3039,11 +3039,11 @@ class TestActions:
         assert response_log == ['initiating slot evaluation', 'Slot: experience',
                                 "Evaluation error for experience: Expression evaluation failed: {'success': False}",
                                 'Slot experience eventually set to None.', 'Slot: score', 'evaluation_type: script',
-                                'script: ${a.b.3}',
-                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'script: ${data.a.b.3}',
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
                                 'raise_err_on_failure: True', "Evaluator response: {'success': True, 'data': 2}",
-                                'Slot: percentage', 'evaluation_type: expression', 'expression: ${a.b.43}',
-                                "data: {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
+                                'Slot: percentage', 'evaluation_type: expression', 'expression: ${data.a.b.43}',
+                                "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {}}",
                                 'response: 30']
     
     def test_retrieve_config_two_stage_fallback(self):
