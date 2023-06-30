@@ -4,25 +4,25 @@ from contextlib import ExitStack
 from typing import Text, Optional, Dict
 from urllib.parse import urljoin
 
+import elasticapm
 from loguru import logger as logging
-from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
-from rasa.shared.importers.importer import TrainingDataImporter
+from rasa.api import train
 from rasa.model_training import DEFAULT_MODELS_PATH
 from rasa.model_training import _train_async_internal, handle_domain_if_not_exists
-from rasa.api import train
+from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
+from rasa.shared.importers.importer import TrainingDataImporter
 from rasa.utils.common import TempDirectoryPath
 
+from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.importer import MongoDataImporter
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
-from kairon.exceptions import AppException
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
-import elasticapm
 
 
 async def train_model(
