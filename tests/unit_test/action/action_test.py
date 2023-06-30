@@ -1436,7 +1436,7 @@ class TestActions:
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": {"key": "name", "value": "Mahesh"}},
+            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
@@ -1464,7 +1464,7 @@ class TestActions:
         responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
-        assert str(actual[0]['value']) == "{'key': 'name', 'value': 'Mahesh'}"
+        assert str(actual[0]['value']) == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_get_with_json_response",
                                        status="SUCCESS").get()
@@ -1474,7 +1474,7 @@ class TestActions:
         assert log['intent'] == "test_run"
         assert log['action'] == "test_run_with_get_with_json_response"
         assert log['api_response'] == "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}"
-        assert log['bot_response'] == "{'key': 'name', 'value': 'Mahesh'}"
+        assert log['bot_response'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
 
     @pytest.mark.asyncio
     async def test_run_with_get_with_dynamic_params(self, monkeypatch):
