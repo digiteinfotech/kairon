@@ -72,3 +72,4 @@ croniter
 faiss-cpu
 urllib3==1.26.15
 pytest-metadata==2.0.4
+rasa>=3.5.6 # not directly required, pinned by Snyk to avoid a vulnerability
