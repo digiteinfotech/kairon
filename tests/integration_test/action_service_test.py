@@ -470,7 +470,7 @@ class TestActionServer(AsyncHTTPTestCase):
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}},
+            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
@@ -517,9 +517,9 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(len(response_json['responses']), 1)
         self.assertEqual(response_json['events'], [
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}])
+             "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
         self.assertEqual(response_json['responses'][0]['text'],
-                         "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}")
+                         "The value of 2 in red is ['red', 'buggy', 'bumpers']")
 
     def test_http_action_execution_no_response_dispatch(self):
         action_name = "test_http_action_execution_no_response_dispatch"
