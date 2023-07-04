@@ -110,7 +110,8 @@ class ElementTypes(str, Enum):
 
 
 class WhatsappBSPTypes(str, Enum):
-    bsp_360dialog = "360dialog"
+    bsp_360dialog_on_premise = "360dialog_on_premise"
+    bsp_360dialog_cloud = "360dialog_cloud"
 
 
 class GPT3ResourceTypes(str, Enum):

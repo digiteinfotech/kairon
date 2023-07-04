@@ -11919,7 +11919,7 @@ def test_add_channel_config(monkeypatch):
 
 def test_list_whatsapp_templates_error():
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/list",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog_on_premise/list",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -11931,7 +11931,7 @@ def test_list_whatsapp_templates_error():
 @responses.activate
 def test_initiate_bsp_onboarding_failure(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
+        return BotSettings(whatsapp="360dialog_on_premise", bot=pytest.bot, user="test_user")
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
@@ -11940,7 +11940,7 @@ def test_initiate_bsp_onboarding_failure(monkeypatch):
     responses.add("POST", json={}, url=url, status=500)
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog_on_premise/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -11953,7 +11953,7 @@ def test_initiate_bsp_onboarding_failure(monkeypatch):
 def test_initiate_bsp_onboarding_disabled(monkeypatch):
     monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
     response = client.post(
-        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog_on_premise/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -11965,7 +11965,7 @@ def test_initiate_bsp_onboarding_disabled(monkeypatch):
 
 def test_initiate_bsp_onboarding(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
+        return BotSettings(whatsapp="360dialog_on_premise", bot=pytest.bot, user="test_user")
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
@@ -11976,7 +11976,7 @@ def test_initiate_bsp_onboarding(monkeypatch):
         with patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key") as mock_generate_waba_key:
             mock_generate_waba_key.return_value = "dfghjk5678"
             response = client.post(
-                f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+                f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog_on_premise/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
                 headers={"Authorization": pytest.token_type + " " + pytest.access_token},
             )
     actual = response.json()
@@ -11988,7 +11988,7 @@ def test_initiate_bsp_onboarding(monkeypatch):
 
 def test_post_process(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
+        return BotSettings(whatsapp="360dialog_on_premise", bot=pytest.bot, user="test_user")
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
@@ -12000,7 +12000,7 @@ def test_post_process(monkeypatch):
             mock_generate_waba_key.return_value = "dfghjk5678"
             with patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.set_webhook_url", autospec=True):
                 response = client.post(
-                    f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/post_process",
+                    f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog_on_premise/post_process",
                     headers={"Authorization": pytest.token_type + " " + pytest.access_token},
                 )
     actual = response.json()
@@ -12046,7 +12046,7 @@ def test_list_templates(mock_list_templates):
     mock_list_templates.return_value = api_resp["waba_templates"]
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog/list",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/templates/360dialog_on_premise/list",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -12090,7 +12090,7 @@ def test_get_channels_config():
         {'bot': pytest.bot, 'connector_type': 'whatsapp',
          'config': {'client_name': 'k*****', 'client_id': 'sdfgh5678', 'channel_id': 'sdfghjk678',
                     'partner_id': 'f167CmPA', 'waba_account_id': 'dfghj5678', 'api_key': 'dfghjk5678',
-                    'bsp_type': '360dialog'}, 'meta_config': {}}]
+                    'bsp_type': '360dialog_on_premise'}, 'meta_config': {}}]
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)

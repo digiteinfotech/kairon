@@ -95,7 +95,7 @@ async def refresh_bsp_credentials(
 async def initiate_platform_onboarding(
         request: Request,
         bsp_type: str = Path(default=None, description="Business service provider type",
-                             example=WhatsappBSPTypes.bsp_360dialog.value),
+                             example=WhatsappBSPTypes.bsp_360dialog_on_premise.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -111,7 +111,7 @@ async def initiate_platform_onboarding(
 async def retrieve_message_templates(
         request: Request,
         bsp_type: str = Path(default=None, description="Business service provider type",
-                             example=WhatsappBSPTypes.bsp_360dialog.value),
+                             example=WhatsappBSPTypes.bsp_360dialog_on_premise.value),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """

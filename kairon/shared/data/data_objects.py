@@ -778,7 +778,8 @@ class BotSettings(Auditlog):
     llm_settings = EmbeddedDocumentField(LLMSettings, default=LLMSettings())
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
-    whatsapp = StringField(default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value])
+    whatsapp = StringField(default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog_cloud.value,
+                                                    WhatsappBSPTypes.bsp_360dialog_cloud.value])
     notification_scheduling_limit = IntField(default=4)
     bot = StringField(required=True)
     user = StringField(required=True)

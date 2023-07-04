@@ -227,7 +227,7 @@ class TestBusinessServiceProvider:
             return "Cyih7GWA"
 
         def _mock_get_bot_settings(*args, **kwargs):
-            return BotSettings(whatsapp="360dialog", bot=bot, user=user)
+            return BotSettings(whatsapp="360dialog_on_premise", bot=bot, user=user)
 
         monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
         monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
@@ -240,7 +240,7 @@ class TestBusinessServiceProvider:
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
-                                    'partner_id': 'test_id', 'bsp_type': '360dialog',
+                                    'partner_id': 'test_id', 'bsp_type': '360dialog_on_premise',
                                     'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'}
 
     def test_save_channel_config_with_partner_id(self, monkeypatch):
@@ -261,7 +261,7 @@ class TestBusinessServiceProvider:
             return "Cyih7GWA"
 
         def _mock_get_bot_settings(*args, **kwargs):
-            return BotSettings(whatsapp="360dialog")
+            return BotSettings(whatsapp="360dialog_on_premise")
 
         monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
         monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
@@ -274,7 +274,7 @@ class TestBusinessServiceProvider:
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328ff/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
-                                    'partner_id': partner_id, 'bsp_type': '360dialog',
+                                    'partner_id': partner_id, 'bsp_type': '360dialog_on_premise',
                                     'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'}
 
     @responses.activate
@@ -381,7 +381,7 @@ class TestBusinessServiceProvider:
             return "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
 
         def _mock_get_bot_settings(*args, **kwargs):
-            return BotSettings(whatsapp="360dialog")
+            return BotSettings(whatsapp="360dialog_on_premise")
 
         monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
         monkeypatch.setattr(BSP360Dialog, 'generate_waba_key', _generate_waba_key)
@@ -393,7 +393,7 @@ class TestBusinessServiceProvider:
         config = {
             "connector_type": ChannelTypes.WHATSAPP.value,
             "config": {
-                "bsp_type": WhatsappBSPTypes.bsp_360dialog.value,
+                "bsp_type": WhatsappBSPTypes.bsp_360dialog_on_premise.value,
                 "client_name": "kAIron",
                 "client_id": "jno40M5NCL",
                 "channel_id": "skds23Ga",
@@ -445,7 +445,7 @@ class TestBusinessServiceProvider:
             BusinessServiceProviderFactory.get_instance("wati")
 
     def test_bsp_factory(self):
-        assert isinstance(BusinessServiceProviderFactory.get_instance(WhatsappBSPTypes.bsp_360dialog.value)("test", "test"), BSP360Dialog)
+        assert isinstance(BusinessServiceProviderFactory.get_instance(WhatsappBSPTypes.bsp_360dialog_on_premise.value)("test", "test"), BSP360Dialog)
 
     def test_parent_class_abstract_methods(self):
         with pytest.raises(Exception):
