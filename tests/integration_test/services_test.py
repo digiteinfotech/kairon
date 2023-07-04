@@ -1763,7 +1763,10 @@ def test_update_prompt_action_with_query_prompt_with_false():
                                     'source': 'static', 'is_enabled': False},
                                    ],
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50,
-              'num_bot_responses': 5}
+              'num_bot_responses': 5,
+              "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
+                            {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+                   "dispatch_response": False}
     response = client.put(
         f"/api/bot/{pytest.bot}/action/prompt/{pytest.action_id}",
         json=action,
@@ -1824,6 +1827,8 @@ def test_get_prompt_action():
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                              'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                              'logit_bias': {}},
+         "set_slots": [],
+         "dispatch_response": True,
          'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                           'source': 'static', 'is_enabled': True},
                          {'name': 'Similarity_analytical Prompt',
@@ -11131,6 +11136,26 @@ def test_add_google_search_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action exists!'
+
+
+def test_add_google_search_invalid_parameters():
+    action = {
+        'name': 'google_custom_search',
+        'api_key': {'value': '12345678'},
+        'search_engine_id': 'asdfg:123456',
+        "num_results": 0,
+        'failure_response': 'I have failed to process your request'
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/googlesearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'num_results'], 'msg': 'num_results must be greater than or equal to 1!', 'type': 'value_error'}]
 
 
 def test_add_google_search_different_parameter_types():

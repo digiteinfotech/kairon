@@ -100,6 +100,8 @@ class HttpActionConfig(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "action_name")]}]}
+
     def validate(self, clean=True):
         from kairon.shared.actions.utils import ActionUtility
 
@@ -146,7 +148,7 @@ class ActionServerLogs(DynamicDocument):
     headers = DictField()
     url = StringField()
     request_method = StringField()
-    request_params = DictField()
+    request_params = DynamicField()
     api_response = StringField()
     bot_response = StringField()
     exception = StringField()
@@ -154,6 +156,8 @@ class ActionServerLogs(DynamicDocument):
     bot = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(default="SUCCESS")
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "-timestamp")]}]}
 
 
 @auditlogger.log
@@ -165,6 +169,8 @@ class Actions(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
     def clean(self):
         self.name = self.name.strip().lower()
@@ -208,6 +214,8 @@ class SlotSetAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
     def validate(self, clean=True):
         if clean:
             self.clean()
@@ -244,6 +252,8 @@ class FormValidationAction(Auditlog):
     status = BooleanField(default=True)
     slot_set = EmbeddedDocumentField(FormSlotSet, default=FormSlotSet())
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
     def clean(self):
         self.name = self.name.strip().lower()
         self.slot = self.slot.strip().lower()
@@ -278,6 +288,8 @@ class EmailActionConfig(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "action_name", "status")]}]}
 
     def validate(self, clean=True):
         from kairon.shared.actions.utils import ActionUtility
@@ -321,6 +333,8 @@ class GoogleSearchAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
     def validate(self, clean=True):
         if clean:
             self.clean()
@@ -352,6 +366,8 @@ class JiraAction(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
     def validate(self, clean=True):
         from kairon.shared.actions.utils import ActionUtility
@@ -389,6 +405,8 @@ class ZendeskAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
     def validate(self, clean=True):
         from kairon.shared.actions.utils import ActionUtility
 
@@ -423,6 +441,8 @@ class PipedriveLeadsAction(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
     def validate(self, clean=True):
         from kairon.shared.actions.utils import ActionUtility
@@ -460,6 +480,8 @@ class HubspotFormsAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
     def validate(self, clean=True):
         if clean:
             self.clean()
@@ -491,6 +513,8 @@ class KaironTwoStageFallbackAction(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -532,7 +556,11 @@ class PromptAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = ListField(EmbeddedDocumentField(LlmPrompt), required=True)
+    set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
+    dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
     def clean(self):
         for key, value in Utility.get_llm_hyperparameters().items():
@@ -569,6 +597,8 @@ class RazorpayAction(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
     def validate(self, clean=True):
         if clean:

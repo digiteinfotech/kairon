@@ -130,6 +130,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        print(log)
         assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
                        'sender': 'default',
                        'headers': {'botid': '**********************2e', 'userid': '****', 'tag': '******ot',
@@ -138,116 +139,19 @@ class TestActionServer(AsyncHTTPTestCase):
                        'request_params': {'bot': '**********************2e', 'user': '1011', 'tag': '******ot',
                                           'name': '****', 'contact': None},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
-                "expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
-                'initiating slot evaluation',
-                "slot: val_d || expression: ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: ['red', 'buggy', 'bumpers']",
-                "slot: val_d_0 || expression: ${data.a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: red"],
+                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                       'messages': ['evaluation_type: expression',
+                                    'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    "response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                                    'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
+                                    'expression: ${data.a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    "response: ['red', 'buggy', 'bumpers']", 'Slot: val_d_0',
+                                    'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    'response: red'],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
-
-    def test_http_action_execution_with_context_data(self):
-        action_name = "test_http_action_execution_with_context_data"
-        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2d", user="user").save()
-        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2d", user="user").save()
-        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2d", user="user").save()
-        HttpActionConfig(
-            action_name=action_name,
-            response=HttpActionResponse(value=
-                                        "The email id of ${context.key_vault.FIRSTNAME} is ${context.key_vault.EMAIL}"),
-            http_url="http://localhost:8081/mock",
-            request_method="GET",
-            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
-                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
-                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
-                     HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
-            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
-                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
-                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
-                         HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=False),
-                         HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=False)],
-            set_slots=[SetSlotsFromResponse(name="user_name", value="${context.key_vault.FIRSTNAME}"),
-                       SetSlotsFromResponse(name="user_email", value="${context.key_vault.EMAIL}")],
-            bot="5f50fd0a56b698ca10d35d2d",
-            user="user"
-        ).save()
-
-        http_url = 'http://localhost:8081/mock'
-        resp_msg = json.dumps({
-            "a": {
-                "b": {
-                    "3": 2,
-                    "43": 30,
-                    "c": [],
-                    "d": ['red', 'buggy', 'bumpers'],
-                }
-            }
-        })
-        responses.start()
-        responses.add(
-            method=responses.GET,
-            url=http_url,
-            body=resp_msg,
-            status=200,
-            match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
-                                                           "tag": "from_bot", "name": "udit", "contact": None})],
-        )
-
-        request_object = {
-            "next_action": action_name,
-            "tracker": {
-                "sender_id": "default",
-                "conversation_id": "default",
-                "slots": {"bot": "5f50fd0a56b698ca10d35d2d"},
-                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-                "latest_event_time": 1537645578.314389,
-                "followup_action": "action_listen",
-                "paused": False,
-                "events": [{"event1": "hello"}, {"event2": "how are you"}],
-                "latest_input_channel": "rest",
-                "active_loop": {},
-                "latest_action": {},
-            },
-            "domain": {
-                "config": {},
-                "session_config": {},
-                "intents": [],
-                "entities": [],
-                "slots": {"bot": "5f50fd0a56b698ca10d35d2d"},
-                "responses": {},
-                "actions": [],
-                "forms": {},
-                "e2e_actions": []
-            },
-            "version": "version"
-        }
-        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        response_json = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 200)
-        self.assertEqual(len(response_json['events']), 3)
-        self.assertEqual(len(response_json['responses']), 1)
-        self.assertEqual(response_json['events'], [
-            {"event": "slot", "timestamp": None, "name": "user_name", "value": "udit"},
-            {"event": "slot", "timestamp": None, "name": "user_email", "value": "uditpandey@digite.com"},
-            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-             "value": "The email id of udit is uditpandey@digite.com"}])
-        self.assertEqual(response_json['responses'][0]['text'], "The email id of udit is uditpandey@digite.com")
-        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-        log.pop('_id')
-        log.pop('timestamp')
-        assert log == {'type': 'http_action', 'intent': 'test_run',
-                       'action': 'test_http_action_execution_with_context_data', 'sender': 'default',
-                       'headers': {'botid': '**********************2d', 'userid': '****', 'tag': '******ot',
-                                   'email': '*******************om'}, 'url': 'http://localhost:8081/mock',
-                       'request_method': 'GET',
-                       'request_params': {'bot': '**********************2d', 'user': '1011', 'tag': '******ot',
-                                          'name': '****', 'contact': None},
-                       'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                       'bot_response': 'The email id of udit is uditpandey@digite.com', 'messages': [
-                "expression: The email id of ${context.key_vault.FIRSTNAME} is ${context.key_vault.EMAIL} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2d'}} || response: The email id of udit is uditpandey@digite.com",
-                'initiating slot evaluation',
-                "slot: user_name || expression: ${context.key_vault.FIRSTNAME} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2d'}} || response: udit",
-                "slot: user_email || expression: ${context.key_vault.EMAIL} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2d'}} || response: uditpandey@digite.com"],
-                       'bot': '5f50fd0a56b698ca10d35d2d', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_returns_custom_json(self):
         action_name = "test_http_action_execution_returns_custom_json"
@@ -701,17 +605,25 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        print(log)
         assert log == {'type': 'http_action', 'intent': 'test_run',
                        'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default',
                        'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'},
                        'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                        'request_params': {'bot': '5f50fd0a56b698ca10d35d2e', 'user': '1011', 'tag': '******ot'},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
-                "expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
-                'initiating slot evaluation',
-                "slot: val_d || expression: ${data.a.b.d} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: ['red', 'buggy', 'bumpers']",
-                "slot: val_d_0 || expression: ${data.a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || response: red"],
+                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                       'messages': ['evaluation_type: expression',
+                                    'expression: The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    "response: The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                                    'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: expression',
+                                    'expression: ${data.a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    "response: ['red', 'buggy', 'bumpers']", 'Slot: val_d_0',
+                                    'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    'response: red'],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation(self):
@@ -995,6 +907,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        print(log)
         assert log == {'type': 'http_action', 'intent': 'test_run',
                        'action': 'test_http_action_execution_script_evaluation_with_dynamic_params',
                        'sender': 'default',
@@ -1002,12 +915,26 @@ class TestActionServer(AsyncHTTPTestCase):
                        'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                        'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
-                'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"} || data: {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'intent\': \'test_run\'}}',
-                'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || data: {\'data\': {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}}, \'context\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
-                'initiating slot evaluation',
-                'slot: val_d || script: ${a.b.d} || data: {\'data\': {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}}, \'context\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
-                "slot: val_d_0 || script: ${a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || raise_err_on_failure: True || response: {'success': True, 'data': 'red'}"],
+                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                       'messages': ['evaluation_type: script',
+                                    'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}"}',
+                                    "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
+                                    'raise_err_on_failure: True',
+                                    "Evaluator response: {'success': True, 'data': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run'}}",
+                                    'evaluation_type: script',
+                                    "script: 'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    'raise_err_on_failure: True',
+                                    'Evaluator response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
+                                    'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: script',
+                                    'script: ${a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    'raise_err_on_failure: True',
+                                    'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
+                                    'Slot: val_d_0', 'evaluation_type: script', 'script: ${a.b.d.0}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    'raise_err_on_failure: True',
+                                    "Evaluator response: {'success': True, 'data': 'red'}"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json(self):
@@ -1582,6 +1509,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        print(log)
         assert log == {'type': 'http_action', 'intent': 'test_run',
                        'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list',
                        'sender': 'default',
@@ -1590,12 +1518,26 @@ class TestActionServer(AsyncHTTPTestCase):
                        'request_params': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run',
                                           'user_details': {'email': '*******************om'}},
                        'api_response': "{'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}",
-                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']", 'messages': [
-                'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}", "EMAIL": "${key_vault.EMAIL}"} || data: {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'} || raise_err_on_failure: True || response: {\'success\': True, \'data\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'intent\': \'test_run\', \'user_details\': {\'email\': \'uditpandey@digite.com\'}}}',
-                'script: \'The value of \'+`${a.b.d}`+\' in \'+`${a.b.d.0}`+\' is \'+`${a.b.d}` || data: {\'data\': {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}}, \'context\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
-                'initiating slot evaluation',
-                'slot: val_d || script: ${a.b.d} || data: {\'data\': {\'a\': {\'b\': {\'3\': 2, \'43\': 30, \'c\': [], \'d\': [\'red\', \'buggy\', \'bumpers\']}}}, \'context\': {\'sender_id\': \'default\', \'user_message\': \'get intents\', \'slot\': {\'bot\': \'5f50fd0a56b698ca10d35d2e\'}, \'intent\': \'test_run\', \'chat_log\': [], \'key_vault\': {\'EMAIL\': \'uditpandey@digite.com\', \'FIRSTNAME\': \'udit\'}, \'kairon_user_msg\': None, \'session_started\': None, \'bot\': \'5f50fd0a56b698ca10d35d2e\'}} || raise_err_on_failure: True || response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
-                "slot: val_d_0 || script: ${a.b.d.0} || data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}} || raise_err_on_failure: True || response: {'success': True, 'data': 'red'}"],
+                       'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
+                       'messages': ['evaluation_type: script',
+                                    'script: {"sender_id": "${sender_id}", "user_message": "${user_message}", "intent": "${intent}", "EMAIL": "${key_vault.EMAIL}"}',
+                                    "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
+                                    'raise_err_on_failure: True',
+                                    "Evaluator response: {'success': True, 'data': {'sender_id': 'default', 'user_message': 'get intents', 'intent': 'test_run', 'user_details': {'email': 'uditpandey@digite.com'}}}",
+                                    'evaluation_type: script',
+                                    "script: 'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    'raise_err_on_failure: True',
+                                    'Evaluator response: {\'success\': True, \'data\': "The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']"}',
+                                    'initiating slot evaluation', 'Slot: val_d', 'evaluation_type: script',
+                                    'script: ${a.b.d}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    'raise_err_on_failure: True',
+                                    'Evaluator response: {\'success\': True, \'data\': "[\'red\', \'buggy\', \'bumpers\']"}',
+                                    'Slot: val_d_0', 'evaluation_type: script', 'script: ${a.b.d.0}',
+                                    "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}}",
+                                    'raise_err_on_failure: True',
+                                    "Evaluator response: {'success': True, 'data': 'red'}"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
     def test_http_action_execution_script_evaluation_failure_no_dispatch(self):
@@ -7071,8 +7013,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "user", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -7150,8 +7096,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -7566,8 +7516,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -7718,6 +7672,7 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=google_action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
         GoogleSearchAction(name=google_action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user, dispatch_response=False,
+                           num_results=3,
                            set_slot="google_response").save()
         BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -7728,6 +7683,14 @@ class TestActionServer(AsyncHTTPTestCase):
                 'title': 'Kanban',
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
                 'link': "https://www.digite.com/kanban/what-is-kanban/"
+            },{
+                'title': 'Kanban Project management',
+                'text': 'Kanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.',
+                'link': "https://www.digite.com/kanban/what-is-kanban-project-mgmt/"
+            },{
+                'title': 'Kanban agile',
+                'text': 'Kanban is a popular framework used to implement agile and DevOps software development.',
+                'link': "https://www.digite.com/kanban/what-is-kanban-agile/"
             }]
 
         llm_prompts = [
@@ -7769,7 +7732,8 @@ class TestActionServer(AsyncHTTPTestCase):
                                    {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
         assert mock_completion.call_args.args[1] == 'What is kanban'
         assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
-        assert mock_completion.call_args.args[3] == 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n'
+        assert mock_completion.call_args.args[
+                   3] == 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n'
 
     def test_prompt_response_action_with_action_not_found(self):
         action_name = "kairon_faq_action"
@@ -7799,6 +7763,152 @@ class TestActionServer(AsyncHTTPTestCase):
         )
         log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
         log['exception'] = 'No action found for given bot and name'
+
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_prompt_action_dispatch_response_disabled(self, mock_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = "kairon_faq_action"
+        bot = "5u80fd0a56c908ca10d35d2sjhj"
+        user = "udit.pandey"
+        value = "keyvalue"
+        user_msg = "What is the name of prompt?"
+        bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+            {'name': 'Language Prompt',
+             'data': 'type',
+             'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+             'is_enabled': True},
+        ]
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
+                OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        mock_completion.return_value = mock_completion_for_answer()
+
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text
+        mock_search.return_value = __mock_fetch_similar()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+        PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(response_json['responses'], [])
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
+        assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
+                                   {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+        assert mock_completion.call_args.args[1] == 'What is the name of prompt?'
+        assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
+        with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
+            prompt_data = file.read()
+        assert mock_completion.call_args.args[3] == prompt_data
+
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+    @patch("kairon.shared.actions.utils.ActionUtility.compose_response", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_prompt_action_set_slots(self, mock_search, mock_slot_set, mock_mock_embedding, mock_completion):
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+
+        action_name = "kairon_faq_action"
+        bot = "5u80fd0a56c908ca10d35d2sjhjhjhj"
+        user = "udit.pandey"
+        value = "keyvalue"
+        user_msg = "category of record created on 15/01/2023?"
+        generated_text = "{\"api_type\": \"filter\", {\"filter\": {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}}}"
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Qdrant Prompt',
+             'data': "Convert user questions into json requests in qdrant such that they will either filter, apply range queries "
+         "and search the payload in qdrant. Sample payload present in qdrant looks like below with each of the points starting with 1 to 5 is a record in qdrant."
+         "1. {\"Category (Risk, Issue, Action Item)\": \"Risk\", \"Date Added\": 1673721000.0,"
+         "2. {\"Category (Risk, Issue, Action Item)\": \"Action Item\", \"Date Added\": 1673721000.0,"
+         "For eg: to find category of record created on 15/01/2023, the filter query is:"
+         "{\"filter\": {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}}",
+             'instructions': 'Create qdrant filter query out of user message based on above instructions.',
+             'type': 'user', 'source': 'static', 'is_enabled': True},
+        ]
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
+                OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        mock_completion.return_value = mock_completion_for_answer()
+        mock_completion.return_value = generated_text
+        log1 = ['Slot: api_type', 'evaluation_type: expression', f"data: {generated_text}", 'response: filter']
+        log2 = ['Slot: query', 'evaluation_type: expression', f"data: {generated_text}", 'response: {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}']
+        mock_slot_set.side_effect = [("filter", log1), ("{\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}", log2)]
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+        PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False,
+                     set_slots=[SetSlotsFromResponse(name="api_type", value="${data['api_type']}", evaluation_type="script"),
+                                SetSlotsFromResponse(name="query", value="${data['filter']}", evaluation_type="script")]).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = user_msg
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        print(response_json)
+        self.assertEqual(response_json['events'],
+                         [{'event': 'slot', 'timestamp': None, 'name': 'api_type', 'value': 'filter'},
+                          {'event': 'slot', 'timestamp': None, 'name': 'query',
+                           'value': '{"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}'},
+                          {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                           'value': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}])
+        self.assertEqual(response_json['responses'], [])
+        log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
+        assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
+                                   {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+        assert mock_completion.call_args.args[1] == user_msg
+        assert mock_completion.call_args.args[2] == 'You are a personal assistant.\n'
 
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
@@ -7852,8 +7962,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))

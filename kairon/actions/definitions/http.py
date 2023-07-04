@@ -77,11 +77,10 @@ class ActionHTTP(ActionsBase):
             dynamic_params = http_action_config.get('dynamic_params')
             if not ActionUtility.is_empty(dynamic_params):
                 body, body_log = ActionUtility.evaluate_script(dynamic_params, tracker_data)
-                msg_logger.append(body_log)
+                msg_logger.extend(body_log)
                 body_log = ActionUtility.encrypt_secrets(body, tracker_data)
             else:
-                body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'],
-                                                               self.bot)
+                body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'], self.bot)
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
@@ -92,7 +91,7 @@ class ActionHTTP(ActionsBase):
             response_context = self.__add_user_context_to_http_response(http_response, tracker_data)
             bot_response, bot_resp_log = ActionUtility.compose_response(http_action_config['response'],
                                                                         response_context)
-            msg_logger.append(bot_resp_log)
+            msg_logger.extend(bot_resp_log)
             self.__response = bot_response
             self.__is_success = True
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(http_action_config.get('set_slots', []),

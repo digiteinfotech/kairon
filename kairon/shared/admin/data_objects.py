@@ -18,6 +18,8 @@ class BotSecrets(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "secret_type")]}]}
+
     @classmethod
     def pre_save_post_validation(cls, sender, document, **kwargs):
         if not Utility.check_empty_string(document.value):

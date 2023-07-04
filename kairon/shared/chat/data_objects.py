@@ -17,6 +17,8 @@ class Channels(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     meta_config = DictField()
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "connector_type")]}]}
+
     def validate(self, clean=True):
         from kairon.shared.data.utils import DataUtility
         from kairon.shared.data.processor import MongoProcessor

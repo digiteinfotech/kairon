@@ -28,6 +28,8 @@ class IdpConfig(Auditlog):
     idp_admin_client_secret = StringField()
     config = DictField()
 
+    meta = {"indexes": [{"fields": ["account", ("account", "realm_name", "status")]}]}
+
     @classmethod
     def pre_save_post_validation(cls, sender, document, **kwargs):
         config = document.config

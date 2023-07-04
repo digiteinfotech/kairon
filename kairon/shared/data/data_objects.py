@@ -118,7 +118,7 @@ class EntitySynonyms(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["$value"]}]}
+    meta = {"indexes": [{"fields": ["$value", ("bot", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -146,7 +146,7 @@ class LookupTables(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["$value"]}]}
+    meta = {"indexes": [{"fields": ["$value", ("bot", "status")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -173,7 +173,7 @@ class RegexFeatures(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["$pattern"]}]}
+    meta = {"indexes": [{"fields": ["$pattern", ("bot", "status")]}]}
 
     def clean(self):
         self.name = self.name.strip().lower()
@@ -228,6 +228,8 @@ class Entities(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
+
     def clean(self):
         self.name = self.name.strip().lower()
 
@@ -249,6 +251,8 @@ class Forms(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "name")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -272,6 +276,8 @@ class SlotMapping(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
     def clean(self):
         self.slot = self.slot.strip().lower()
@@ -411,6 +417,8 @@ class SessionConfigs(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
 
 @auditlogger.log
 @push_notification.apply
@@ -440,6 +448,8 @@ class Slots(Auditlog):
     status = BooleanField(default=True)
     influence_conversation = BooleanField(default=False)
     _has_been_set = BooleanField(default=False)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "name")]}]}
 
     def clean(self):
         self.name = self.name.strip().lower()
@@ -584,7 +594,7 @@ class MultiflowStories(Auditlog):
     template_type = StringField(default=TemplateType.CUSTOM.value,
                                 choices=[template.value for template in TemplateType])
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "block_name")]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -618,7 +628,7 @@ class Rules(Auditlog):
     template_type = StringField(default=TemplateType.CUSTOM.value,
                                 choices=[template.value for template in TemplateType])
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "block_name")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "block_name")]}]}
 
     def clean(self):
         self.block_name = self.block_name.strip().lower()
@@ -659,6 +669,8 @@ class Configs(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
+
 
 class EndPointHistory(EmbeddedDocument):
     url = StringField(required=True)
@@ -697,6 +709,8 @@ class Endpoints(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
     def validate(self, clean=True):
         if self.bot_endpoint:
             self.bot_endpoint.validate()
@@ -719,6 +733,8 @@ class ModelTraining(Auditlog):
     model_path = StringField(default=None)
     exception = StringField(default=None)
     model_config = DictField()
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "-start_timestamp")]}]}
 
 
 @auditlogger.log
@@ -785,6 +801,8 @@ class BotSettings(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
+
     def validate(self, clean=True):
         if clean:
             self.clean()
@@ -802,6 +820,8 @@ class ChatClientConfig(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
     white_listed_domain = ListField(StringField(), default=None)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
     def validate(self, clean=True):
         if isinstance(self.white_listed_domain, list):
@@ -822,6 +842,8 @@ class ConversationsHistoryDeleteLogs(Auditlog):
     end_timestamp = DateTimeField(default=None)
     exception = StringField(default=None)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "-start_timestamp")]}]}
+
 
 @auditlogger.log
 @push_notification.apply
@@ -834,6 +856,8 @@ class BotAssets(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
+
 
 @auditlogger.log
 class KeyVault(Auditlog):
@@ -842,6 +866,8 @@ class KeyVault(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
 
     @classmethod
     def pre_save_post_validation(cls, sender, document, **kwargs):
@@ -864,6 +890,8 @@ class EventConfig(Auditlog):
     headers = StringField()
     method = StringField(choices=["POST", "GET", "PATCH"])
 
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
     def validate(self, clean=True):
         if Utility.check_empty_string(self.ws_url):
             raise ValidationError("Event url can not be empty")
@@ -884,3 +912,5 @@ class UserOrgMappings(Document):
     feature_type = StringField(required=True)
     value = DynamicField(default=False)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["user", ("user", "feature_type", "organization")]}]}

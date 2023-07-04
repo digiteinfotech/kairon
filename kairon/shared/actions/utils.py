@@ -387,8 +387,11 @@ class ActionUtility:
 
     @staticmethod
     def format_search_result(results: list):
-        link = f'<a href = "{results[0]["link"]}" target="_blank" >{results[0]["title"]}</a>'
-        return f'{results[0]["text"]}\nTo know more, please visit: {link}'
+        formatted_result = ""
+        for result in results:
+            link = f'<a href = "{results[0]["link"]}" target="_blank" >{results[0]["title"]}</a>'
+            formatted_result = f'{formatted_result}{result["text"]}\nTo know more, please visit: {link}\n\n'
+        return formatted_result.strip()
 
     @staticmethod
     def retrieve_value_from_response(grouped_keys: List[str], http_response: Any):
@@ -462,16 +465,21 @@ class ActionUtility:
 
     @staticmethod
     def compose_response(response_config: dict, http_response: Any):
+        log = []
         response = response_config.get('value')
         evaluation_type = response_config.get('evaluation_type', EvaluationType.expression.value)
         if Utility.check_empty_string(response):
             result = None
-            log = f"{evaluation_type}: {response} || data: {http_response} || Skipping evaluation as value is empty"
+            log.extend([
+                f"evaluation_type: {evaluation_type}", f"data: {http_response}",
+                f"Skipping evaluation as value is empty"
+            ])
         elif evaluation_type == EvaluationType.script.value:
             result, log = ActionUtility.evaluate_script(response, http_response)
         else:
             result = ActionUtility.prepare_response(response, http_response)
-            log = f"{evaluation_type}: {response} || data: {http_response} || response: {result}"
+            log.extend([f"evaluation_type: {evaluation_type}", f"expression: {response}", f"data: {http_response}",
+                        f"response: {result}"])
         return result, log
 
     @staticmethod
@@ -480,14 +488,15 @@ class ActionUtility:
         response_log = ["initiating slot evaluation"]
         for slot in set_slots:
             try:
+                response_log.append(f"Slot: {slot['name']}")
                 value, log = ActionUtility.compose_response(slot, http_response)
+                response_log.extend(log)
             except Exception as e:
                 logger.exception(e)
                 value = None
-                log = str(e)
-            log = f"slot: {slot['name']} || {log}"
+                response_log.append(f"Evaluation error for {slot['name']}: {str(e)}")
+                response_log.append(f"Slot {slot['name']} eventually set to None.")
             evaluated_slot_values[slot['name']] = value
-            response_log.append(log)
         return evaluated_slot_values, response_log
 
     @staticmethod
@@ -738,16 +747,16 @@ class ActionUtility:
 
     @staticmethod
     def evaluate_script(script: Text, data: Any, raise_err_on_failure: bool = True):
-        log = f"script: {script} || data: {data} || raise_err_on_failure: {raise_err_on_failure}"
+        log = [f"evaluation_type: script", f"script: {script}", f"data: {data}", f"raise_err_on_failure: {raise_err_on_failure}"]
         endpoint = Utility.environment['evaluator']['url']
         request_body = {
             "script": script,
             "data": data
         }
         resp = ActionUtility.execute_http_request(endpoint, "POST", request_body)
-        log = f"{log} || response: {resp}"
+        log.append(f"Evaluator response: {resp}")
         if not resp.get('success') and raise_err_on_failure:
-            raise ActionFailure(f'Expression evaluation failed: {log}')
+            raise ActionFailure(f'Expression evaluation failed: {resp}')
         result = resp.get('data')
         return result, log
 

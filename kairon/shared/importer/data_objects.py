@@ -39,3 +39,5 @@ class ValidationLogs(DynamicDocument):
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
     event_status = StringField(default="COMPLETED")
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "event_status", "-start_timestamp")]}]}

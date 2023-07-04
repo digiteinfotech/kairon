@@ -19,6 +19,8 @@ class LiveAgents(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
+    meta = {"indexes": [{"fields": ["bot", ("bot", "agent_type")]}]}
+
     def validate(self, clean=True):
         Utility.validate_live_agent_config(self.agent_type, self.config, ValidationError)
         if not (self.override_bot or self.trigger_on_intents or self.trigger_on_actions):
@@ -44,6 +46,8 @@ class LiveAgentMetadata(Document):
     metadata = DictField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "agent_type")]}]}
 
 
 from mongoengine import signals

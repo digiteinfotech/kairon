@@ -15,3 +15,5 @@ class ModelTestingLogs(Document):
     status = StringField(default=None)
     event_status = StringField(default=None)
     is_augmented = BooleanField(default=False)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "type", "reference_id", "-start_timestamp")]}]}
