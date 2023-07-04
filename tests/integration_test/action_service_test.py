@@ -7013,8 +7013,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "user", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -7092,8 +7096,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -7508,8 +7516,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -7804,8 +7816,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -7871,8 +7887,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
@@ -7942,8 +7962,12 @@ class TestActionServer(AsyncHTTPTestCase):
         request_object["next_action"] = action_name
         request_object["tracker"]["sender_id"] = user
         request_object["tracker"]["latest_message"]['text'] = user_msg
-        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello'},
-                                               {'event': 'bot', "text": "how are you"}]
+        request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}},
+                                               {'event': 'bot', "text": "how are you",
+                                                "data": {"elements": '', "quick_replies": '', "buttons": '',
+                                                         "attachment": '', "image": '', "custom": ''}}]
 
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))

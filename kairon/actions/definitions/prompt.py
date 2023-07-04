@@ -71,8 +71,10 @@ class ActionPrompt(ActionsBase):
                 recommendations, bot_response = ActionUtility.format_recommendations(llm_response, k_faq_action_config)
             else:
                 bot_response = llm_response['content']
+            tracker_data = ActionUtility.build_context(tracker, True)
+            response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(k_faq_action_config.get('set_slots', []),
-                                                                                bot_response)
+                                                                                response_context)
             if slot_values:
                 slots_to_fill.update(slot_values)
         except Exception as e:
@@ -171,3 +173,8 @@ class ActionPrompt(ActionsBase):
         params['similarity_prompt_name'] = similarity_prompt_name
         params['similarity_prompt_instructions'] = similarity_prompt_instructions
         return params
+
+    @staticmethod
+    def __add_user_context_to_http_response(http_response, tracker_data):
+        response_context = {"data": http_response, 'context': tracker_data}
+        return response_context

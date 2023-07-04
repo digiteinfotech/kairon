@@ -146,7 +146,7 @@ class ActionServerLogs(DynamicDocument):
     headers = DictField()
     url = StringField()
     request_method = StringField()
-    request_params = DictField()
+    request_params = DynamicField()
     api_response = StringField()
     bot_response = StringField()
     exception = StringField()
