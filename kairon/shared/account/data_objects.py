@@ -31,6 +31,8 @@ class BotAccess(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(required=True, choices=[status.value for status in ACTIVITY_STATUS])
 
+    meta = {"indexes": [{"fields": ["_id", ("bot", "accessor_email", "status")]}]}
+
 
 @auditlogger.log
 class User(Auditlog):

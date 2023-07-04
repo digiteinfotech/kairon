@@ -106,6 +106,8 @@ class MessageBroadcastSettings(Document):
     status = BooleanField(default=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
+    meta = {"indexes": [{"fields": ["_id", ("id", "bot", "status")]}]}
+
 
 @push_notification.apply
 class MessageBroadcastLogs(DynamicDocument):
@@ -113,3 +115,5 @@ class MessageBroadcastLogs(DynamicDocument):
     log_type = StringField(required=True, choices=[m.value for m in MessageBroadcastLogType])
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["_id", ("bot", "reference_id", "-timestamp")]}]}
