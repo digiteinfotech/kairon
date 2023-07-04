@@ -913,4 +913,4 @@ class UserOrgMappings(Document):
     value = DynamicField(default=False)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["bot", ("user", "feature_type", "organization")]}]}
+    meta = {"indexes": [{"fields": ["user", ("user", "feature_type", "organization")]}]}

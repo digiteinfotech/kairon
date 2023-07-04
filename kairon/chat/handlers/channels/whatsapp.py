@@ -46,13 +46,10 @@ class Whatsapp:
             text = message["text"]['body']
         elif message.get("type") == "button":
             text = message["button"]['text']
-        elif message.get("type") in {"image", "audio", "document", "video"}:
-            attachment_info = self.client.get_attachment(message[message["type"]]['id'])
-            text = attachment_info.get("url")
-            if Utility.check_empty_string(text):
-                logger.warning(f"Unable to find url for attachment. Message: {attachment_info}")
-            text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\", " \
-                   f"\"{KaironSystemSlots.doc_url.value}\": \"{text}\"}}"
+        elif message.get("type") in {"image", "audio", "document", "video", "voice"}:
+            if message['type'] == "voice":
+                message['type'] = "audio"
+            text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
