@@ -22,7 +22,7 @@ class Integration(Auditlog):
     access_list = ListField(StringField(), default=None)
     status = StringField(required=True, choices=[i_status.value for i_status in INTEGRATION_STATUS])
 
-    meta = {"indexes": [{"fields": ["_id", ("bot", "status")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
     def clean(self):
         if Utility.check_empty_string(self.name):

@@ -24,4 +24,4 @@ class BotReplicationLogs(Auditlog):
     status = StringField(default=None)
     event_status = StringField(default="COMPLETED")
 
-    meta = {"indexes": [{"fields": ["_id", ("bot", "event_status", "-start_timestamp")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "event_status", "-start_timestamp")]}]}

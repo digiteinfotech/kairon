@@ -19,7 +19,7 @@ class LiveAgents(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["_id", ("bot", "agent_type")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "agent_type")]}]}
 
     def validate(self, clean=True):
         Utility.validate_live_agent_config(self.agent_type, self.config, ValidationError)
@@ -47,7 +47,7 @@ class LiveAgentMetadata(Document):
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["_id", ("bot", "agent_type")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "agent_type")]}]}
 
 
 from mongoengine import signals

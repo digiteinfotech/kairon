@@ -31,7 +31,7 @@ class BotAccess(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(required=True, choices=[status.value for status in ACTIVITY_STATUS])
 
-    meta = {"indexes": [{"fields": ["_id", ("bot", "accessor_email", "status")]}]}
+    meta = {"indexes": [{"fields": ["bot", ("bot", "accessor_email", "status")]}]}
 
 
 @auditlogger.log
@@ -99,6 +99,8 @@ class UserEmailConfirmation(Document):
     email = StringField(required=True, primary_key=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
+    meta = {"indexes": [{"fields": ["email"]}]}
+
     def validate(self, clean=True):
         if Utility.check_empty_string(self.email):
             raise ValidationError("Email cannot be empty or blank spaces")
@@ -113,12 +115,16 @@ class Feedback(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
+    meta = {"indexes": [{"fields": ["user", ("user", "-timestamp")]}]}
+
 
 @auditlogger.log
 class UiConfig(Auditlog):
     config = DictField(default={})
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["user"]}]}
 
 
 class MailTemplates(EmbeddedDocument):
@@ -152,6 +158,8 @@ class UserActivityLog(Document):
     message = ListField(StringField(), default=None)
     data = DynamicField()
 
+    meta = {"indexes": [{"fields": ["bot", ("user", "type", "timestamp")]}]}
+
 
 @auditlogger.log
 class TrustedDevice(Auditlog):
@@ -163,6 +171,8 @@ class TrustedDevice(Auditlog):
     confirmation_timestamp = DateTimeField(default=None)
     status = BooleanField(default=True)
 
+    meta = {"indexes": [{"fields": ["user", ("user", "status", "is_confirmed")]}]}
+
 
 @auditlogger.log
 class Organization(Auditlog):
@@ -173,3 +183,5 @@ class Organization(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     create_user = BooleanField(default=True)
     only_sso_login = BooleanField(default=False)
+
+    meta = {"indexes": [{"fields": ["account", "name"]}]}
