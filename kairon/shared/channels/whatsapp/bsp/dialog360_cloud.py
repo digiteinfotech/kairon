@@ -23,7 +23,8 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
         if bot_settings["whatsapp"] != WhatsappBSPTypes.bsp_360dialog_cloud.value:
             raise AppException("Feature disabled for this account. Please contact support!")
 
-    def get_account(self, channel_id: Text, **kwargs):
+    def get_account(self, **kwargs):
+        channel_id = kwargs.get('channel_id')
         base_url = \
             Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog_cloud"]["hub_base_url"]
         partner_id = Utility.environment["channels"]["360dialog_cloud"]["partner_id"]
@@ -39,7 +40,7 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
             )
             channel_id = config.get("config", {}).get("channel_id")
             api_key = BSP360DialogCloud.generate_waba_key(channel_id)
-            account_id = self.get_account(channel_id)
+            account_id = self.get_account(channel_id=channel_id)
             payload = {"api_key": api_key, "waba_account_id": account_id}
             webhook_url = BSP360DialogCloud.__update_channel_config(config, payload, self.bot, self.user)
             BSP360DialogCloud.set_webhook_url(api_key, webhook_url)
@@ -58,25 +59,27 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
         config["config"] = conf
         return ChatDataProcessor.save_channel_config(config, bot, user)
 
-    def save_channel_config(self, client_name: Text, client_id: Text, channel_id: Text,
-                            partner_id: Text = None, **kwargs):
+    def save_channel_config(self,  **kwargs):
+        channel_id = kwargs.get('channel_id')
+        partner_id = kwargs.get('partner_id', None)
         if partner_id is None:
             partner_id = Utility.environment["channels"]["360dialog_cloud"]["partner_id"]
 
         conf = {
             "config": {
-                "client_name": Utility.sanitise_data(client_name),
-                "client_id": Utility.sanitise_data(client_id),
+                "client_name": Utility.sanitise_data(kwargs.get('client_name')),
+                "client_id": Utility.sanitise_data(kwargs.get('client_id')),
                 "channel_id": Utility.sanitise_data(channel_id),
                 "partner_id": Utility.sanitise_data(partner_id),
-                "waba_account_id": self.get_account(channel_id),
+                "waba_account_id": self.get_account(channel_id=channel_id),
                 "api_key": BSP360DialogCloud.generate_waba_key(channel_id),
                 "bsp_type": WhatsappBSPTypes.bsp_360dialog_cloud.value
             }, "connector_type": ChannelTypes.WHATSAPP.value
         }
         return ChatDataProcessor.save_channel_config(conf, self.bot, self.user)
 
-    def get_template(self, template_id: Text, **kwargs):
+    def get_template(self, **kwargs):
+        template_id = kwargs.get('template_id')
         return self.list_templates(id=template_id)
 
     def list_templates(self, **kwargs):

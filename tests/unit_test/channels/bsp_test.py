@@ -172,7 +172,7 @@ class TestBusinessServiceProvider:
             "total": 3
         }
         responses.add("GET", json=api_resp, url=url)
-        actual = BSP360DialogCloud("test", "test").get_account(channel_id)
+        actual = BSP360DialogCloud("test", "test").get_account(channel_id=channel_id)
         assert actual == api_resp["partner_channels"][0]["waba_account"]["id"]
 
     @responses.activate
@@ -209,7 +209,7 @@ class TestBusinessServiceProvider:
         url = f"{base_url}/api/v2/partners/{partner_id}/channels?filters={{'id':'{channel_id}'}}"
         responses.add("GET", json={}, url=url, status=500)
         with pytest.raises(AppException, match=r"Failed to retrieve account info: *"):
-            BSP360DialogCloud("test", "test").get_account(channel_id)
+            BSP360DialogCloud("test", "test").get_account(channel_id=channel_id)
 
     @responses.activate
     def test_get_account_auth_failure(self, monkeypatch):
@@ -229,7 +229,7 @@ class TestBusinessServiceProvider:
         url = f"{base_url}/api/v2/token"
         responses.add("POST", json={}, url=url, status=401)
         with pytest.raises(AppException, match=r"Failed to get partner auth token: *"):
-            BSP360DialogCloud("test", "test").get_account(channel_id)
+            BSP360DialogCloud("test", "test").get_account(channel_id=channel_id)
 
     @responses.activate
     def test_set_webhook_url(self, monkeypatch):
@@ -407,7 +407,8 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360DialogCloud, 'get_account', _get_waba_account_id)
 
         with pytest.raises(ValidationError, match="Feature disabled for this account. Please contact support!"):
-            BSP360DialogCloud(bot, user).save_channel_config(client_name, client_id, channel_id)
+            BSP360DialogCloud(bot, user).save_channel_config(client_name=client_name, client_id=client_id,
+                                                             channel_id=channel_id)
 
     def test_save_channel_config(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328f5"
@@ -468,7 +469,8 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360DialogCloud, 'generate_waba_key', _generate_waba_key)
         monkeypatch.setattr(BSP360DialogCloud, 'get_account', _get_waba_account_id)
 
-        endpoint = BSP360DialogCloud(bot, user).save_channel_config(client_name, client_id, channel_id)
+        endpoint = BSP360DialogCloud(bot, user).save_channel_config(client_name=client_name, client_id=client_id,
+                                                                    channel_id=channel_id)
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
@@ -536,7 +538,8 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360DialogCloud, 'generate_waba_key', _generate_waba_key)
         monkeypatch.setattr(BSP360DialogCloud, 'get_account', _get_waba_account_id)
 
-        endpoint = BSP360DialogCloud(bot, user).save_channel_config(client_name, client_id, channel_id, partner_id)
+        endpoint = BSP360DialogCloud(bot, user).save_channel_config(client_name=client_name, client_id=client_id,
+                                                                    channel_id=channel_id, partner_id=partner_id)
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328ff/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
@@ -664,7 +667,7 @@ class TestBusinessServiceProvider:
         template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={{'id': '{template_id}'}}&sort=business_templates.name"
         url = f"{base_url}{template_endpoint}"
         responses.add("GET", json=api_resp, url=url)
-        template = BSP360DialogCloud(bot, "test").get_template(template_id)
+        template = BSP360DialogCloud(bot, "test").get_template(template_id=template_id)
         assert template == [{'category': 'MARKETING', 'components': [{'example': {'body_text': [['Peter']]},
                                                                       'text': "Hi {{1}},\n\nWe are thrilled to share that *kAIron* has now been integrated with WhatsApp through the *WhatsApp Business Solution Provide*r (BSP). \n\nThis integration will expand kAIron's ability to engage with a larger audience, increase sales acceleration, and provide better customer support.\n\nWith this integration, sending customized templates and broadcasting general, sales, or marketing information over WhatsApp will be much quicker and more efficient. \n\nStay tuned for more exciting updates from Team kAIron!\xa0",
                                                                       'type': 'BODY'}], 'id': 'GVsEkeI2PIiARwVXQEDVWT',
@@ -711,7 +714,7 @@ class TestBusinessServiceProvider:
         responses.add("GET", json={}, url=url, status=500)
 
         with pytest.raises(AppException, match=r"Failed to get template: *"):
-            BSP360DialogCloud(bot, "user").get_template(template_id)
+            BSP360DialogCloud(bot, "user").get_template(template_id=template_id)
 
     def test_get_template_error(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328fg"
@@ -725,7 +728,7 @@ class TestBusinessServiceProvider:
         template_id = "test_id"
 
         with pytest.raises(AppException, match="Channel not found!"):
-            BSP360DialogCloud(bot, "user").get_template(template_id)
+            BSP360DialogCloud(bot, "user").get_template(template_id=template_id)
 
     def test_post_process(self, monkeypatch):
         def _generate_waba_key(*args, **kwargs):
