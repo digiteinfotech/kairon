@@ -63,6 +63,7 @@ loop.run_until_complete(MongoProcessor().save_from_path(
 ))
 start_training(bot2, "test@chat.com")
 bot3 = AccountProcessor.add_bot("testChat3", user['account'], "test@chat.com")['_id'].__str__()
+test_bot = AccountProcessor.add_bot("testChat4", user['account'], "test@chat.com")['_id'].__str__()
 
 with patch('slack.web.client.WebClient.team_info') as mock_slack_team_info:
     mock_slack_team_info.return_value = SlackResponse(
@@ -96,6 +97,9 @@ ChatDataProcessor.save_channel_config({
 settings = BotSettings.objects(bot=bot2, status=True).get()
 settings.whatsapp = "360dialog_on_premise"
 settings.save()
+settings = BotSettings.objects(bot=test_bot, status=True).get()
+settings.whatsapp = "360dialog_cloud"
+settings.save()
 
 ChatDataProcessor.save_channel_config({
     "connector_type": "whatsapp",
@@ -103,6 +107,13 @@ ChatDataProcessor.save_channel_config({
         'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl', 'partner_id': 'test_partner',
         'bsp_type': '360dialog_on_premise', 'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'
     }}, bot2, user="test@chat.com"
+)
+ChatDataProcessor.save_channel_config({
+    "connector_type": "whatsapp",
+    "config": {
+        'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl', 'partner_id': 'test_partner',
+        'bsp_type': '360dialog_cloud', 'api_key': 'kHCwksdsdsMVYVx0doabaDyRLUQJUAK', 'waba_account_id': 'Cyih7GWA'
+    }}, test_bot, user="test@chat.com"
 )
 responses.start()
 encoded_url = urlencode({'url': f"https://test@test.com/api/bot/telegram/{bot}/test"}, quote_via=quote_plus)
@@ -1298,6 +1309,112 @@ class TestChatServer(AsyncHTTPTestCase):
 
         response = self.fetch(
             f"/api/bot/whatsapp/{bot2}/{token}",
+            headers={"hub.verify_token": "valid"},
+            method="POST",
+            body=json.dumps({
+                "contacts": [{
+                    "profile": {
+                        "name": "udit"
+                    },
+                    "wa_id": "wa-123456789"
+                }],
+                "messages": [{
+                    "from": "910123456789",
+                    "id": "wappmsg.ID",
+                    "timestamp": "21-09-2022 12:05:00",
+                    "text": {
+                        "id": "sdfghj567"
+                    },
+                    "type": "doument"
+                }]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+        responses.reset()
+
+    @responses.activate
+    def test_whatsapp_bsp_cloud_valid_text_message_request(self):
+        responses.add(
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
+        )
+        responses.add(
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+        )
+        response = self.fetch(
+            f"/api/bot/whatsapp/{test_bot}/{token}",
+            method="POST",
+            body=json.dumps({
+                "contacts": [
+                    {
+                        "profile": {
+                            "name": "kAIron"
+                        },
+                        "wa_id": "919999900000"
+                    }
+                ],
+                "messages": [
+                    {
+                        "from": "919657055022",
+                        "id": "ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
+                        "text": {
+                            "body": "hi Postman"
+                        },
+                        "timestamp": "1677604539",
+                        "type": "text"
+                    }
+                ]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+        responses.reset()
+
+    @responses.activate
+    def test_whatsapp_bsp_cloud_valid_button_message_request(self):
+        responses.add(
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
+        )
+        responses.add(
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+        )
+        response = self.fetch(
+            f"/api/bot/whatsapp/{test_bot}/{token}",
+            method="POST",
+            body=json.dumps({
+                "contacts": [{
+                    "profile": {
+                        "name": "udit"
+                    },
+                    "wa_id": "wa-123456789"
+                }],
+                "messages": [{
+                    "from": "910123456789",
+                    "id": "wappmsg.ID",
+                    "timestamp": "21-09-2022 12:05:00",
+                    "button": {
+                        "text": "buy now",
+                        "payload": "buy kairon for 1 billion"
+                    },
+                    "type": "button"
+                }]
+            }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
+        responses.reset()
+
+    @responses.activate
+    def test_whatsapp_bsp_cloud_valid_attachment_message_request(self):
+        responses.add(
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
+        )
+        responses.add(
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+        )
+
+        response = self.fetch(
+            f"/api/bot/whatsapp/{test_bot}/{token}",
             headers={"hub.verify_token": "valid"},
             method="POST",
             body=json.dumps({

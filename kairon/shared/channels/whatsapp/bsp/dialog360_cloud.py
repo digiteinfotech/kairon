@@ -14,7 +14,7 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
     def __init__(self, bot: Text, user: Text):
         self.bot = bot
         self.user = user
-        
+
     def validate(self, **kwargs):
         from kairon.shared.data.processor import MongoProcessor
         
@@ -24,8 +24,9 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
             raise AppException("Feature disabled for this account. Please contact support!")
 
     def get_account(self, channel_id: Text):
-        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
+        base_url = \
+            Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog_cloud"]["hub_base_url"]
+        partner_id = Utility.environment["channels"]["360dialog_cloud"]["partner_id"]
         url = f"{base_url}/api/v2/partners/{partner_id}/channels?filters={{'id':'{channel_id}'}}"
         headers = {"Authorization": BSP360DialogCloud.get_partner_auth_token()}
         resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers, validate_status=True, err_msg="Failed to retrieve account info: ")
@@ -59,7 +60,7 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
 
     def save_channel_config(self, client_name: Text, client_id: Text, channel_id: Text, partner_id: Text=None):
         if partner_id is None:
-            partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
+            partner_id = Utility.environment["channels"]["360dialog_cloud"]["partner_id"]
 
         conf = {
             "config": {
@@ -84,8 +85,10 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
                 filters.update(kwargs)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             account_id = config.get("config", {}).get("waba_account_id")
-            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-            partner_id = config.get("config", {}).get("partner_id", Utility.environment["channels"]["360dialog"]["partner_id"])
+            base_url = \
+                Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog_cloud"]["hub_base_url"]
+            partner_id = config.get(
+                "config", {}).get("partner_id", Utility.environment["channels"]["360dialog_cloud"]["partner_id"])
             template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={filters}&sort=business_templates.name"
             headers = {"Authorization": BSP360DialogCloud.get_partner_auth_token()}
             url = f"{base_url}{template_endpoint}"
@@ -98,9 +101,10 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
 
     @staticmethod
     def get_partner_auth_token():
-        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        partner_username = Utility.environment["channels"]["360dialog"]["partner_username"]
-        partner_password = Utility.environment["channels"]["360dialog"]["partner_password"]
+        base_url = \
+            Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog_cloud"]["hub_base_url"]
+        partner_username = Utility.environment["channels"]["360dialog_cloud"]["partner_username"]
+        partner_password = Utility.environment["channels"]["360dialog_cloud"]["partner_password"]
         request_body = {
             "username": partner_username,
             "password": partner_password
@@ -112,8 +116,9 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
 
     @staticmethod
     def generate_waba_key(channel_id: Text):
-        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
+        base_url = \
+            Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog_cloud"]["hub_base_url"]
+        partner_id = Utility.environment["channels"]["360dialog_cloud"]["partner_id"]
         url = f"{base_url}/api/v2/partners/{partner_id}/channels/{channel_id}/api_keys"
         headers = {"Authorization": BSP360DialogCloud.get_partner_auth_token()}
         resp = Utility.execute_http_request(request_method="POST", http_url=url, headers=headers,
@@ -124,8 +129,9 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
 
     @staticmethod
     def set_webhook_url(api_key: Text, webhook_url: Text):
-        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
-        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+        base_url = \
+            Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog_cloud"]["waba_base_url"]
+        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog_cloud"]["auth_header"]
         waba_webhook_url = f"{base_url}/v1/configs/webhook"
         headers = {header: api_key}
         request_body = {"url": webhook_url}

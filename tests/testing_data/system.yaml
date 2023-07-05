@@ -166,7 +166,11 @@ cors:
   origin: ${ALLOWED_ORIGIN:["*"]}
 
 channels:
-  360dialog:
+  360dialog_on_premise:
+    partner_id: ${360_DIALOG_PARTNER_ID}
+    partner_username: ${360_DIALOG_PARTNER_USERNAME}
+    partner_password: ${360DIALOG_PARTNER_PASSWORD}
+  360dialog_cloud:
     partner_id: ${360_DIALOG_PARTNER_ID}
     partner_username: ${360_DIALOG_PARTNER_USERNAME}
     partner_password: ${360DIALOG_PARTNER_PASSWORD}

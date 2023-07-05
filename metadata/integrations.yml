@@ -41,21 +41,6 @@ channels:
       - access_token
       - verify_token
     business_providers:
-      360dialog:
-        required_fields:
-          - client_name
-        optional_fields:
-          - client_id
-          - channel_id
-          - api_key
-        disabled_fields:
-          - client_id
-          - channel_id
-          - api_key
-        hub_base_url: "https://hub.360dialog.io"
-        waba_base_url: "https://waba.360dialog.io"
-        api_version: "v1"
-        auth_header: "D360-API-KEY"
       360dialog_on_premise:
         required_fields:
           - client_name
