@@ -495,7 +495,6 @@ class SlotRequest(BaseModel):
 
 
 class SynonymRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
     value: List[str]
 
     @validator("value")
@@ -507,13 +506,6 @@ class SynonymRequest(BaseModel):
             if Utility.check_empty_string(ele):
                 raise ValueError("value cannot be an empty string")
         return v
-
-    @validator("name")
-    def validate_synonym(cls, f, values, **kwargs):
-        from kairon.shared.utils import Utility
-        if Utility.check_empty_string(f):
-            raise ValueError("synonym cannot be empty")
-        return f
 
 
 class DictData(BaseModel):
@@ -549,15 +541,7 @@ class RegexRequest(BaseModel):
 
 
 class LookupTablesRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
     value: List[str]
-
-    @validator("name")
-    def validate_name(cls, v, values, **kwargs):
-        from kairon.shared.utils import Utility
-        if Utility.check_empty_string(v):
-            raise ValueError("name cannot be empty or a blank space")
-        return v
 
     @validator("value")
     def validate_value(cls, v, values, **kwargs):

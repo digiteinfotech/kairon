@@ -1458,8 +1458,7 @@ class TestAccountProcessor:
             user="testAdmin",
         )
         username = "nupurrkhare@digite.com"
-        password = "Welcome@1526"
-        user = AccountProcessor.get_user("nupurrkhare@digite.com")
+        user = AccountProcessor.get_user(username)
         access_token, access_token_exp, refresh_token, refresh_token_exp = Authentication.generate_login_tokens(
             user, True)
         payload = Utility.decode_limited_access_token(refresh_token)
@@ -1474,7 +1473,7 @@ class TestAccountProcessor:
         access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token,
                                                                                                           user)
         data_stack = Utility.decode_limited_access_token(refresh)
-        value = list(Metering.objects(username="nupurrkhare@digite.com").order_by("-timestamp"))
+        value = list(Metering.objects(username=username).order_by("-timestamp"))
         assert value[0]["metric_type"] == "login_refresh_token"
         assert value[0]["username"] == "nupurrkhare@digite.com"
         assert value[0]["timestamp"]
