@@ -59,7 +59,7 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
         config["config"] = conf
         return ChatDataProcessor.save_channel_config(config, bot, user)
 
-    def save_channel_config(self,  **kwargs):
+    def save_channel_config(self, **kwargs):
         channel_id = kwargs.get('channel_id')
         partner_id = kwargs.get('partner_id', None)
         if partner_id is None:
