@@ -17,13 +17,13 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
 
     def validate(self, **kwargs):
         from kairon.shared.data.processor import MongoProcessor
-        
+
         bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
         bot_settings = bot_settings.to_mongo().to_dict()
         if bot_settings["whatsapp"] != WhatsappBSPTypes.bsp_360dialog_cloud.value:
             raise AppException("Feature disabled for this account. Please contact support!")
 
-    def get_account(self, channel_id: Text):
+    def get_account(self, channel_id: Text, **kwargs):
         base_url = \
             Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog_cloud"]["hub_base_url"]
         partner_id = Utility.environment["channels"]["360dialog_cloud"]["partner_id"]
@@ -32,7 +32,7 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
         resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers, validate_status=True, err_msg="Failed to retrieve account info: ")
         return resp.get("partner_channels", {})[0].get("waba_account", {}).get("id")
 
-    def post_process(self):
+    def post_process(self, **kwargs):
         try:
             config = ChatDataProcessor.get_channel_config(
                 ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False, config__bsp_type=WhatsappBSPTypes.bsp_360dialog_cloud.value
@@ -58,7 +58,8 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
         config["config"] = conf
         return ChatDataProcessor.save_channel_config(config, bot, user)
 
-    def save_channel_config(self, client_name: Text, client_id: Text, channel_id: Text, partner_id: Text=None):
+    def save_channel_config(self, client_name: Text, client_id: Text, channel_id: Text,
+                            partner_id: Text = None, **kwargs):
         if partner_id is None:
             partner_id = Utility.environment["channels"]["360dialog_cloud"]["partner_id"]
 
@@ -75,7 +76,7 @@ class BSP360DialogCloud(WhatsappBusinessServiceProviderBase):
         }
         return ChatDataProcessor.save_channel_config(conf, self.bot, self.user)
 
-    def get_template(self, template_id: Text):
+    def get_template(self, template_id: Text, **kwargs):
         return self.list_templates(id=template_id)
 
     def list_templates(self, **kwargs):
