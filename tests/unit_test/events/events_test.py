@@ -1133,7 +1133,7 @@ class TestEventExecution:
         with patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config") as mock_channel_config:
             mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
             with patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings") as mock_get_bot_settings:
-                mock_get_bot_settings.return_value = {"whatsapp": "360dialog"}
+                mock_get_bot_settings.return_value = {"whatsapp": "360dialog_on_premise"}
                 with patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True) as mock_send:
                     mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
@@ -1215,7 +1215,7 @@ class TestEventExecution:
             json={"data": [9876543210, 876543212345], "success": True}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog_on_premise", "notification_scheduling_limit": 4}
         mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
@@ -1328,7 +1328,7 @@ class TestEventExecution:
             json={"data": "9876543210, 876543212345", "success": True}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog_on_premise", "notification_scheduling_limit": 4}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
@@ -1404,7 +1404,7 @@ class TestEventExecution:
             json={"data": "9876543210, 876543212345", "success": True}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog_on_premise", "notification_scheduling_limit": 4}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
@@ -1467,7 +1467,7 @@ class TestEventExecution:
             json={"data": "9876543210, 876543212345", "success": False}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog_on_premise", "notification_scheduling_limit": 4}
 
         event = MessageBroadcastEvent(bot, user)
         event.validate()
@@ -1514,7 +1514,7 @@ class TestEventExecution:
             json={"data": "9876543210, 876543212345", "success": False}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog_on_premise", "notification_scheduling_limit": 4}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -1560,7 +1560,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog_on_premise", "notification_scheduling_limit": 4}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
         event = MessageBroadcastEvent(bot, user)
@@ -1631,7 +1631,7 @@ class TestEventExecution:
         with patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config") as mock_channel_config:
             mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
             with patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings") as mock_get_bot_settings:
-                mock_get_bot_settings.return_value = {"whatsapp": "360dialog"}
+                mock_get_bot_settings.return_value = {"whatsapp": "360dialog_on_premise"}
                 with patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True) as mock_send:
                     mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
