@@ -11935,7 +11935,7 @@ def test_initiate_bsp_onboarding_failure(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
-    monkeypatch.setitem(Utility.environment["channels"]["360dialog_on_premise"], 'partner_id', 'f167CmPA')
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
     url = "https://hub.360dialog.io/api/v2/token"
     responses.add("POST", json={}, url=url, status=500)
 
@@ -11951,7 +11951,7 @@ def test_initiate_bsp_onboarding_failure(monkeypatch):
 
 
 def test_initiate_bsp_onboarding_disabled(monkeypatch):
-    monkeypatch.setitem(Utility.environment["channels"]["360dialog_on_premise"], 'partner_id', 'f167CmPA')
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog_on_premise/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -11969,7 +11969,7 @@ def test_initiate_bsp_onboarding(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
-    monkeypatch.setitem(Utility.environment["channels"]["360dialog_on_premise"], 'partner_id', 'f167CmPA')
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
 
     with patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account") as mock_get_account:
         mock_get_account.return_value = "dfghj5678"
@@ -11992,7 +11992,7 @@ def test_post_process(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
-    monkeypatch.setitem(Utility.environment["channels"]["360dialog_on_premise"], 'partner_id', 'f167CmPA')
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
 
     with patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_account") as mock_get_account:
         mock_get_account.return_value = "dfghj5678"

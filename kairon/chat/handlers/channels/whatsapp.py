@@ -91,28 +91,12 @@ class Whatsapp:
             IOLoop.current().spawn_callback(self.__handle_360dialog_payload, payload, metadata, bot)
         return "success"
 
-    async def handle_360dialog_cloud_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
-        payload = json_decode(request.body)
-        if payload.get("messages"):
-            IOLoop.current().spawn_callback(self.__handle_360dialog_cloud_payload, payload, metadata, bot)
-        return "success"
-
     async def __handle_360dialog_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
         access_token = self.config.get('api_key')
+        client_bsp_type = self.config.get('bsp_type')
         for msg in payload.get("messages", {}):
             self.last_message = msg
-            client = WhatsappFactory.get_client(WhatsappBSPTypes.bsp_360dialog_on_premise.value)
-            self.client = client(access_token, config=self.config,
-                                 from_phone_number_id=self.get_business_phone_number_id())
-            metadata.update(msg)
-            await self.message(msg, metadata, bot)
-
-    async def __handle_360dialog_cloud_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]],
-                                               bot: str) -> None:
-        access_token = self.config.get('api_key')
-        for msg in payload.get("messages", {}):
-            self.last_message = msg
-            client = WhatsappFactory.get_client(WhatsappBSPTypes.bsp_360dialog_cloud.value)
+            client = WhatsappFactory.get_client(client_bsp_type)
             self.client = client(access_token, config=self.config,
                                  from_phone_number_id=self.get_business_phone_number_id())
             metadata.update(msg)
@@ -240,7 +224,7 @@ class WhatsappHandler(MessengerHandler):
         client_handlers = {
             "meta": whatsapp_channel.handle_meta_payload,
             WhatsappBSPTypes.bsp_360dialog_on_premise.value: whatsapp_channel.handle_360dialog_payload,
-            WhatsappBSPTypes.bsp_360dialog_cloud.value: whatsapp_channel.handle_360dialog_cloud_payload
+            WhatsappBSPTypes.bsp_360dialog_cloud.value: whatsapp_channel.handle_360dialog_payload
         }
         msg = await client_handlers[client](self.request, metadata, bot)
         self.set_status(HTTPStatus.OK)
