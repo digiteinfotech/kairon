@@ -1288,10 +1288,10 @@ async def add_lookup(
     :param current_user:
     :return: Success message
     """
-    mongo_processor.add_lookup(lookup_name=request_data.data, bot=current_user.get_bot(),
+    id = mongo_processor.add_lookup(lookup_name=request_data.data, bot=current_user.get_bot(),
                                user=current_user.get_user())
 
-    return {"message": "Lookup added!"}
+    return {"message": "Lookup added!", "data": {"_id": id}}
 
 
 @router.post("/lookup/{name:path}/values", response_model=Response)
@@ -1309,10 +1309,10 @@ async def add_lookup_values(
     """
     data = request_data.dict()
     data['name'] = name
-    mongo_processor.add_lookup_values(lookup_dict=data, bot=current_user.get_bot(),
+    values = mongo_processor.add_lookup_values(lookup_dict=data, bot=current_user.get_bot(),
                                       user=current_user.get_user())
 
-    return {"message": "Lookup values added!"}
+    return {"message": "Lookup values added!", "data": values}
 
 
 @router.post("/lookup/{name:path}/value", response_model=Response)
@@ -1328,12 +1328,12 @@ async def add_lookup_value(
     :param current_user:
     :return: Success message
     """
-    mongo_processor.add_lookup_value(lookup_name=name,
+    id = mongo_processor.add_lookup_value(lookup_name=name,
                                      lookup_value=request_data.data,
                                      bot=current_user.get_bot(),
                                      user=current_user.get_user())
 
-    return {"message": "Lookup value added!"}
+    return {"message": "Lookup value added!", "data": {"_id": id}}
 
 
 @router.put("/lookup/{name:path}/value/{id}", response_model=Response)

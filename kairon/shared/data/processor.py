@@ -4074,13 +4074,17 @@ class MongoProcessor:
         check = any(item in value_list for item in lookup_dict.get('value'))
         if check:
             raise AppException("Lookup value already exists")
+        added_values = []
         for val in lookup_dict.get('value'):
             lookup_table = LookupTables()
             lookup_table.name = lookup_dict['name']
             lookup_table.value = val
             lookup_table.user = user
             lookup_table.bot = bot
-            lookup_table.save().to_mongo().to_dict()['_id'].__str__()
+            lookup_table.save()
+            id = lookup_table.to_mongo().to_dict()['_id'].__str__()
+            added_values.append({"_id": id, "value": val})
+        return added_values
 
     def get_lookups(self, bot: Text):
         """

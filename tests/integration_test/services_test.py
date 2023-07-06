@@ -8134,6 +8134,7 @@ def test_add_synonym_values():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Synonym added!"
+    assert actual["data"]['_id']
 
     response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonym/bot_add/values",
@@ -8144,12 +8145,19 @@ def test_add_synonym_values():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Synonym values added!"
+    assert all(key in item.keys()  for item in actual['data'] for key in ["_id", "value"])
 
-    client.post(
+    response = client.post(
         f"/api/bot/{pytest.bot}/entity/synonym/bot_add/value",
-        json={"name": "bot_add", "data": ["any1"]},
+        json={"data": "any1"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Synonym value added!"
+    assert actual["data"]['_id']
 
     response = client.get(
         f"/api/bot/{pytest.bot}/entity/synonym/bot_add/values",
@@ -8157,6 +8165,7 @@ def test_add_synonym_values():
     )
 
     actual = response.json()
+    assert all(item['value'] in ["any", "any1"] for item in actual['data'])
     assert all(key in item.keys()  for item in actual['data'] for key in ["_id", "synonym", "value"])
 
 
@@ -8167,7 +8176,7 @@ def test_get_specific_synonym_values():
     )
 
     actual = response.json()
-    assert len(actual['data']) == 1
+    assert len(actual['data']) == 2
 
 
 def test_add_synonyms_duplicate():
@@ -8256,7 +8265,7 @@ def test_delete_synonym_one_value():
     )
 
     actual = response.json()
-    assert len(actual['data']) == 0
+    assert len(actual['data']) == 1
 
 
 def test_delete_synonym():
@@ -9015,6 +9024,7 @@ def test_add_lookup_tables():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Lookup added!"
+    assert actual['data']["_id"]
 
     response = client.post(
         f"/api/bot/{pytest.bot}/lookup/country/values",
@@ -9025,12 +9035,29 @@ def test_add_lookup_tables():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Lookup values added!"
+    assert all(key in item.keys() for item in actual['data'] for key in ["_id", "value"])
 
-    client.post(
+    response = client.post(
+        f"/api/bot/{pytest.bot}/lookup",
+        json={"data": "number"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Lookup added!"
+    assert actual['data']["_id"]
+
+    response = client.post(
         f"/api/bot/{pytest.bot}/lookup/number/values",
         json={"value": ["one", "two"]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Lookup values added!"
 
     response = client.get(
         f"/api/bot/{pytest.bot}/lookup/number/values",
@@ -9039,6 +9066,7 @@ def test_add_lookup_tables():
 
     actual = response.json()
     assert all(item['value'] in ['one', 'two'] for item in actual['data'])
+    assert all(key in item.keys() for item in actual['data'] for key in ["_id", "lookup", "value"])
 
 
 def test_get_lookup_table_values():
@@ -9156,7 +9184,7 @@ def test_delete_lookup():
     )
 
     actual = response.json()
-    assert len(actual['data']) == 0
+    assert len(actual['data']) == 1
 
 
 def test_add_lookup_empty_value_element():
