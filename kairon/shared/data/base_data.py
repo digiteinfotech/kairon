@@ -13,7 +13,6 @@ class AuditLogData(Document):
     entity = StringField(required=True)
     data = DictField()
 
-    meta = {"indexes": [{"fields": [("data.Bot_id", "-timestamp")]}]}
 
     @queryset_manager
     def objects(cls, queryset):
