@@ -52,6 +52,7 @@ class ActionGoogleSearch(ActionsBase):
         :return: Dict containing slot name as keys and their values.
         """
         slots_set = {}
+        results = None
         exception = None
         status = "SUCCESS"
         latest_msg = tracker.latest_message.get('text')
@@ -84,6 +85,7 @@ class ActionGoogleSearch(ActionsBase):
                 type=ActionType.google_search_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=action_config['name'],
+                google_response=results,
                 bot_response=bot_response,
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
