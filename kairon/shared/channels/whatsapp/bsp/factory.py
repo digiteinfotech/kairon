@@ -7,6 +7,7 @@ class BusinessServiceProviderFactory:
 
     __implementations = {
         WhatsappBSPTypes.bsp_360dialog_on_premise.value: BSP360Dialog,
+        WhatsappBSPTypes.bsp_360dialog_cloud.value: BSP360Dialog,
     }
 
     @staticmethod

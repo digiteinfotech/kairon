@@ -87,7 +87,7 @@ async def refresh_bsp_credentials(
     """
     provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
     provider.validate()
-    resp = provider.post_process()
+    resp = provider.post_process(bsp_type=bsp_type)
     return Response(message='Credentials refreshed!', data=resp)
 
 
@@ -103,7 +103,7 @@ async def initiate_platform_onboarding(
     """
     provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
     provider.validate()
-    channel_endpoint = provider.save_channel_config(**request.query_params)
+    channel_endpoint = provider.save_channel_config(bsp_type=bsp_type, **request.query_params)
     return Response(message='Channel added', data=channel_endpoint)
 
 
