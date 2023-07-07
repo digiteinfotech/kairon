@@ -99,8 +99,6 @@ class UserEmailConfirmation(Document):
     email = StringField(required=True, primary_key=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["email"]}]}
-
     def validate(self, clean=True):
         if Utility.check_empty_string(self.email):
             raise ValidationError("Email cannot be empty or blank spaces")

@@ -814,7 +814,7 @@ class TestUtility:
         }
         Utility.email_conf['email']['templates']['custom_text_mail'] = open(
             'template/emails/custom_text_mail.html', 'rb').read().decode()
-        user_details = "Hi,\nFollowing demo has been requested for Kairon:\n<li>first_name: sample</li>" \
+        user_details = "Hi,<br>Following demo has been requested for Kairon:<br><li>first_name: sample</li>" \
                        "<li>last_name: test</li><li>email: sampletest@gmail.com</li><li>contact: 9876543210</li>" \
                        "<li>additional_info: Thank You</li>"
         expected_subject = Utility.email_conf['email']['templates']['book_a_demo_subject']
