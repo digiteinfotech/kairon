@@ -14719,6 +14719,263 @@ def test_get_auditlog_for_user_2():
     assert audit_log_data[0]["user"] == email
 
 
+def test_add_custom_widget():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/add",
+        json={
+            "name": "agtech weekly trends", "http_url": "http://agtech.com/trends/1",
+            "request_parameters": [{"key": "crop_type", "value": "tomato", "parameter_type": "value"},
+                                   {"key": "org", "value": "ORG_NAME", "parameter_type": "key_vault"}],
+            "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
+                        {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
+
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == 'Widget config added!'
+    assert actual["data"]
+    pytest.widget_id = actual["data"]
+    assert actual["error_code"] == 0
+
+
+def test_get_custom_widget():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["data"]["widget_config"] == {
+            "name": "agtech weekly trends", "http_url": "http://agtech.com/trends/1",
+            "request_parameters": [{"key": "crop_type", "value": "tomato", "parameter_type": "value"},
+                                   {"key": "org", "value": "ORG_NAME", "parameter_type": "key_vault"}],
+            "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
+                        {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
+            "timeout": 5, "bot": pytest.bot, 'request_method': 'GET', "_id": pytest.widget_id
+        }
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+@responses.activate
+def test_add_member_with_view_role():
+    email = "test_view@demo.ai"
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": email,
+            "first_name": "Dem",
+            "last_name": "User22",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": email,
+        },
+    )
+    actual = response.json()
+    assert actual['message'] == "Account Registered!"
+    assert actual['error_code'] == 0
+    assert actual['success']
+
+    response = client.post(
+        f"/api/user/{pytest.bot}/member",
+        json={"email": email, "role": "view"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['message']
+    assert actual['error_code'] == 0
+    assert actual['success']
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'User Authenticated'
+    pytest.refresh_token_view_role = actual['data']['refresh_token']
+    pytest.access_token_view_role = actual["data"]["access_token"]
+
+
+@responses.activate
+def test_trigger_widget():
+    expected_resp = {"data": [{"1": 200, "2": 300, "3": 400, "4": 500, "5": 600}]}
+    responses.add(
+        "GET", "http://agtech.com/trends/1", json=expected_resp,
+    )
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token_view_role},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == expected_resp
+    assert not actual["message"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == expected_resp
+    assert not actual["message"]
+
+
+def test_add_custom_widget_invalid_config():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/add",
+        json={
+            "name": "agtech weekly trends 1", "http_url": "http://agtech.com/trends/1",
+            "request_parameters": [{"key": "crop_type", "value": "tomato", "parameter_type": "sender_id"},
+                                   {"key": "org", "value": "ORG_NAME", "parameter_type": "key_vault"}],
+            "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
+                        {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == [
+        {'ctx': {'enum_values': ['value', 'key_vault']}, 'loc': ['body', 'request_parameters', 0, 'parameter_type'],
+         'msg': "value is not a valid enumeration member; permitted: 'value', 'key_vault'", 'type': 'type_error.enum'}]
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_add_custom_widget_already_exists():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/add",
+        json={
+            "name": "agtech weekly trends", "http_url": "http://agtech.com/trends/1",
+            "request_parameters": [{"key": "crop_type", "value": "tomato", "parameter_type": "value"},
+                                   {"key": "org", "value": "ORG_NAME", "parameter_type": "key_vault"}],
+            "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
+                        {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Widget with name exists!"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_custom_widget_invalid_config():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/update/{pytest.widget_id}",
+        json={
+            "name": "agtech weekly trends 1", "http_url": None
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == [
+        {'loc': ['body', 'http_url'], 'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}]
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_custom_widget():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/update/{pytest.widget_id}",
+        json={
+            "name": "agtech trends ", "http_url": "http://agtech.com/trends",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == 'Widget config updated!'
+    assert not actual["data"]
+    assert actual["error_code"] == 0
+
+
+def test_list_custom_widgets():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["data"]["widgets"] == [pytest.widget_id]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+def test_get_custom_widget_post_update():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["data"]["widget_config"] == {
+        "name": "agtech trends ", "http_url": 'http://agtech.com/trends', "timeout": 5, 'request_method': 'GET',
+        'request_parameters': [], '_id': pytest.bot, 'headers': [],
+        "bot": pytest.bot, "_id": pytest.widget_id
+    }
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+def test_delete_custom_widget():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/remove/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == 'Widget config removed!'
+    assert not actual["data"]
+    assert actual["error_code"] == 0
+
+
+def test_trigger_widget_failure():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token_view_role},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Widget does not exists!'
+
+
+def test_delete_custom_widget_invalid_widget_id():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/remove/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Widget does not exists!"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_list_custom_widgets_empty():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["data"]["widgets"] == []
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+def test_get_custom_widget_post_delete():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Widget does not exists!"
+
+
 @responses.activate
 def test_upload_invalid_csv():
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")

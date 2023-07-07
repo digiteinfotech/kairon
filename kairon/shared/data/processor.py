@@ -91,6 +91,7 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots
+from ..custom_widgets.data_objects import CustomWidgets
 
 
 class MongoProcessor:
@@ -4830,6 +4831,13 @@ class MongoProcessor:
         """
         if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
             raise AppException(f"key '{key}' does not exists!")
+        custom_widgets = list(CustomWidgets.objects(__raw__={
+            "bot": bot,
+            "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
+                    {"request_parameters": {
+                        "$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}}]
+        }).values_list("name"))
+
         http_action = list(HttpActionConfig.objects(__raw__={
             "bot": bot, "status": True,
             "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
@@ -4871,6 +4879,9 @@ class MongoProcessor:
 
         if len(actions):
             raise AppException(f"Key is attached to action: {actions}")
+
+        if len(custom_widgets):
+            raise AppException(f"Key is attached to custom widget: {custom_widgets}")
         KeyVault.objects(key=key, bot=bot).delete()
 
     def add_two_stage_fallback_action(
