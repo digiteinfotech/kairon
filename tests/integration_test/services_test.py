@@ -198,7 +198,7 @@ def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock):
             mock_geo.return_value = {"City": "Mumbai", "Network": "CATO"}
 
             responses.add(responses.POST,
-                          "https://www.google.com/recaptcha/api/siteverify?secret=asdfghjkl1234567890&response=1234567890",
+                          "https://www.google.com/recaptcha/api/siteverify?secret=asdfghjkl1234567890&response=1234567890&remoteip=testclient",
                           json={"success": False})
 
             response = client.post(
