@@ -110,6 +110,30 @@ class TrainingExamples(Auditlog):
 
 @auditlogger.log
 @push_notification.apply
+class Synonyms(Auditlog):
+    bot = StringField(required=True)
+    name = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status" ,"name")]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.name):
+            raise ValidationError(
+                "Synonym cannot be empty or blank spaces"
+            )
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+
+@auditlogger.log
+@push_notification.apply
 class EntitySynonyms(Auditlog):
     bot = StringField(required=True)
     name = StringField(required=True)
@@ -132,8 +156,32 @@ class EntitySynonyms(Auditlog):
             )
 
     def clean(self):
-        self.name = self.name.strip().strip().lower()
+        self.name = self.name.strip().lower()
         self.value = self.value.strip()
+
+
+@auditlogger.log
+@push_notification.apply
+class Lookup(Auditlog):
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "status", "name")]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.name):
+            raise ValidationError(
+                "Lookup cannot be empty or blank spaces"
+            )
+
+    def clean(self):
+        self.name = self.name.strip().lower()
 
 
 @auditlogger.log
@@ -161,6 +209,7 @@ class LookupTables(Auditlog):
 
     def clean(self):
         self.name = self.name.strip().lower()
+        self.value = self.value.strip()
 
 
 @auditlogger.log
@@ -746,6 +795,8 @@ class ModelDeployment(Auditlog):
     url = StringField(default=None)
     status = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
 
 
 class TrainingExamplesTrainingDataGenerator(EmbeddedDocument):

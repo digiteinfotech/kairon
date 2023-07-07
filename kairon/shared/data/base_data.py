@@ -13,6 +13,7 @@ class AuditLogData(Document):
     entity = StringField(required=True)
     data = DictField()
 
+
     @queryset_manager
     def objects(cls, queryset):
         return queryset.order_by('-timestamp')

@@ -117,8 +117,9 @@ class ChatUtils:
                 if not last_session:
                     return events, message
                 events = list(conversations.aggregate([
-                    {"$match": {"sender_id": sender_id, "event.timestamp": {"$gt": last_session['event']['timestamp']}}},
-                    {"$match": {"event.event": {"$in": ["session_started", "user", "bot"]}}},
+                    {"$match": {"sender_id": sender_id, "event.timestamp": {"$gt": last_session['event']['timestamp']},
+                                "event.event": {"$in": ["session_started", "user", "bot"]}
+                                }},
                     {"$project": {"sender_id": 1, "event.event": 1, "event.timestamp": 1, "event.text": 1,
                                   "event.data": 1}},
                     {"$sort": {"event.timestamp": 1}},

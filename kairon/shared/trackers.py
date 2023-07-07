@@ -64,7 +64,8 @@ class KMongoTrackerStore(TrackerStore):
             IndexModel([("type", pymongo.ASCENDING), ("timestamp", pymongo.ASCENDING)]),
             IndexModel([("sender_id", pymongo.ASCENDING), ("conversation_id", pymongo.ASCENDING)]),
             IndexModel([("event.event", pymongo.ASCENDING), ("event.timestamp", pymongo.DESCENDING)]),
-            IndexModel([("event.name", pymongo.ASCENDING), ("event.timestamp", pymongo.DESCENDING)])
+            IndexModel([("event.name", pymongo.ASCENDING), ("event.timestamp", pymongo.DESCENDING)]),
+            IndexModel([("event.timestamp", pymongo.DESCENDING)])
         ]
         self.conversations.create_indexes(indexes)
 

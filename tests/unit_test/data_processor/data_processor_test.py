@@ -65,7 +65,8 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, BotContent, LLMSettings,
-                                             MultiflowStoryEvents
+                                             MultiflowStoryEvents, Synonyms,
+                                             Lookup
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -1132,20 +1133,24 @@ class TestMongoProcessor:
         assert training_data.intents == {'deny', 'greet'}
         assert training_data.entity_synonyms == {'Bangalore': 'karnataka', 'bengaluru': 'karnataka',
                                                  'karnataka': 'karnataka', 'KA': 'karnataka'}
+        assert Synonyms.objects(bot="test_upload_case_insensitivity").get(name="karnataka")
         assert training_data.regex_features == [{'name': 'application_name', 'pattern': '[azAz09\\s+]*'},
                                                 {'name': 'email_id', 'pattern': '[^@]+@[^@]+\\.[^@]+'}]
         assert training_data.lookup_tables == [{'name': 'application_name', 'elements': ['Firefox', 'Chrome', 'Tor']},
                                                {'name': 'location', 'elements': ['Mumbai', 'Karnataka', 'Bangalore']}]
+        lookups = list(Lookup.objects(bot="test_upload_case_insensitivity", status=True).values_list("name"))
+        assert all(item in lookups for item in ['application_name', 'location'])
         story_graph = processor.load_stories("test_upload_case_insensitivity")
         assert story_graph.story_steps[0].block_name == 'greet'
         assert story_graph.story_steps[1].block_name == 'say goodbye'
         domain = processor.load_domain("test_upload_case_insensitivity")
         assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id',
-                                 'location', 'user', 'kairon_action_response', 'image', 'video', 'audio', 'doc_url', 'document'] for slot in domain.slots)
+                                 'location', 'user', 'kairon_action_response', 'image', 'video', 'audio', 'doc_url',
+                                 'document'] for slot in domain.slots)
         assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                  'utter_default']
         assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
-                                   'image',  'audio','video', 'document', 'doc_url']
+                                   'image', 'audio', 'video', 'document', 'doc_url']
         assert domain.forms == {'ask_user': {'required_slots': {'user': [{'type': 'from_entity', 'entity': 'user'}],
                                                                 'email_id': [
                                                                     {'type': 'from_entity', 'entity': 'email_id'}]}},
@@ -4914,11 +4919,58 @@ class TestMongoProcessor:
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
+    def test_add_synonym(self):
+        processor = MongoProcessor()
+        bot = 'add_synonym'
+        user = 'test_user'
+        processor.add_synonym("bot", bot, user)
+
+        with pytest.raises(AppException, match="Synonym already exists!"):
+            processor.add_synonym("bot", bot, user)
+
+        with pytest.raises(ValidationError, match="Synonym cannot be empty or blank spaces"):
+            processor.add_synonym(" ", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_synonym(None, bot, user)
+
+    def test_add_synonym_single_value(self):
+        processor = MongoProcessor()
+        bot = 'add_synonym_single_value'
+        user = 'test_user'
+        processor.add_synonym("bot", bot, user)
+        processor.add_synonym_value("exp", "bot", bot, user)
+        syn = list(EntitySynonyms.objects(name__exact='bot', bot=bot, user=user))
+        assert syn[0]['name'] == "bot"
+        assert syn[0]['value'] == "exp"
+
+        with pytest.raises(AppException, match="Synonym value already exists"):
+            processor.add_synonym_value(
+                "exp", "bot", bot, user)
+
+        with pytest.raises(ValidationError, match="Synonym name and value cannot be empty or blank spaces"):
+            processor.add_synonym_value(
+                " ", "bot", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_synonym_value(
+                None, "bot", bot, user)
+
+
+        with pytest.raises(ValidationError, match="Synonym name and value cannot be empty or blank spaces"):
+            processor.add_synonym_value(
+                "exp", " ", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_synonym_value(
+                "exp", None, bot, user)
+
     def test_add__and_get_synonym(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
-        processor.add_synonym(
+        processor.add_synonym("bot", bot, user)
+        processor.add_synonym_values(
             {"name": "bot", "value": ["exp"]}, bot, user)
         syn = list(EntitySynonyms.objects(name__iexact='bot', bot=bot, user=user))
         assert syn[0]['name'] == "bot"
@@ -4935,7 +4987,7 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"name": "bot", "value": ["exp"]}, bot, user)
+            processor.add_synonym_values({"name": "bot", "value": ["exp"]}, bot, user)
         assert str(exp.value) == "Synonym value already exists"
 
     def test_edit_specific_synonym(self):
@@ -4967,10 +5019,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
-        processor.add_synonym({"name": "bot", "value": ["exp"]}, bot, user)
+        processor.add_synonym_values({"name": "bot", "value": ["exp"]}, bot, user)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 2
-        processor.delete_synonym_value(response[0]["_id"], bot, user)
+        processor.delete_synonym_value("bot", response[0]["_id"], bot)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 1
 
@@ -4982,49 +5034,59 @@ class TestMongoProcessor:
     def test_delete_non_existent_synonym(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_synonym_value("0123456789ab0123456789ab", "df", "ff")
+            processor.delete_synonym_value(value_id="0123456789ab0123456789ab", synonym_name="df", bot="ff")
 
     def test_delete_synonym_name(self):
         processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-        processor.delete_synonym("bot", bot, user)
+        bot = 'test_delete_synonym'
+        synonym_id = processor.add_synonym("bot", bot, "test")
+        response = list(processor.fetch_synonyms(bot))
+        assert len(response) == 1
+
+        processor.add_synonym_value("test", "bot", bot, "test")
+        response = list(processor.get_synonym_values("bot", bot))
+        assert len(response) == 1
+
+        processor.delete_synonym(synonym_id, bot)
+        response = list(processor.fetch_synonyms(bot))
+        assert len(response) == 0
+
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 0
 
     def test_delete_synonym_name_empty(self):
         processor = MongoProcessor()
-        with pytest.raises(AppException):
-            processor.delete_synonym(" ", "df", "ff")
+        with pytest.raises(ValidationError):
+            processor.delete_synonym(" ", "df")
 
     def test_delete_non_existent_synonym_name(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_synonym("0123456789ab0123456789ab", "df", "ff")
+            processor.delete_synonym(id="0123456789ab0123456789ab", bot="df")
 
     def test_add_empty_synonym(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"synonym": "", "value": ["exp"]}, bot, user)
-        assert str(exp.value) == "Synonym name cannot be an empty string"
+            processor.add_synonym_values({"synonym": "", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Synonym name cannot be an empty!"
 
     def test_add_synonym_with_empty_value_list(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"name": "bot", "value": []}, bot, user)
-        assert str(exp.value) == "Synonym value cannot be an empty string"
+            processor.add_synonym_values({"name": "bot", "value": []}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty!"
 
     def test_add_synonym_with_empty_element_in_value_list(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"name": "bot", "value": ["df", '']}, bot, user)
-        assert str(exp.value) == "Synonym value cannot be an empty string"
+            processor.add_synonym_values({"name": "bot", "value": ["df", '']}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty!"
 
     def test_add_utterance(self):
         processor = MongoProcessor()
@@ -5389,11 +5451,54 @@ class TestMongoProcessor:
             processor.add_regex({"name": "bot11", "pattern": "[0-9]++"}, bot=bot, user=user)
         assert str(e).__contains__("invalid regular expression")
 
-    def test_add__and_get_lookup(self):
+    def test_add_lookup(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup_value'
+        user = 'test_user'
+
+        processor.add_lookup("number", bot, user)
+        processor.add_lookup_value("number", "one", bot, user)
+
+        with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
+            processor.add_lookup_value("number", " ", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_lookup_value("number", None, bot, user)
+
+        with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
+            processor.add_lookup_value("number", "one", bot, user)
+
+
+        with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
+            processor.add_lookup_value(" ", "one", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_lookup_value(None, "one", bot, user)
+
+
+
+    def test_add_lookup(self):
         processor = MongoProcessor()
         bot = 'test_add_lookup'
         user = 'test_user'
-        processor.add_lookup(
+
+        processor.add_lookup("number", bot, user)
+
+        with pytest.raises(ValidationError, match="Lookup cannot be empty or blank spaces"):
+            processor.add_lookup(" ", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_lookup(None, bot, user)
+
+        with pytest.raises(AppException, match="Lookup already exists!"):
+            processor.add_lookup("number", bot, user)
+
+
+    def test_add__and_get_lookup_values(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup_values'
+        user = 'test_user'
+        processor.add_lookup_values(
             {"name": "number", "value": ["one"]}, bot, user)
         table = list(LookupTables.objects(name__iexact='number', bot=bot, user=user))
         assert table[0]['name'] == "number"
@@ -5401,105 +5506,112 @@ class TestMongoProcessor:
 
     def test_get_specific_lookup(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         response = list(processor.get_lookup_values("number", bot))
         assert response[0]["value"] == "one"
 
     def test_add_duplicate_lookup(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_lookup({"name": "number", "value": ["one"]}, bot, user)
-        assert str(exp.value) == "Lookup table value already exists"
+            processor.add_lookup_values({"name": "number", "value": ["one"]}, bot, user)
+        assert str(exp.value) == "Lookup value already exists"
 
     def test_edit_specific_lookup(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         response = list(processor.get_lookup_values("number", bot))
-        processor.edit_lookup(response[0]["_id"], "two", "number", bot, user)
+        processor.edit_lookup_value(response[0]["_id"], "two", "number", bot, user)
         response = list(processor.get_lookup_values("number", bot))
         assert response[0]["value"] == "two"
 
     def test_edit_lookup_duplicate(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         response = list(processor.get_lookup_values("number", bot))
         with pytest.raises(AppException):
-            processor.edit_lookup(response[0]["_id"], "two", "number", bot, user)
+            processor.edit_lookup_value(response[0]["_id"], "two", "number", bot, user)
 
     def test_edit_lookup_unavailable(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         response = list(processor.get_lookup_values("number", bot))
         with pytest.raises(AppException):
-            processor.edit_lookup(response[0]["_id"], "exp3", "bottt", bot, user)
+            processor.edit_lookup_value(response[0]["_id"], "exp3", "bottt", bot, user)
 
     def test_add_delete_lookup_value(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
-        processor.add_lookup({"name": "number", "value": ["one"]}, bot, user)
+        processor.add_lookup_values({"name": "number", "value": ["one"]}, bot, user)
         response = list(processor.get_lookup_values("number", bot))
         assert len(response) == 2
-        processor.delete_lookup_value(response[0]["_id"], bot, user)
+        processor.delete_lookup_value(response[0]["_id"], "number", bot)
         response = list(processor.get_lookup_values("number", bot))
         assert len(response) == 1
 
     def test_delete_lookup_value_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup_value(" ", "df", "ff")
+            processor.delete_lookup_value(" ", "df", "test")
 
     def test_delete_non_existent_lookup(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "ff")
+            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "test")
 
     def test_delete_lookup_name(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_delete_lookup'
         user = 'test_user'
-        processor.delete_lookup("number", bot, user)
-        response = list(processor.get_lookup_values("number", bot))
+        lookup_id = processor.add_lookup("bot", bot, user)
+        processor.add_lookup_value("bot", "exp", bot, user)
+        assert len(list(processor.get_lookups(bot))) == 1
+        assert len(list(processor.get_lookup_values("bot", bot))) == 1
+        processor.delete_lookup(lookup_id, bot)
+        response = list(processor.get_lookups(bot))
+        assert len(response) == 0
+        response = list(processor.get_lookup_values("bot", bot))
         assert len(response) == 0
 
     def test_delete_lookup_name_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup(" ", "df", "ff")
+            processor.delete_lookup(" ", "df")
 
     def test_delete_non_existent_lookup_name(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup("0123456789ab0123456789ab", "df", "ff")
+            processor.delete_lookup("0123456789ab0123456789ab", "df")
 
     def test_add_empty_lookup(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_lookup({"name": "", "value": ["exp"]}, bot, user)
-        assert str(exp.value) == "Lookup table name cannot be an empty string"
+            processor.add_lookup_values({"name": "", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Lookup cannot be an empty string"
 
     def test_add_lookup_with_empty_value_list(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_lookup({"name": "bot", "value": []}, bot, user)
-        assert str(exp.value) == "Lookup Table value cannot be an empty string"
+            processor.add_lookup_values({"name": "bot", "value": []}, bot, user)
+        assert str(exp.value) == "Lookup value cannot be an empty string"
 
     def test_add_lookup_with_empty_element_in_value_list(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
+        processor.add_lookup("bot", bot, user)
         with pytest.raises(AppException) as exp:
-            processor.add_lookup({"name": "bot", "value": ["df", '']}, bot, user)
-        assert str(exp.value) == "Lookup table value cannot be an empty string"
+            processor.add_lookup_values({"name": "bot", "value": ["df", '']}, bot, user)
+        assert str(exp.value) == "Lookup value cannot be an empty string"
 
     def test_add_slot_mapping_slot_not_added(self):
         processor = MongoProcessor()
@@ -6749,7 +6861,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         stories = list(processor.get_stories(bot))
-        print(stories)
         assert stories[20]['name'] == 'story with form'
         assert stories[20]['type'] == 'STORY'
         assert stories[20]['steps'][0]['name'] == 'greet'

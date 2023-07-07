@@ -1012,9 +1012,10 @@ async def get_all_synonyms(
     return {"data": synonyms}
 
 
-@router.get("/entity/synonyms/{name}", response_model=Response)
+@router.get("/entity/synonym/{name:path}/values", response_model=Response)
 async def get_synonym_values(
-        name: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        name: constr(to_lower=True, strip_whitespace=True),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
     Fetches list of values against synonym name
@@ -1024,27 +1025,68 @@ async def get_synonym_values(
     }
 
 
-@router.post("/entity/synonyms", response_model=Response)
-async def add_synonyms(
+@router.post("/entity/synonym", response_model=Response)
+async def add_synonym(
+        request_data: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+       adds a new synonym values
+       :param name:
+       :param request_data:
+       :param current_user:
+       :return: Success message and sysnonym value id
+   """
+    id = mongo_processor.add_synonym(synonym_name=request_data.data,
+                                     bot=current_user.get_bot(),
+                                     user=current_user.get_user())
+    return {"data": {"_id": id}, "message": "Synonym added!"}
+
+
+@router.post("/entity/synonym/{name:path}/value", response_model=Response)
+async def add_synonym_value(
+        name: str,
+        request_data: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+       adds a new synonym values
+       :param name:
+       :param request_data:
+       :param current_user:
+       :return: Success message and sysnonym value id
+   """
+    id = mongo_processor.add_synonym_value(value=request_data.data,
+                                           synonym_name=name,
+                                           bot=current_user.get_bot(),
+                                           user=current_user.get_user())
+    return {"data": {"_id": id}, "message": "Synonym value added!"}
+
+
+@router.post("/entity/synonym/{name:path}/values", response_model=Response)
+async def add_synonym_values(
+        name: str,
         request_data: SynonymRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
-    adds a new synonym and its values
+    adds values to synonym
+    :param name:
     :param request_data:
     :param current_user:
     :return: Success message
     """
+    data = request_data.dict()
+    data['name'] = name
+    added_synonyms = mongo_processor.add_synonym_values(synonyms_dict=data, bot=current_user.get_bot(),
+                                                        user=current_user.get_user())
 
-    mongo_processor.add_synonym(synonyms_dict=request_data.dict(), bot=current_user.get_bot(),
-                                user=current_user.get_user())
-
-    return {"message": "Synonym and values added successfully!"}
+    return {"data": added_synonyms, "message": "Synonym values added!"}
 
 
-@router.put("/entity/synonyms/{name}/{id}", response_model=Response)
-async def edit_synonym(
-        name: str,
+@router.put("/entity/synonym/{name:path}/value/{id}", response_model=Response)
+async def edit_synonym_value(
+        name: constr(to_lower=True, strip_whitespace=True),
         id: str,
         request_data: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -1060,29 +1102,40 @@ async def edit_synonym(
         current_user.get_user(),
     )
     return {
-        "message": "Synonym updated!"
+        "message": "Synonym value updated!"
     }
 
 
-@router.delete("/entity/synonyms/{delete_synonym}", response_model=Response)
+@router.delete("/entity/synonym/{id}", response_model=Response)
 async def delete_synonym_value(
-        request_data: TextData,
-        delete_synonym: bool = Path(default=False, description="Deletes synonym if True"),
+        id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
-    Deletes existing synonym completely along with its examples.
+    Deletes existing synonym with value.
     """
-    if delete_synonym:
-        mongo_processor.delete_synonym(
-            request_data.data, current_user.get_bot(), current_user.get_user()
-        )
-    else:
-        mongo_processor.delete_synonym_value(
-            request_data.data, current_user.get_bot(), current_user.get_user()
-        )
+    mongo_processor.delete_synonym(
+        id=id, bot=current_user.get_bot()
+    )
     return {
         "message": "Synonym removed!"
+    }
+
+
+@router.delete("/entity/synonym/{name:path}/value/{id}", response_model=Response)
+async def delete_synonym_value(
+        name: constr(to_lower=True, strip_whitespace=True),
+        id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes existing synonym value.
+    """
+    mongo_processor.delete_synonym_value(
+        synonym_name=name, value_id=id, bot=current_user.get_bot()
+    )
+    return {
+        "message": "Synonym value removed!"
     }
 
 
@@ -1200,18 +1253,18 @@ async def delete_regex(
     return {"message": "Regex pattern deleted!"}
 
 
-@router.get("/lookup/tables", response_model=Response)
+@router.get("/lookups", response_model=Response)
 async def get_all_lookup_tables(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """
     Fetches the stored lookup tables of the bot
     """
-    lookup = list(mongo_processor.fetch_lookup_tables(bot=current_user.get_bot()))
+    lookup = list(mongo_processor.get_lookups(bot=current_user.get_bot()))
     return {"data": lookup}
 
 
-@router.get("/lookup/tables/{name}", response_model=Response)
+@router.get("/lookup/{name:path}/values", response_model=Response)
 async def get_lookup_values(
         name: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -1223,26 +1276,68 @@ async def get_lookup_values(
     }
 
 
-@router.post("/lookup/tables", response_model=Response)
+@router.post("/lookup", response_model=Response)
 async def add_lookup(
+        request_data: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    adds a new lookup
+    :param name:
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+    id = mongo_processor.add_lookup(lookup_name=request_data.data, bot=current_user.get_bot(),
+                               user=current_user.get_user())
+
+    return {"message": "Lookup added!", "data": {"_id": id}}
+
+
+@router.post("/lookup/{name:path}/values", response_model=Response)
+async def add_lookup_values(
+        name: str,
         request_data: LookupTablesRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     adds a new lookup table and its values
+    :param name:
     :param request_data:
     :param current_user:
     :return: Success message
     """
+    data = request_data.dict()
+    data['name'] = name
+    values = mongo_processor.add_lookup_values(lookup_dict=data, bot=current_user.get_bot(),
+                                      user=current_user.get_user())
 
-    mongo_processor.add_lookup(lookup_dict=request_data.dict(), bot=current_user.get_bot(),
-                               user=current_user.get_user())
-
-    return {"message": "Lookup table and values added successfully!"}
+    return {"message": "Lookup values added!", "data": values}
 
 
-@router.put("/lookup/tables/{name}/{id}", response_model=Response)
-async def edit_lookup(
+@router.post("/lookup/{name:path}/value", response_model=Response)
+async def add_lookup_value(
+        name: str,
+        request_data: TextData,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    adds a new lookup table and its values
+    :param name:
+    :param request_data:
+    :param current_user:
+    :return: Success message
+    """
+    id = mongo_processor.add_lookup_value(lookup_name=name,
+                                     lookup_value=request_data.data,
+                                     bot=current_user.get_bot(),
+                                     user=current_user.get_user())
+
+    return {"message": "Lookup value added!", "data": {"_id": id}}
+
+
+@router.put("/lookup/{name:path}/value/{id}", response_model=Response)
+async def edit_lookup_value(
         name: str,
         id: str,
         request_data: TextData,
@@ -1251,7 +1346,7 @@ async def edit_lookup(
     """
     Updates existing lookup table value
     """
-    mongo_processor.edit_lookup(
+    mongo_processor.edit_lookup_value(
         id,
         request_data.data,
         name,
@@ -1259,29 +1354,40 @@ async def edit_lookup(
         current_user.get_user(),
     )
     return {
-        "message": "Lookup table updated!"
+        "message": "Lookup value updated!"
     }
 
 
-@router.delete("/lookup/tables/{delete_table}", response_model=Response)
+@router.delete("/lookup/{name:path}/value/{id}", response_model=Response)
 async def delete_lookup_value(
-        request_data: TextData,
-        delete_table: bool = Path(default=False, description="Deletes lookup table if True"),
+        name: str,
+        id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
-    Deletes existing lookup table completely along with its examples.
+    Deletes existing lookup value.
     """
-    if delete_table:
-        mongo_processor.delete_lookup(
-            request_data.data, current_user.get_bot(), current_user.get_user()
-        )
-    else:
-        mongo_processor.delete_lookup_value(
-            request_data.data, current_user.get_bot(), current_user.get_user()
-        )
+    mongo_processor.delete_lookup_value(
+        id, name, current_user.get_bot()
+    )
     return {
-        "message": "Lookup Table removed!"
+        "message": "Lookup value removed!"
+    }
+
+
+@router.delete("/lookup/{id}", response_model=Response)
+async def delete_lookup(
+        id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes existing lookup.
+    """
+    mongo_processor.delete_lookup(
+        id, current_user.get_bot()
+    )
+    return {
+        "message": "Lookup removed!"
     }
 
 
@@ -1433,15 +1539,16 @@ async def list_bot_assets(
 
 
 @router.post("/audit/event/config", response_model=Response)
-async def set_auditlog_config(request_data: EventConfig, current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                                             scopes=DESIGNER_ACCESS)):
+async def set_auditlog_config(request_data: EventConfig,
+                              current_user: User = Security(Authentication.get_current_user_and_bot,
+                                                            scopes=DESIGNER_ACCESS)):
     mongo_processor.save_auditlog_event_config(current_user.get_bot(), current_user.get_user(), request_data.dict())
     return {"message": "Event config saved"}
 
 
 @router.get("/audit/event/config", response_model=Response)
 async def get_auditlog_config(current_user: User = Security(Authentication.get_current_user_and_bot,
-                                                                             scopes=DESIGNER_ACCESS)):
+                                                            scopes=DESIGNER_ACCESS)):
     data = mongo_processor.get_auditlog_event_config(current_user.get_bot())
     return Response(data=data)
 
@@ -1486,12 +1593,14 @@ async def get_qna_flattened(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     qna = list(mongo_processor.flatten_qna(current_user.get_bot(), start_idx, page_size))
-    page_cnt = mongo_processor.get_row_count(Rules, current_user.get_bot(), status=True, template_type=TemplateType.QNA.value)
+    page_cnt = mongo_processor.get_row_count(Rules, current_user.get_bot(), status=True,
+                                             template_type=TemplateType.QNA.value)
     data = {
         "qna": qna,
         "total": page_cnt
     }
     return Response(data=data)
+
 
 router.include_router(v2, prefix="/v2")
 

@@ -93,7 +93,9 @@ class TestChat:
                     "test"
                 )
 
-    def test_save_channel_config_slack_team_id_error(self):
+    @patch("kairon.shared.utils.Utility.get_slack_team_info", autospec=True)
+    def test_save_channel_config_slack_team_id_error(self, mock_slack_info):
+        mock_slack_info.side_effect = AppException("The request to the Slack API failed. ")
         with pytest.raises(AppException, match="The request to the Slack API failed.*"):
             ChatDataProcessor.save_channel_config({
                 "connector_type": "slack", "config": {
@@ -132,7 +134,9 @@ class TestChat:
                     "client_secret": "a23456789sfdghhtyutryuivcbn", "is_primary": True}}, "test", "test"
             )
 
-    def test_save_channel_config_slack_secondary_app_team_id_error(self):
+    @patch("kairon.shared.utils.Utility.get_slack_team_info", autospec=True)
+    def test_save_channel_config_slack_secondary_app_team_id_error(self, mock_slack_info        ):
+        mock_slack_info.side_effect = AppException("The request to the Slack API failed. ")
         with pytest.raises(AppException, match="The request to the Slack API failed.*"):
             ChatDataProcessor.save_channel_config({
                 "connector_type": "slack", "config": {

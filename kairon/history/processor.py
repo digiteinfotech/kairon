@@ -7,6 +7,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
+from dateutil.relativedelta import relativedelta
 
 
 class HistoryProcessor:
@@ -295,7 +296,6 @@ class HistoryProcessor:
                                                  "steps": 1,
                                                  "latest_event_time": 1,
                                              }},
-                                             {"$sort": {"latest_event_time": -1}}
                                              ], allowDiskUse=True))
         except Exception as e:
             logger.error(e)
@@ -374,7 +374,11 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 values = list(
-                    conversations.aggregate([{"$match": { "event.name": {"$regex": ".*session_start*."}}},
+                    conversations.aggregate([{"$match": {"event.event": "session_started",
+                                                         "event.timestamp": {
+                                                             "$gte": Utility.get_timestamp_from_date(from_date),
+                                                             "$lte": Utility.get_timestamp_from_date(to_date)}
+                                                         }},
                                              {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": '$sender_id',
                                                          "latest_event_time": {"$first": "$event.timestamp"},
@@ -494,7 +498,11 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 total = list(conversations.distinct("sender_id")).__len__()
                 repeating_users = list(
-                    conversations.aggregate([{"$match": { "event.name": {"$regex": ".*session_start*."}}},
+                    conversations.aggregate([{"$match": { "event.event": "session_started",
+                                                          "event.timestamp": {
+                                                              "$gte": Utility.get_timestamp_from_date(from_date),
+                                                              "$lte": Utility.get_timestamp_from_date(to_date)}
+                                                          }},
                                              {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": '$sender_id',
                                                          "latest_event_time": {"$last": "$event.timestamp"},
@@ -600,7 +608,11 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 values = list(
-                    conversations.aggregate([{"$match": {"event.name": {"$regex": ".*session_start*."}}},
+                    conversations.aggregate([{"$match": {"event.event": "session_started",
+                                                         "event.timestamp": {
+                                                             "$gte": Utility.get_timestamp_from_date(from_date),
+                                                             "$lte": Utility.get_timestamp_from_date(to_date)}
+                                                         }},
                                              {"$sort": {"event.timestamp": 1}},
                                              {"$group": {"_id": '$sender_id',
                                                          "latest_event_time": {"$first": "$event.timestamp"},
@@ -713,7 +725,7 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 total = list(
-                    conversations.aggregate([{"$match": {"event.name": {"$regex": ".*session_start*."},
+                    conversations.aggregate([{"$match": {"event.event": "session_started",
                                                          "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                                              "$lte": Utility.get_timestamp_from_date(to_date)}
                                                          }
@@ -723,7 +735,7 @@ class HistoryProcessor:
                         {"$project": {"_id": 1, "count": 1}}
                     ]))
                 repeating_users = list(
-                    conversations.aggregate([{"$match": {"event.name": {"$regex": ".*session_start*."},
+                    conversations.aggregate([{"$match": {"event.event": "session_started",
                                                          "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                                              "$lte": Utility.get_timestamp_from_date(to_date)}
                                                          }
@@ -873,7 +885,9 @@ class HistoryProcessor:
                 total = list(
                     conversations.aggregate([
                         {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                        "$lte": Utility.get_timestamp_from_date(to_date)}}},
+                                                        "$lte": Utility.get_timestamp_from_date(to_date)},
+                                    "event.event": "user"
+                                    }},
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
 
                         {"$group": {"_id": {"month": "$month", "sender_id": "$sender_id"}}},
