@@ -140,6 +140,7 @@ class ACCESS_ROLES(str, Enum):
     DESIGNER = "designer"
     TESTER = "tester"
     CHAT = "chat"
+    VIEW = "view"
 
 
 class ACTIVITY_STATUS(str, Enum):
