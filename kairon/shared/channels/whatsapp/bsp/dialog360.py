@@ -33,10 +33,10 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers, validate_status=True, err_msg="Failed to retrieve account info: ")
         return resp.get("partner_channels", {})[0].get("waba_account", {}).get("id")
 
-    def post_process(self, bsp_type: Text):
+    def post_process(self, **kwargs):
         try:
             config = ChatDataProcessor.get_channel_config(
-                ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False, config__bsp_type=bsp_type
+                ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False, config__bsp_type=kwargs.get('bsp_type')
             )
             channel_id = config.get("config", {}).get("channel_id")
             api_key = BSP360Dialog.generate_waba_key(channel_id)
@@ -59,8 +59,8 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         config["config"] = conf
         return ChatDataProcessor.save_channel_config(config, bot, user)
 
-    def save_channel_config(self, client_name: Text, client_id: Text, channel_id: Text, bsp_type: Text,
-                            partner_id: Text = None):
+    def save_channel_config(self, client_name: Text, client_id: Text, channel_id: Text,
+                            partner_id: Text = None, **kwargs):
         if partner_id is None:
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
 
@@ -72,7 +72,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
                 "partner_id": Utility.sanitise_data(partner_id),
                 "waba_account_id": self.get_account(channel_id),
                 "api_key": BSP360Dialog.generate_waba_key(channel_id),
-                "bsp_type": bsp_type
+                "bsp_type": kwargs.get('bsp_type')
             }, "connector_type": ChannelTypes.WHATSAPP.value
         }
         return ChatDataProcessor.save_channel_config(conf, self.bot, self.user)

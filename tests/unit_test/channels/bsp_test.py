@@ -213,7 +213,8 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'get_account', _get_waba_account_id)
 
         with pytest.raises(ValidationError, match="Feature disabled for this account. Please contact support!"):
-            BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id, "360dialog_on_premise")
+            BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id,
+                                                        bsp_type="360dialog_on_premise")
 
     def test_save_channel_config(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328f5"
@@ -242,7 +243,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'get_account', _get_waba_account_id)
 
         endpoint = BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id,
-                                                               "360dialog_on_premise")
+                                                               bsp_type="360dialog_on_premise")
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
@@ -275,7 +276,8 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'generate_waba_key', _generate_waba_key)
         monkeypatch.setattr(BSP360Dialog, 'get_account', _get_waba_account_id)
 
-        endpoint = BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id, "360dialog_cloud")
+        endpoint = BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id,
+                                                               bsp_type="360dialog_cloud")
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
@@ -309,8 +311,8 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'generate_waba_key', _generate_waba_key)
         monkeypatch.setattr(BSP360Dialog, 'get_account', _get_waba_account_id)
 
-        endpoint = BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id,
-                                                               "360dialog_on_premise", partner_id)
+        endpoint = BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id,  partner_id,
+                                                               bsp_type="360dialog_on_premise")
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328ff/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
@@ -445,7 +447,8 @@ class TestBusinessServiceProvider:
         url = ChatDataProcessor.save_channel_config(config, "62bc24b493a0d6b7a46328f5", "test@demo.in")
         assert url == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
 
-        webhook_url = BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process("360dialog_on_premise")
+        webhook_url = BSP360Dialog("62bc24b493a0d6b7a46328f5",
+                                   "test@demo.in").post_process(bsp_type="360dialog_on_premise")
         assert webhook_url == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
 
     def test_post_process_bsp_disabled(self, monkeypatch):
@@ -468,7 +471,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
         
         with pytest.raises(AppException, match="Feature disabled for this account. Please contact support!"):
-            BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process("360dialog_on_premise")
+            BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process(bsp_type="360dialog_on_premise")
 
     @responses.activate
     def test_post_process_error(self):
@@ -477,11 +480,11 @@ class TestBusinessServiceProvider:
         url = f"{base_url}/api/v2/token"
         responses.add("POST", json={}, url=url, status=500)
         with pytest.raises(AppException, match=r'Failed to get partner auth token: *'):
-            BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process("360dialog_on_premise")
+            BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process(bsp_type="360dialog_on_premise")
 
     def test_post_process_client_config_deleted(self):
         with pytest.raises(AppException, match="Channel not found!"):
-            BSP360Dialog("test_bot", "test@demo.in").post_process("360dialog_on_premise")
+            BSP360Dialog("test_bot", "test@demo.in").post_process(bsp_type="360dialog_on_premise")
 
     def test_post_process_with_bsp_cloud(self, monkeypatch):
         def _generate_waba_key(*args, **kwargs):
@@ -519,7 +522,7 @@ class TestBusinessServiceProvider:
         url = ChatDataProcessor.save_channel_config(config, "62bc24b493a0d6b7a46328f5", "test@demo.in")
         assert url == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
 
-        webhook_url = BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process("360dialog_cloud")
+        webhook_url = BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process(bsp_type="360dialog_cloud")
         assert webhook_url == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
 
     def test_bsp_factory_error(self):
