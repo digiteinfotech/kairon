@@ -142,6 +142,9 @@ class MongoProcessor:
         config = self.load_config(bot)
         chat_client_config = self.load_chat_client_config(bot, user)
         rules = self.get_rules_for_training(bot)
+        multiflow_stories = self.load_multiflow_stories(bot)
+        stories = stories.merge(multiflow_stories[0])
+        rules = rules.merge(multiflow_stories[1])
         actions = self.load_action_configurations(bot)
         return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, chat_client_config)
 
@@ -387,19 +390,21 @@ class MongoProcessor:
 
     def load_stories(self, bot: Text) -> StoryGraph:
         """
-        loads stories for training
+        loads multiflow stories for training.
+        Each multiflow story is divided into linear stories and segregated into either story or rule.
 
         :param bot: bot id
         :return: StoryGraph
         """
         return self.__prepare_training_story(bot)
 
-    def load_multiflow_stories(self, bot: Text) -> StoryGraph:
+    def load_multiflow_stories(self, bot: Text) -> (StoryGraph, StoryGraph):
         """
-        loads stories for training
+        loads multiflow stories for training.
+        Each multiflow story is divided into linear stories and segregated into either story or rule.
 
         :param bot: bot id
-        :return: StoryGraph
+        :return: Tuple with 2 StoryGraph objects, one each for Stories and Rules.
         """
         return self.__prepare_training_multiflow_story(bot)
 
@@ -1221,12 +1226,20 @@ class MongoProcessor:
                 )
                 count += 1
 
-
     def __prepare_training_story(self, bot: Text):
         return StoryGraph(list(self.__prepare_training_story_step(bot)))
 
     def __prepare_training_multiflow_story(self, bot: Text):
-        return StoryGraph(list(self.__prepare_training_multiflow_story_step(bot)))
+        from rasa.shared.core.training_data.structures import RuleStep
+
+        rule_steps = []
+        story_steps = []
+        for flow in list(self.__prepare_training_multiflow_story_step(bot)):
+            if isinstance(flow, RuleStep):
+                rule_steps.append(flow)
+            else:
+                story_steps.append(flow)
+        return StoryGraph(story_steps), StoryGraph(rule_steps)
 
     def save_config(self, configs: dict, bot: Text, user: Text):
         """
@@ -2524,6 +2537,7 @@ class MongoProcessor:
             item = value.to_mongo().to_dict()
             block_name = item.pop("block_name")
             events = item.pop("events")
+            final_data['metadata'] = item.pop("metadata")
             final_data['type'] = StoryType.multiflow_story.value
             final_data["_id"] = item["_id"].__str__()
             final_data['name'] = block_name

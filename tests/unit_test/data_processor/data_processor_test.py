@@ -2467,6 +2467,91 @@ class TestMongoProcessor:
         file = processor.download_files("tests", "user@integration.com")
         assert file.endswith(".zip")
 
+    def test_download_data_files_multiflow_stories(self, monkeypatch):
+        from zipfile import ZipFile
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        story_name = "multiflow_story_STORY_download_data_files"
+        steps = [
+            {"step": {"name": "asking", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_asking", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_asking", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moodyy", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foodyy", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foodyy", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foodyy", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foodyy", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moodyy", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moodyy", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moodyy", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "tests_download", "user@integration.com")
+        file = processor.download_files("tests_download", "user@integration.com")
+        assert file.endswith(".zip")
+        zip_file = ZipFile(file, mode='r')
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        file_info_stories = zip_file.getinfo('data/stories.yml')
+        file_info_rules = zip_file.getinfo('data/rules.yml')
+        file_content_stories = zip_file.read(file_info_stories)
+        file_content_rules = zip_file.read(file_info_rules)
+
+        assert file_content_stories == b'version: "2.0"\nstories:\n- story: multiflow_story_story_download_data_files_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_content_rules == b'version: "2.0"\nrules:\n- rule: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: foodyy\n  - action: utter_foodyy\n'
+        zip_file.close()
+
+    def test_download_data_files_empty_data(self, monkeypatch):
+        from zipfile import ZipFile
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+
+        file = processor.download_files("tests_download_empty_data", "user@integration.com")
+        assert file.endswith(".zip")
+        zip_file = ZipFile(file, mode='r')
+        assert zip_file.filelist.__len__() == 8
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        file_info_stories = zip_file.getinfo('data/stories.yml')
+        file_info_rules = zip_file.getinfo('data/rules.yml')
+        file_content_stories = zip_file.read(file_info_stories)
+        file_content_rules = zip_file.read(file_info_rules)
+        assert file_content_stories == b'version: "2.0"\n'
+        assert file_content_rules == b'version: "2.0"\n'
+        zip_file.close()
+
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
         expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
@@ -2580,6 +2665,185 @@ class TestMongoProcessor:
             {'step': {'name': 'record', 'type': 'INTENT', 'node_id': '3', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
              'connections': [
                  {'name': 'utter_record', 'type': 'BOT', 'node_id': '6', 'component_id': '63e63sU5PHRQnnINYPZitORt'}]}]
+
+    def test_get_multiflow_stories_with_STORY_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_STORY"
+        bot = "test_get_path_story"
+        user = "test_get_user_path_story"
+        steps = [
+            {"step": {"name": "asker", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_ask", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_ask", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_food", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_story"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_story'
+
+    def test_get_multiflow_stories_with_RULE_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_RULE"
+        bot = "test_get_path_rule"
+        user = "test_get_user_path_rule"
+        steps = [
+            {"step": {"name": "asker", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_asker", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_asker", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_rule"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_rule'
+
+    def test_get_multiflow_stories_with_empty_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_empty_metadata"
+        bot = "test_get_path_empty_metadata"
+        user = "test_get_user_path_empty_metadata"
+        steps = [
+            {"step": {"name": "question", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_question", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_question", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_empty_metadata"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == []
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_empty_metadata'
+
+    def test_get_multiflow_stories_with_empty_path_type_metadata(self):
+        processor = MongoProcessor()
+        story_name = "test_get_multiflow_stories_with_empty_path_type_metadata"
+        bot = "test_get_empty_path_type_metadata"
+        user = "test_get_user_empty_path_type_metadata"
+        steps = [
+            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6'}, {"node_id": "5"}]
+        story_dict = {'name': story_name, 'steps': steps, 'metadata': metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_empty_path_type_metadata"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['name'] == 'test_get_multiflow_stories_with_empty_path_type_metadata'
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -9388,10 +9652,10 @@ class TestMongoProcessor:
         assert stories[0]['type'] == "MULTIFLOW"
         assert len(stories[0]['steps']) == 6
         load_story = processor.load_multiflow_stories(bot)
-        assert load_story.story_steps[0].events[2].key == 'food'
-        assert load_story.story_steps[0].events[2].value == 'Indian'
-        assert load_story.story_steps[1].events[2].key == 'mood'
-        assert load_story.story_steps[1].events[2].value == 'Happy'
+        assert load_story[0].story_steps[0].events[2].key == 'food'
+        assert load_story[0].story_steps[0].events[2].value == 'Indian'
+        assert load_story[0].story_steps[1].events[2].key == 'mood'
+        assert load_story[0].story_steps[1].events[2].value == 'Happy'
 
     def test_add_multiflow_story_with_slot_value_int(self):
         processor = MongoProcessor()
@@ -9912,15 +10176,15 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict_two, bot, user)
         processor.add_multiflow_story(story_dict_three, bot, user)
         multiflow_story = processor.load_multiflow_stories(bot)
-        assert multiflow_story.story_steps[0].block_name == 'greeting story_1'
-        assert multiflow_story.story_steps[1].block_name == 'greeting story_2'
-        assert multiflow_story.story_steps[2].block_name == 'farmer story_1'
-        assert multiflow_story.story_steps[3].block_name == 'farmer story_2'
-        assert multiflow_story.story_steps[4].block_name == 'shopping story_1'
-        assert multiflow_story.story_steps[5].block_name == 'shopping story_2'
-        assert multiflow_story.story_steps[1].events[0].action_name == '...'
-        assert multiflow_story.story_steps[4].events[0].action_name == '...'
-        assert multiflow_story.story_steps[5].events[0].action_name == '...'
+        assert multiflow_story[0].story_steps[0].block_name == 'greeting story_1'
+        assert multiflow_story[1].story_steps[0].block_name == 'greeting story_2'
+        assert multiflow_story[0].story_steps[1].block_name == 'farmer story_1'
+        assert multiflow_story[0].story_steps[2].block_name == 'farmer story_2'
+        assert multiflow_story[1].story_steps[1].block_name == 'shopping story_1'
+        assert multiflow_story[1].story_steps[2].block_name == 'shopping story_2'
+        assert multiflow_story[1].story_steps[0].events[0].action_name == '...'
+        assert multiflow_story[1].story_steps[1].events[0].action_name == '...'
+        assert multiflow_story[1].story_steps[2].events[0].action_name == '...'
 
     def test_add_multiflow_story_with_path_type_for_invalid_node(self):
         processor = MongoProcessor()
