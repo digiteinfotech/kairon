@@ -110,9 +110,10 @@ def train_model_for_bot(bot: str):
     domain = processor.load_domain(bot)
     stories = processor.load_stories(bot)
     multiflow_stories = processor.load_multiflow_stories(bot)
-    stories = stories.merge(multiflow_stories)
+    stories = stories.merge(multiflow_stories[0])
     config = processor.load_config(bot)
     rules = processor.get_rules_for_training(bot)
+    rules = rules.merge(multiflow_stories[1])
 
     directory = Utility.write_training_data(
         nlu,

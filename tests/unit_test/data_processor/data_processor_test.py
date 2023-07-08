@@ -65,7 +65,8 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, BotContent, LLMSettings,
-                                             MultiflowStoryEvents
+                                             MultiflowStoryEvents, Synonyms,
+                                             Lookup
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -1132,20 +1133,24 @@ class TestMongoProcessor:
         assert training_data.intents == {'deny', 'greet'}
         assert training_data.entity_synonyms == {'Bangalore': 'karnataka', 'bengaluru': 'karnataka',
                                                  'karnataka': 'karnataka', 'KA': 'karnataka'}
+        assert Synonyms.objects(bot="test_upload_case_insensitivity").get(name="karnataka")
         assert training_data.regex_features == [{'name': 'application_name', 'pattern': '[azAz09\\s+]*'},
                                                 {'name': 'email_id', 'pattern': '[^@]+@[^@]+\\.[^@]+'}]
         assert training_data.lookup_tables == [{'name': 'application_name', 'elements': ['Firefox', 'Chrome', 'Tor']},
                                                {'name': 'location', 'elements': ['Mumbai', 'Karnataka', 'Bangalore']}]
+        lookups = list(Lookup.objects(bot="test_upload_case_insensitivity", status=True).values_list("name"))
+        assert all(item in lookups for item in ['application_name', 'location'])
         story_graph = processor.load_stories("test_upload_case_insensitivity")
         assert story_graph.story_steps[0].block_name == 'greet'
         assert story_graph.story_steps[1].block_name == 'say goodbye'
         domain = processor.load_domain("test_upload_case_insensitivity")
         assert all(slot.name in ['session_started_metadata', 'requested_slot', 'application_name', 'bot', 'email_id',
-                                 'location', 'user', 'kairon_action_response', 'image', 'video', 'audio', 'doc_url', 'document'] for slot in domain.slots)
+                                 'location', 'user', 'kairon_action_response', 'image', 'video', 'audio', 'doc_url',
+                                 'document'] for slot in domain.slots)
         assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                  'utter_default']
         assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
-                                   'image',  'audio','video', 'document', 'doc_url']
+                                   'image', 'audio', 'video', 'document', 'doc_url']
         assert domain.forms == {'ask_user': {'required_slots': {'user': [{'type': 'from_entity', 'entity': 'user'}],
                                                                 'email_id': [
                                                                     {'type': 'from_entity', 'entity': 'email_id'}]}},
@@ -2462,6 +2467,91 @@ class TestMongoProcessor:
         file = processor.download_files("tests", "user@integration.com")
         assert file.endswith(".zip")
 
+    def test_download_data_files_multiflow_stories(self, monkeypatch):
+        from zipfile import ZipFile
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        story_name = "multiflow_story_STORY_download_data_files"
+        steps = [
+            {"step": {"name": "asking", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_asking", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_asking", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moodyy", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foodyy", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foodyy", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foodyy", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foodyy", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moodyy", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moodyy", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moodyy", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "tests_download", "user@integration.com")
+        file = processor.download_files("tests_download", "user@integration.com")
+        assert file.endswith(".zip")
+        zip_file = ZipFile(file, mode='r')
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        file_info_stories = zip_file.getinfo('data/stories.yml')
+        file_info_rules = zip_file.getinfo('data/rules.yml')
+        file_content_stories = zip_file.read(file_info_stories)
+        file_content_rules = zip_file.read(file_info_rules)
+
+        assert file_content_stories == b'version: "2.0"\nstories:\n- story: multiflow_story_story_download_data_files_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_content_rules == b'version: "2.0"\nrules:\n- rule: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: foodyy\n  - action: utter_foodyy\n'
+        zip_file.close()
+
+    def test_download_data_files_empty_data(self, monkeypatch):
+        from zipfile import ZipFile
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+
+        file = processor.download_files("tests_download_empty_data", "user@integration.com")
+        assert file.endswith(".zip")
+        zip_file = ZipFile(file, mode='r')
+        assert zip_file.filelist.__len__() == 8
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        file_info_stories = zip_file.getinfo('data/stories.yml')
+        file_info_rules = zip_file.getinfo('data/rules.yml')
+        file_content_stories = zip_file.read(file_info_stories)
+        file_content_rules = zip_file.read(file_info_rules)
+        assert file_content_stories == b'version: "2.0"\n'
+        assert file_content_rules == b'version: "2.0"\n'
+        zip_file.close()
+
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
         expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
@@ -2575,6 +2665,185 @@ class TestMongoProcessor:
             {'step': {'name': 'record', 'type': 'INTENT', 'node_id': '3', 'component_id': '634nMJ9hAAtbgr6Wn1Fhm89D'},
              'connections': [
                  {'name': 'utter_record', 'type': 'BOT', 'node_id': '6', 'component_id': '63e63sU5PHRQnnINYPZitORt'}]}]
+
+    def test_get_multiflow_stories_with_STORY_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_STORY"
+        bot = "test_get_path_story"
+        user = "test_get_user_path_story"
+        steps = [
+            {"step": {"name": "asker", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_ask", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_ask", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_food", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_story"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_story'
+
+    def test_get_multiflow_stories_with_RULE_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_RULE"
+        bot = "test_get_path_rule"
+        user = "test_get_user_path_rule"
+        steps = [
+            {"step": {"name": "asker", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_asker", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_asker", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_rule"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_rule'
+
+    def test_get_multiflow_stories_with_empty_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_empty_metadata"
+        bot = "test_get_path_empty_metadata"
+        user = "test_get_user_path_empty_metadata"
+        steps = [
+            {"step": {"name": "question", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_question", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_question", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_empty_metadata"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == []
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_empty_metadata'
+
+    def test_get_multiflow_stories_with_empty_path_type_metadata(self):
+        processor = MongoProcessor()
+        story_name = "test_get_multiflow_stories_with_empty_path_type_metadata"
+        bot = "test_get_empty_path_type_metadata"
+        user = "test_get_user_empty_path_type_metadata"
+        steps = [
+            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6'}, {"node_id": "5"}]
+        story_dict = {'name': story_name, 'steps': steps, 'metadata': metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_empty_path_type_metadata"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['name'] == 'test_get_multiflow_stories_with_empty_path_type_metadata'
 
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
@@ -4914,11 +5183,58 @@ class TestMongoProcessor:
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
+    def test_add_synonym(self):
+        processor = MongoProcessor()
+        bot = 'add_synonym'
+        user = 'test_user'
+        processor.add_synonym("bot", bot, user)
+
+        with pytest.raises(AppException, match="Synonym already exists!"):
+            processor.add_synonym("bot", bot, user)
+
+        with pytest.raises(ValidationError, match="Synonym cannot be empty or blank spaces"):
+            processor.add_synonym(" ", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_synonym(None, bot, user)
+
+    def test_add_synonym_single_value(self):
+        processor = MongoProcessor()
+        bot = 'add_synonym_single_value'
+        user = 'test_user'
+        processor.add_synonym("bot", bot, user)
+        processor.add_synonym_value("exp", "bot", bot, user)
+        syn = list(EntitySynonyms.objects(name__exact='bot', bot=bot, user=user))
+        assert syn[0]['name'] == "bot"
+        assert syn[0]['value'] == "exp"
+
+        with pytest.raises(AppException, match="Synonym value already exists"):
+            processor.add_synonym_value(
+                "exp", "bot", bot, user)
+
+        with pytest.raises(ValidationError, match="Synonym name and value cannot be empty or blank spaces"):
+            processor.add_synonym_value(
+                " ", "bot", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_synonym_value(
+                None, "bot", bot, user)
+
+
+        with pytest.raises(ValidationError, match="Synonym name and value cannot be empty or blank spaces"):
+            processor.add_synonym_value(
+                "exp", " ", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_synonym_value(
+                "exp", None, bot, user)
+
     def test_add__and_get_synonym(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
-        processor.add_synonym(
+        processor.add_synonym("bot", bot, user)
+        processor.add_synonym_values(
             {"name": "bot", "value": ["exp"]}, bot, user)
         syn = list(EntitySynonyms.objects(name__iexact='bot', bot=bot, user=user))
         assert syn[0]['name'] == "bot"
@@ -4935,7 +5251,7 @@ class TestMongoProcessor:
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"name": "bot", "value": ["exp"]}, bot, user)
+            processor.add_synonym_values({"name": "bot", "value": ["exp"]}, bot, user)
         assert str(exp.value) == "Synonym value already exists"
 
     def test_edit_specific_synonym(self):
@@ -4967,10 +5283,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
-        processor.add_synonym({"name": "bot", "value": ["exp"]}, bot, user)
+        processor.add_synonym_values({"name": "bot", "value": ["exp"]}, bot, user)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 2
-        processor.delete_synonym_value(response[0]["_id"], bot, user)
+        processor.delete_synonym_value("bot", response[0]["_id"], bot)
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 1
 
@@ -4982,49 +5298,59 @@ class TestMongoProcessor:
     def test_delete_non_existent_synonym(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_synonym_value("0123456789ab0123456789ab", "df", "ff")
+            processor.delete_synonym_value(value_id="0123456789ab0123456789ab", synonym_name="df", bot="ff")
 
     def test_delete_synonym_name(self):
         processor = MongoProcessor()
-        bot = 'test_add_synonym'
-        user = 'test_user'
-        processor.delete_synonym("bot", bot, user)
+        bot = 'test_delete_synonym'
+        synonym_id = processor.add_synonym("bot", bot, "test")
+        response = list(processor.fetch_synonyms(bot))
+        assert len(response) == 1
+
+        processor.add_synonym_value("test", "bot", bot, "test")
+        response = list(processor.get_synonym_values("bot", bot))
+        assert len(response) == 1
+
+        processor.delete_synonym(synonym_id, bot)
+        response = list(processor.fetch_synonyms(bot))
+        assert len(response) == 0
+
         response = list(processor.get_synonym_values("bot", bot))
         assert len(response) == 0
 
     def test_delete_synonym_name_empty(self):
         processor = MongoProcessor()
-        with pytest.raises(AppException):
-            processor.delete_synonym(" ", "df", "ff")
+        with pytest.raises(ValidationError):
+            processor.delete_synonym(" ", "df")
 
     def test_delete_non_existent_synonym_name(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_synonym("0123456789ab0123456789ab", "df", "ff")
+            processor.delete_synonym(id="0123456789ab0123456789ab", bot="df")
 
     def test_add_empty_synonym(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"synonym": "", "value": ["exp"]}, bot, user)
-        assert str(exp.value) == "Synonym name cannot be an empty string"
+            processor.add_synonym_values({"synonym": "", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Synonym name cannot be an empty!"
 
     def test_add_synonym_with_empty_value_list(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"name": "bot", "value": []}, bot, user)
-        assert str(exp.value) == "Synonym value cannot be an empty string"
+            processor.add_synonym_values({"name": "bot", "value": []}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty!"
 
     def test_add_synonym_with_empty_element_in_value_list(self):
         processor = MongoProcessor()
         bot = 'test_add_synonym'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_synonym({"name": "bot", "value": ["df", '']}, bot, user)
-        assert str(exp.value) == "Synonym value cannot be an empty string"
+            processor.add_synonym_values({"name": "bot", "value": ["df", '']}, bot, user)
+        assert str(exp.value) == "Synonym value cannot be an empty!"
 
     def test_add_utterance(self):
         processor = MongoProcessor()
@@ -5389,11 +5715,54 @@ class TestMongoProcessor:
             processor.add_regex({"name": "bot11", "pattern": "[0-9]++"}, bot=bot, user=user)
         assert str(e).__contains__("invalid regular expression")
 
-    def test_add__and_get_lookup(self):
+    def test_add_lookup(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup_value'
+        user = 'test_user'
+
+        processor.add_lookup("number", bot, user)
+        processor.add_lookup_value("number", "one", bot, user)
+
+        with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
+            processor.add_lookup_value("number", " ", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_lookup_value("number", None, bot, user)
+
+        with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
+            processor.add_lookup_value("number", "one", bot, user)
+
+
+        with pytest.raises(ValidationError, match="Lookup name and value cannot be empty or blank spaces"):
+            processor.add_lookup_value(" ", "one", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_lookup_value(None, "one", bot, user)
+
+
+
+    def test_add_lookup(self):
         processor = MongoProcessor()
         bot = 'test_add_lookup'
         user = 'test_user'
-        processor.add_lookup(
+
+        processor.add_lookup("number", bot, user)
+
+        with pytest.raises(ValidationError, match="Lookup cannot be empty or blank spaces"):
+            processor.add_lookup(" ", bot, user)
+
+        with pytest.raises(TypeError):
+            processor.add_lookup(None, bot, user)
+
+        with pytest.raises(AppException, match="Lookup already exists!"):
+            processor.add_lookup("number", bot, user)
+
+
+    def test_add__and_get_lookup_values(self):
+        processor = MongoProcessor()
+        bot = 'test_add_lookup_values'
+        user = 'test_user'
+        processor.add_lookup_values(
             {"name": "number", "value": ["one"]}, bot, user)
         table = list(LookupTables.objects(name__iexact='number', bot=bot, user=user))
         assert table[0]['name'] == "number"
@@ -5401,105 +5770,112 @@ class TestMongoProcessor:
 
     def test_get_specific_lookup(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         response = list(processor.get_lookup_values("number", bot))
         assert response[0]["value"] == "one"
 
     def test_add_duplicate_lookup(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_lookup({"name": "number", "value": ["one"]}, bot, user)
-        assert str(exp.value) == "Lookup table value already exists"
+            processor.add_lookup_values({"name": "number", "value": ["one"]}, bot, user)
+        assert str(exp.value) == "Lookup value already exists"
 
     def test_edit_specific_lookup(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         response = list(processor.get_lookup_values("number", bot))
-        processor.edit_lookup(response[0]["_id"], "two", "number", bot, user)
+        processor.edit_lookup_value(response[0]["_id"], "two", "number", bot, user)
         response = list(processor.get_lookup_values("number", bot))
         assert response[0]["value"] == "two"
 
     def test_edit_lookup_duplicate(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         response = list(processor.get_lookup_values("number", bot))
         with pytest.raises(AppException):
-            processor.edit_lookup(response[0]["_id"], "two", "number", bot, user)
+            processor.edit_lookup_value(response[0]["_id"], "two", "number", bot, user)
 
     def test_edit_lookup_unavailable(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         response = list(processor.get_lookup_values("number", bot))
         with pytest.raises(AppException):
-            processor.edit_lookup(response[0]["_id"], "exp3", "bottt", bot, user)
+            processor.edit_lookup_value(response[0]["_id"], "exp3", "bottt", bot, user)
 
     def test_add_delete_lookup_value(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
-        processor.add_lookup({"name": "number", "value": ["one"]}, bot, user)
+        processor.add_lookup_values({"name": "number", "value": ["one"]}, bot, user)
         response = list(processor.get_lookup_values("number", bot))
         assert len(response) == 2
-        processor.delete_lookup_value(response[0]["_id"], bot, user)
+        processor.delete_lookup_value(response[0]["_id"], "number", bot)
         response = list(processor.get_lookup_values("number", bot))
         assert len(response) == 1
 
     def test_delete_lookup_value_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup_value(" ", "df", "ff")
+            processor.delete_lookup_value(" ", "df", "test")
 
     def test_delete_non_existent_lookup(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "ff")
+            processor.delete_lookup_value("0123456789ab0123456789ab", "df", "test")
 
     def test_delete_lookup_name(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_delete_lookup'
         user = 'test_user'
-        processor.delete_lookup("number", bot, user)
-        response = list(processor.get_lookup_values("number", bot))
+        lookup_id = processor.add_lookup("bot", bot, user)
+        processor.add_lookup_value("bot", "exp", bot, user)
+        assert len(list(processor.get_lookups(bot))) == 1
+        assert len(list(processor.get_lookup_values("bot", bot))) == 1
+        processor.delete_lookup(lookup_id, bot)
+        response = list(processor.get_lookups(bot))
+        assert len(response) == 0
+        response = list(processor.get_lookup_values("bot", bot))
         assert len(response) == 0
 
     def test_delete_lookup_name_empty(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup(" ", "df", "ff")
+            processor.delete_lookup(" ", "df")
 
     def test_delete_non_existent_lookup_name(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
-            processor.delete_lookup("0123456789ab0123456789ab", "df", "ff")
+            processor.delete_lookup("0123456789ab0123456789ab", "df")
 
     def test_add_empty_lookup(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_lookup({"name": "", "value": ["exp"]}, bot, user)
-        assert str(exp.value) == "Lookup table name cannot be an empty string"
+            processor.add_lookup_values({"name": "", "value": ["exp"]}, bot, user)
+        assert str(exp.value) == "Lookup cannot be an empty string"
 
     def test_add_lookup_with_empty_value_list(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
         with pytest.raises(AppException) as exp:
-            processor.add_lookup({"name": "bot", "value": []}, bot, user)
-        assert str(exp.value) == "Lookup Table value cannot be an empty string"
+            processor.add_lookup_values({"name": "bot", "value": []}, bot, user)
+        assert str(exp.value) == "Lookup value cannot be an empty string"
 
     def test_add_lookup_with_empty_element_in_value_list(self):
         processor = MongoProcessor()
-        bot = 'test_add_lookup'
+        bot = 'test_add_lookup_values'
         user = 'test_user'
+        processor.add_lookup("bot", bot, user)
         with pytest.raises(AppException) as exp:
-            processor.add_lookup({"name": "bot", "value": ["df", '']}, bot, user)
-        assert str(exp.value) == "Lookup table value cannot be an empty string"
+            processor.add_lookup_values({"name": "bot", "value": ["df", '']}, bot, user)
+        assert str(exp.value) == "Lookup value cannot be an empty string"
 
     def test_add_slot_mapping_slot_not_added(self):
         processor = MongoProcessor()
@@ -6749,7 +7125,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         stories = list(processor.get_stories(bot))
-        print(stories)
         assert stories[20]['name'] == 'story with form'
         assert stories[20]['type'] == 'STORY'
         assert stories[20]['steps'][0]['name'] == 'greet'
@@ -9277,10 +9652,10 @@ class TestMongoProcessor:
         assert stories[0]['type'] == "MULTIFLOW"
         assert len(stories[0]['steps']) == 6
         load_story = processor.load_multiflow_stories(bot)
-        assert load_story.story_steps[0].events[2].key == 'food'
-        assert load_story.story_steps[0].events[2].value == 'Indian'
-        assert load_story.story_steps[1].events[2].key == 'mood'
-        assert load_story.story_steps[1].events[2].value == 'Happy'
+        assert load_story[0].story_steps[0].events[2].key == 'food'
+        assert load_story[0].story_steps[0].events[2].value == 'Indian'
+        assert load_story[0].story_steps[1].events[2].key == 'mood'
+        assert load_story[0].story_steps[1].events[2].value == 'Happy'
 
     def test_add_multiflow_story_with_slot_value_int(self):
         processor = MongoProcessor()
@@ -9801,15 +10176,15 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict_two, bot, user)
         processor.add_multiflow_story(story_dict_three, bot, user)
         multiflow_story = processor.load_multiflow_stories(bot)
-        assert multiflow_story.story_steps[0].block_name == 'greeting story_1'
-        assert multiflow_story.story_steps[1].block_name == 'greeting story_2'
-        assert multiflow_story.story_steps[2].block_name == 'farmer story_1'
-        assert multiflow_story.story_steps[3].block_name == 'farmer story_2'
-        assert multiflow_story.story_steps[4].block_name == 'shopping story_1'
-        assert multiflow_story.story_steps[5].block_name == 'shopping story_2'
-        assert multiflow_story.story_steps[1].events[0].action_name == '...'
-        assert multiflow_story.story_steps[4].events[0].action_name == '...'
-        assert multiflow_story.story_steps[5].events[0].action_name == '...'
+        assert multiflow_story[0].story_steps[0].block_name == 'greeting story_1'
+        assert multiflow_story[1].story_steps[0].block_name == 'greeting story_2'
+        assert multiflow_story[0].story_steps[1].block_name == 'farmer story_1'
+        assert multiflow_story[0].story_steps[2].block_name == 'farmer story_2'
+        assert multiflow_story[1].story_steps[1].block_name == 'shopping story_1'
+        assert multiflow_story[1].story_steps[2].block_name == 'shopping story_2'
+        assert multiflow_story[1].story_steps[0].events[0].action_name == '...'
+        assert multiflow_story[1].story_steps[1].events[0].action_name == '...'
+        assert multiflow_story[1].story_steps[2].events[0].action_name == '...'
 
     def test_add_multiflow_story_with_path_type_for_invalid_node(self):
         processor = MongoProcessor()

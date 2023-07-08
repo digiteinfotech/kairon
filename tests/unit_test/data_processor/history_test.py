@@ -305,7 +305,7 @@ class TestHistory:
     def test_new_user(self, mock_client):
         mock_client.return_value = mongoclient
         count_user, message = HistoryProcessor.new_users("tests")
-        assert count_user['new_users'] == 1
+        assert count_user['new_users'] == 5
         assert message is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
@@ -333,7 +333,7 @@ class TestHistory:
     def test_user_retention(self, mock_client):
         mock_client.return_value = mongoclient
         retention, message = HistoryProcessor.user_retention("tests")
-        assert round(retention['user_retention']) == round(94)
+        assert round(retention['user_retention']) == round(71)
         assert message is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)

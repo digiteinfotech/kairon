@@ -1400,7 +1400,7 @@ class Utility:
     @staticmethod
     def validate_recaptcha_response(recaptcha_response: str = None, **kwargs):
         request = kwargs.get('request')
-        remote_ip = request.headers.get('X-Forwarded-For')
+        remote_ip = Utility.get_client_ip(request)
         if Utility.environment['security']['validate_recaptcha']:
             Utility.validate_recaptcha(recaptcha_response, remote_ip)
 
@@ -1736,7 +1736,6 @@ class Utility:
 
     @staticmethod
     def get_client_ip(request):
-        client_ip = None
         try:
             client_ip = request.client.host
         except AttributeError:
@@ -2076,10 +2075,10 @@ class MailUtility:
 
         request = kwargs.get('request')
         data = kwargs.get('data')
-        ip = request.headers.get('X-Forwarded-For')
+        ip = Utility.get_client_ip(request)
         geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
         data.update(geo_location)
-        user_details = "Hi,\nFollowing demo has been requested for Kairon:\n"
+        user_details = "Hi,<br>Following demo has been requested for Kairon:<br>"
         body = Utility.email_conf['email']['templates']['custom_text_mail']
         for key, value in data.items():
             user_details = f"{user_details}<li>{key}: {value}</li>"

@@ -389,7 +389,7 @@ class ActionUtility:
     def format_search_result(results: list):
         formatted_result = ""
         for result in results:
-            link = f'<a href = "{results[0]["link"]}" target="_blank" >{results[0]["title"]}</a>'
+            link = f'<a href = "{result["link"]}" target="_blank" >{result["title"]}</a>'
             formatted_result = f'{formatted_result}{result["text"]}\nTo know more, please visit: {link}\n\n'
         return formatted_result.strip()
 

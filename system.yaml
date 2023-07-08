@@ -186,3 +186,5 @@ verify:
     enable: ${VERIFY_EMAIl_ENABLE:false}
     type: ${VERIFY_EMAIl_TYPE:quickemail}
     key: ${VERIFY_EMAIL_KEY}
+
+support_mail: ${KAIRON_SUPPORT_MAIL:"kairon@digite.com"}
