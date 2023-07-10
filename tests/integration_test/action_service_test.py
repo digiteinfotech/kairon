@@ -7,7 +7,8 @@ from kairon.actions.server import make_app
 from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, Actions, FormValidationAction, \
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet
+    KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
+    VectorEmbeddingDbAction, VectorDbOperation, VectorDbPayload
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -78,6 +79,7 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
+        responses.reset()
         responses.start()
         responses.add(
             method=responses.GET,
@@ -188,6 +190,7 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
+        responses.reset()
         responses.start()
         responses.add(
             method=responses.GET,
@@ -1972,6 +1975,595 @@ class TestActionServer(AsyncHTTPTestCase):
 
     def test_http_action_doesnotexist(self):
         action_name = "does_not_exist_action"
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, {'events': [], 'responses': []})
+
+    def test_vectordb_action_execution_embedding_search_from_value(self):
+        action_name = "test_vectordb_action_execution"
+        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56b698ca10d75d2e", user="user").save()
+        payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
+        VectorEmbeddingDbAction(
+            name=action_name,
+            operation=VectorDbOperation(type="from_value", value="embedding_search"),
+            payload=VectorDbPayload(type="from_value", value=payload_body),
+            response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
+            set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+            bot="5f50fd0a56b698ca10d75d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_faq_embd/points'
+        resp_msg = json.dumps(
+            {
+                "time": 0,
+                "status": "ok",
+                "result": [
+                    {
+                        "id": 0,
+                        "payload": {},
+                        "vector": [
+                            0
+                        ]
+                    }
+                ]
+            }
+        )
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.POST,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.matchers.json_params_matcher(payload_body)],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d75d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d75d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        print(response_json['events'])
+        print(response_json['responses'])
+        self.assertEqual(len(response_json['events']), 2)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}])
+        self.assertEqual(response_json['responses'][0]['text'], "The value of 0 is [0]")
+        log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56b698ca10d75d2e').get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+
+    def test_vectordb_action_execution_payload_search_from_value(self):
+        action_name = "test_vectordb_action_execution"
+        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50md0a56b698ca10d35d2e", user="user").save()
+        payload_body = {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }
+        VectorEmbeddingDbAction(
+            name=action_name,
+            operation=VectorDbOperation(type="from_value", value="payload_search"),
+            payload=VectorDbPayload(type="from_value", value=payload_body),
+            response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
+            set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
+            bot="5f50md0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:6333/collections/5f50md0a56b698ca10d35d2e_faq_embd/points/scroll'
+        resp_msg = json.dumps(
+            [{"id": 2, "city": "London", "color": "red"}]
+        )
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.POST,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.matchers.json_params_matcher(payload_body)],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50md0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        print(response_json['events'])
+        print(response_json['responses'])
+        self.assertEqual(len(response_json['events']), 2)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of London with color red is 2'}])
+        self.assertEqual(response_json['responses'][0]['text'], "The value of London with color red is 2")
+        log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+
+    def test_vectordb_action_execution_embedding_search_from_slot(self):
+        action_name = "test_vectordb_action_execution"
+        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fx0a56b698ca10d35d2e", user="user").save()
+        slot = 'name'
+        Slots(name=slot, type='text', bot='5f50fx0a56b698ca10d35d2e', user='user').save()
+
+        VectorEmbeddingDbAction(
+            name=action_name,
+            operation=VectorDbOperation(type="from_value", value="embedding_search"),
+            payload=VectorDbPayload(type="from_slot", value='name'),
+            response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
+            set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+            bot="5f50fx0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_faq_embd/points'
+        resp_msg = json.dumps(
+            {
+                "time": 0,
+                "status": "ok",
+                "result": [
+                    {
+                        "id": 15,
+                        "payload": {},
+                        "vector": [
+                            15
+                        ]
+                    }
+                ]
+            }
+        )
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.POST,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fx0a56b698ca10d35d2e", "name": 'Nupur'},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fx0a56b698ca10d35d2e", "name": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        print(response_json['events'])
+        print(response_json['responses'])
+        self.assertEqual(len(response_json['events']), 2)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[15]'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 15 is [15]'}])
+        self.assertEqual(response_json['responses'][0]['text'], "The value of 15 is [15]")
+        log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56b698ca10d35d2e').get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+
+    def test_vectordb_action_execution_payload_search_from_slot(self):
+        action_name = "test_vectordb_action_execution"
+        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fx0a56v698ca10d39c2e", user="user").save()
+        slot = 'color'
+        Slots(name=slot, type='text', bot='5f50fx0a56v698ca10d39c2e', user='user').save()
+
+        VectorEmbeddingDbAction(
+            name=action_name,
+            operation=VectorDbOperation(type="from_value", value="payload_search"),
+            payload=VectorDbPayload(type="from_slot", value='color'),
+            response=HttpActionResponse(value="The name of the city with id ${data.0.id} is ${data.0.city}"),
+            set_slots=[SetSlotsFromResponse(name="city_name", value="${data.0.city}")],
+            bot="5f50fx0a56v698ca10d39c2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:6333/collections/5f50fx0a56v698ca10d39c2e_faq_embd/points/scroll'
+        resp_msg = json.dumps(
+            [{"id": 5, "city": "Berlin"}]
+        )
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.POST,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fx0a56v698ca10d39c2e", "color": 'red'},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fx0a56v698ca10d39c2e", "color": None},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        print(response_json['events'])
+        print(response_json['responses'])
+        self.assertEqual(len(response_json['events']), 2)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'city_name', 'value': 'Berlin'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The name of the city with id 5 is Berlin'}])
+        self.assertEqual(response_json['responses'][0]['text'], "The name of the city with id 5 is Berlin")
+        log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56v698ca10d39c2e').get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+
+    def test_vectordb_action_execution_no_response_dispatch(self):
+        action_name = "test_vectordb_action_execution_no_response_dispatch"
+        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56v098ca10d75d2e", user="user").save()
+        payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
+        VectorEmbeddingDbAction(
+            name=action_name,
+            operation=VectorDbOperation(type="from_value", value="embedding_search"),
+            payload=VectorDbPayload(type="from_value", value=payload_body),
+            response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}", dispatch=False),
+            set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+            bot="5f50fd0a56v098ca10d75d2e",
+            user="user"
+        ).save()
+
+        http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_faq_embd/points'
+        resp_msg = json.dumps(
+            {
+                "time": 0,
+                "status": "ok",
+                "result": [
+                    {
+                        "id": 0,
+                        "payload": {},
+                        "vector": [
+                            0
+                        ]
+                    }
+                ]
+            }
+        )
+        responses.reset()
+        responses.start()
+        responses.add(
+            method=responses.POST,
+            url=http_url,
+            body=resp_msg,
+            status=200,
+            match=[responses.matchers.json_params_matcher(payload_body)],
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56v098ca10d75d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56v098ca10d75d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        print(response_json['events'])
+        print(response_json['responses'])
+        self.assertEqual(len(response_json['events']), 2)
+        self.assertEqual(len(response_json['responses']), 0)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}])
+        self.assertEqual(response_json['responses'], [])
+        log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56v098ca10d75d2e').get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+
+    def test_vectordb_action_execution_invalid_operation_type(self):
+        action_name = "test_vectordb_action_execution_invalid_operation_type"
+        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56v908ca10d75d2e", user="user").save()
+        payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
+        VectorEmbeddingDbAction(
+            name=action_name,
+            operation=VectorDbOperation(type="from_value", value="vector_search"),
+            payload=VectorDbPayload(type="from_value", value=payload_body),
+            response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}", dispatch=False),
+            set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+            bot="5f50fd0a56v908ca10d75d2e",
+            user="user"
+        ).save()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56v908ca10d75d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56v908ca10d75d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(len(response_json['responses']), 0)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': "I have failed to process your request."}])
+        self.assertEqual(response_json['responses'], [])
+        log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56v908ca10d75d2e').get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+
+    @patch("kairon.shared.actions.utils.ActionUtility.get_action")
+    @patch("kairon.actions.definitions.vector_action.VectorEmbeddingsDbAction.retrieve_config")
+    def test_vectordb_action_failed_execution(self, mock_action_config, mock_action):
+        action_name = "test_run_with_get_action"
+        payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
+        action = Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56b697ca10d35d2e",
+                         user="user")
+        action_config = VectorEmbeddingDbAction(
+            name=action_name,
+            operation=VectorDbOperation(type="from_value", value="embedding_search"),
+            payload=VectorDbPayload(type="from_value", value=payload_body),
+            response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector"),
+            bot="5f50fd0a56b697ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action_config(*arge, **kwargs):
+            return action_config.to_mongo().to_dict()
+
+        def _get_action(*arge, **kwargs):
+            return action.to_mongo().to_dict()
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {'bot': "5f50fd0a56b697ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b697ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        mock_action.side_effect = _get_action
+        mock_action_config.side_effect = _get_action_config
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': "I have failed to process your request."}])
+        self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request.")
+
+    def test_vectordb_action_missing_action_name(self):
+        action_name = ""
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(response_json, None)
+
+    def test_vectordb_action_does_not_exist(self):
+        action_name = "vectordb_action_does_not_exist"
 
         request_object = {
             "next_action": action_name,

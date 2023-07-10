@@ -6149,6 +6149,498 @@ def test_get_secret_2():
     assert actual['success']
 
 
+def test_add_vectordb_action_empty_name():
+    request_body = {
+        "name": '',
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_empty_operation_value():
+    request_body = {
+        "name": 'action_test_empty_operation_value',
+        "operation": {"type": "from_value", "value": ""},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'operation', 'value'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
+                                  'type': 'type_error.enum',
+                                  'ctx': {'enum_values': ['payload_search', 'embedding_search']}},
+                                 {'loc': ['body', 'operation', '__root__'], 'msg': 'value cannot be empty',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_empty_operation_type():
+    request_body = {
+        "name": 'action_test_empty_operation_type',
+        "operation": {"type": "", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'operation', 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['from_value', 'from_slot']}},
+                                 {'loc': ['body', 'operation', '__root__'], 'msg': 'type cannot be empty',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_empty_payload_type():
+    request_body = {
+        "name": 'test_add_vectordb_action_empty_payload_type',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'payload', 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['from_value', 'from_slot']}},
+                                 {'loc': ['body', 'payload', '__root__'],
+                                  'msg': 'type is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_empty_payload_value():
+    request_body = {
+        "name": 'action_test_empty_value',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": ''},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] ==  [{'loc': ['body', 'payload', '__root__'], 'msg': 'value is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action():
+    request_body = {
+        "name": 'vectordb_action_test',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action added!'
+    assert actual["success"]
+
+
+def test_add_vectordb_action_case_insensitivity():
+    request_body = {
+        "name": 'VECTORDB_ACTION_CASE_INSENSITIVE',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action added!'
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/VECTORDB_ACTION_CASE_INSENSITIVE",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual['data']
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/vectordb_action_case_insensitive",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual['data']
+    assert actual["success"]
+
+
+def test_add_vectordb_action_existing():
+    request_body = {
+        "name": 'test_add_vectordb_action_existing',
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"},
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action exists!'
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_with_slots():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "vectordb", "type": "text", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert "data" in actual
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "name": 'test_add_vectordb_action_with_slots',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_slot", "value": "vectordb"},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_add_vectordb_action_with_invalid_operation_type():
+    request_body = {
+        "name": 'test_add_vectordb_action_with_invalid_operation_type',
+        "operation": {"type": "from_val", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert str(actual['message']).__contains__("value is not a valid enumeration member")
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_update_vectordb_action():
+    request_body = {
+        "name": 'test_update_vectordb_action',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "name": 'test_update_vectordb_action',
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"},
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated!'
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/test_update_vectordb_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+
+
+def test_update_vectordb_action_non_existing():
+    request_body = {
+        "name": 'test_update_vectordb_action_non_existing',
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
+        "response": {"value": "15"},
+        "set_slots": [{"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    request_body = {
+        "name": "test_update_vectordb_action_non_existing_new",
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
+        "response": {"value": "15"},
+        "set_slots": [{"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_update_vector_action_wrong_parameter():
+    request_body = {
+        "name": "test_update_vector_action_1",
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [8], "with_payload": True, "with_vector": True}},
+        "response": {"value": "15"},
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "name": "test_update_vector_action_1",
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_val", "value": {"ids": [81], "with_payload": True, "with_vector": True}},
+        "response": {"value": "nupur"},
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_get_vectordb_action():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/test_add_vectordb_action_with_slots",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+
+
+def test_get_vector_action_non_exisitng():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/never_added_vectordb_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] is not None
+    assert not actual["success"]
+
+
+def test_list_vector_db_action():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual['data'][0]['name'] == 'vectordb_action_test'
+
+
+def test_delete_vectordb_action():
+    request_body = {
+        "name": "test_delete_vectordb_action",
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "30"},
+        "set_slots": []
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/test_delete_vectordb_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_delete_http_action_non_existing():
+    request_body = {
+        "name": "test_delete_http_action_non_existing",
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "India"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "1"},
+    }
+
+    client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/new_vectordb_action_never_added",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
 def test_add_http_action_malformed_url():
     request_body = {
         "auth_token": "",
@@ -6998,23 +7490,31 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
-    assert actual['data'] == {
-        'actions': ['action_greet'],
-        'http_action': ['test_add_http_action_no_token',
-                        'test_add_http_action_with_valid_dispatch_type',
-                        'test_add_http_action_with_dynamic_params',
-                        'test_update_http_action_with_dynamic_params',
-                        'test_add_http_action_with_sender_id_parameter_type',
-                        'test_add_http_action_with_token_and_story',
-                        'test_add_http_action_no_params',
-                        'test_add_http_action_existing',
-                        'test_update_http_action',
-                        'test_update_http_action_6', 'test_update_http_action_non_existing', 'new_http_action4'],
-        'utterances': ['utter_greet', 'utter_cheer_up', 'utter_did_that_help', 'utter_happy', 'utter_goodbye',
-                       'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
-        'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
-        'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
-        'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []}
+    print(actual['data'])
+    assert actual['data'] == {'actions': ['action_greet'],
+                              'http_action': ['new_http_action4', 'test_add_http_action_no_token',
+                                              'test_add_http_action_with_valid_dispatch_type',
+                                              'test_add_http_action_with_dynamic_params',
+                                              'test_update_http_action_with_dynamic_params',
+                                              'test_add_http_action_with_sender_id_parameter_type',
+                                              'test_add_http_action_with_token_and_story',
+                                              'test_add_http_action_no_params', 'test_add_http_action_existing',
+                                              'test_update_http_action', 'test_update_http_action_6',
+                                              'test_update_http_action_non_existing'],
+                              'vector_embeddings_db_action': ['vectordb_action_test',
+                                                              'vectordb_action_case_insensitive',
+                                                              'test_add_vectordb_action_existing',
+                                                              'test_add_vectordb_action_with_slots',
+                                                              'test_update_vectordb_action',
+                                                              'test_update_vectordb_action_non_existing',
+                                                              'test_update_vector_action_1'],
+                              'utterances': ['utter_greet', 'utter_cheer_up', 'utter_did_that_help', 'utter_happy',
+                                             'utter_goodbye', 'utter_iamabot', 'utter_default',
+                                             'utter_please_rephrase'], 'slot_set_action': [],
+                              'form_validation_action': [], 'email_action': [], 'google_search_action': [],
+                              'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+                              'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
+                              'razorpay_action': [], 'prompt_action': []}
 
     assert actual["success"]
 
