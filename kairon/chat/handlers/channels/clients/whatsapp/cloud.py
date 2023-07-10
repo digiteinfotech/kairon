@@ -159,9 +159,7 @@ class WhatsappCloud(object):
 
     def send_template_message(self, namespace: Text, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None):
         payload = {
-            "namespace": namespace,
             "language": {
-                "policy": "deterministic",
                 "code": language_code
             },
             "name": name
