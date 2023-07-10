@@ -85,7 +85,8 @@ class ActionUtility:
                     encrypted_dict[key] = value
             return encrypted_dict
 
-        return mask_nested_json_values(request_body)
+        if isinstance(request_body, dict):
+            return mask_nested_json_values(request_body)
 
     @staticmethod
     def prepare_request(tracker_data: dict, http_action_config_params: List[HttpActionRequestBody], bot: Text):
