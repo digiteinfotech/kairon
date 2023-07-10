@@ -130,7 +130,7 @@ class TestBusinessServiceProvider:
 
         webhook_url = "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
         api_key = "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
-        url = "https://waba.360dialog.io/v1/configs/webhook"
+        url = "https://waba-v2.360dialog.io/v1/configs/webhook"
         responses.add("POST",
                       json={
                           "url": "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY",
@@ -140,7 +140,7 @@ class TestBusinessServiceProvider:
 
     @responses.activate
     def test_set_webhook_url_failure(self):
-        url = "https://waba.360dialog.io/v1/configs/webhook"
+        url = "https://waba-v2.360dialog.io/v1/configs/webhook"
         responses.add("POST", json={}, url=url, status=500)
         webhook_url = "https://kaironlocalchat.digite.com/api/bot/waba_partner/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY"
         api_key = "kHCwksdsdsMVYVx0doabaDyRLUQJUAK"
@@ -159,7 +159,7 @@ class TestBusinessServiceProvider:
         url = "https://hub.360dialog.io/api/v2/partners/f167CmPA/channels/skds23Ga/api_keys"
         responses.add("POST",
                       json={
-                          "address": "https://waba.360dialog.io",
+                          "address": "https://waba-v2.360dialog.io",
                           "api_key": "kHCwksdsdsMVYVx0doabaDyRLUQJUAK",
                           "app_id": "104148",
                           "id": "201126"

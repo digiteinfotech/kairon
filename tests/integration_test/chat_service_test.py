@@ -1219,10 +1219,10 @@ class TestChatServer(AsyncHTTPTestCase):
     @responses.activate
     def test_whatsapp_bsp_valid_text_message_request(self):
         responses.add(
-            "POST", "https://waba.360dialog.io/v1/messages", json={}
+            "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
         )
         responses.add(
-            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+            "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
         )
         response = self.fetch(
             f"/api/bot/whatsapp/{bot2}/{token}",
@@ -1256,10 +1256,10 @@ class TestChatServer(AsyncHTTPTestCase):
     @responses.activate
     def test_whatsapp_bsp_valid_button_message_request(self):
         responses.add(
-            "POST", "https://waba.360dialog.io/v1/messages", json={}
+            "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
         )
         responses.add(
-            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+            "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
         )
         response = self.fetch(
             f"/api/bot/whatsapp/{bot2}/{token}",
@@ -1290,10 +1290,10 @@ class TestChatServer(AsyncHTTPTestCase):
     @responses.activate
     def test_whatsapp_bsp_valid_attachment_message_request(self):
         responses.add(
-            "POST", "https://waba.360dialog.io/v1/messages", json={}
+            "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
         )
         responses.add(
-            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+            "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
         )
 
         response = self.fetch(

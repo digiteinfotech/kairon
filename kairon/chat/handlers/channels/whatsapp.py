@@ -99,10 +99,7 @@ class Whatsapp:
             await self.message(msg, metadata, bot)
 
     def get_business_phone_number_id(self) -> Text:
-        if WhatsappBSPTypes.bsp_360dialog.value == self.config.get('bsp_type'):
-            return self.last_message.get("from")
-        else:
-            return self.last_message.get("value", {}).get("metadata", {}).get("phone_number_id", "")
+        return self.last_message.get("value", {}).get("metadata", {}).get("phone_number_id", "")
 
     async def _handle_user_message(
             self, text: Text, sender_id: Text, metadata: Optional[Dict[Text, Any]], bot: str
