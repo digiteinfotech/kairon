@@ -2042,7 +2042,9 @@ def test_train(monkeypatch):
 
 
 def test_upload_limit_exceeded(monkeypatch):
-    monkeypatch.setitem(Utility.environment['model']['data_importer'], 'limit_per_day', 1)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 2
+    bot_settings.save()
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=false",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -2057,6 +2059,9 @@ def test_upload_limit_exceeded(monkeypatch):
 
 @responses.activate
 def test_upload_using_event_failure(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 5
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
     responses.add(
         "POST", event_url, json={"success": False, "message": "Failed to trigger url"}
@@ -2165,7 +2170,9 @@ def test_get_qna(monkeypatch):
 
 
 def test_model_testing_not_trained(monkeypatch):
-    monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.test_limit_per_day = 0
+    bot_settings.save()
     response = client.post(
         url=f"/api/bot/{pytest.bot}/test",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -2304,6 +2311,9 @@ def test_upload_with_chat_client_config_only():
 
 @responses.activate
 def test_upload_with_chat_client_config():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 15
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
     responses.reset()
     responses.add(
@@ -3990,7 +4000,9 @@ def mock_is_training_inprogress(monkeypatch):
 
 
 def test_train_daily_limit_exceed(mock_is_training_inprogress, monkeypatch):
-    monkeypatch.setitem(Utility.environment['model']['train'], 'limit_per_day', 1)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.training_limit_per_day = 2
+    bot_settings.save()
     response = client.post(
         f"/api/bot/{pytest.bot}/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -4028,6 +4040,9 @@ def test_model_testing_limit_exceeded(monkeypatch):
 
 @responses.activate
 def test_model_testing_event(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.test_limit_per_day = 5
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_testing}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
@@ -12583,11 +12598,20 @@ def test_get_bot_settings():
     actual["data"].pop("user")
     actual["data"].pop("timestamp")
     actual["data"].pop("status")
-    assert actual['data'] == {
-        "ignore_utterances": False, "force_import": False, "rephrase_response": False,
-        "website_data_generator_depth_search_limit": 2, "chat_token_expiry": 30, 'notification_scheduling_limit': 4,
-        "refresh_token_expiry": 60, 'llm_settings': {'enable_faq': False, 'provider': 'azure'}, 'whatsapp': 'meta'
-    }
+    assert actual['data'] == {'chat_token_expiry': 30,
+                              'data_generation_limit_per_day': 3,
+                              'data_importer_limit_per_day': 5,
+                              'force_import': False,
+                              'ignore_utterances': False,
+                              'llm_settings': {'enable_faq': False, 'provider': 'azure'},
+                              'multilingual_limit_per_day': 2,
+                              'notification_scheduling_limit': 4,
+                              'refresh_token_expiry': 60,
+                              'rephrase_response': False,
+                              'test_limit_per_day': 5,
+                              'training_limit_per_day': 5,
+                              'website_data_generator_depth_search_limit': 2,
+                              'whatsapp': 'meta'}
 
 
 def test_delete_channels_config():
@@ -14433,7 +14457,9 @@ def test_multilingual_translate_no_destination_lang():
 
 
 def test_multilingual_translate_limit_exceeded(monkeypatch):
-    monkeypatch.setitem(Utility.environment['multilingual'], 'limit_per_day', 0)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.multilingual_limit_per_day = 0
+    bot_settings.save()
 
     response = client.post(
         f"/api/bot/{pytest.bot}/multilingual/translate",
@@ -14448,6 +14474,9 @@ def test_multilingual_translate_limit_exceeded(monkeypatch):
 
 @responses.activate
 def test_multilingual_translate_using_event_with_actions_and_responses(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.multilingual_limit_per_day = 2
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.multilingual}")
     responses.add(
         responses.POST,
@@ -14528,7 +14557,9 @@ def test_multilingual_language_support(monkeypatch):
 
 @responses.activate
 def test_data_generation_from_website(monkeypatch):
-    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_generation_limit_per_day = 10
+    bot_settings.save()
 
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_generator}")
     responses.add(
@@ -14593,7 +14624,9 @@ def test_data_generation_no_website_url(monkeypatch):
 
 @responses.activate
 def test_data_generation_limit_exceeded(monkeypatch):
-    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 0)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_generation_limit_per_day = 0
+    bot_settings.save()
 
     response = client.post(
         f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
@@ -14607,7 +14640,9 @@ def test_data_generation_limit_exceeded(monkeypatch):
 
 @responses.activate
 def test_data_generation_in_progress(monkeypatch):
-    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_generation_limit_per_day = 10
+    bot_settings.save()
 
     event_url = urljoin(Utility.environment['events']['server_url'],
                         f"/api/events/execute/{EventClass.data_generator}")
@@ -15006,6 +15041,9 @@ def test_get_custom_widget_post_delete():
 
 @responses.activate
 def test_upload_invalid_csv():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
@@ -15026,6 +15064,9 @@ def test_upload_invalid_csv():
 
 @responses.activate
 def test_upload_faq():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}

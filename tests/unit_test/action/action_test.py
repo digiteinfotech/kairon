@@ -2138,11 +2138,22 @@ class TestActions:
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
         bot_settings.pop("status")
-        assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
+        assert bot_settings == {'bot': 'test_action_server',
+                                'chat_token_expiry': 30,
+                                'data_generation_limit_per_day': 3,
+                                'data_importer_limit_per_day': 5,
+                                'force_import': False,
+                                'ignore_utterances': False,
+                                'llm_settings': {'enable_faq': True, 'provider': 'azure'},
+                                'multilingual_limit_per_day': 2,
+                                'notification_scheduling_limit': 4,
+                                'refresh_token_expiry': 60,
+                                'rephrase_response': False,
+                                'test_limit_per_day': 5,
+                                'training_limit_per_day': 5,
+                                'user': 'test_user',
                                 'website_data_generator_depth_search_limit': 2,
-                                'llm_settings': {'enable_faq': True, 'provider': 'azure'}, 'chat_token_expiry': 30,
-                                'refresh_token_expiry': 60, 'whatsapp': 'meta', 'notification_scheduling_limit': 4,
-                                'bot': 'test_action_server', 'user': 'test_user'}
+                                'whatsapp': 'meta'}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3070,11 +3081,22 @@ class TestActions:
         bot = "test_bot"
         bot_settings = ActionUtility.get_bot_settings(bot=bot)
         bot_settings.pop('timestamp')
-        assert bot_settings == {'ignore_utterances': False, 'force_import': False, 'rephrase_response': False,
-                                'website_data_generator_depth_search_limit': 2,
-                                'chat_token_expiry': 30, 'llm_settings': {'enable_faq': False, 'provider': 'azure'},
-                                'refresh_token_expiry': 60, 'whatsapp': 'meta',
-                                'notification_scheduling_limit': 4, 'bot': 'test_bot', 'status': True}
+        assert bot_settings == {'bot': 'test_bot',
+                          'chat_token_expiry': 30,
+                          'data_generation_limit_per_day': 3,
+                          'data_importer_limit_per_day': 5,
+                          'force_import': False,
+                          'ignore_utterances': False,
+                          'llm_settings': {'enable_faq': False, 'provider': 'azure'},
+                          'multilingual_limit_per_day': 2,
+                          'notification_scheduling_limit': 4,
+                          'refresh_token_expiry': 60,
+                          'rephrase_response': False,
+                          'status': True,
+                          'test_limit_per_day': 5,
+                          'training_limit_per_day': 5,
+                          'website_data_generator_depth_search_limit': 2,
+                          'whatsapp': 'meta'}
 
     def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"
