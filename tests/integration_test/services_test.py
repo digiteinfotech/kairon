@@ -3403,9 +3403,9 @@ def test_add_multiflow_story_with_path():
             },
             {"step": {"name": "utter_hobby", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"},
                 "connections": [{"name": "frontend", "type": "SLOT", "value": "Yes", "node_id": "3", "component_id": "MNbcg"},
-                                {"name": "backend", "type": "INTENT", "node_id": "4", "component_id": "QQAA"}]
+                                {"name": "backend", "type": "HTTP_ACTION", "node_id": "4", "component_id": "QQAA"}]
             },
-            {"step": {"name": "backend", "type": "INTENT", "node_id": "4", "component_id": "QQAA"},
+            {"step": {"name": "backend", "type": "HTTP_ACTION", "node_id": "4", "component_id": "QQAA"},
                 "connections": [{"name": "utter_backend", "type": "BOT", "node_id": "5", "component_id": "NNXX"}]
             },
             {"step": {"name": "utter_backend", "type": "BOT", "node_id": "5", "component_id": "NNXX"},

@@ -10420,7 +10420,7 @@ class TestMongoProcessor:
             {"step": {"name": "utter_welcome", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "coffee", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "coffee", "type": "HTTP_ACTION", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "tea", "type": "INTENT", "node_id": "4",
                   "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
@@ -10437,7 +10437,7 @@ class TestMongoProcessor:
                       "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
              },
-            {"step": {"name": "coffee", "type": "INTENT", "node_id": "3",
+            {"step": {"name": "coffee", "type": "HTTP_ACTION", "node_id": "3",
                       "component_id": "633w6kSXuz3qqnPU571jZyCv"},
              "connections": [{"name": "utter_coffee", "type": "BOT", "node_id": "6",
                               "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
