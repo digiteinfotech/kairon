@@ -34,7 +34,7 @@ from loguru import logger
 from mongoengine.document import BaseDocument, Document
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.visitor import QCombination
-from networkx import DiGraph, Graph, is_connected, recursive_simple_cycles
+from networkx import DiGraph, Graph, is_connected, recursive_simple_cycles, all_simple_paths
 from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
@@ -1774,11 +1774,6 @@ class StoryValidator:
         return [node for node in story_graph.nodes() if story_graph.out_degree(node) == 0]
 
     @staticmethod
-    def get_leaf_nodes_with_intent(story_graph: DiGraph):
-        return [node for node in story_graph.nodes() if story_graph.out_degree(node) == 0
-                                    and node.step_type == 'INTENT']
-
-    @staticmethod
     def get_source_node(story_graph: DiGraph):
         return [x for x in story_graph.nodes() if story_graph.in_degree(x) == 0]
 
@@ -1787,11 +1782,11 @@ class StoryValidator:
         story_graph = StoryValidator.get_graph(steps)
         leaf_nodes = StoryValidator.get_leaf_nodes(story_graph)
         leaf_node_ids = [value.node_id for value in leaf_nodes]
+        source = StoryValidator.get_source_node(story_graph)
 
         if not is_connected(Graph(story_graph)):
             raise AppException("All steps must be connected!")
 
-        source = StoryValidator.get_source_node(story_graph)
         if len(source) > 1:
             raise AppException("Story cannot have multiple sources!")
 
@@ -1800,10 +1795,6 @@ class StoryValidator:
 
         if recursive_simple_cycles(story_graph):
             raise AppException("Story cannot contain cycle!")
-
-        leaf_nodes_with_intent = StoryValidator.get_leaf_nodes_with_intent(story_graph)
-        if leaf_nodes_with_intent:
-            raise AppException("Leaf nodes cannot be intent")
 
         for story_node in story_graph.nodes():
             if story_node.step_type == "INTENT":
@@ -1817,7 +1808,18 @@ class StoryValidator:
                         "slot values in multiflow story must be either None or of type int, str or boolean")
             if story_node.step_type != 'SLOT' and story_node.value is not None:
                 raise ValidationError("Value is allowed only for slot events in multiflow story")
+            if story_node.step_type == 'SLOT' and story_node.node_id in leaf_node_ids:
+                raise AppException("Slots cannot be leaf nodes!")
+            if story_node.step_type == 'INTENT' and story_node.node_id in leaf_node_ids:
+                raise AppException("Leaf nodes cannot be intent")
         if flow_metadata:
+            for value in flow_metadata:
+                if value.get('flow_type') == 'RULE':
+                    if any(leaf.node_id == value.get('node_id') for leaf in leaf_nodes):
+                        paths = list(all_simple_paths(story_graph, source[0], next(
+                            leaf for leaf in leaf_nodes if leaf.node_id == value.get('node_id'))))
+                        if any(len([node.step_type for node in path if node.step_type == 'INTENT']) > 1 for path in paths):
+                            raise AppException('Path tagged as RULE can have only one intent!')
             if any(value['node_id'] not in leaf_node_ids for value in flow_metadata):
                 raise ValidationError("Only leaf nodes can be tagged with a flow")
 

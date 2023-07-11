@@ -2538,7 +2538,7 @@ class MongoProcessor:
             item = value.to_mongo().to_dict()
             block_name = item.pop("block_name")
             events = item.pop("events")
-            final_data['metadata'] = item.pop("metadata")
+            final_data['metadata'] = item.get("metadata", [])
             final_data['type'] = StoryType.multiflow_story.value
             final_data["_id"] = item["_id"].__str__()
             final_data['name'] = block_name
