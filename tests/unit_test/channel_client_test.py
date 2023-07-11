@@ -1,8 +1,101 @@
-import pytest
-import unittest.mock as mock
-
-from kairon.chat.handlers.channels.clients.whatsapp.on_premise import WhatsappOnPremise
+import asyncio
+import json
+import os
+from unittest import mock
 from unittest.mock import patch
+
+import responses
+import pytest
+from mongoengine import connect
+from tornado.testing import AsyncHTTPTestCase
+
+from kairon import Utility
+from kairon.api.models import RegisterAccount
+from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
+from kairon.chat.handlers.channels.clients.whatsapp.on_premise import WhatsappOnPremise
+from kairon.chat.handlers.channels.messenger import MessengerHandler
+from kairon.chat.server import make_app
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.auth import Authentication
+from kairon.shared.chat.processor import ChatDataProcessor
+
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+os.environ['ASYNC_TEST_TIMEOUT'] = "3600"
+Utility.load_environment()
+connect(**Utility.mongoengine_connection())
+
+loop = asyncio.new_event_loop()
+loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email": "test@chat.com",
+                                                                          "first_name": "Test",
+                                                                          "last_name": "Chat",
+                                                                          "password": "testChat@12",
+                                                                          "confirm_password": "testChat@12",
+                                                                          "account": "ChatTesting"}).dict()))
+
+token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
+user = AccountProcessor.get_complete_user_details("test@chat.com")
+bot = user['bots']['account_owned'][0]['_id']
+ChatDataProcessor.save_channel_config({
+    "connector_type": "whatsapp",
+    "config": {"app_secret": "jagbd34567890", "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ", "verify_token": "valid"}},
+    bot, user="test@chat.com"
+)
+
+
+class TestWhatsapp(AsyncHTTPTestCase):
+
+    def get_app(self):
+        return make_app()
+
+    @responses.activate
+    @mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp.process_message", autospec=True)
+    def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(self, mock_process_message):
+        def _mock_validate_hub_signature(*args, **kwargs):
+            return True
+
+        responses.add(
+            "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
+        )
+        mock_process_message.side_effect = Exception
+        with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = self.fetch(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                method="POST",
+                body=json.dumps({
+                    "object": "whatsapp_business_account",
+                    "entry": [{
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [{
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "910123456789",
+                                    "phone_number_id": "12345678"
+                                },
+                                "contacts": [{
+                                    "profile": {
+                                        "name": "udit"
+                                    },
+                                    "wa_id": "wa-123456789"
+                                }],
+                                "messages": [{
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {
+                                        "body": "hi"
+                                    },
+                                    "type": "text"
+                                }]
+                            },
+                            "field": "messages"
+                        }]
+                    }]
+                }))
+        actual = response.body.decode("utf8")
+        self.assertEqual(response.code, 200)
+        assert actual == 'success'
 
 
 class TestWhatsappOnPremise:
@@ -102,4 +195,38 @@ class TestWhatsappOnPremise:
             response = whatsapp_on_premise.send_template_message(namespace=namespace, name=name,
                                                                  to_phone_number=to_phone_number)
             assert response == {"error": {"message": "to_phone_number is not valid", "code": 400}}
+
+
+class TestWhatsappCloud:
+
+    @pytest.fixture(scope="module")
+    def whatsapp_cloud(self):
+        access_token = "ERTYUIEFDGHGFHJKLFGHJKGHJ"
+        from_phone_number_id = "918958030415"
+        whatsapp_cloud = WhatsappCloud(access_token=access_token, from_phone_number_id=from_phone_number_id)
+        yield whatsapp_cloud
+
+    def test_whatsapp_cloud_send_template_message(self, whatsapp_cloud):
+        namespace = "test_namespace"
+        name = "test_template_name"
+        to_phone_number = "9876543210"
+        with patch("kairon.chat.handlers.channels.clients.whatsapp.cloud.WhatsappCloud.send",
+                   autospec=True) as mock_send:
+            mock_send.return_value = {
+                "contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+            response = whatsapp_cloud.send_template_message(namespace=namespace, name=name,
+                                                            to_phone_number=to_phone_number)
+            assert response == {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+
+    def test_whatsapp_cloud_send_template_message_failure(self, whatsapp_cloud):
+        namespace = "test_namespace"
+        name = "test_template_name"
+        to_phone_number = "invalid_ph_no"
+        with patch("kairon.chat.handlers.channels.clients.whatsapp.cloud.WhatsappCloud.send",
+                   autospec=True) as mock_send:
+            mock_send.return_value = {"error": {"message": "to_phone_number is not valid", "code": 400}}
+            response = whatsapp_cloud.send_template_message(namespace=namespace, name=name,
+                                                            to_phone_number=to_phone_number)
+            assert response == {"error": {"message": "to_phone_number is not valid", "code": 400}}
+
 
