@@ -25,20 +25,20 @@ Utility.load_environment()
 connect(**Utility.mongoengine_connection())
 
 loop = asyncio.new_event_loop()
-loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email": "test@chat.com",
+loop.run_until_complete(AccountProcessor.account_setup(RegisterAccount(**{"email": "test@channel.com",
                                                                           "first_name": "Test",
-                                                                          "last_name": "Chat",
-                                                                          "password": "testChat@12",
-                                                                          "confirm_password": "testChat@12",
-                                                                          "account": "ChatTesting"}).dict()))
+                                                                          "last_name": "Channel",
+                                                                          "password": "testChannel@12",
+                                                                          "confirm_password": "testChannel@12",
+                                                                          "account": "ChannelTesting"}).dict()))
 
-token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
-user = AccountProcessor.get_complete_user_details("test@chat.com")
+token, _, _, _ = Authentication.authenticate("test@channel.com", "testChannel@12")
+user = AccountProcessor.get_complete_user_details("test@channel.com")
 bot = user['bots']['account_owned'][0]['_id']
 ChatDataProcessor.save_channel_config({
     "connector_type": "whatsapp",
     "config": {"app_secret": "jagbd34567890", "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ", "verify_token": "valid"}},
-    bot, user="test@chat.com"
+    bot, user="test@channel.com"
 )
 
 
