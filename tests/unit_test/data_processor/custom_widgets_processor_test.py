@@ -293,7 +293,7 @@ class TestCustomWidgetsProcessor:
             "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
                         {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
         }
-        widget_id = CustomWidgetsProcessor.save_config(config, bot, user)
+        pytest.widget_id3 = CustomWidgetsProcessor.save_config(config, bot, user)
         processor.add_secret("ORG_NAME", "kairon", bot, user)
         processor.add_secret("AUTH_TOKEN", "sdfghjk456789", bot, user)
 
@@ -307,7 +307,7 @@ class TestCustomWidgetsProcessor:
                 responses.matchers.header_matcher({"client": "kairon", "authorization": "sdfghjk456789"})],
         )
 
-        actual_response, msg = CustomWidgetsProcessor.trigger_widget(widget_id, bot, user)
+        actual_response, msg = CustomWidgetsProcessor.trigger_widget(pytest.widget_id3, bot, user)
         assert actual_response == expected_resp
         assert not msg
 
@@ -346,7 +346,7 @@ class TestCustomWidgetsProcessor:
         with pytest.raises(AppException, match='Connection timed out!'):
             CustomWidgetsProcessor.trigger_widget(widget_id, bot, user)
 
-        actual_response, msg = CustomWidgetsProcessor.trigger_widget(widget_id, bot, user, False)
+        actual_response, msg = CustomWidgetsProcessor.trigger_widget(widget_id, bot, user, raise_err=False)
         assert not actual_response
         assert msg == 'Connection timed out!'
 
@@ -374,3 +374,62 @@ class TestCustomWidgetsProcessor:
         logs = list(CustomWidgetsProcessor.get_logs(bot))
         assert logs[0].pop("timestamp")
         assert logs == [{'requested_by': user, 'bot': bot, 'exception': "Widget does not exists!"}]
+
+    @responses.activate
+    def test_trigger_widget_with_filters(self):
+        bot = "test_bot_3"
+        user = "test_user"
+
+        expected_resp = {"data": [{"1": 200, "2": 300, "3": 400, "4": 500, "5": 600}]}
+        filters = {"start_date": "11-11-2021", "end_date": "21-11-2021"}
+        expected_query_parameters = {"crop_type": "tomato", "org": "kairon"}
+        expected_query_parameters.update(filters)
+
+        responses.add(
+            "GET", "http://agtech.com/trends/1",
+            json=expected_resp,
+            match=[
+                responses.matchers.query_param_matcher(expected_query_parameters),
+                responses.matchers.header_matcher({"client": "kairon", "authorization": "sdfghjk456789"})],
+        )
+
+        actual_response, msg = CustomWidgetsProcessor.trigger_widget(pytest.widget_id3, bot, user, filters)
+        assert actual_response == expected_resp
+        assert not msg
+
+        logs = list(CustomWidgetsProcessor.get_logs(bot))
+        assert logs[0].pop("timestamp")
+        assert logs[0] == {'name': 'agtech weekly trends', 'request_method': 'GET',
+                           'http_url': 'http://agtech.com/trends/1',
+                           'headers': {'client': 'kairon', 'authorization': '***********89'},
+                           'request_parameters': {'crop_type': 'tomato', 'org': '****on', "start_date": "11-11-2021",
+                                                  "end_date": "21-11-2021"},
+                           'response': {'data': [{'1': 200, '2': 300, '3': 400, '4': 500, '5': 600}]},
+                           'requested_by': user, 'bot': bot}
+
+        config = CustomWidgetsProcessor.get_config(pytest.widget_id3, bot)
+        config["request_method"] = "POST"
+        CustomWidgetsProcessor.edit_config(pytest.widget_id3, config, bot, user)
+
+        responses.reset()
+        responses.add(
+            "POST", "http://agtech.com/trends/1",
+            json=expected_resp,
+            match=[
+                responses.matchers.json_params_matcher(expected_query_parameters),
+                responses.matchers.header_matcher({"client": "kairon", "authorization": "sdfghjk456789"})],
+        )
+        actual_response, msg = CustomWidgetsProcessor.trigger_widget(pytest.widget_id3, bot, user, filters)
+        assert actual_response == expected_resp
+        assert not msg
+
+        logs = list(CustomWidgetsProcessor.get_logs(bot))
+        assert logs[0].pop("timestamp")
+        assert logs[0] == {'name': 'agtech weekly trends', 'request_method': 'POST',
+                           'http_url': 'http://agtech.com/trends/1',
+                           'headers': {'client': 'kairon', 'authorization': '***********89'},
+                           'request_parameters': {'crop_type': 'tomato', 'org': '****on', "start_date": "11-11-2021",
+                                                  "end_date": "21-11-2021"},
+                           'response': {'data': [{'1': 200, '2': 300, '3': 400, '4': 500, '5': 600}]},
+                           'requested_by': user, 'bot': bot}
+        assert len(logs) == 3

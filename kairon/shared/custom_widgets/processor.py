@@ -71,7 +71,7 @@ class CustomWidgetsProcessor:
             yield log
 
     @staticmethod
-    def trigger_widget(widget_id: Text, bot: Text, user: Text, raise_err: bool = True):
+    def trigger_widget(widget_id: Text, bot: Text, user: Text, filters=None, raise_err: bool = True):
         config = {}
         resp = None
         exception = None
@@ -81,6 +81,7 @@ class CustomWidgetsProcessor:
             config = CustomWidgetsProcessor.get_config(widget_id, bot)
             headers, headers_eval_log = CustomWidgetsProcessor.__prepare_request_parameters(bot, config.get("headers"))
             request_body, request_body_eval_log = CustomWidgetsProcessor.__prepare_request_body(config)
+            CustomWidgetsProcessor.__attach_filters(request_body, request_body_eval_log, filters)
             timeout = config.get("timeout", 1)
             resp = Utility.execute_http_request(config["request_method"], config["http_url"], request_body, headers, timeout)
             return resp, None
@@ -128,3 +129,12 @@ class CustomWidgetsProcessor:
             request_body_log[param['key']] = log_value
 
         return request_body, request_body_log
+
+    @staticmethod
+    def __attach_filters(request_body, request_body_eval_log, filters):
+        if filters:
+            if not request_body:
+                request_body = {}
+                request_body_eval_log = {}
+            request_body.update(filters)
+            request_body_eval_log.update(filters)

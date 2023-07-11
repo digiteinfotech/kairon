@@ -14829,13 +14829,30 @@ def test_add_member_with_view_role():
 
 @responses.activate
 def test_trigger_widget():
+    expected_query_parameters = {"crop_type": "tomato", "org": "kairon"}
+    expected_query_parameters.update({"start_date": "11-11-2021", "end_date": "21-11-2021"})
     expected_resp = {"data": [{"1": 200, "2": 300, "3": 400, "4": 500, "5": 600}]}
+
+    for key_vault in [{"key": "ORG_NAME", "value": "kairon"}, {"key": "AUTH_TOKEN", "value": "sdfghjk456789"}]:
+        response = client.post(
+            f"/api/bot/{pytest.bot}/secrets/add",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            json=key_vault
+        )
+        actual = response.json()
+        assert actual['error_code'] == 0
+        assert actual['success']
+
     responses.add(
         "GET", "http://agtech.com/trends/1", json=expected_resp,
+        match=[
+            responses.matchers.query_param_matcher(expected_query_parameters),
+            responses.matchers.header_matcher({"client": "kairon", "authorization": "sdfghjk456789"})],
     )
 
+    # Test with view role
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}",
+        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}?start_date=11-11-2021&end_date=21-11-2021",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token_view_role},
     )
     actual = response.json()
@@ -14844,14 +14861,25 @@ def test_trigger_widget():
     assert actual["data"] == expected_resp
     assert not actual["message"]
 
+    # Test with admin role
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}",
+        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}?start_date=11-11-2021&end_date=21-11-2021",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"] == expected_resp
+    assert not actual["message"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/logs/all",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 2
     assert not actual["message"]
 
 

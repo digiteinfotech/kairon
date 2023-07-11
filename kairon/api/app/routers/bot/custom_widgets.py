@@ -1,9 +1,11 @@
 from typing import Text
 
 from fastapi import APIRouter, Security, Path
+from starlette.requests import Request
+
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response
-from kairon.shared.constants import ADMIN_ACCESS, VIEW_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, VIEW_ACCESS, TESTER_ACCESS
 from kairon.shared.custom_widgets.models import CustomWidgetsRequest
 from kairon.shared.custom_widgets.processor import CustomWidgetsProcessor
 from kairon.shared.models import User
@@ -75,11 +77,25 @@ async def delete_custom_widget(
 
 @router.get("/trigger/{widget_id}", response_model=Response)
 async def trigger_widget(
+        request: Request,
         widget_id: str = Path(default=None, description="Custom widget configuration id."),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=VIEW_ACCESS)
 ):
     """
     Trigger widget config to retrieve data.
     """
-    data, msg = CustomWidgetsProcessor.trigger_widget(widget_id, current_user.get_bot(), current_user.get_user(), False)
+    filters = dict(request.query_params.multi_items())
+    data, msg = CustomWidgetsProcessor.trigger_widget(widget_id, current_user.get_bot(), current_user.get_user(), filters, False)
     return {"data": data, "message": msg}
+
+
+@router.get("/logs/all", response_model=Response)
+async def get_logs(
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Retrieve logs for widgets triggered in the past.
+    """
+    data = list(CustomWidgetsProcessor.get_logs(current_user.get_bot(), start_idx=start_idx, page_size=page_size))
+    return {"data": data}
