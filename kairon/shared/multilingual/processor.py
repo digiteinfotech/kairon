@@ -3,6 +3,7 @@ from datetime import datetime
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS
@@ -128,7 +129,7 @@ class MultilingualLogProcessor:
         doc_count = BotReplicationLogs.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= Utility.environment["multilingual"]["limit_per_day"]:
+        if doc_count >= BotSettings.objects(bot=bot).get().multilingual_limit_per_day:
             if raise_exception:
                 raise AppException("Daily limit exceeded.")
             else:

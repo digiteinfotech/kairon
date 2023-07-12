@@ -7,7 +7,8 @@ from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS, TRAINING_DATA_GENERATOR_DIR, TrainingDataSourceType
-from .data_objects import TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator
+from .data_objects import TrainingDataGenerator, TrainingDataGeneratorResponse, TrainingExamplesTrainingDataGenerator, \
+    BotSettings
 
 
 class TrainingDataGenerationProcessor:
@@ -188,7 +189,7 @@ class TrainingDataGenerationProcessor:
         doc_count = TrainingDataGenerator.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= Utility.environment['data_generation']["limit_per_day"]:
+        if doc_count >= BotSettings.objects(bot=bot).get().data_generation_limit_per_day:
             if raise_exception:
                 raise AppException("Daily limit exceeded.")
             else:

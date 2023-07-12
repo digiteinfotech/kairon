@@ -331,6 +331,7 @@ class TestEventExecution:
         bot = 'test_events_bot'
         user = 'test_user'
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+        BotSettings(bot="test_events_bot", user="test_user").save()
 
         responses.add("POST",
                       event_url,
@@ -365,6 +366,7 @@ class TestEventExecution:
         bot = 'test_events_bot_1'
         user = 'test_user'
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+        BotSettings(bot="test_events_bot_1", user="test_user").save()
         responses.add("POST",
                       event_url,
                       json={"success": True, "message": "Event triggered successfully!"},
@@ -397,6 +399,7 @@ class TestEventExecution:
         bot = 'test_events_bot_2'
         user = 'test_user'
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+        BotSettings(bot="test_events_bot_2", user="test_user").save()
 
         responses.add("POST",
                       event_url,
@@ -428,6 +431,7 @@ class TestEventExecution:
     def test_trigger_data_importer_event_connection_error(self, monkeypatch):
         bot = 'test_events_bot_3'
         user = 'test_user'
+        BotSettings(bot="test_events_bot_3", user="test_user").save()
 
         event = TrainingDataImporterEvent(bot, user, import_data=False, overwrite=False)
         event.validate()
@@ -775,6 +779,8 @@ class TestEventExecution:
 
         bot = 'test_faqs'
         user = 'test'
+        BotSettings(bot="test_faqs", user="test").save()
+
         faq = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\nWhat day is it?, It is Thursday,\n".encode()
         file = UploadFile(filename="faq.csv", file=BytesIO(faq))
         FaqDataImporterEvent(bot, user).validate(training_data_file=file)

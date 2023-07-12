@@ -6,7 +6,7 @@ from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS
-from .data_objects import ModelTraining
+from .data_objects import ModelTraining, BotSettings
 
 
 class ModelProcessor:
@@ -90,7 +90,7 @@ class ModelProcessor:
         doc_count = ModelTraining.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= Utility.environment['model']['train']["limit_per_day"]:
+        if doc_count >= BotSettings.objects(bot=bot).get().training_limit_per_day:
             if raise_exception:
                 raise AppException("Daily model training limit exceeded.")
             else:
