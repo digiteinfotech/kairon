@@ -7987,3 +7987,72 @@ class TestActionServer(AsyncHTTPTestCase):
         with open('tests/testing_data/actions/slot_prompt.txt', 'r') as file:
             prompt_data = file.read()
         assert mock_completion.call_args.args[3] == prompt_data
+
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
+    @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
+    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    def test_prompt_action_user_message_in_slot(self, mock_search, mock_embedding, mock_completion):
+        from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
+        from openai.util import convert_to_openai_object
+        from openai.openai_response import OpenAIResponse
+        from uuid6 import uuid7
+
+        action_name = "kairon_faq_action"
+        bot = "5u80fd0a56c908ca10d35d2sadfsf"
+        user = "udit.pandey"
+        value = "keyvalue"
+        user_msg = '/kanban_story{"kairon_user_msg": "Kanban And Scrum Together?"}'
+        bot_content = "Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time."
+        generated_text = "YES you can use both in a single project. However, in order to run the Sprint, you should only use the 'Scrum board'. On the other hand 'Kanban board' is only to track the progress or status of the Jira issues."
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+             'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
+             'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+        ]
+
+        def mock_completion_for_answer(*args, **kwargs):
+            return convert_to_openai_object(
+                OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
+
+        def __mock_fetch_similar(*args, **kwargs):
+            return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
+
+        mock_completion.return_value = mock_completion_for_answer()
+
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        mock_embedding.return_value = embedding
+        mock_completion.return_value = generated_text
+        mock_search.return_value = __mock_fetch_similar()
+        Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+        BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+        PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+        BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"] = {
+            'text': user_msg, 'intent_ranking': [{'name': 'kanban_story'}],
+            "entities": [{"value": "Kanban And Scrum Together?", "entity": KAIRON_USER_MSG_ENTITY}]
+        }
+
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
+        self.assertEqual(
+            response_json['responses'],
+            [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+              'response': None, 'image': None, 'attachment': None}
+             ])
+        assert mock_completion.call_args[0][1] == 'Kanban And Scrum Together?'
+        assert mock_completion.call_args[0][2] == 'You are a personal assistant.\n'
+        assert mock_completion.call_args[0][3] == """
+Similarity Prompt:
+Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.
+Instructions on how to use Similarity Prompt: Answer question based on the context above, if answer is not in the context go check previous logs.
+"""
