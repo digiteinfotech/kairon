@@ -5,7 +5,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
-from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType
+from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, VectorDbValueType, \
+    VectorDbOperationClass
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
@@ -350,6 +351,56 @@ class HttpActionConfigRequest(BaseModel):
         if v.upper() not in ("GET", "POST", "PUT", "DELETE"):
             raise ValueError("Invalid HTTP method")
         return v.upper()
+
+
+class OperationConfig(BaseModel):
+    type: VectorDbValueType
+    value: VectorDbOperationClass
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(values.get('type')):
+            raise ValueError("type cannot be empty")
+
+        if Utility.check_empty_string(values.get('value')):
+            raise ValueError("value cannot be empty")
+
+        return values
+
+
+class PayloadConfig(BaseModel):
+    type: VectorDbValueType
+    value: Any
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(values.get('type')):
+            raise ValueError("type is required")
+
+        if not values.get('value') or values.get('value') is None:
+            raise ValueError("value is required")
+
+        return values
+
+
+class VectorEmbeddingActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    operation: OperationConfig
+    payload: PayloadConfig
+    response: ActionResponseEvaluation = None
+    set_slots: List[SetSlotsUsingActionResponse] = []
+
+    @validator("name")
+    def validate_action_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("name is required")
+        return v
 
 
 class TrainingData(BaseModel):

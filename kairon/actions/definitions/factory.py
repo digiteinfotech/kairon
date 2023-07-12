@@ -12,6 +12,7 @@ from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.razorpay import ActionRazorpay
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
+from kairon.actions.definitions.vector_action import VectorEmbeddingsDbAction
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
@@ -34,6 +35,7 @@ class ActionFactory:
         ActionType.kairon_bot_response.value: ActionKaironBotResponse,
         ActionType.razorpay_action.value: ActionRazorpay,
         ActionType.prompt_action.value: ActionPrompt,
+        ActionType.vector_embeddings_db_action.value: VectorEmbeddingsDbAction
     }
 
     @staticmethod
