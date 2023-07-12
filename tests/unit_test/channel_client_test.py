@@ -163,6 +163,21 @@ class TestWhatsappCloud:
             assert mock_send.call_args[1] == {'messaging_type': 'template'}
             assert response == {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
+    def test_whatsapp_cloud_send_template_message_without_payload(self, whatsapp_cloud):
+        namespace = "test_namespace"
+        name = "test_template_name"
+        to_phone_number = "9876543210"
+        with patch("kairon.chat.handlers.channels.clients.whatsapp.cloud.WhatsappCloud.send",
+                   autospec=True) as mock_send:
+            mock_send.return_value = {
+                "contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+            response = whatsapp_cloud.send_template_message(namespace=namespace, name=name,
+                                                            to_phone_number=to_phone_number)
+            assert mock_send.call_args[0][1] == {'language': {'code': 'en'}, 'name': 'test_template_name'}
+            assert mock_send.call_args[0][2] == "9876543210"
+            assert mock_send.call_args[1] == {'messaging_type': 'template'}
+            assert response == {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+
     def test_whatsapp_cloud_send_template_message_failure(self, whatsapp_cloud):
         namespace = "test_namespace"
         name = "test_template_name"
