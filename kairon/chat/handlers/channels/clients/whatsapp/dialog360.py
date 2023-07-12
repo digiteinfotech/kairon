@@ -1,9 +1,9 @@
 from kairon import Utility
-from kairon.chat.handlers.channels.clients.whatsapp.on_premise import WhatsappOnPremise
+from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 from kairon.shared.constants import WhatsappBSPTypes
 
 
-class BSP360Dialog(WhatsappOnPremise):
+class BSP360Dialog(WhatsappCloud):
 
     def __init__(self, access_token, **kwargs):
         super().__init__(access_token, **kwargs)
