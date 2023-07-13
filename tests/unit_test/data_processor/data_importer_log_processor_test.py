@@ -3,6 +3,7 @@ import os
 import pytest
 from mongoengine import connect
 
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -174,18 +175,24 @@ class TestDataImporterLogProcessor:
         assert not log.get('validation_status')
         assert log['event_status'] == EVENT_STATUS.COMPLETED.value
 
-    def test_is_limit_exceeded(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['data_importer'], "limit_per_day", 3)
-        bot = 'test'
-        assert DataImporterLogProcessor.is_limit_exceeded(bot, False)
-
     def test_is_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['data_importer'], "limit_per_day", 3)
         bot = 'test'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_importer_limit_per_day = 0
+        bot_settings.save()
         with pytest.raises(AppException):
             assert DataImporterLogProcessor.is_limit_exceeded(bot)
 
-    def test_is_limit_exceeded_false(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['data_importer'], "limit_per_day", 6)
+    def test_is_limit_exceeded(self, monkeypatch):
         bot = 'test'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_importer_limit_per_day = 3
+        bot_settings.save()
+        assert DataImporterLogProcessor.is_limit_exceeded(bot, False)
+
+    def test_is_limit_exceeded_false(self, monkeypatch):
+        bot = 'test'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_importer_limit_per_day = 6
+        bot_settings.save()
         assert not DataImporterLogProcessor.is_limit_exceeded(bot)

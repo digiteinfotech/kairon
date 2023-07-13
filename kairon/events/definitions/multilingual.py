@@ -34,7 +34,7 @@ class MultilingualEvent(EventsBase):
         whether the event trigger limit has exceeded.
         """
         MultilingualLogProcessor.is_event_in_progress(self.bot)
-        MultilingualLogProcessor.is_limit_exceeded(self.user)
+        MultilingualLogProcessor.is_limit_exceeded(self.bot)
         bot_info = AccountProcessor.get_bot(self.bot)
         if bot_info['metadata']['language'] == self.dest_lang:
             raise AppException("Source and destination language cannot be the same.")

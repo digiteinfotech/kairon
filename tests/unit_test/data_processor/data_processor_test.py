@@ -36,13 +36,14 @@ from starlette.requests import Request
 
 from kairon.api import models
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
-    SetSlotsUsingActionResponse, PromptActionConfigRequest
+    SetSlotsUsingActionResponse, PromptActionConfigRequest, VectorEmbeddingActionRequest, OperationConfig, PayloadConfig
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
-    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction
+    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
+    VectorEmbeddingDbAction, SetSlotsFromResponse
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -8977,6 +8978,426 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='Intent does not exists'):
             list(processor.add_or_move_training_example(examples_to_move, 'non_existent', "tests", "testUser"))
 
+    def test_add_vector_embedding_action_config_op_embedding_search(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_vectordb_action_op_embedding_search'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+        actual_vectordb_action = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual_vectordb_action is not None
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        assert actual_vectordb_action['name'] == action
+        assert actual_vectordb_action['payload']['type'] == 'from_value'
+        assert actual_vectordb_action['payload']['value'] == {'ids': [0], 'with_payload': True, 'with_vector': True}
+        assert actual_vectordb_action['operation']['type'] == 'from_value'
+        assert actual_vectordb_action['operation']['value'] == 'embedding_search'
+        assert actual_vectordb_action['response']['value'] == '0'
+
+    def test_add_vector_embedding_action_config_op_payload_search(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_vectordb_action_op_payload_search'
+        response = '1'
+        operation = {'type': 'from_value', 'value': 'payload_search'}
+        payload_body = {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+        actual_vectordb_action = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual_vectordb_action is not None
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        assert actual_vectordb_action['name'] == action
+        assert actual_vectordb_action['payload']['type'] == 'from_value'
+        assert actual_vectordb_action['payload']['value'] == payload_body
+        assert actual_vectordb_action['operation']['type'] == 'from_value'
+        assert actual_vectordb_action['operation']['value'] == 'payload_search'
+        assert actual_vectordb_action['response']['value'] == '1'
+
+    def test_add_vector_embedding_action_config_op_embedding_search_from_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_vectordb_action_op_embedding_search_from_slot'
+        response = 'nupur.khare'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload = {'type': 'from_slot', 'value': 'email'}
+        processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response),
+            set_slots=[SetSlotsUsingActionResponse(name="age", value="${data.age}", evaluation_type="expression")]
+        )
+        processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+        actual_vectordb_action = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual_vectordb_action is not None
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        assert actual_vectordb_action['name'] == action
+        assert actual_vectordb_action['payload']['type'] == 'from_slot'
+        assert actual_vectordb_action['payload']['value'] == 'email'
+        assert actual_vectordb_action['operation']['type'] == 'from_value'
+        assert actual_vectordb_action['operation']['value'] == 'embedding_search'
+        assert actual_vectordb_action['response']['value'] == 'nupur.khare'
+
+    def test_add_vector_embedding_action_config_op_embedding_search_from_slot_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_slot'
+        user = 'test_vector_user_slot'
+        action = 'test_vectordb_action_slot'
+        response = 'nupur.khare'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload = {'type': 'from_slot', 'value': 'cuisine'}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response),
+            set_slots=[SetSlotsUsingActionResponse(name="age", value="${data.age}", evaluation_type="expression")]
+        )
+        with pytest.raises(AppException, match="Slot with name cuisine not found!"):
+            processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+
+    def test_add_vector_embedding_action_config_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_vectordb_action_op_embedding_search'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        with pytest.raises(AppException, match="Action exists"):
+            processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+
+    def test_add_vector_embedding_action_config_empty_payload_values(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_empty_name'
+        user = 'test_vector_user_empty_name'
+        action = 'test_add_vectordb_action_config_empty_name'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action = vectordb_action_config.dict()
+        vectordb_action['name'] = ''
+        with pytest.raises(ValidationError, match="Action name cannot be empty"):
+            processor.add_vector_embedding_db_action(vectordb_action, user, bot)
+        vectordb_action_config_two = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action_two = vectordb_action_config_two.dict()
+        vectordb_action_two['payload']['value'] = ''
+        with pytest.raises(ValidationError, match="payload value is required"):
+            processor.add_vector_embedding_db_action(vectordb_action_two, user, bot)
+        vectordb_action_config_three = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action_three = vectordb_action_config_three.dict()
+        vectordb_action_three['payload']['type'] = ''
+        with pytest.raises(ValidationError, match="payload type is required"):
+            processor.add_vector_embedding_db_action(vectordb_action_three, user, bot)
+
+    def test_add_vector_embedding_action_config_empty_operation_values(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_empty_operation_values'
+        user = 'test_vector_user_empty_operation_values'
+        action = 'test_add_vector_embedding_action_config_empty_operation_values'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'payload_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action = vectordb_action_config.dict()
+        vectordb_action['name'] = ''
+        with pytest.raises(ValidationError, match="Action name cannot be empty"):
+            processor.add_vector_embedding_db_action(vectordb_action, user, bot)
+        vectordb_action_config_two = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action_two = vectordb_action_config_two.dict()
+        vectordb_action_two['operation']['value'] = ''
+        with pytest.raises(ValidationError, match="operation value is required"):
+            processor.add_vector_embedding_db_action(vectordb_action_two, user, bot)
+        vectordb_action_config_three = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action_three = vectordb_action_config_three.dict()
+        vectordb_action_three['operation']['type'] = ''
+        with pytest.raises(ValidationError, match="operation type is required"):
+            processor.add_vector_embedding_db_action(vectordb_action_three, user, bot)
+
+    def test_get_vector_embedding_action(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_get'
+        user = 'test_vector_user'
+        action = 'test_get_vectordb_action'
+        response = 'nupur.khare'
+
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload = {'type': 'from_slot', 'value': 'email'}
+        VectorEmbeddingDbAction(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=HttpActionResponse(value=response),
+            set_slots=[SetSlotsFromResponse(name="email", value="${data.email}", evaluation_type="expression")],
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        actual = processor.get_vector_embedding_db_action_config(bot=bot, action=action)
+        assert actual is not None
+        assert actual['name'] == action
+        assert actual['operation'] == {'type': 'from_value', 'value': 'embedding_search'}
+        assert actual['payload'] == {'type': 'from_slot', 'value': 'email'}
+        assert actual['collection'] == 'test_vector_bot_get_faq_embd'
+        assert actual['response'] == {'value': 'nupur.khare', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'}
+        assert actual['db_type'] == 'qdrant'
+        assert actual['set_slots'] == [{'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}]
+
+    def test_get_vector_embedding_action_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_get_action'
+        user = 'test_vector_user'
+        action = 'test_get_vectordb_action'
+        response = 'nupur.khare'
+
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload = {'type': 'from_slot', 'value': 'email'}
+        VectorEmbeddingDbAction(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=HttpActionResponse(value=response),
+            set_slots=[SetSlotsFromResponse(name="email", value="${data.email}", evaluation_type="expression")],
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        try:
+            processor.get_vector_embedding_db_action_config(bot=bot, action='embedding')
+            assert False
+        except AppException as e:
+            assert str(e) == "Action does not exists!"
+
+    def test_list_vector_embedding_action(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        actions = list(processor.list_vector_embedding_db_actions(bot, True))
+        assert len(actions) == 3
+
+    def test_update_vector_embedding_action(self):
+        processor = MongoProcessor()
+        bot = 'test_update_vectordb_action_bot'
+        user = 'test_update_vectordb_action_user'
+        action = 'test_update_vectordb_action'
+        response = '15'
+        operation = {'type': 'from_value', 'value': 'payload_search'}
+        payload_body = {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+        actual = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual is not None
+        assert actual['name'] == action
+        assert actual['response']['value'] == '15'
+        assert actual['payload']['value'] == {'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+        response_two = 'nimble'
+        processor.add_slot({"name": "name", "type": "text", "initial_value": "nupur",
+                            "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+        payload_two = {'type': 'from_value', 'value': 'name'}
+        vectordb_action_config_updated = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload_two,
+            response=ActionResponseEvaluation(value=response_two),
+            set_slots=[SetSlotsUsingActionResponse(name="name", value="${data.name}", evaluation_type="expression")]
+        )
+        processor.update_vector_embedding_db_action(vectordb_action_config_updated.dict(), user, bot)
+        actual_two = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual_two is not None
+        assert actual_two['name'] == action
+        assert actual_two['response']['value'] == 'nimble'
+        assert actual_two['payload']['value'] == 'name'
+
+    def test_update_vector_embedding_action_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_update_vectordb_action_bot'
+        user = 'test_update_vectordb_action_user'
+        action = 'test_update_vectordb_action_does_not_exists'
+        response = 'Digite'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        with pytest.raises(AppException, match='Action with name "test_update_vectordb_action_does_not_exists" not found'):
+            processor.update_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+
+    def test_delete_vector_embedding_action_config(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_delete_vector_embedding_action_config'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        Actions(name=action, type=ActionType.vector_embeddings_db_action.value, bot=bot, user=user).save()
+        VectorEmbeddingDbAction(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=HttpActionResponse(value=response),
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        processor.delete_action(action, user=user, bot=bot)
+        try:
+            HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+                action_name__iexact=action)
+            assert False
+        except DoesNotExist:
+            assert True
+
+    def test_delete_vector_embedding_action_config_non_existing(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_delete_vector_embedding_action_config_non_existing'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        VectorEmbeddingDbAction(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=HttpActionResponse(value=response),
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+
+        try:
+            processor.delete_action("test_delete_vector_embedding_action_config_non_existing_non_existing", user=user, bot=bot)
+            assert False
+        except AppException as e:
+            assert str(e).__contains__(
+                'Action with name "test_delete_vector_embedding_action_config_non_existing_non_existing" not found')
+
     def test_add_http_action_config(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -9626,7 +10047,8 @@ class TestMongoProcessor:
             'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
             'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
+            'vector_embeddings_db_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -9648,7 +10070,7 @@ class TestMongoProcessor:
             'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'vector_embeddings_db_action': []
         }
 
     def test_add_complex_story(self):
@@ -9672,6 +10094,7 @@ class TestMongoProcessor:
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'kairon_bot_response': [],
                            'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
+                           'vector_embeddings_db_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -11413,7 +11836,7 @@ class TestMongoProcessor:
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
-            'email_action': [], 'form_validation_action': [], 'prompt_action': [],
+            'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'vector_embeddings_db_action': [],
             'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase']}
 
     def test_delete_non_existing_complex_story(self):
@@ -11521,6 +11944,7 @@ class TestMongoProcessor:
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
+            'vector_embeddings_db_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
@@ -13395,15 +13819,20 @@ class TestTrainingDataProcessor:
         assert actual_response is False
 
     def test_daily_file_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 0)
-        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_generation_limit_per_day = 0
+        bot_settings.save()
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit(bot, False)
         assert actual_response is True
 
     def test_daily_file_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 0)
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_generation_limit_per_day = 0
+        bot_settings.save()
         with pytest.raises(AppException) as exp:
-            assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
-
+            assert TrainingDataGenerationProcessor.check_data_generation_limit(bot)
         assert str(exp.value) == "Daily limit exceeded."
 
 
@@ -13511,19 +13940,28 @@ class TestModelProcessor:
         assert str(exp.value) == "Previous model training in progress."
 
     def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 8)
-        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.training_limit_per_day = 8
+        bot_settings.save()
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded(bot)
         assert actual_response is False
 
     def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 0)
-        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.training_limit_per_day = 0
+        bot_settings.save()
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded(bot, False)
         assert actual_response is True
 
     def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 0)
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.training_limit_per_day = 0
+        bot_settings.save()
         with pytest.raises(AppException) as exp:
-            assert ModelProcessor.is_daily_training_limit_exceeded("tests")
+            assert ModelProcessor.is_daily_training_limit_exceeded(bot)
 
         assert str(exp.value) == "Daily model training limit exceeded."
 

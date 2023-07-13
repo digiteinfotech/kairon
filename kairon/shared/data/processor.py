@@ -43,8 +43,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet
-from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType
+    LlmPrompt, FormSlotSet, VectorEmbeddingDbAction, VectorDbOperation, VectorDbPayload
+from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, VectorDbValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource
@@ -2993,6 +2993,94 @@ class MongoProcessor:
         actions = HttpActionConfig.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
 
+    def update_vector_embedding_db_action(self, request_data: Dict, user: str, bot: str):
+        """
+        Updates VectorDb configuration.
+        :param request_data: Dict containing configuration to be modified
+        :param user: user id
+        :param bot: bot id
+        :return: VectorDb configuration id for updated VectorDb action config
+        """
+
+        if not Utility.is_exist(VectorEmbeddingDbAction, raise_error=False, name=request_data.get('name'), bot=bot, status=True):
+            raise AppException(f'Action with name "{request_data.get("name")}" not found')
+        self.__validate_payload(request_data.get('payload'), bot)
+        action = VectorEmbeddingDbAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action.operation = VectorDbOperation(**request_data['operation'])
+        action.payload = VectorDbPayload(**request_data['payload'])
+        action.response = HttpActionResponse(**request_data.get('response', {}))
+        action.set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in
+                            request_data.get('set_slots')]
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        action_id = action.save().to_mongo().to_dict()["_id"].__str__()
+        return action_id
+
+    def add_vector_embedding_db_action(self, vector_db_action_config: Dict, user: str, bot: str):
+        """
+        Adds a new VectorDb action.
+        :param vector_db_action_config: dict object containing configuration for the Http action
+        :param user: user id
+        :param bot: bot id
+        :return: Http configuration id for saved Http action config
+        """
+        self.__validate_payload(vector_db_action_config.get('payload'), bot)
+        Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, VectorEmbeddingDbAction)
+        set_slots = [SetSlotsFromResponse(**slot) for slot in vector_db_action_config.get('set_slots')]
+        action_id = VectorEmbeddingDbAction(
+            name=vector_db_action_config['name'],
+            operation=VectorDbOperation(**vector_db_action_config.get('operation')),
+            payload=VectorDbPayload(**vector_db_action_config.get('payload')),
+            response=HttpActionResponse(**vector_db_action_config.get('response', {})),
+            set_slots=set_slots,
+            bot=bot,
+            user=user,
+        ).save().to_mongo().to_dict()["_id"].__str__()
+        self.add_action(vector_db_action_config['name'], bot, user, action_type=ActionType.vector_embeddings_db_action.value,
+                        raise_exception=False)
+        return action_id
+
+    def __validate_payload(self, payload, bot: Text):
+        if payload.get('type') == VectorDbValueType.from_slot.value:
+            slot = payload.get('value')
+            if not Utility.is_exist(Slots, raise_error=False, name=slot, bot=bot, status=True):
+                raise AppException(f'Slot with name {slot} not found!')
+
+    def get_vector_embedding_db_action_config(self, bot: str, action: str):
+        """
+        Fetches VectorDb action config from collection.
+        :param bot: bot id
+        :param action: action name
+        :return: VectorEmbeddingDbAction object containing configuration for the Http action.
+        """
+        try:
+            vector_embedding_config_dict = VectorEmbeddingDbAction.objects(bot=bot, name=action, status=True).get()
+            vector_embedding_config = vector_embedding_config_dict.to_mongo().to_dict()
+            vector_embedding_config['_id'] = vector_embedding_config['_id'].__str__()
+            return vector_embedding_config
+        except DoesNotExist as ex:
+            logging.exception(ex)
+            raise AppException("Action does not exists!")
+
+    def list_vector_embedding_db_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all VectorDb actions from collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of VectorDb actions.
+        """
+        for action in VectorEmbeddingDbAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
+            yield action
+
     def list_actions(self, bot: Text):
         all_actions = list(Actions.objects(bot=bot, status=True).aggregate([
             {
@@ -4476,6 +4564,8 @@ class MongoProcessor:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.vector_embeddings_db_action.value:
+                Utility.delete_document([VectorEmbeddingDbAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.prompt_action.value:
                 PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False

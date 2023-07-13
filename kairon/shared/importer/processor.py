@@ -6,6 +6,7 @@ from mongoengine import Q, DoesNotExist
 from kairon.shared.actions.models import ActionType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.exceptions import AppException
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 from kairon.shared.importer.data_objects import ValidationLogs, TrainingComponentLog, DomainLog
 
@@ -134,7 +135,7 @@ class DataImporterLogProcessor:
         doc_count = ValidationLogs.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= Utility.environment['model']["data_importer"]["limit_per_day"]:
+        if doc_count >= BotSettings.objects(bot=bot).get().data_importer_limit_per_day:
             if raise_exception:
                 raise AppException("Daily limit exceeded.")
             else:

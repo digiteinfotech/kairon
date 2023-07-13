@@ -53,7 +53,7 @@ channels:
           - channel_id
           - api_key
         hub_base_url: "https://hub.360dialog.io"
-        waba_base_url: "https://waba.360dialog.io"
+        waba_base_url: "https://waba-v2.360dialog.io"
         api_version: "v1"
         auth_header: "D360-API-KEY"
 
