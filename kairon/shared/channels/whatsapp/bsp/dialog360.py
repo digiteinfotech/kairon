@@ -61,6 +61,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
     def save_channel_config(self, clientId: Text, client: Text, channels: list, partner_id: Text = None):
         if partner_id is None:
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
+
         if isinstance(channels, str):
             channels = ast.literal_eval(channels)
         if len(channels) == 0:
