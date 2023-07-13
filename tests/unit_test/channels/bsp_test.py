@@ -190,7 +190,7 @@ class TestBusinessServiceProvider:
         user = "test_user"
         clientId = "kairon"
         client = "skds23Ga"
-        channels = "[]"
+        channels = []
         monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', "test_id")
 
         with pytest.raises(AppException, match=r"Failed to save channel config, onboarding unsuccessful!"):
@@ -201,7 +201,7 @@ class TestBusinessServiceProvider:
         user = "test_user"
         clientId = "kairon"
         client = "skds23Ga"
-        channels = "['dfghjkl']"
+        channels = ['dfghjkl']
 
         def _get_integration_token(*args, **kwargs):
             return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
@@ -226,7 +226,7 @@ class TestBusinessServiceProvider:
         user = "test_user"
         clientId = "kairon"
         client = "skds23Ga"
-        channels = "['dfghjkl']"
+        channels = ['dfghjkl']
 
         def _get_integration_token(*args, **kwargs):
             return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
@@ -259,7 +259,7 @@ class TestBusinessServiceProvider:
         user = "test_user"
         clientId = "kairon"
         client = "skds23Ga"
-        channels = "['dfghjkl']"
+        channels = ['dfghjkl']
         partner_id = "new_partner_id"
 
         def _get_integration_token(*args, **kwargs):
