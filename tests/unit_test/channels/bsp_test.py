@@ -190,7 +190,7 @@ class TestBusinessServiceProvider:
         user = "test_user"
         clientId = "kairon"
         client = "skds23Ga"
-        channels = ["dfghjkl"]
+        channels = "['dfghjkl']"
 
         def _get_integration_token(*args, **kwargs):
             return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
@@ -215,7 +215,7 @@ class TestBusinessServiceProvider:
         user = "test_user"
         clientId = "kairon"
         client = "skds23Ga"
-        channels = ["dfghjkl"]
+        channels = "['dfghjkl']"
 
         def _get_integration_token(*args, **kwargs):
             return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
@@ -248,7 +248,7 @@ class TestBusinessServiceProvider:
         user = "test_user"
         clientId = "kairon"
         client = "skds23Ga"
-        channels = ["dfghjkl"]
+        channels = "['dfghjkl']"
         partner_id = "new_partner_id"
 
         def _get_integration_token(*args, **kwargs):

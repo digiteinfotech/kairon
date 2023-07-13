@@ -1,4 +1,5 @@
-from typing import Text, List
+import ast
+from typing import Text
 from loguru import logger
 from mongoengine import DoesNotExist
 
@@ -57,10 +58,11 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         config["config"] = conf
         return ChatDataProcessor.save_channel_config(config, bot, user)
 
-    def save_channel_config(self, clientId: Text, client: Text, channels: List[Text], partner_id: Text = None):
+    def save_channel_config(self, clientId: Text, client: Text, channels: list, partner_id: Text = None):
         if partner_id is None:
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
 
+        channels = ast.literal_eval(channels)
         conf = {
             "config": {
                 "client_name": Utility.sanitise_data(clientId),
