@@ -185,6 +185,17 @@ class TestBusinessServiceProvider:
         with pytest.raises(AppException, match=r"Failed to generate api_keys for business account: *"):
             BSP360Dialog.generate_waba_key("skds23Ga")
 
+    def test_save_channel_config_without_channels(self, monkeypatch):
+        bot = "62bc24b493a0d6b7a46328f5"
+        user = "test_user"
+        clientId = "kairon"
+        client = "skds23Ga"
+        channels = "[]"
+        monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', "test_id")
+
+        with pytest.raises(AppException, match=r"Failed to save channel config, onboarding unsuccessful!"):
+            BSP360Dialog(bot, user).save_channel_config(clientId, client, channels)
+
     def test_save_channel_config_bsp_disabled(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328f5"
         user = "test_user"

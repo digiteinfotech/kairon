@@ -63,6 +63,9 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
 
         channels = ast.literal_eval(channels)
+        if len(channels) == 0:
+            raise AppException("Failed to save channel config, onboarding unsuccessful!")
+
         conf = {
             "config": {
                 "client_name": Utility.sanitise_data(clientId),

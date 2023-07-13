@@ -12597,6 +12597,28 @@ def test_list_whatsapp_templates_error():
 
 
 @responses.activate
+def test_initiate_bsp_onboarding_without_channels(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
+    url = "https://hub.360dialog.io/api/v2/token"
+    responses.add("POST", json={}, url=url, status=500)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?clientId=kairon&client=sdfgh5678&channels=[]",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"].startswith("Failed to save channel config, onboarding unsuccessful!")
+    assert actual["data"] is None
+
+
+@responses.activate
 def test_initiate_bsp_onboarding_failure(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
