@@ -3810,7 +3810,8 @@ class MongoProcessor:
             raise AppException("Synonym value cannot be an empty!")
 
         synonym_exist = Utility.is_exist(Synonyms, raise_error=False,
-                                         name__iexact=synonyms_dict.get('name'))
+                                         name__iexact=synonyms_dict.get('name')
+                                         ,bot=bot, status=True)
         if not synonym_exist:
             raise AppException("Synonym does not exist!")
 
@@ -3850,7 +3851,7 @@ class MongoProcessor:
         if values:
             raise AppException("Synonym value already exists")
         try:
-            val = EntitySynonyms.objects(bot=bot, name__exact=name).get(id=value_id)
+            val = EntitySynonyms.objects(bot=bot, status=True, name__exact=name).get(id=value_id)
             val.value = value
             val.user = user
             val.timestamp = datetime.utcnow()
@@ -3866,7 +3867,7 @@ class MongoProcessor:
         """
         try:
             synonym = Synonyms.objects(bot=bot, status=True).get(id=id)
-            Utility.hard_delete_document([EntitySynonyms], bot=bot, name__iexact=synonym.name)
+            Utility.hard_delete_document([EntitySynonyms], bot=bot, status=True, name__iexact=synonym.name)
             synonym.delete()
         except DoesNotExist as e:
             raise AppException(e)
@@ -4122,7 +4123,7 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user id
         """
-        Utility.is_exist(Lookup, raise_error=True, exp_message="Lookup already exists!", status=True,bot=bot, name__iexact=lookup_name)
+        Utility.is_exist(Lookup, raise_error=True, exp_message="Lookup already exists!", status=True, bot=bot, name__iexact=lookup_name)
         lookup = Lookup()
         lookup.name = lookup_name
         lookup.user = user
@@ -4138,13 +4139,14 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user id
         """
-        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=lookup_name)
+        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=lookup_name, bot=bot, status=True)
         if not lookup_exist:
             raise AppException("Lookup does not exists")
         Utility.is_exist(LookupTables,
                          raise_error=True,
                          exp_message="Lookup value already exists",
-                         value__exact=lookup_value)
+                         value__exact=lookup_value,
+                         bot=bot, status=True)
         lookup_table = LookupTables()
         lookup_table.name = lookup_name
         lookup_table.value = lookup_value
@@ -4165,7 +4167,7 @@ class MongoProcessor:
         if not lookup_dict.get('value'):
             raise AppException("Lookup value cannot be an empty string")
 
-        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=lookup_dict.get('name'))
+        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=lookup_dict.get('name'), bot=bot, status=True)
         if not lookup_exist:
             raise AppException("Lookup does not exists")
 
@@ -4228,7 +4230,7 @@ class MongoProcessor:
         :return: None
         :raises: AppException
         """
-        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=name)
+        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=name, bot=bot, status=True)
         if not lookup_exist:
             raise AppException("Lookup does not exists")
 
@@ -4237,7 +4239,7 @@ class MongoProcessor:
         if value in value_list:
             raise AppException("Lookup value already exists")
         try:
-            val = LookupTables.objects(bot=bot, name__iexact=name).get(id=lookup_id)
+            val = LookupTables.objects(bot=bot, status= True, name__iexact=name).get(id=lookup_id)
             val.value = value
             val.user = user
             val.timestamp = datetime.utcnow()
@@ -4255,7 +4257,7 @@ class MongoProcessor:
             raise AppException("Lookup Id cannot be empty or spaces")
         try:
             lookup = Lookup.objects(bot=bot, status=True).get(id=lookup_id)
-            Utility.hard_delete_document([LookupTables], bot=bot, name__iexact=lookup.name)
+            Utility.hard_delete_document([LookupTables], bot=bot, name__exact=lookup.name)
             lookup.delete()
         except DoesNotExist:
             raise AppException("Invalid lookup!")

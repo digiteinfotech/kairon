@@ -29,7 +29,7 @@ class UserActivityLogger:
         cooldown_period = datetime.utcnow().__sub__(timedelta(seconds=reset_password_request_limit * 60))
         if Utility.is_exist(
                 UserActivityLog, raise_error=False, user=email, type=UserActivityType.reset_password.value,
-                timestamp__gte=cooldown_period
+                timestamp__gte=cooldown_period, check_base_fields=False
         ):
             log = UserActivityLog.objects(
                 user=email, type=UserActivityType.reset_password.value, timestamp__gte=cooldown_period

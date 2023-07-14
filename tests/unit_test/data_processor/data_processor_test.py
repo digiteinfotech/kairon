@@ -6027,6 +6027,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_lookup_values'
         user = 'test_user'
+        processor.add_lookup("number", bot, user)
         processor.add_lookup_values(
             {"name": "number", "value": ["one"]}, bot, user)
         table = list(LookupTables.objects(name__iexact='number', bot=bot, user=user))
@@ -9443,8 +9444,7 @@ class TestMongoProcessor:
         assert actual_http_action['headers'][1]['key'] == "param4"
         assert actual_http_action['headers'][1]['value'] == "value2"
         assert actual_http_action['headers'][1]['parameter_type'] == "value"
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_add_http_action_config_no_response(self):
         processor = MongoProcessor()
@@ -9492,8 +9492,7 @@ class TestMongoProcessor:
                 {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                 {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
                                       'user': 'test_user', 'status': True}
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_add_http_action_config_complete_data(self):
         processor = MongoProcessor()
@@ -9536,8 +9535,7 @@ class TestMongoProcessor:
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                                         {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}],
                           'bot': 'test_bot_1', 'user': 'test_user', 'status': True}
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_add_http_action_config_missing_values(self):
         processor = MongoProcessor()
@@ -9849,8 +9847,7 @@ class TestMongoProcessor:
         assert actual_http_action['headers'][1]['key'] == "param4"
         assert actual_http_action['headers'][1]['value'] == "value2"
         assert actual_http_action['headers'][1]['parameter_type'] == "value"
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_update_http_config_with_dynamic_params(self):
         processor = MongoProcessor()
@@ -9909,8 +9906,7 @@ class TestMongoProcessor:
         assert actual_http_action['headers'][1]['key'] == "param4"
         assert actual_http_action['headers'][1]['value'] == "value2"
         assert actual_http_action['headers'][1]['parameter_type'] == "value"
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_update_http_config(self):
         processor = MongoProcessor()

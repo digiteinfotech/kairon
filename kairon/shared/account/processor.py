@@ -459,6 +459,7 @@ class AccountProcessor:
             exp_message="User already exists! try with different email address.",
             email__iexact=email.strip(),
             status=True,
+            check_base_fields=False,
         )
         return (
             User(
@@ -717,7 +718,7 @@ class AccountProcessor:
             mail = mail.strip()
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
-            if not Utility.is_exist(User, email__iexact=mail, status=True, raise_error=False):
+            if not Utility.is_exist(User, email__iexact=mail, status=True, raise_error=False, check_base_fields=False):
                 raise AppException("Error! There is no user with the following mail id")
             if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail, raise_error=False):
                 raise AppException("Error! The following user's mail is not verified")
@@ -754,7 +755,7 @@ class AccountProcessor:
         uuid_value = decoded_jwt.get("uuid")
         if uuid_value is not None and Utility.is_exist(
                 UserActivityLog, raise_error=False, user=email, type=UserActivityType.link_usage.value,
-                data={"status": "done", "uuid": uuid_value}
+                data={"status": "done", "uuid": uuid_value}, check_base_fields=False
         ):
             raise AppException("Link is already being used, Please raise new request")
         user = User.objects(email__iexact=email, status=True).get()
@@ -792,8 +793,8 @@ class AccountProcessor:
         if email_enabled:
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
-            Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip())
-            if not Utility.is_exist(User, email__iexact=mail.strip(), status=True, raise_error=False):
+            Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip(), check_base_fields=False)
+            if not Utility.is_exist(User, email__iexact=mail.strip(), status=True, raise_error=False, check_base_fields=False):
                 raise AppException("Error! There is no user with the following mail id")
             user = AccountProcessor.get_user(mail)
             token = Utility.generate_token(mail)

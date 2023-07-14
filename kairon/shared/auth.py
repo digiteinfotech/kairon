@@ -80,7 +80,7 @@ class Authentication:
                     issued_at = datetime.utcfromtimestamp(iat_val)
                     if Utility.is_exist(
                             UserActivityLog, raise_error=False, user=username, type=UserActivityType.reset_password.value,
-                            timestamp__gte=issued_at):
+                            timestamp__gte=issued_at, check_base_fields=False):
                         raise HTTPException(
                             status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='Session expired. Please login again.',

@@ -743,9 +743,11 @@ class TestChatServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 422)
         assert actual == '{"data": null, "success": false, "error_code": 401, "message": "Could not validate credentials"}'
 
+    @patch('kairon.chat.handlers.channels.hangouts.id_token.verify_token')
     @patch('kairon.shared.utils.Utility.get_local_mongo_store')
-    def test_hangout_auth_failed_hangout_verify(self, mock_store):
+    def test_hangout_auth_failed_hangout_verify(self, mock_store, mock_verify_token):
         mock_store.return_value = self.empty_store
+        mock_verify_token.side_effect = ValueError("test")
         patch.dict(Utility.environment['action'], {"url": None})
         response = self.fetch(
             f"/api/bot/hangouts/{bot}/{token}",

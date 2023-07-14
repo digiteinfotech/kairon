@@ -2022,24 +2022,36 @@ class TestUtility:
         testing_password = "TESTING@123"
         assert Utility.valid_password(password=testing_password) is None
 
+    def test_is_exist_without_base_fields(self):
+        with pytest.raises(AppException, match="Field bot is required to check if document exist"):
+            assert Utility.is_exist(Slots, raise_error=False)
+
     def test_is_exist_with_raise_error_false(self):
-        assert Utility.is_exist(Slots, raise_error=False) is True
+        from kairon.shared.data.processor import MongoProcessor
+        processor = MongoProcessor()
+        processor.add_slot({"name": "test", "type": "text", "influence_conversation": True}, bot="testRaise", user="test")
+        assert Utility.is_exist(Slots, raise_error=False, bot="testRaise")
 
     def test_is_exist_with_raise_error_true_without_exp_message(self):
-        with pytest.raises(AppException) as error:
-            Utility.is_exist(Slots, raise_error=True)
-        assert str(error.value) == "Exception message cannot be empty"
+        from kairon.shared.data.processor import MongoProcessor
+        processor = MongoProcessor()
+        processor.add_slot({"name": "test", "type": "text", "influence_conversation": True}, bot="test_utils", user="test")
+        with pytest.raises(AppException, match="Exception message cannot be empty"):
+            Utility.is_exist(Slots, raise_error=True, bot="test_utils")
 
     def test_is_exist_with_raise_error_true_with_exp_message(self):
         err_msg = "Testing Error Message"
-        with pytest.raises(AppException) as error:
-            Utility.is_exist(Slots, raise_error=True, exp_message=err_msg)
-        assert str(error.value) == err_msg
+        from kairon.shared.data.processor import MongoProcessor
+        processor = MongoProcessor()
+        processor.add_slot({"name": "test1", "type": "text", "influence_conversation": True}, bot="test_utils",
+                           user="test")
+        with pytest.raises(AppException, match=err_msg):
+            Utility.is_exist(Slots, raise_error=True, exp_message=err_msg, bot="test_utils")
 
     @pytest.mark.parametrize("is_raise_error,expected_output", [(True, None), (False, False)])
     def test_is_exist_with_zero_docs(self, is_raise_error, expected_output):
         assert Utility.is_exist(Slots, raise_error=is_raise_error, exp_message="Testing",
-                                name__iexact="random") is expected_output
+                                name__iexact="random", bot="test") is expected_output
 
     def test_is_exist(self):
         bot = '5f50fd0a56b698ca10d35d2e'
