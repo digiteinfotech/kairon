@@ -851,6 +851,11 @@ class BotSettings(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    training_limit_per_day = IntField(default=5)
+    test_limit_per_day = IntField(default=5)
+    data_importer_limit_per_day = IntField(default=5)
+    multilingual_limit_per_day = IntField(default=2)
+    data_generation_limit_per_day = IntField(default=3)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 

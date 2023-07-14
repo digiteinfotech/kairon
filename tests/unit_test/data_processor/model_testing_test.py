@@ -8,6 +8,7 @@ from mongoengine import connect
 from rasa.shared.importers.rasa import RasaFileImporter
 
 from augmentation.paraphrase.paraphrasing import ParaPhrasing
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
@@ -218,16 +219,22 @@ class TestModelTesting:
         with pytest.raises(AppException, match='Event already in progress! Check logs.'):
             ModelTestingLogProcessor.is_event_in_progress('test_bot')
 
-    def test_is_limit_exceeded(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 5)
-        assert not ModelTestingLogProcessor.is_limit_exceeded('test_bot')
-
     def test_is_limit_exceeded_failure(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
-        assert ModelTestingLogProcessor.is_limit_exceeded('test_bot', False)
+        bot = 'test_bot'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.test_limit_per_day = 0
+        bot_settings.save()
+        assert ModelTestingLogProcessor.is_limit_exceeded(bot, False)
 
         with pytest.raises(AppException, match='Daily limit exceeded.'):
-            ModelTestingLogProcessor.is_limit_exceeded('test_bot')
+            ModelTestingLogProcessor.is_limit_exceeded(bot)
+
+    def test_is_limit_exceeded(self, monkeypatch):
+        bot = 'test_bot'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.test_limit_per_day = 5
+        bot_settings.save()
+        assert not ModelTestingLogProcessor.is_limit_exceeded(bot)
 
     def test_trigger_model_testing_model_no_model_found(self):
         bot = 'test_events_no_nlu_model'

@@ -38,6 +38,7 @@ class ActionType(str, Enum):
     kairon_bot_response = "kairon_bot_response"
     razorpay_action = "razorpay_action"
     prompt_action = "prompt_action"
+    vector_embeddings_db_action = "vector_embeddings_db_action"
 
 
 class HttpRequestContentType(str, Enum):
@@ -77,3 +78,13 @@ class SlotValidationOperators(str, Enum):
 class DispatchType(str, Enum):
     json = "json"
     text = "text"
+
+
+class VectorDbOperationClass(str, Enum):
+    payload_search = "payload_search"
+    embedding_search = "embedding_search"
+
+
+class VectorDbValueType(str, Enum):
+    from_value = "from_value"
+    from_slot = "from_slot"

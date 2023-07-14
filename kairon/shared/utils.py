@@ -231,8 +231,17 @@ class Utility:
         return values
 
     @staticmethod
+    def check_base_fields(document: Document, **kwargs):
+        base_fields = ["bot", "account"]
+        for base_field in base_fields:
+            if base_field in document._db_field_map.keys():
+                field = getattr(document, base_field)
+                if field.required and base_field not in kwargs:
+                    raise AppException(f"Field {base_field} is required to check if document exist")
+
+    @staticmethod
     def is_exist(
-            document: Document, exp_message: Text = None, raise_error=True, *args, **kwargs
+            document: Document, exp_message: Text = None, raise_error=True, check_base_fields=True, *args, **kwargs
     ):
         """
         check if document exist
@@ -240,9 +249,12 @@ class Utility:
         :param document: document type
         :param exp_message: exception message
         :param raise_error: boolean to raise exception
+        :param check_base_fields: boolean to check base fields
         :param kwargs: filter parameters
         :return: boolean
         """
+        if check_base_fields:
+            Utility.check_base_fields(document, **kwargs)
         doc = document.objects(args, **kwargs)
         if doc.__len__():
             if raise_error:

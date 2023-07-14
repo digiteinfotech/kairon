@@ -133,3 +133,7 @@ class KaironSystemSlots(str, Enum):
     video = "video"
     document = "document"
     doc_url = "doc_url"
+
+
+class VectorEmbeddingsDatabases(str, Enum):
+    qdrant = "qdrant"

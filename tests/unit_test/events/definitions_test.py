@@ -25,7 +25,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass, EventRequestType
 from kairon.shared.data.constant import EVENT_STATUS, TrainingDataSourceType
-from kairon.shared.data.data_objects import EndPointHistory, Endpoints
+from kairon.shared.data.data_objects import EndPointHistory, Endpoints, BotSettings
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
@@ -49,6 +49,9 @@ class TestEventDefinitions:
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        BotSettings(bot="test_definitions", user="test_user").save()
+        BotSettings(bot="test_definitions_bot", user="test_user").save()
+        BotSettings(bot="test_faq", user="test_user").save()
 
     def test_data_importer_presteps_no_training_files(self):
         bot = 'test_definitions'
@@ -62,7 +65,9 @@ class TestEventDefinitions:
         user = 'test_user'
         file_path = 'tests/testing_data/all/config.yml'
         file = UploadFile(filename="file.yml", file=BytesIO(open(file_path, 'rb').read()))
-        monkeypatch.setitem(Utility.environment['model']['data_importer'], 'limit_per_day', 0)
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_importer_limit_per_day = 0
+        bot_settings.save()
 
         with pytest.raises(AppException, match="Daily limit exceeded."):
             TrainingDataImporterEvent(bot, user).validate(is_data_uploaded=True, training_files=[file])
@@ -72,7 +77,9 @@ class TestEventDefinitions:
         user = 'test_user'
         file_path = 'tests/testing_data/all/config.yml'
         file = UploadFile(filename="config.yml", file=BytesIO(open(file_path, 'rb').read()))
-
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_importer_limit_per_day = 5
+        bot_settings.save()
         assert not TrainingDataImporterEvent(bot, user, overwrite=True).validate(is_data_uploaded=True, training_files=[file])
 
     def test_data_importer_presteps_event(self):
@@ -177,8 +184,9 @@ class TestEventDefinitions:
         user = 'test_user'
         file_path = 'tests/testing_data/all/config.yml'
         file = UploadFile(filename="file.yml", file=BytesIO(open(file_path, 'rb').read()))
-        monkeypatch.setitem(Utility.environment['model']['data_importer'], 'limit_per_day', 0)
-
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_importer_limit_per_day = 0
+        bot_settings.save()
         with pytest.raises(AppException, match="Daily limit exceeded."):
             FaqDataImporterEvent(bot, user).validate(training_data_file=file)
 
@@ -187,6 +195,9 @@ class TestEventDefinitions:
         user = 'test_user'
         config = "Questions,Answer,\nWhat is Digite?, IT Company,\nHow are you?, I am good,\nWhat day is it?, It is Thursday,\n   ,  ,\nWhat day is it?, It is Thursday,\n".encode()
         file = UploadFile(filename="config.csv", file=BytesIO(config))
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_importer_limit_per_day = 5
+        bot_settings.save()
         FaqDataImporterEvent(bot, user).validate(training_data_file=file)
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -384,7 +395,9 @@ class TestEventDefinitions:
         def _mock_validation(*args, **kwargs):
             return None
         monkeypatch.setattr(DataUtility, "validate_existing_data_train", _mock_validation)
-        monkeypatch.setitem(Utility.environment['model']['train'], 'limit_per_day', 0)
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.training_limit_per_day = 0
+        bot_settings.save()
         with pytest.raises(AppException, match="Daily model training limit exceeded."):
             ModelTrainingEvent(bot, user).validate()
 
@@ -484,7 +497,9 @@ class TestEventDefinitions:
         def _mock_validation(*args, **kwargs):
             return None
         monkeypatch.setattr(Utility, "is_model_file_exists", _mock_validation)
-        monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.test_limit_per_day = 0
+        bot_settings.save()
         with pytest.raises(AppException, match='Daily limit exceeded.'):
             ModelTestingEvent(bot, user).validate()
         logs = list(ModelTestingLogProcessor.get_logs(bot))

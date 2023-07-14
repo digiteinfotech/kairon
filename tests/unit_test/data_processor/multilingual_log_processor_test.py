@@ -3,6 +3,7 @@ import pytest
 from mongoengine import connect
 from kairon import Utility
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.data_objects import BotReplicationLogs
 from kairon.exceptions import AppException
@@ -94,16 +95,22 @@ class TestMultilingualLogProcessor:
         with pytest.raises(AppException):
             MultilingualLogProcessor.is_event_in_progress(bot)
 
-    def test_is_limit_exceeded(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['multilingual'], 'limit_per_day', 5)
-        assert not MultilingualLogProcessor.is_limit_exceeded('test_bot')
-
     def test_is_limit_exceeded_failure(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['multilingual'], 'limit_per_day', 0)
-        assert MultilingualLogProcessor.is_limit_exceeded('test_bot', False)
+        bot = 'test_bot'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.multilingual_limit_per_day = 0
+        bot_settings.save()
+        assert MultilingualLogProcessor.is_limit_exceeded(bot, False)
 
         with pytest.raises(AppException, match='Daily limit exceeded.'):
-            MultilingualLogProcessor.is_limit_exceeded('test_bot')
+            MultilingualLogProcessor.is_limit_exceeded(bot)
+
+    def test_is_limit_exceeded(self, monkeypatch):
+        bot = 'test_bot'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.multilingual_limit_per_day = 5
+        bot_settings.save()
+        assert not MultilingualLogProcessor.is_limit_exceeded(bot)
 
     def test_get_logs(self):
         bot = 'test'
