@@ -16,7 +16,7 @@ class CustomWidgetsProcessor:
         Utility.is_exist(CustomWidgets, "Widget with name exists!", bot=bot, name=widget_config.get("name"))
         widget_config['bot'] = bot
         widget_config['user'] = user
-        return CustomWidgets(**widget_config).save().to_mongo().to_dict()["_id"].__str__()
+        return CustomWidgets(**widget_config).save().id.__str__()
 
     @staticmethod
     def edit_config(widget_id: Text, widget_config: Dict, bot: Text, user: Text):

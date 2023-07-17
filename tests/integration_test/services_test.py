@@ -14599,7 +14599,7 @@ def test_add_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] is None
+    assert "id" in actual["data"]
 
 
 @responses.activate
@@ -14630,7 +14630,7 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] is None
+    assert "id" in actual["data"]
 
 
 @responses.activate
@@ -14651,7 +14651,42 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] is None
+    assert "id" in actual["data"]
+
+
+def test_add_and_update_conversation_feedback(monkeypatch):
+    log_type = "conversation_feedback"
+    data = {"feedback": "",
+            "rating": 1,
+            "botId": "6322ebbb3c62158dab4aee71",
+            "botReply": [{"text":"Hello! How are you?"}],
+            "userReply": "",
+            "date":"2023-07-17T06:48:02.453Z",
+            "sender_id": None
+            }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": data}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "id" in actual["data"]
+    assert actual['message'] == 'Metrics added'
+    id = actual["data"]["id"]
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}/{id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": {"feedback": "Good"}}
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == "Metrics updated"
 
 
 def test_get_end_user_metrics():

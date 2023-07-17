@@ -3157,6 +3157,11 @@ class TestMongoProcessor:
                                         bot="tests", user="testUser")
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "What is the weather [today](date)" for example in examples)
+        processor.edit_training_example(examples[0]["_id"], example="What is the weather today", intent="greet",
+                                        bot="tests", user="testUser")
+        example = TrainingExamples.objects(bot="tests", status=True).get(id=examples[0]["_id"])
+        assert example.text == "What is the weather today"
+        assert not example.entities
 
     def test_edit_responses_duplicate(self):
         processor = MongoProcessor()
@@ -9633,7 +9638,7 @@ class TestMongoProcessor:
             request_method=request_method,
             bot=bot,
             user=user
-        ).save().to_mongo().to_dict()["_id"].__str__()
+        ).save().id.__str__()
 
         http_action_config = HttpActionConfigRequest(
             action_name=action,
@@ -13882,7 +13887,7 @@ class TestModelProcessor:
                                            model_path="model_path"
                                            )
         model_training = ModelTraining.objects(bot="tests", status="Done")
-        ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
+        ids = [model.id for model in model_training]
         index = ids.index(training_status_inprogress_id)
         assert model_training.count() == 5
         assert training_status_inprogress_id in ids

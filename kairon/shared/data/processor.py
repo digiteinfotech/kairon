@@ -1283,7 +1283,7 @@ class MongoProcessor:
         for custom_component in Utility.environment['model']['pipeline']['custom']:
             self.__insert_bot_id(config_obj, bot, custom_component)
         self.add_default_fallback_config(config_obj, bot, user)
-        return config_obj.save().to_mongo().to_dict()["_id"].__str__()
+        return config_obj.save().id.__str__()
 
     def __insert_bot_id(self, config_obj: dict, bot: Text, component_name: Text):
         gpt_classifier = next((
@@ -1685,6 +1685,8 @@ class MongoProcessor:
             training_example.text = text
             if entities:
                 training_example.entities = list(self.__extract_entities(entities))
+            else:
+                training_example.entities = None
             training_example.timestamp = datetime.utcnow()
             training_example.save()
         except DoesNotExist:
@@ -2257,7 +2259,7 @@ class MongoProcessor:
         data_object.template_type = template_type
 
         id = (
-            data_object.save().to_mongo().to_dict()["_id"].__str__()
+            data_object.save().id.__str__()
         )
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
@@ -2305,7 +2307,7 @@ class MongoProcessor:
         story_obj.start_checkpoints = [STORY_START]
 
         id = (
-            story_obj.save().to_mongo().to_dict()["_id"].__str__()
+            story_obj.save().id.__str__()
         )
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
@@ -2359,7 +2361,7 @@ class MongoProcessor:
         )
         data_object['block_name'] = name
         story_id = (
-            data_object.save().to_mongo().to_dict()["_id"].__str__()
+            data_object.save().id.__str__()
         )
         return story_id
 
@@ -2400,7 +2402,7 @@ class MongoProcessor:
             story_obj.metadata = path_metadata
             story_obj.block_name = name
             story_id = (
-                story_obj.save().to_mongo().to_dict()["_id"].__str__()
+                story_obj.save().id.__str__()
             )
             return story_id
         except DoesNotExist:
@@ -2613,7 +2615,7 @@ class MongoProcessor:
                 user=user,
             )
 
-        return session_config.save().to_mongo().to_dict()["_id"].__str__()
+        return session_config.save().id.__str__()
 
     def get_session_config(self, bot: Text):
         """
@@ -2668,7 +2670,7 @@ class MongoProcessor:
 
         endpoint.bot = bot
         endpoint.user = user
-        return endpoint.save().to_mongo().to_dict()["_id"].__str__()
+        return endpoint.save().id.__str__()
 
     def delete_endpoint(self, bot: Text, endpoint_type: ENDPOINT_TYPE):
         """
@@ -2919,7 +2921,7 @@ class MongoProcessor:
                 set__content_type=content_type, set__params_list=params_list, set__headers=headers,
                 set__response=response, set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
             )
-            return http_action.to_mongo().to_dict()["_id"].__str__()
+            return http_action.id.__str__()
 
     def add_http_action_config(self, http_action_config: Dict, user: str, bot: str):
         """
@@ -2949,7 +2951,7 @@ class MongoProcessor:
             set_slots=set_slots,
             bot=bot,
             user=user
-        ).save().to_mongo().to_dict()["_id"].__str__()
+        ).save().id.__str__()
         self.add_action(http_action_config['action_name'], bot, user, action_type=ActionType.http_action.value,
                         raise_exception=False)
         return doc_id
@@ -3013,7 +3015,7 @@ class MongoProcessor:
                             request_data.get('set_slots')]
         action.user = user
         action.timestamp = datetime.utcnow()
-        action_id = action.save().to_mongo().to_dict()["_id"].__str__()
+        action_id = action.save().id.__str__()
         return action_id
 
     def add_vector_embedding_db_action(self, vector_db_action_config: Dict, user: str, bot: str):
@@ -3035,7 +3037,7 @@ class MongoProcessor:
             set_slots=set_slots,
             bot=bot,
             user=user,
-        ).save().to_mongo().to_dict()["_id"].__str__()
+        ).save().id.__str__()
         self.add_action(vector_db_action_config['name'], bot, user, action_type=ActionType.vector_embeddings_db_action.value,
                         raise_exception=False)
         return action_id
@@ -3133,7 +3135,7 @@ class MongoProcessor:
             set_slot=action_config.get('set_slot'),
             bot=bot,
             user=user,
-        ).save().to_mongo().to_dict()["_id"].__str__()
+        ).save().id.__str__()
         self.add_action(
             action_config['name'], bot, user, action_type=ActionType.google_search_action.value,
             raise_exception=False
@@ -3218,7 +3220,7 @@ class MongoProcessor:
 
         slot.user = user
         slot.bot = bot
-        slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
+        slot_id = slot.save().id.__str__()
         self.add_entity(slot_value.get('name'), bot, user, False)
         return slot_id
 
@@ -3770,7 +3772,7 @@ class MongoProcessor:
         synonym.name = synonym_name
         synonym.user = user
         synonym.bot = bot
-        return synonym.save().to_mongo().to_dict()['_id'].__str__()
+        return synonym.save().id.__str__()
 
     def add_synonym_value(self, value: Text, synonym_name: Text, bot, user):
         """
@@ -3795,7 +3797,7 @@ class MongoProcessor:
         entity_synonym.value = value
         entity_synonym.user = user
         entity_synonym.bot = bot
-        return entity_synonym.save().to_mongo().to_dict()['_id'].__str__()
+        return entity_synonym.save().id.__str__()
 
     def add_synonym_values(self, synonyms_dict: Dict, bot, user):
         """
@@ -3830,7 +3832,7 @@ class MongoProcessor:
             entity_synonym.value = val
             entity_synonym.user = user
             entity_synonym.bot = bot
-            id = entity_synonym.save().to_mongo().to_dict()['_id'].__str__()
+            id = entity_synonym.save().id.__str__()
             added_values.append({"_id": id, "value": val})
         return added_values
 
@@ -4081,7 +4083,7 @@ class MongoProcessor:
             regex.pattern = regex_dict.get('pattern')
             regex.bot = bot
             regex.user = user
-            regex_id = regex.save().to_mongo().to_dict()['_id'].__str__()
+            regex_id = regex.save().id.__str__()
             return regex_id
 
     def edit_regex(self, regex_dict: Dict, bot, user):
@@ -4129,7 +4131,7 @@ class MongoProcessor:
         lookup.user = user
         lookup.bot = bot
         lookup.save()
-        return lookup.to_mongo().to_dict()['_id'].__str__()
+        return lookup.id.__str__()
 
     def add_lookup_value(self, lookup_name, lookup_value, bot, user):
         """
@@ -4153,7 +4155,7 @@ class MongoProcessor:
         lookup_table.user = user
         lookup_table.bot = bot
         lookup_table.save()
-        return lookup_table.to_mongo().to_dict()['_id'].__str__()
+        return lookup_table.id.__str__()
 
     def add_lookup_values(self, lookup_dict: Dict, bot, user):
         """
@@ -4187,7 +4189,7 @@ class MongoProcessor:
             lookup_table.user = user
             lookup_table.bot = bot
             lookup_table.save()
-            id = lookup_table.to_mongo().to_dict()['_id'].__str__()
+            id = lookup_table.id.__str__()
             added_values.append({"_id": id, "value": val})
         return added_values
 
@@ -4339,7 +4341,7 @@ class MongoProcessor:
             self.__add_form_responses(slots_to_fill['ask_questions'],
                                       utterance_name=f'utter_ask_{name}_{slots_to_fill["slot"]}',
                                       form=name, bot=bot, user=user)
-        form_id = Forms(name=name, required_slots=required_slots, bot=bot, user=user).save().to_mongo().to_dict()["_id"].__str__()
+        form_id = Forms(name=name, required_slots=required_slots, bot=bot, user=user).save().id.__str__()
         self.__add_or_update_form_validations(f'validate_{name}', path, bot, user)
         self.add_action(f'validate_{name}', bot, user, action_type=ActionType.form_validation_action.value)
         return form_id
@@ -4386,7 +4388,7 @@ class MongoProcessor:
             form = Forms.objects(name=name, bot=bot, status=True).get()
             slots_required_for_form = [slots_to_fill['slot'] for slots_to_fill in path]
             self.__validate_slots_attached_to_form(set(slots_required_for_form), bot)
-            existing_slots_for_form = set(form.to_mongo().to_dict()['required_slots'])
+            existing_slots_for_form = set(form.required_slots)
             slots_to_remove = existing_slots_for_form.difference(set(slots_required_for_form))
             new_slots_to_add = set(slots_required_for_form).difference(existing_slots_for_form)
 
@@ -4446,7 +4448,7 @@ class MongoProcessor:
         slot_mapping.mapping = mapping['mapping']
         slot_mapping.user = user
         slot_mapping.timestamp = datetime.utcnow()
-        return slot_mapping.save().to_mongo().to_dict()['_id'].__str__()
+        return slot_mapping.save().id.__str__()
 
     def get_slot_mappings(self, bot: Text):
         """
@@ -4588,7 +4590,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("action_name"), bot, EmailActionConfig)
-        email = EmailActionConfig(**action).save().to_mongo().to_dict()["_id"].__str__()
+        email = EmailActionConfig(**action).save().id.__str__()
         self.add_action(action['action_name'], bot, user, action_type=ActionType.email_action.value,
                         raise_exception=False)
         return email
@@ -4646,7 +4648,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("name"), bot, JiraAction)
-        jira_action = JiraAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        jira_action = JiraAction(**action).save().id.__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.jira_action.value, raise_exception=False
         )
@@ -4714,7 +4716,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("name"), bot, ZendeskAction)
-        zendesk_action = ZendeskAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        zendesk_action = ZendeskAction(**action).save().id.__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.zendesk_action.value, raise_exception=False
         )
@@ -4769,7 +4771,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("name"), bot, PipedriveLeadsAction)
-        pipedrive_action = PipedriveLeadsAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        pipedrive_action = PipedriveLeadsAction(**action).save().id.__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.pipedrive_leads_action.value, raise_exception=False
         )
@@ -4824,7 +4826,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("name"), bot, HubspotFormsAction)
-        hubspot_action = HubspotFormsAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        hubspot_action = HubspotFormsAction(**action).save().id.__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.hubspot_forms_action.value, raise_exception=False
         )
@@ -4888,7 +4890,7 @@ class MongoProcessor:
         :param user: user id
         """
         Utility.is_exist(KeyVault, "Key exists!", key=key, bot=bot)
-        return KeyVault(key=key, value=value, bot=bot, user=user).save().to_mongo().to_dict()["_id"].__str__()
+        return KeyVault(key=key, value=value, bot=bot, user=user).save().id.__str__()
 
     @staticmethod
     def get_secret(key: Text, bot: Text, raise_err: bool = True):
@@ -4919,7 +4921,7 @@ class MongoProcessor:
         key_value.value = value
         key_value.user = user
         key_value.save()
-        return key_value.to_mongo().to_dict()["_id"].__str__()
+        return key_value.id.__str__()
 
     @staticmethod
     def list_secrets(bot: Text):
@@ -5086,7 +5088,7 @@ class MongoProcessor:
         Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
         request_data['bot'] = bot
         request_data['user'] = user
-        prompt_action_id = PromptAction(**request_data).save().to_mongo().to_dict()["_id"].__str__()
+        prompt_action_id = PromptAction(**request_data).save().id.__str__()
         self.add_action(
             request_data['name'], bot, user, action_type=ActionType.prompt_action.value, raise_exception=False
         )
@@ -5382,7 +5384,7 @@ class MongoProcessor:
         )
         request_data["bot"] = bot
         request_data["user"] = user
-        action_id = RazorpayAction(**request_data).save().to_mongo().to_dict()["_id"].__str__()
+        action_id = RazorpayAction(**request_data).save().id.__str__()
         self.add_action(
             request_data['name'], bot, user, raise_exception=False, action_type=ActionType.razorpay_action
         )
@@ -5445,7 +5447,7 @@ class MongoProcessor:
         content_obj.user = user
         content_obj.bot = bot
         id = (
-            content_obj.save().to_mongo().to_dict()["_id"].__str__()
+            content_obj.save().id.__str__()
         )
         return id
 

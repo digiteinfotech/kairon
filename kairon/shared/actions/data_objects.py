@@ -3,6 +3,7 @@ from datetime import datetime
 from mongoengine import (
     EmbeddedDocument,
     EmbeddedDocumentField,
+    EmbeddedDocumentListField,
     StringField,
     DateTimeField,
     BooleanField,
@@ -609,8 +610,8 @@ class PromptAction(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
-    llm_prompts = ListField(EmbeddedDocumentField(LlmPrompt), required=True)
-    set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
+    llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
+    set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)
 
@@ -632,8 +633,9 @@ class PromptAction(Auditlog):
             raise ValidationError("top_results should not be greater than 30")
         if not self.llm_prompts:
             raise ValidationError("llm_prompts are required!")
-        Utility.validate_kairon_faq_llm_prompts(self.to_mongo().to_dict()['llm_prompts'], ValidationError)
-        Utility.validate_llm_hyperparameters(self.hyperparameters, ValidationError)
+        dict_data = self.to_mongo().to_dict()
+        Utility.validate_kairon_faq_llm_prompts(dict_data['llm_prompts'], ValidationError)
+        Utility.validate_llm_hyperparameters(dict_data['hyperparameters'], ValidationError)
 
 
 @auditlogger.log
