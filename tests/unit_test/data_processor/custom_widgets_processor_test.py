@@ -33,7 +33,8 @@ class TestCustomWidgetsProcessor:
 
         }
         widget_id = CustomWidgetsProcessor.save_config(expected_config, bot, user)
-        saved_config = CustomWidgetsProcessor.get_config(widget_id, bot)
+        saved_config = list(CustomWidgetsProcessor.get_config(bot))
+        saved_config = [config for config in saved_config if config["_id"] == widget_id][0]
         pytest.widget_id = saved_config.pop("_id")
         expected_config["request_method"] = "GET"
         expected_config["timeout"] = 5
@@ -86,7 +87,8 @@ class TestCustomWidgetsProcessor:
             "request_method": "POST"
         }
         CustomWidgetsProcessor.edit_config(pytest.widget_id, expected_config, bot, user)
-        saved_config = CustomWidgetsProcessor.get_config(pytest.widget_id, bot)
+        saved_config = list(CustomWidgetsProcessor.get_config(bot))
+        saved_config = [config for config in saved_config if config["_id"] == pytest.widget_id][0]
         saved_config.pop("_id")
         expected_config["timeout"] = 5
         expected_config["bot"] = bot
@@ -110,9 +112,8 @@ class TestCustomWidgetsProcessor:
             CustomWidgetsProcessor.edit_config(ObjectId().__str__(), expected_config, bot, user)
 
     def test_get_custom_widget_not_exists(self):
-        bot = "test_bot"
-        with pytest.raises(AppException, match="Widget does not exists!"):
-            CustomWidgetsProcessor.get_config(ObjectId().__str__(), bot)
+        bot = "test_bot_"
+        assert list(CustomWidgetsProcessor.get_config(bot)) == []
 
     def test_list_widgets(self):
         bot = "test_bot"
@@ -125,8 +126,7 @@ class TestCustomWidgetsProcessor:
     def test_delete_widget(self):
         bot = "test_bot"
         CustomWidgetsProcessor.delete_config(pytest.widget_id, bot)
-        with pytest.raises(AppException, match="Widget does not exists!"):
-            CustomWidgetsProcessor.get_config(pytest.widget_id, bot)
+        assert list(CustomWidgetsProcessor.get_config(bot)) == []
 
     def test_delete_widget_not_exists(self):
         bot = "test_bot"
@@ -407,7 +407,8 @@ class TestCustomWidgetsProcessor:
                            'response': {'data': [{'1': 200, '2': 300, '3': 400, '4': 500, '5': 600}]},
                            'requested_by': user, 'bot': bot}
 
-        config = CustomWidgetsProcessor.get_config(pytest.widget_id3, bot)
+        saved_config = list(CustomWidgetsProcessor.get_config(bot))
+        config = [config for config in saved_config if config["_id"] == pytest.widget_id3][0]
         config["request_method"] = "POST"
         CustomWidgetsProcessor.edit_config(pytest.widget_id3, config, bot, user)
 

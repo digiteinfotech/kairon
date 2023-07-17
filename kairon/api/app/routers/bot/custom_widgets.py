@@ -15,7 +15,7 @@ router = APIRouter()
 mongo_processor = MongoProcessor()
 
 
-@router.post("/add", response_model=Response)
+@router.post("/custom", response_model=Response)
 async def add_custom_widget(
         request_data: CustomWidgetsRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
@@ -29,7 +29,7 @@ async def add_custom_widget(
     )
 
 
-@router.put("/update/{widget_id}", response_model=Response)
+@router.put("/custom/{widget_id}", response_model=Response)
 async def update_custom_widget(
         request_data: CustomWidgetsRequest,
         widget_id: Text = Path(default=None, description="Configuration id"),
@@ -42,28 +42,27 @@ async def update_custom_widget(
     return Response(message='Widget config updated!')
 
 
-@router.get("/list", response_model=Response)
+@router.get("/custom/list", response_model=Response)
 async def list_custom_widgets(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=VIEW_ACCESS)
 ):
     """
-    List custom widgets.
+    List only config id of all custom widgets.
     """
     return Response(data={"widgets": CustomWidgetsProcessor.list_widgets(current_user.get_bot())})
 
 
-@router.get("/{widget_id}", response_model=Response)
+@router.get("/custom", response_model=Response)
 async def get_custom_widget_config(
-        widget_id: Text = Path(default=None, description="Configuration id"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
-    Retrieve config for a particular custom widget.
+    Retrieve config for all custom widgets.
     """
-    return Response(data={"widget_config": CustomWidgetsProcessor.get_config(widget_id, current_user.get_bot())})
+    return Response(data={"widgets": list(CustomWidgetsProcessor.get_config(current_user.get_bot()))})
 
 
-@router.delete("/remove/{widget_id}", response_model=Response)
+@router.delete("/custom/{widget_id}", response_model=Response)
 async def delete_custom_widget(
         widget_id: Text = Path(default=None, description="Configuration id"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
@@ -75,7 +74,7 @@ async def delete_custom_widget(
     return Response(message='Widget config removed!')
 
 
-@router.get("/trigger/{widget_id}", response_model=Response)
+@router.get("/custom/trigger/{widget_id}", response_model=Response)
 async def trigger_widget(
         request: Request,
         widget_id: str = Path(default=None, description="Custom widget configuration id."),
@@ -89,7 +88,7 @@ async def trigger_widget(
     return {"data": data, "message": msg}
 
 
-@router.get("/logs/all", response_model=Response)
+@router.get("/custom/logs/all", response_model=Response)
 async def get_logs(
         start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)

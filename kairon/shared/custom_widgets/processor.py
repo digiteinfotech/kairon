@@ -38,17 +38,13 @@ class CustomWidgetsProcessor:
             raise AppException("Widget does not exists!")
 
     @staticmethod
-    def get_config(widget_id: Text, bot: Text):
-        try:
-            widget = CustomWidgets.objects(id=widget_id, bot=bot).get()
+    def get_config(bot: Text):
+        for widget in CustomWidgets.objects(bot=bot):
             widget = widget.to_mongo().to_dict()
             widget.pop("timestamp")
             widget.pop("user")
             widget["_id"] = widget["_id"].__str__()
-            return widget
-        except DoesNotExist as e:
-            logger.exception(e)
-            raise AppException("Widget does not exists!")
+            yield widget
 
     @staticmethod
     def list_widgets(bot: Text):
@@ -78,7 +74,7 @@ class CustomWidgetsProcessor:
         headers_eval_log = None
         request_body_eval_log = None
         try:
-            config = CustomWidgetsProcessor.get_config(widget_id, bot)
+            config = CustomWidgets.objects(id=widget_id, bot=bot).get().to_mongo().to_dict()
             headers, headers_eval_log = CustomWidgetsProcessor.__prepare_request_parameters(bot, config.get("headers"))
             request_body, request_body_eval_log = CustomWidgetsProcessor.__prepare_request_body(config)
             CustomWidgetsProcessor.__attach_filters(request_body, request_body_eval_log, filters)
@@ -87,6 +83,8 @@ class CustomWidgetsProcessor:
             return resp, None
         except Exception as e:
             logger.exception(e)
+            if isinstance(e, DoesNotExist):
+                e = "Widget does not exists!"
             exception = str(e)
             if raise_err:
                 raise AppException(e)

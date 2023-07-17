@@ -291,4 +291,4 @@ app.include_router(history.router, prefix="/api/history/{bot}", tags=["History"]
 app.include_router(idp.router, prefix="/api/idp", tags=["SSO", "IDP"])
 app.include_router(system.router, prefix="/api/system", tags=["Application"])
 app.include_router(data.router, prefix="/api/bot/{bot}/data", tags=["File Upload/Download"])
-app.include_router(custom_widgets.router, prefix="/api/bot/{bot}/widgets/custom", tags=["Custom analytical widgets"])
+app.include_router(custom_widgets.router, prefix="/api/bot/{bot}/widgets", tags=["Custom analytical widgets"])
