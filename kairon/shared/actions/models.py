@@ -38,7 +38,7 @@ class ActionType(str, Enum):
     kairon_bot_response = "kairon_bot_response"
     razorpay_action = "razorpay_action"
     prompt_action = "prompt_action"
-    vector_embeddings_db_action = "vector_embeddings_db_action"
+    database_action = "database_action"
 
 
 class HttpRequestContentType(str, Enum):
@@ -80,7 +80,7 @@ class DispatchType(str, Enum):
     text = "text"
 
 
-class VectorDbOperationClass(str, Enum):
+class DbOperation(str, Enum):
     payload_search = "payload_search"
     embedding_search = "embedding_search"
 
