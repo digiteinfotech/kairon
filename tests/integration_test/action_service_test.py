@@ -2465,7 +2465,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log.pop('timestamp')
 
     @patch("kairon.shared.actions.utils.ActionUtility.get_action")
-    @patch("kairon.actions.definitions.vector_action.DatabaseAction.retrieve_config")
+    @patch("kairon.actions.definitions.vector_action.ActionDatabase.retrieve_config")
     def test_vectordb_action_failed_execution(self, mock_action_config, mock_action):
         action_name = "test_run_with_get_action"
         payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
