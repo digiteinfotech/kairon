@@ -185,12 +185,23 @@ class TestBusinessServiceProvider:
         with pytest.raises(AppException, match=r"Failed to generate api_keys for business account: *"):
             BSP360Dialog.generate_waba_key("skds23Ga")
 
+    def test_save_channel_config_without_channels(self, monkeypatch):
+        bot = "62bc24b493a0d6b7a46328f5"
+        user = "test_user"
+        clientId = "kairon"
+        client = "skds23Ga"
+        channels = []
+        monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', "test_id")
+
+        with pytest.raises(AppException, match=r"Failed to save channel config, onboarding unsuccessful!"):
+            BSP360Dialog(bot, user).save_channel_config(clientId, client, channels)
+
     def test_save_channel_config_bsp_disabled(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328f5"
         user = "test_user"
-        client_name = "kairon"
-        client_id = "skds23Ga"
-        channel_id = "dfghjkl"
+        clientId = "kairon"
+        client = "skds23Ga"
+        channels = ['dfghjkl']
 
         def _get_integration_token(*args, **kwargs):
             return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
@@ -208,14 +219,14 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'get_account', _get_waba_account_id)
 
         with pytest.raises(ValidationError, match="Feature disabled for this account. Please contact support!"):
-            BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id)
+            BSP360Dialog(bot, user).save_channel_config(clientId, client, channels)
 
     def test_save_channel_config(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328f5"
         user = "test_user"
-        client_name = "kairon"
-        client_id = "skds23Ga"
-        channel_id = "dfghjkl"
+        clientId = "kairon"
+        client = "skds23Ga"
+        channels = ['dfghjkl']
 
         def _get_integration_token(*args, **kwargs):
             return "eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY", ""
@@ -236,7 +247,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'generate_waba_key', _generate_waba_key)
         monkeypatch.setattr(BSP360Dialog, 'get_account', _get_waba_account_id)
 
-        endpoint = BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id)
+        endpoint = BSP360Dialog(bot, user).save_channel_config(clientId, client, channels)
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328f5/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
@@ -246,9 +257,9 @@ class TestBusinessServiceProvider:
     def test_save_channel_config_with_partner_id(self, monkeypatch):
         bot = "62bc24b493a0d6b7a46328ff"
         user = "test_user"
-        client_name = "kairon"
-        client_id = "skds23Ga"
-        channel_id = "dfghjkl"
+        clientId = "kairon"
+        client = "skds23Ga"
+        channels = ['dfghjkl']
         partner_id = "new_partner_id"
 
         def _get_integration_token(*args, **kwargs):
@@ -270,7 +281,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'generate_waba_key', _generate_waba_key)
         monkeypatch.setattr(BSP360Dialog, 'get_account', _get_waba_account_id)
 
-        endpoint = BSP360Dialog(bot, user).save_channel_config(client_name, client_id, channel_id, partner_id)
+        endpoint = BSP360Dialog(bot, user).save_channel_config(clientId, client, channels, partner_id)
         assert endpoint == 'http://kairon-api.digite.com/api/bot/whatsapp/62bc24b493a0d6b7a46328ff/eyJhbGciOiJIUzI1NiI.sInR5cCI6IkpXVCJ9.TXXmZ4-rMKQZMLwS104JsvsR0XPg4xBt2UcT4x4HgLY'
         config = ChatDataProcessor.get_channel_config("whatsapp", bot, mask_characters=False)
         assert config['config'] == {'client_name': 'kairon', 'client_id': 'skds23Ga', 'channel_id': 'dfghjkl',
