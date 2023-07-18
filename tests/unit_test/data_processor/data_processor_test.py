@@ -13740,8 +13740,6 @@ class TestMongoProcessor:
                           "create_embeddings": True}],
             "bot": bot,
             "user": user}
-        # metadata = [{"column_name": "", "data_type": "int", "enable_search": True,
-        #                  "create_embeddings": True}]
         with pytest.raises(ValidationError, match="Column name cannot be empty"):
             BotContent(**payload).save()
 

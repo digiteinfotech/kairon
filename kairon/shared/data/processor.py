@@ -5519,7 +5519,7 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Payload with given id not found!")
 
-    def delete_payload_content(self, payload_id: str, bot: Text):
+    def delete_payload_content(self, payload_id: str, user: Text, bot: Text):
         try:
             payload = BotContent.objects(bot=bot, id=payload_id).get()
             payload.delete()
