@@ -7,12 +7,12 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
-from kairon.actions.definitions.prompt import ActionPrompt
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
+from kairon.actions.definitions.prompt import ActionPrompt
 from kairon.actions.definitions.razorpay import ActionRazorpay
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
-from kairon.actions.definitions.vector_action import DatabaseAction, ActionDatabase
+from kairon.actions.definitions.vector_action import ActionDatabase
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
