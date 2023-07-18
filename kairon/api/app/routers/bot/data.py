@@ -166,7 +166,7 @@ def delete_payload(
     """
     Deletes text content of the bot
     """
-    processor.delete_payload_content(payload_id, current_user.get_bot())
+    processor.delete_payload_content(payload_id, current_user.get_user(), current_user.get_bot())
     return {
         "message": "Text deleted!"
     }
