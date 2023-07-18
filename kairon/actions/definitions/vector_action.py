@@ -6,7 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.data_objects import ActionServerLogs, DatabaseAction
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, VectorDbValueType
 from kairon.shared.actions.utils import ActionUtility
@@ -14,7 +14,7 @@ from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.vector_embeddings.db.factory import VectorEmbeddingsDbFactory
 
 
-class DatabaseAction(ActionsBase):
+class ActionDatabase(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
         """
