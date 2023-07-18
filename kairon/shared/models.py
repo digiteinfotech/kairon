@@ -25,6 +25,7 @@ class StoryStepType(str, Enum):
     two_stage_fallback_action = "TWO_STAGE_FALLBACK_ACTION"
     prompt_action = "PROMPT_ACTION"
 
+
 class StoryType(str, Enum):
     story = "STORY"
     rule = "RULE"
@@ -96,3 +97,13 @@ class LlmPromptType(str, Enum):
     user = "user"
     system = "system"
     query = "query"
+
+
+class BotContentType(str, Enum):
+    text = "text"
+    json = "json"
+
+
+class MetadataDataType(str, Enum):
+    str = "str"
+    int = "int"

@@ -15,7 +15,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType, VectorDbValueType, VectorDbOperationClass
+    EvaluationType, DispatchType, VectorDbValueType, DbOperation
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -143,7 +143,7 @@ class HttpActionConfig(Auditlog):
 
 class VectorDbOperation(EmbeddedDocument):
     type = StringField(required=True, choices=[op_type.value for op_type in VectorDbValueType])
-    value = StringField(required=True, choices=[payload.value for payload in VectorDbOperationClass])
+    value = StringField(required=True, choices=[payload.value for payload in DbOperation])
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.type):
@@ -165,7 +165,7 @@ class VectorDbPayload(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
-class VectorEmbeddingDbAction(Auditlog):
+class DatabaseAction(Auditlog):
     name = StringField(required=True)
     collection = StringField(required=True)
     operation = EmbeddedDocumentField(VectorDbOperation, required=True)

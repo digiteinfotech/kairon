@@ -1,3 +1,5 @@
+import json
+
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import GPT3ResourceTypes
@@ -6,6 +8,7 @@ from kairon.shared.llm.base import LLMBase
 from typing import Text, Dict, List, Union
 
 from kairon.shared.llm.clients.factory import LLMClientFactory
+from kairon.shared.models import BotContentType
 from kairon.shared.utils import Utility
 import openai
 from kairon.shared.data.data_objects import BotContent
@@ -13,6 +16,7 @@ from urllib.parse import urljoin
 from kairon.exceptions import AppException
 from loguru import logger as logging
 from tqdm import tqdm
+
 
 class GPT3FAQEmbedding(LLMBase):
     __embedding__ = 1536
@@ -38,12 +42,32 @@ class GPT3FAQEmbedding(LLMBase):
         count = 0
         contents = list(BotContent.objects(bot=self.bot))
         for content in tqdm(contents, desc="Training FAQ"):
-            points = [{'id': content.vector_id,
-                       'vector': self.__get_embedding(content.data),
-                       'payload': {"content": content.data}}]
-            self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                       err_msg="Unable to train faq! contact support")
-            count += 1
+            metadata_list = content['metadata'] or []
+            content_type = content.content_type
+            if not metadata_list and content_type in [BotContentType.json.value, BotContentType.text.value]:
+                vector = self.__get_embedding(
+                    json.dumps(content.data)) if content_type == BotContentType.json.value else self.__get_embedding(
+                    content.data)
+                points = [{'id': content.vector_id, 'vector': vector, 'payload': {"content": content.data}}]
+                self.__collection_upsert__(self.bot + self.suffix, {'points': points},
+                                           err_msg="Unable to train FAQ! Contact support")
+                count += 1
+            if content.metadata is not None:
+                for metadata in content.metadata:
+                    if metadata['enable_search']:
+                        points = [{'id': content.vector_id,
+                                   'payload': {"content": content.data}}]
+                        self.__collection_upsert__(self.bot + self.suffix, {'points': points},
+                                                   err_msg="Unable to train FAQ! Contact support")
+                        count += 1
+                    if metadata['create_embeddings'] and content_type in [BotContentType.json.value, BotContentType.text.value]:
+                        vector = self.__get_embedding(json.dumps(
+                            content.data)) if content_type == BotContentType.json.value else self.__get_embedding(
+                            content.data)
+                        points = [{'id': content.vector_id, 'vector': vector, 'payload': {"content": content.data}}]
+                        self.__collection_upsert__(self.bot + self.suffix, {'points': points},
+                                                   err_msg="Unable to train FAQ! Contact support")
+                        count += 1
         return {"faq": count}
 
     def predict(self, query: Text, *args, **kwargs) -> Dict:
