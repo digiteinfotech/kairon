@@ -1,4 +1,4 @@
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Union
 import validators
 from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
@@ -6,13 +6,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, VectorDbValueType, \
-    VectorDbOperationClass
+    DbOperation
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
-from ..shared.models import StoryStepType, StoryType, TemplateType, HttpContentType, LlmPromptSource, LlmPromptType
+from ..shared.models import StoryStepType, StoryType, TemplateType, HttpContentType, LlmPromptSource, LlmPromptType, \
+    BotContentType
 
 
 class RecaptchaVerifiedRequest(BaseModel):
@@ -355,7 +356,7 @@ class HttpActionConfigRequest(BaseModel):
 
 class OperationConfig(BaseModel):
     type: VectorDbValueType
-    value: VectorDbOperationClass
+    value: DbOperation
 
     @root_validator
     def check(cls, values):
@@ -387,7 +388,7 @@ class PayloadConfig(BaseModel):
         return values
 
 
-class VectorEmbeddingActionRequest(BaseModel):
+class DatabaseActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     operation: OperationConfig
     payload: PayloadConfig
@@ -859,6 +860,19 @@ class PromptActionConfigRequest(BaseModel):
             if key not in values['hyperparameters']:
                 values['hyperparameters'][key] = value
         return values
+
+
+class Metadata(BaseModel):
+    column_name: str
+    data_type: Union[str, int]
+    enable_search: bool = True
+    create_embeddings: bool = True
+
+
+class PayloadContent(BaseModel):
+    data: Any
+    content_type: BotContentType
+    metadata: List[Metadata] = None
 
 
 class RazorpayActionRequest(BaseModel):

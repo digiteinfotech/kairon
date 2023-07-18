@@ -43,7 +43,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, VectorEmbeddingDbAction, VectorDbOperation, VectorDbPayload
+    LlmPrompt, FormSlotSet, DatabaseAction, VectorDbOperation, VectorDbPayload
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, VectorDbValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
@@ -87,7 +87,7 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, BotContent, MultiFlowStoryMetadata,
-    Synonyms, Lookup
+    Synonyms, Lookup, PayloadMetadata
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots
@@ -3004,10 +3004,10 @@ class MongoProcessor:
         :return: VectorDb configuration id for updated VectorDb action config
         """
 
-        if not Utility.is_exist(VectorEmbeddingDbAction, raise_error=False, name=request_data.get('name'), bot=bot, status=True):
+        if not Utility.is_exist(DatabaseAction, raise_error=False, name=request_data.get('name'), bot=bot, status=True):
             raise AppException(f'Action with name "{request_data.get("name")}" not found')
         self.__validate_payload(request_data.get('payload'), bot)
-        action = VectorEmbeddingDbAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action = DatabaseAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
         action.operation = VectorDbOperation(**request_data['operation'])
         action.payload = VectorDbPayload(**request_data['payload'])
         action.response = HttpActionResponse(**request_data.get('response', {}))
@@ -3027,9 +3027,9 @@ class MongoProcessor:
         :return: Http configuration id for saved Http action config
         """
         self.__validate_payload(vector_db_action_config.get('payload'), bot)
-        Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, VectorEmbeddingDbAction)
+        Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, DatabaseAction)
         set_slots = [SetSlotsFromResponse(**slot) for slot in vector_db_action_config.get('set_slots')]
-        action_id = VectorEmbeddingDbAction(
+        action_id = DatabaseAction(
             name=vector_db_action_config['name'],
             operation=VectorDbOperation(**vector_db_action_config.get('operation')),
             payload=VectorDbPayload(**vector_db_action_config.get('payload')),
@@ -3038,7 +3038,7 @@ class MongoProcessor:
             bot=bot,
             user=user,
         ).save().id.__str__()
-        self.add_action(vector_db_action_config['name'], bot, user, action_type=ActionType.vector_embeddings_db_action.value,
+        self.add_action(vector_db_action_config['name'], bot, user, action_type=ActionType.database_action.value,
                         raise_exception=False)
         return action_id
 
@@ -3053,10 +3053,10 @@ class MongoProcessor:
         Fetches VectorDb action config from collection.
         :param bot: bot id
         :param action: action name
-        :return: VectorEmbeddingDbAction object containing configuration for the Http action.
+        :return: DatabaseAction object containing configuration for the Http action.
         """
         try:
-            vector_embedding_config_dict = VectorEmbeddingDbAction.objects(bot=bot, name=action, status=True).get()
+            vector_embedding_config_dict = DatabaseAction.objects(bot=bot, name=action, status=True).get()
             vector_embedding_config = vector_embedding_config_dict.to_mongo().to_dict()
             vector_embedding_config['_id'] = vector_embedding_config['_id'].__str__()
             return vector_embedding_config
@@ -3071,7 +3071,7 @@ class MongoProcessor:
         :param with_doc_id: return document id along with action configuration if True
         :return: List of VectorDb actions.
         """
-        for action in VectorEmbeddingDbAction.objects(bot=bot, status=True):
+        for action in DatabaseAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
             if with_doc_id:
                 action['_id'] = action['_id'].__str__()
@@ -4568,8 +4568,8 @@ class MongoProcessor:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
-            elif action.type == ActionType.vector_embeddings_db_action.value:
-                Utility.delete_document([VectorEmbeddingDbAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.database_action.value:
+                Utility.delete_document([DatabaseAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.prompt_action.value:
                 PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False
@@ -5487,4 +5487,60 @@ class MongoProcessor:
             data = item.pop("data")
             final_data["_id"] = item["_id"].__str__()
             final_data['content'] = data
+            yield final_data
+
+    def save_payload_content(self, payload: Dict, user: Text, bot: Text):
+        bot_settings = self.get_bot_settings(bot=bot, user=user)
+        if not bot_settings["llm_settings"]['enable_faq']:
+            raise AppException('Faq feature is disabled for the bot! Please contact support.')
+        payload_obj = BotContent()
+        payload_obj.data = payload.get('data')
+        payload_obj.content_type = payload.get('content_type')
+        payload_obj.metadata = [PayloadMetadata(**meta) for meta in payload.get('metadata', [])]
+        payload_obj.user = user
+        payload_obj.bot = bot
+        payload_id = payload_obj.save().to_mongo().to_dict()["_id"].__str__()
+        return payload_id
+
+    def update_payload_content(self, payload_id: str, payload: Dict, user: Text, bot: Text):
+        data = payload['data']
+        content_type = payload['content_type']
+        Utility.is_exist(BotContent, bot=bot, id__ne=payload_id, data=data,
+                         exp_message="Payload data already exists!")
+
+        try:
+            payload_obj = BotContent.objects(bot=bot, id=payload_id).get()
+            payload_obj.data = data
+            payload_obj.content_type = content_type
+            payload_obj.metadata = [PayloadMetadata(**meta) for meta in payload.get('metadata', [])]
+            payload_obj.user = user
+            payload_obj.timestamp = datetime.utcnow()
+            payload_obj.save()
+        except DoesNotExist:
+            raise AppException("Payload with given id not found!")
+
+    def delete_payload_content(self, payload_id: str, bot: Text):
+        try:
+            payload = BotContent.objects(bot=bot, id=payload_id).get()
+            payload.delete()
+        except DoesNotExist:
+            raise AppException("Payload does not exists!")
+
+    def get_payload_content(self, bot: Text):
+        """
+        fetches content
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        for value in BotContent.objects(bot=bot):
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            data = item.pop("data")
+            data_type = item.pop("content_type")
+            metadata = item.pop("metadata")
+            final_data["_id"] = item["_id"].__str__()
+            final_data['content'] = data
+            final_data['content_type'] = data_type
+            final_data['metadata'] = metadata
             yield final_data

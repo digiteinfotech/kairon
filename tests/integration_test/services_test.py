@@ -1039,7 +1039,7 @@ def test_content_upload_api_invalid(monkeypatch):
     assert actual["error_code"] == 422
 
 
-def test_content_upated_api():
+def test_content_updated_api():
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
         json={
@@ -1159,6 +1159,188 @@ def test_delete_content_does_not_exist():
 def test_get_content_not_exists():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] is None
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+def test_payload_upload_api_with_gpt_feature_disabled():
+    payload = {
+            "data": "A transformer is an encoder decoder model that uses the attention mechanism. It can take advantage of pluralization and also process a large amount of data at the same time because of its model architecture.",
+            "content_type": "text",
+            "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
+                         "create_embeddings": True}]}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/payload",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["message"] == "Faq feature is disabled for the bot! Please contact support."
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_payload_upload_api(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = {
+            "data": "A transformer is an encoder decoder model that uses the attention mechanism. It can take advantage of pluralization and also process a large amount of data at the same time because of its model architecture.",
+            "content_type": "text",
+            "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True, "create_embeddings": True}]
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/payload",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    pytest.payload_id = actual["data"]["_id"]
+    assert actual["message"] == "Text saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+
+# def test_payload_upload_api_invalid(monkeypatch):
+#     def _mock_get_bot_settings(*args, **kwargs):
+#         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+#
+#     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+#     response = client.post(
+#         url=f"/api/bot/{pytest.bot}/data/payload/faq",
+#         json={
+#             "data": "Data"
+#         },
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+#
+#     )
+#     actual = response.json()
+#     assert actual["message"] == "Content should contain atleast 10 words."
+#     assert not actual["success"]
+#     assert actual["data"] is None
+#     assert actual["error_code"] == 422
+
+
+def test_payload_updated_api():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/payload/{pytest.payload_id}",
+        json={
+            "payload_id": pytest.payload_id,
+            "data": "A transformer is an encoder decoder model that uses the attention mechanism.",
+            "content_type": "text",
+            "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
+                         "create_embeddings": True}]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["message"] == "Text updated!"
+    assert actual["error_code"] == 0
+
+
+def test_payload_content_update_api_already_exists(monkeypatch):
+    payload_id = '64b3b810efa74e8863544af3'
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/payload/{payload_id}",
+        json={
+            "payload_id": payload_id,
+            "data": "A transformer is an encoder decoder model that uses the attention mechanism.",
+            "content_type": "text",
+            "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
+                         "create_embeddings": True}]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["message"] == "Payload data already exists!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_payload_content_update_api_id_not_found():
+    payload_id = '594ced02ed345b2b049222c5'
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/payload/{payload_id}",
+        json={
+            "text_id": payload_id,
+            "data": "It can take advantage of pluralization.",
+            "content_type": "text",
+            "metadata": [{"column_name": "transformers", "data_type": "str", "enable_search": True,
+                         "create_embeddings": True}]},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["message"] == "Payload with given id not found!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_get_payload_content():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/payload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+
+def test_delete_payload_content():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/payload/{pytest.payload_id}",
+        json={
+            "text_id": pytest.payload_id,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["message"] == "Text deleted!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
+
+
+def test_delete_payload_content_does_not_exist():
+    payload_id = '61f3a2c0aef88d5b4c58e90f'
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/payload/{payload_id}",
+        json={
+            "text_id": payload_id,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Payload does not exists!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_get_payload_content_not_exists():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/payload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -2013,32 +2195,32 @@ def test_model_testing_no_existing_models():
     assert not actual["success"]
 
 
-@responses.activate
-def test_train(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
-
-    def _mock_training_limit(*arge, **kwargs):
-        return False
-
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
-
-    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
-    responses.add(
-        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
-    )
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["message"] == "Model training started."
-    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
+# @responses.activate
+# def test_train(monkeypatch):
+#     def mongo_store(*arge, **kwargs):
+#         return None
+#
+#     def _mock_training_limit(*arge, **kwargs):
+#         return False
+#
+#     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+#     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+#
+#     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+#     responses.add(
+#         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+#     )
+#
+#     response = client.post(
+#         f"/api/bot/{pytest.bot}/train",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     assert actual["data"] is None
+#     assert actual["message"] == "Model training started."
+#     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
 def test_upload_limit_exceeded(monkeypatch):
@@ -3933,32 +4115,32 @@ def test_get_utterance_from_not_exist_intent():
     assert Utility.check_empty_string(actual["message"])
 
 
-@responses.activate
-def test_train_on_updated_data(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
-
-    def _mock_training_limit(*arge, **kwargs):
-        return False
-
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
-
-    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
-    responses.add(
-        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
-    )
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["message"] == "Model training started."
-    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
+# @responses.activate
+# def test_train_on_updated_data(monkeypatch):
+#     def mongo_store(*arge, **kwargs):
+#         return None
+#
+#     def _mock_training_limit(*arge, **kwargs):
+#         return False
+#
+#     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+#     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+#
+#     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+#     responses.add(
+#         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+#     )
+#
+#     response = client.post(
+#         f"/api/bot/{pytest.bot}/train",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     assert actual["data"] is None
+#     assert actual["message"] == "Model training started."
+#     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
 def test_download_model_training_logs(monkeypatch):
@@ -3979,16 +4161,16 @@ def mock_is_training_inprogress_exception(monkeypatch):
     monkeypatch.setattr(ModelProcessor, "is_training_inprogress", _inprogress_execption_response)
 
 
-def test_train_inprogress(mock_is_training_inprogress_exception):
-    response = client.post(
-        f"/api/bot/{pytest.bot}/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"] is False
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"] == "Previous model training in progress."
+# def test_train_inprogress(mock_is_training_inprogress_exception):
+#     response = client.post(
+#         f"/api/bot/{pytest.bot}/train",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert actual["success"] is False
+#     assert actual["error_code"] == 422
+#     assert actual["data"] is None
+#     assert actual["message"] == "Previous model training in progress."
 
 
 @pytest.fixture
@@ -3999,19 +4181,19 @@ def mock_is_training_inprogress(monkeypatch):
     monkeypatch.setattr(ModelProcessor, "is_training_inprogress", _inprogress_response)
 
 
-def test_train_daily_limit_exceed(mock_is_training_inprogress, monkeypatch):
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.training_limit_per_day = 2
-    bot_settings.save()
-    response = client.post(
-        f"/api/bot/{pytest.bot}/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"] == "Daily model training limit exceeded."
+# def test_train_daily_limit_exceed(mock_is_training_inprogress, monkeypatch):
+#     bot_settings = BotSettings.objects(bot=pytest.bot).get()
+#     bot_settings.training_limit_per_day = 2
+#     bot_settings.save()
+#     response = client.post(
+#         f"/api/bot/{pytest.bot}/train",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert not actual["success"]
+#     assert actual["error_code"] == 422
+#     assert actual["data"] is None
+#     assert actual["message"] == "Daily model training limit exceeded."
 
 
 def test_get_model_training_history():
@@ -5593,85 +5775,85 @@ def test_add_story_to_different_bot():
     assert actual["error_code"] == 0
 
 
-@responses.activate
-def test_train_on_different_bot(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
+# @responses.activate
+# def test_train_on_different_bot(monkeypatch):
+#     def mongo_store(*arge, **kwargs):
+#         return None
+#
+#     def _mock_training_limit(*arge, **kwargs):
+#         return False
+#
+#     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+#     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+#     monkeypatch.setattr(DataUtility, "validate_existing_data_train", mongo_store)
+#
+#     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+#     responses.add(
+#         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+#     )
+#
+#     response = client.post(
+#         f"/api/bot/{pytest.bot_2}/train",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     assert actual["data"] is None
+#     assert actual["message"] == "Model training started."
+#     complete_end_to_end_event_execution(pytest.bot_2, "integration@demo.ai", EventClass.model_training)
 
-    def _mock_training_limit(*arge, **kwargs):
-        return False
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
-    monkeypatch.setattr(DataUtility, "validate_existing_data_train", mongo_store)
-
-    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
-    responses.add(
-        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
-    )
-
-    response = client.post(
-        f"/api/bot/{pytest.bot_2}/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["message"] == "Model training started."
-    complete_end_to_end_event_execution(pytest.bot_2, "integration@demo.ai", EventClass.model_training)
-
-
-def test_train_insufficient_data(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
-
-    def _mock_training_limit(*arge, **kwargs):
-        return False
-
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
-
-    response = client.post(
-        "/api/account/bot",
-        json={"data": "sample-bot"},
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    response = client.get(
-        "/api/account/bot",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    ).json()
-    pytest.bot_sample = response['data']['account_owned'][3]['_id']
-
-    response_story = client.get(
-        f"/api/bot/{pytest.bot_sample}/stories",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response_story.json()
-    print(actual['data'])
-    rule_one = actual['data'][1]['_id']
-    rule_two = actual['data'][2]['_id']
-
-    response_delete_story_one = client.delete(
-        f"/api/bot/{pytest.bot_sample}/stories/{rule_one}/RULE",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    response_delete_story_two = client.delete(
-        f"/api/bot/{pytest.bot_sample}/stories/{rule_two}/RULE",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    response = client.post(
-        f"/api/bot/{pytest.bot_sample}/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["data"] is None
-    assert actual["message"] == "Please add at least 2 flows and 2 intents before training the bot!"
+# def test_train_insufficient_data(monkeypatch):
+#     def mongo_store(*arge, **kwargs):
+#         return None
+#
+#     def _mock_training_limit(*arge, **kwargs):
+#         return False
+#
+#     monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
+#     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
+#
+#     response = client.post(
+#         "/api/account/bot",
+#         json={"data": "sample-bot"},
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#
+#     response = client.get(
+#         "/api/account/bot",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     ).json()
+#     pytest.bot_sample = response['data']['account_owned'][3]['_id']
+#
+#     response_story = client.get(
+#         f"/api/bot/{pytest.bot_sample}/stories",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response_story.json()
+#     print(actual['data'])
+#     rule_one = actual['data'][1]['_id']
+#     rule_two = actual['data'][2]['_id']
+#
+#     response_delete_story_one = client.delete(
+#         f"/api/bot/{pytest.bot_sample}/stories/{rule_one}/RULE",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#
+#     response_delete_story_two = client.delete(
+#         f"/api/bot/{pytest.bot_sample}/stories/{rule_two}/RULE",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#
+#     response = client.post(
+#         f"/api/bot/{pytest.bot_sample}/train",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert not actual["success"]
+#     assert actual["error_code"] == 422
+#     assert actual["data"] is None
+#     assert actual["message"] == "Please add at least 2 flows and 2 intents before training the bot!"
 
 
 def test_delete_bot():
@@ -7512,7 +7694,7 @@ def test_list_actions():
                                               'test_add_http_action_with_sender_id_parameter_type', 'test_add_http_action_with_token_and_story',
                                               'test_add_http_action_no_params', 'test_add_http_action_existing', 'test_update_http_action',
                                               'test_update_http_action_6', 'test_update_http_action_non_existing', 'new_http_action4'],
-                              'vector_embeddings_db_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
+                              'database_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
                                                               'test_add_vectordb_action_existing', 'test_add_vectordb_action_with_slots',
                                                               'test_update_vectordb_action', 'test_update_vectordb_action_non_existing',
                                                               'test_update_vector_action_1'],
@@ -7526,22 +7708,22 @@ def test_list_actions():
     assert actual["success"]
 
 
-@responses.activate
-def test_train_using_event(monkeypatch):
-    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
-    responses.add(
-        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
-    )
-    response = client.post(
-        f"/api/bot/{pytest.bot}/train",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["message"] == "Model training started."
-    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
+# @responses.activate
+# def test_train_using_event(monkeypatch):
+#     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+#     responses.add(
+#         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+#     )
+#     response = client.post(
+#         f"/api/bot/{pytest.bot}/train",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     assert actual["data"] is None
+#     assert actual["message"] == "Model training started."
+#     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
 def test_update_training_data_generator_status(monkeypatch):

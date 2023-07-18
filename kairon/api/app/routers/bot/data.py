@@ -1,15 +1,14 @@
 import os
 
 from fastapi import UploadFile, File, Security, APIRouter
+from starlette.responses import FileResponse
 
-from kairon.api.models import Response, TextData
+from kairon.api.models import Response, TextData, PayloadContent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import DESIGNER_ACCESS
-from kairon.shared.models import User
-from starlette.responses import FileResponse
-
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import User
 from kairon.shared.utils import Utility
 
 router = APIRouter()
@@ -115,3 +114,69 @@ def get_text(
     Fetches text content of the bot
     """
     return {"data": list(processor.get_content(current_user.get_bot()))}
+
+
+@router.post("/payload", response_model=Response)
+def save_payload(
+        payload: PayloadContent,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Saves text content into the bot
+    """
+    return {
+        "message": "Text saved!",
+        "data": {
+            "_id": processor.save_payload_content(
+                    payload.dict(),
+                    current_user.get_user(),
+                    current_user.get_bot(),
+            )
+        }
+    }
+
+
+@router.put("/payload/{payload_id}", response_model=Response)
+def update_payload(
+        payload_id: str,
+        payload: PayloadContent,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Updates text content into the bot
+    """
+    return {
+        "message": "Text updated!",
+        "data": {
+            "_id": processor.update_payload_content(
+                payload_id,
+                payload.dict(),
+                current_user.get_user(),
+                current_user.get_bot(),
+            )
+        }
+    }
+
+
+@router.delete("/payload/{payload_id}", response_model=Response)
+def delete_payload(
+        payload_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Deletes text content of the bot
+    """
+    processor.delete_payload_content(payload_id, current_user.get_user(), current_user.get_bot())
+    return {
+        "message": "Text deleted!"
+    }
+
+
+@router.get("/payload", response_model=Response)
+def list_payload(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches text content of the bot
+    """
+    return {"data": list(processor.get_payload_content(current_user.get_bot()))}

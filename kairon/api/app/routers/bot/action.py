@@ -6,7 +6,7 @@ from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
-    RazorpayActionRequest, PromptActionConfigRequest, VectorEmbeddingActionRequest
+    RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -66,8 +66,8 @@ async def update_http_action(
 
 
 @router.post("/embeddings/db", response_model=Response)
-async def add_vector_embeddings_db_action(
-        request_data: VectorEmbeddingActionRequest,
+async def add_db_action(
+        request_data: DatabaseActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
@@ -79,8 +79,8 @@ async def add_vector_embeddings_db_action(
 
 
 @router.get("/embeddings/db/{action}", response_model=Response)
-async def get_vector_embeddings_db_action(action: str = Path(default=None, description="name", example="vector_embeddings_db_action"),
-                                          current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def get_vector_db_action(action: str = Path(default=None, description="name", example="database_action"),
+                               current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns configuration set for the VectorDb action
     """
@@ -89,7 +89,7 @@ async def get_vector_embeddings_db_action(action: str = Path(default=None, descr
 
 
 @router.get("/embeddings/db", response_model=Response)
-async def list_vector_embeddings_db_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+async def list_db_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns list of vectordb actions for bot.
     """
@@ -98,8 +98,8 @@ async def list_vector_embeddings_db_actions(current_user: User = Security(Authen
 
 
 @router.put("/embeddings/db", response_model=Response)
-async def update_vector_embeddings_db_action(
-        request_data: VectorEmbeddingActionRequest,
+async def update_db_action(
+        request_data: DatabaseActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
