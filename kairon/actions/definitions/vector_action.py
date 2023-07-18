@@ -7,7 +7,6 @@ from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.actions.data_objects import DatabaseAction
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, VectorDbValueType
 from kairon.shared.actions.utils import ActionUtility
