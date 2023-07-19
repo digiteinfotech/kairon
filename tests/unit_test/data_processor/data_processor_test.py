@@ -13792,14 +13792,14 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
-        processor.delete_cognition_content(pytest.payload_id, user, bot)
+        processor.delete_cognition_content(pytest.payload_id, bot)
 
     def test_delete_payload_content_does_not_exists(self):
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
         with pytest.raises(AppException, match="Payload does not exists!"):
-            processor.delete_cognition_content("507f191e050c19729de860ea", user, bot)
+            processor.delete_cognition_content("507f191e050c19729de860ea", bot)
 
     def test_get_payload_content_not_exists(self):
         processor = MongoProcessor()
