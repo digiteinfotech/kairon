@@ -42,7 +42,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response = self.fetch("/")
         self.assertEqual(response.code, 200)
         self.assertEqual(response.body.decode("utf8"), 'Kairon Server Running')
-    
+
+    @responses.activate
     def test_http_action_execution(self):
         action_name = "test_http_action_execution"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -79,8 +80,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -155,6 +154,7 @@ class TestActionServer(AsyncHTTPTestCase):
                                     'response: red'],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
+    @responses.activate
     def test_http_action_execution_returns_custom_json(self):
         action_name = "test_http_action_execution_returns_custom_json"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -190,8 +190,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -242,6 +240,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['responses'][0]['custom'],
                          {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}})
 
+    @responses.activate
     def test_http_action_execution_custom_json_with_invalid_json_response(self):
         action_name = "test_http_action_execution_custom_json_with_invalid_json_response"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -277,7 +276,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -328,6 +326,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['responses'][0]['text'],
                          'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}')
 
+    @responses.activate
     def test_http_action_execution_return_custom_json_with_script_evaluation(self):
         action_name = "test_http_action_execution_return_custom_json_with_script_evaluation"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -361,7 +360,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -426,6 +424,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['responses'][0]['custom'],
                          {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}})
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_with_json_response(self):
         action_name = "test_http_action_execution_script_evaluation_with_json_response"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2d", user="user").save()
@@ -461,7 +460,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -524,6 +522,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['responses'][0]['text'],
                          "The value of 2 in red is ['red', 'buggy', 'bumpers']")
 
+    @responses.activate
     def test_http_action_execution_no_response_dispatch(self):
         action_name = "test_http_action_execution_no_response_dispatch"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -557,7 +556,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -629,6 +627,7 @@ class TestActionServer(AsyncHTTPTestCase):
                                     'response: red'],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
+    @responses.activate
     def test_http_action_execution_script_evaluation(self):
         action_name = "test_http_action_execution_script_evaluation"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -663,7 +662,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -760,6 +758,7 @@ class TestActionServer(AsyncHTTPTestCase):
              "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
         self.assertEqual(response_json['responses'], [])
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_with_dynamic_params(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -787,7 +786,6 @@ class TestActionServer(AsyncHTTPTestCase):
             "intent": "test_run"
         }
         http_url = 'http://localhost:8081/mock'
-        responses.start()
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
@@ -940,6 +938,7 @@ class TestActionServer(AsyncHTTPTestCase):
                                     "Evaluator response: {'success': True, 'data': 'red'}"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -967,7 +966,6 @@ class TestActionServer(AsyncHTTPTestCase):
             "intent": "test_run"
         }
         http_url = 'http://localhost:8081/mock'
-        responses.start()
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
@@ -1000,6 +998,55 @@ class TestActionServer(AsyncHTTPTestCase):
                 {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
         )
 
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "The value of 2 in red is ['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "${a.b.d}",
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "red"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "${a.b.d.0}",
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+        )
+
         request_object = {
             "next_action": action_name,
             "tracker": {
@@ -1030,6 +1077,7 @@ class TestActionServer(AsyncHTTPTestCase):
         }
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
         response_json = json.loads(response.body.decode("utf8"))
+        print(response_json)
         self.assertEqual(response.code, 200)
         self.assertEqual(len(response_json['events']), 3)
         self.assertEqual(len(response_json['responses']), 1)
@@ -1041,6 +1089,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json['responses'][0]['custom'],
                          {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}})
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -1068,7 +1117,6 @@ class TestActionServer(AsyncHTTPTestCase):
             "intent": "test_run"
         }
         http_url = 'http://localhost:8081/mock'
-        responses.start()
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
@@ -1108,7 +1156,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1118,7 +1172,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1128,7 +1188,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d.0}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
 
         request_object = {
@@ -1171,6 +1237,7 @@ class TestActionServer(AsyncHTTPTestCase):
              "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
         self.assertEqual(response_json['responses'], [])
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch(self):
         action_name = "test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -1198,7 +1265,6 @@ class TestActionServer(AsyncHTTPTestCase):
             "intent": "test_run"
         }
         http_url = 'http://localhost:8081/mock'
-        responses.start()
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
@@ -1238,17 +1304,45 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
-            json={"success": False, "data": None},
+            json={"success": True, "data": "['red', 'buggy', 'bumpers']"},
             status=200,
             match=[
                 responses.matchers.json_params_matcher(
-                    {'script': "${e}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                    {'script': "${a.b.d}",
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
+        )
+        responses.add(
+            method=responses.POST,
+            url=Utility.environment['evaluator']['url'],
+            json={"success": True, "data": "red"},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {'script': "${a.b.d.0}",
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
 
         request_object = {
@@ -1285,12 +1379,13 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(len(response_json['events']), 3)
         self.assertEqual(len(response_json['responses']), 0)
         self.assertEqual(response_json['events'], [
-            {"event": "slot", "timestamp": None, "name": "val_d", "value": None},
-            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": None},
+            {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
+            {"event": "slot", "timestamp": None, "name": "val_d_0", "value": 'red'},
             {"event": "slot", "timestamp": None, "name": "kairon_action_response",
              "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
         self.assertEqual(response_json['responses'], [])
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_with_dynamic_params_failure(self):
         action_name = "test_http_action_execution_script_evaluation_failure_with_dynamic_params"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -1318,7 +1413,6 @@ class TestActionServer(AsyncHTTPTestCase):
             "intent": "test_run"
         }
         http_url = 'http://localhost:8081/mock'
-        responses.start()
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
@@ -1332,7 +1426,6 @@ class TestActionServer(AsyncHTTPTestCase):
                               'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
                               'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}})],
         )
-        responses.stop()
 
         request_object = {
             "next_action": action_name,
@@ -1372,6 +1465,7 @@ class TestActionServer(AsyncHTTPTestCase):
              "value": "I have failed to process your request"}])
         self.assertEqual(response_json['responses'][0]['text'], "I have failed to process your request")
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list(self):
         action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -1405,7 +1499,6 @@ class TestActionServer(AsyncHTTPTestCase):
             "user_details": {"email": "uditpandey@digite.com"}
         }
         http_url = 'http://localhost:8081/mock'
-        responses.start()
         responses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
@@ -1447,7 +1540,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1457,7 +1556,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1467,7 +1572,13 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${a.b.d.0}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}},
+                              'context': {'sender_id': 'default', 'user_message': 'get intents',
+                                          'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run',
+                                          'chat_log': [],
+                                          'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                          'kairon_user_msg': None, 'session_started': None,
+                                          'bot': '5f50fd0a56b698ca10d35d2e'}}})],
         )
 
         request_object = {
@@ -1543,6 +1654,7 @@ class TestActionServer(AsyncHTTPTestCase):
                                     "Evaluator response: {'success': True, 'data': 'red'}"],
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_failure_no_dispatch(self):
         action_name = "test_http_action_execution_script_evaluation_failure_no_dispatch"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -1577,8 +1689,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -1659,6 +1769,7 @@ class TestActionServer(AsyncHTTPTestCase):
              "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
         self.assertEqual(response_json['responses'], [])
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_failure_and_dispatch(self):
         action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -1693,8 +1804,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -1775,6 +1884,7 @@ class TestActionServer(AsyncHTTPTestCase):
              "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
         self.assertEqual(response_json['responses'][0]['text'], "The value of 2 in red is ['red', 'buggy', 'bumpers']")
 
+    @responses.activate
     def test_http_action_execution_script_evaluation_failure_and_dispatch_2(self):
         action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch_2"
         Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -1809,8 +1919,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 }
             }
         })
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -1826,7 +1934,7 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}})],
         )
         responses.add(
             method=responses.POST,
@@ -1836,7 +1944,7 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[
                 responses.matchers.json_params_matcher(
                     {'script': "${e}",
-                     'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}})],
+                     'data': {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}})],
         )
 
         request_object = {
@@ -2009,6 +2117,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [], 'responses': []})
 
+    @responses.activate
     def test_vectordb_action_execution_embedding_search_from_value(self):
         action_name = "test_vectordb_action_execution"
         Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56b698ca10d75d2e", user="user").save()
@@ -2039,8 +2148,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 ]
             }
         )
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.POST,
             url=http_url,
@@ -2092,6 +2199,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log.pop('_id')
         log.pop('timestamp')
 
+    @responses.activate
     def test_vectordb_action_execution_payload_search_from_value(self):
         action_name = "test_vectordb_action_execution"
         Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50md0a56b698ca10d35d2e", user="user").save()
@@ -2117,8 +2225,6 @@ class TestActionServer(AsyncHTTPTestCase):
         resp_msg = json.dumps(
             [{"id": 2, "city": "London", "color": "red"}]
         )
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.POST,
             url=http_url,
@@ -2170,6 +2276,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log.pop('_id')
         log.pop('timestamp')
 
+    @responses.activate
     def test_vectordb_action_execution_embedding_search_from_slot(self):
         action_name = "test_vectordb_action_execution"
         Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fx0a56b698ca10d35d2e", user="user").save()
@@ -2202,8 +2309,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 ]
             }
         )
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.POST,
             url=http_url,
@@ -2254,6 +2359,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log.pop('_id')
         log.pop('timestamp')
 
+    @responses.activate
     def test_vectordb_action_execution_payload_search_from_slot(self):
         action_name = "test_vectordb_action_execution"
         Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fx0a56v698ca10d39c2e", user="user").save()
@@ -2274,8 +2380,6 @@ class TestActionServer(AsyncHTTPTestCase):
         resp_msg = json.dumps(
             [{"id": 5, "city": "Berlin"}]
         )
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.POST,
             url=http_url,
@@ -2326,6 +2430,7 @@ class TestActionServer(AsyncHTTPTestCase):
         log.pop('_id')
         log.pop('timestamp')
 
+    @responses.activate
     def test_vectordb_action_execution_no_response_dispatch(self):
         action_name = "test_vectordb_action_execution_no_response_dispatch"
         Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56v098ca10d75d2e", user="user").save()
@@ -2356,8 +2461,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 ]
             }
         )
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.POST,
             url=http_url,
@@ -2815,6 +2918,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [], 'responses': []})
 
+    @responses.activate
     def test_form_validation_action_valid_slot_value(self):
         action_name = "validate_location"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -2877,6 +2981,7 @@ class TestActionServer(AsyncHTTPTestCase):
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
                           'responses': []})
 
+    @responses.activate
     def test_form_validation_action_with_custom_value(self):
         action_name = "validate_location_with_custom_value"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -2940,6 +3045,7 @@ class TestActionServer(AsyncHTTPTestCase):
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'}],
                           'responses': []})
 
+    @responses.activate
     def test_form_validation_action_with_custom_value_none(self):
         action_name = "validate_location_with_custom_value_none"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -3001,6 +3107,7 @@ class TestActionServer(AsyncHTTPTestCase):
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
                           'responses': []})
 
+    @responses.activate
     def test_form_validation_action_with_form_slot_type_slot(self):
         action_name = "validate_current_location_with_form_slot_type_slot"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -3161,6 +3268,7 @@ class TestActionServer(AsyncHTTPTestCase):
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}],
                           'responses': []})
 
+    @responses.activate
     def test_form_validation_action_valid_slot_value_with_utterance(self):
         action_name = "validate_user"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -3225,6 +3333,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'user_id', 'value': 'pandey.udit867@gmail.com'}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
 )
 
+    @responses.activate
     def test_form_validation_action_invalid_slot_value(self):
         action_name = "validate_form_with_3_validations"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -3292,6 +3401,7 @@ class TestActionServer(AsyncHTTPTestCase):
                          {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location', 'value': None}],
                           'responses': []})
 
+    @responses.activate
     def test_form_validation_action_invalid_slot_value_with_utterance(self):
         action_name = "validate_form"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -3494,6 +3604,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
 
+    @responses.activate
     def test_form_validation_action_with_is_required_false_and_semantics(self):
         action_name = "validate_with_required_false_and_semantics"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -3640,6 +3751,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'reservation_id', 'value': None}], 'responses': [{'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
 
+    @responses.activate
     def test_form_validation_action_with_is_required_true_and_semantics(self):
         action_name = "validate_with_required_true_and_semantics"
         bot = '5f50fd0a56b698ca10d35d2e'
@@ -3700,6 +3812,7 @@ class TestActionServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}], 'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]})
 
+    @responses.activate
     @patch("kairon.shared.actions.utils.ActionUtility.get_action")
     @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
     @patch("kairon.shared.utils.SMTP", autospec=True)
@@ -3748,9 +3861,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         mock_action.side_effect = _get_action
         mock_action_config.side_effect = _get_action_config
-        responses.start()
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        responses.reset()
         mock_env.stop()
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
@@ -3786,6 +3897,7 @@ class TestActionServer(AsyncHTTPTestCase):
         assert str(args[2]).__contains__(action_config.subject)
         assert str(args[2]).__contains__("Content-Type: text/html")
 
+    @responses.activate
     @patch("kairon.shared.actions.utils.ActionUtility.get_action")
     @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
     def test_email_action_execution_script_evaluation_failure(self, mock_action_config, mock_action):
@@ -3836,7 +3948,6 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_action.side_effect = _get_action
         mock_action_config.side_effect = _get_action_config
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        responses.reset()
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         self.assertEqual(len(response_json['events']), 1)
@@ -5832,6 +5943,7 @@ class TestActionServer(AsyncHTTPTestCase):
                              'template': None,
                              'response': None, 'image': None, 'attachment': None}]})
 
+    @responses.activate
     def test_process_razorpay_action_failure(self):
         action_name = "test_process_razorpay_action_failure"
         bot = "5f50fd0a56b698ca10d35d2e"
@@ -6128,6 +6240,7 @@ class TestActionServer(AsyncHTTPTestCase):
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response_json, {'events': [], 'responses': []})
 
+    @responses.activate
     def test_process_hubspot_forms_action(self):
         action_name = "hubspot_forms_action"
         bot = "5f50fd0a56b698ca10d35d2e"
@@ -6152,7 +6265,6 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[responses.matchers.json_params_matcher({"fields": [{"name": "email", "value": "pandey.udit867@gmail.com"},
                                                              {"name": "firstname", "value": "udit pandey"}]})]
         )
-        responses.start()
         request_object = {
             "next_action": action_name,
             "tracker": {
@@ -6241,9 +6353,8 @@ class TestActionServer(AsyncHTTPTestCase):
                             {'text': 'Hubspot Form submitted', 'buttons': [], 'elements': [], 'custom': {},
                              'template': None,
                              'response': None, 'image': None, 'attachment': None}]})
-        responses.stop()
-        responses.reset()
 
+    @responses.activate
     def test_process_hubspot_forms_action_failure(self):
         action_name = "test_process_hubspot_forms_action_failure"
         bot = "5f50fd0a56b698ca10d35d2e"
@@ -6266,7 +6377,6 @@ class TestActionServer(AsyncHTTPTestCase):
             f"https://api.hsforms.com/submissions/v3/integration/submit/{portal_id}/{form_guid}",
             status=400, json={"inline_message": "invalid request body"}
         )
-        responses.start()
         request_object = {
             "next_action": action_name,
             "tracker": {
@@ -6354,8 +6464,6 @@ class TestActionServer(AsyncHTTPTestCase):
                 {'text': "I have failed to process your request", 'buttons': [], 'elements': [], 'custom': {},
                  'template': None,
                  'response': None, 'image': None, 'attachment': None}]})
-        responses.stop()
-        responses.reset()
 
     def test_two_stage_fallback_action(self):
         action_name = KAIRON_TWO_STAGE_FALLBACK.lower()
@@ -6951,6 +7059,7 @@ class TestActionServer(AsyncHTTPTestCase):
              'response': 'utter_greet', 'image': None, 'attachment': None}
         ])
 
+    @responses.activate
     def test_bot_response_action_rephrase_enabled(self):
         action_name = 'utter_greet'
         bot = "5f50fd0a56b698ca10d35d2h"
@@ -6973,7 +7082,6 @@ class TestActionServer(AsyncHTTPTestCase):
                  'max_tokens': 152})],
         )
 
-        responses.start()
         request_object = {
             "next_action": action_name,
             "tracker": {
@@ -7086,8 +7194,6 @@ class TestActionServer(AsyncHTTPTestCase):
             [{'text': "Greetings and welcome to kairon!!", 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
              'response': None, 'image': None, 'attachment': None}
         ])
-        responses.stop()
-        responses.reset()
 
         request_object["domain"]["responses"]["utter_greet"] = [{"custom": {"type": "button", "text": "Greet"}}]
         response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
@@ -7100,6 +7206,7 @@ class TestActionServer(AsyncHTTPTestCase):
                            'response': 'utter_greet', 'image': None, 'attachment': None}
                           ])
 
+    @responses.activate
     def test_bot_response_action_rephrase_failure(self):
         action_name = 'utter_greet'
         bot = "5f50fd0a56b698ca10d35d2i"
@@ -7117,7 +7224,6 @@ class TestActionServer(AsyncHTTPTestCase):
             match=[responses.matchers.json_params_matcher({'model': 'text-davinci-003', 'prompt': gpt_prompt, 'temperature': 0.7, 'max_tokens': 152})],
         )
 
-        responses.start()
         request_object = {
             "next_action": action_name,
             "tracker": {
@@ -7246,9 +7352,7 @@ class TestActionServer(AsyncHTTPTestCase):
                             'response': 'utter_greet', 'image': None, 'attachment': None}
                            ])
         assert len(responses.calls._calls) == 1
-        responses.stop()
-        responses.reset()
-    
+
     def test_bot_response_action_failure(self):
         action_name = 'utter_greet'
         bot = "5f50fd0a56b698ca10d35d2j"
@@ -8125,6 +8229,7 @@ class TestActionServer(AsyncHTTPTestCase):
               'response': None, 'image': None, 'attachment': None}
              ])
 
+    @responses.activate
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
@@ -8167,8 +8272,6 @@ class TestActionServer(AsyncHTTPTestCase):
 
         http_url = 'http://localhost:8081/mock'
         resp_msg = "Python is a scripting language because it uses an interpreter to translate and run its code."
-        responses.reset()
-        responses.start()
         responses.add(
             method=responses.GET,
             url=http_url,
