@@ -3,7 +3,7 @@ import os
 from fastapi import UploadFile, File, Security, APIRouter
 from starlette.responses import FileResponse
 
-from kairon.api.models import Response, TextData, PayloadContent
+from kairon.api.models import Response, TextData, CognitiveDataRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import DESIGNER_ACCESS
@@ -116,19 +116,19 @@ def get_text(
     return {"data": list(processor.get_content(current_user.get_bot()))}
 
 
-@router.post("/payload", response_model=Response)
-def save_payload(
-        payload: PayloadContent,
+@router.post("/cognition", response_model=Response)
+def save_cognition(
+        cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Saves text content into the bot
+    Saves cognition content into the bot
     """
     return {
-        "message": "Text saved!",
+        "message": "Cognition saved!",
         "data": {
-            "_id": processor.save_payload_content(
-                    payload.dict(),
+            "_id": processor.save_cognition_content(
+                    cognition.dict(),
                     current_user.get_user(),
                     current_user.get_bot(),
             )
@@ -136,21 +136,21 @@ def save_payload(
     }
 
 
-@router.put("/payload/{payload_id}", response_model=Response)
-def update_payload(
-        payload_id: str,
-        payload: PayloadContent,
+@router.put("/cognition/{cognition_id}", response_model=Response)
+def update_cognition(
+        cognition_id: str,
+        cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Updates text content into the bot
+    Updates cognition content into the bot
     """
     return {
-        "message": "Text updated!",
+        "message": "Cognition updated!",
         "data": {
-            "_id": processor.update_payload_content(
-                payload_id,
-                payload.dict(),
+            "_id": processor.update_cognition_content(
+                cognition_id,
+                cognition.dict(),
                 current_user.get_user(),
                 current_user.get_bot(),
             )
@@ -158,25 +158,25 @@ def update_payload(
     }
 
 
-@router.delete("/payload/{payload_id}", response_model=Response)
-def delete_payload(
-        payload_id: str,
+@router.delete("/cognition/{cognition_id}", response_model=Response)
+def delete_cognition(
+        cognition_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Deletes text content of the bot
+    Deletes cognition content of the bot
     """
-    processor.delete_payload_content(payload_id, current_user.get_user(), current_user.get_bot())
+    processor.delete_cognition_content(cognition_id, current_user.get_bot())
     return {
-        "message": "Text deleted!"
+        "message": "Cognition deleted!"
     }
 
 
-@router.get("/payload", response_model=Response)
-def list_payload(
+@router.get("/cognition", response_model=Response)
+def list_cognition(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Fetches text content of the bot
+    Fetches cognition content of the bot
     """
-    return {"data": list(processor.get_payload_content(current_user.get_bot()))}
+    return {"data": list(processor.get_cognition_content(current_user.get_bot()))}

@@ -99,11 +99,11 @@ class LlmPromptType(str, Enum):
     query = "query"
 
 
-class BotContentType(str, Enum):
+class CognitionDataType(str, Enum):
     text = "text"
     json = "json"
 
 
-class MetadataDataType(str, Enum):
+class CognitionMetadataType(str, Enum):
     str = "str"
     int = "int"

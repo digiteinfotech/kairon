@@ -15,7 +15,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType, VectorDbValueType, DbOperation
+    EvaluationType, DispatchType, VectorDbValueType, DbActionOperationType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -141,9 +141,9 @@ class HttpActionConfig(Auditlog):
                     param.value = Utility.encrypt_message(param.value)
 
 
-class VectorDbOperation(EmbeddedDocument):
+class DbOperation(EmbeddedDocument):
     type = StringField(required=True, choices=[op_type.value for op_type in VectorDbValueType])
-    value = StringField(required=True, choices=[payload.value for payload in DbOperation])
+    value = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.type):
@@ -168,7 +168,7 @@ class VectorDbPayload(EmbeddedDocument):
 class DatabaseAction(Auditlog):
     name = StringField(required=True)
     collection = StringField(required=True)
-    operation = EmbeddedDocumentField(VectorDbOperation, required=True)
+    operation = EmbeddedDocumentField(DbOperation, required=True)
     payload = EmbeddedDocumentField(VectorDbPayload, default=VectorDbPayload())
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))

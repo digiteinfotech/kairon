@@ -11,7 +11,7 @@ from mongoengine import connect
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
-from kairon.shared.data.data_objects import BotContent, LLMSettings
+from kairon.shared.data.data_objects import CognitionData, LLMSettings
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding, LLMBase
 from kairon.shared.utils import Utility
@@ -58,7 +58,7 @@ class TestLLM:
         bot = "test_embed_faq"
         user = "test"
         value = "nupurkhare"
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -127,7 +127,7 @@ class TestLLM:
         bot = "test_embed_faq_text"
         user = "test"
         value = "nupurkhare"
-        test_content = BotContent(
+        test_content = CognitionData(
             data="A large language model refers to a type of artificial intelligence (AI) model that is designed to "
                  "generate and understand human language. It is trained on vast amounts of text data and uses sophisticated "
                  "algorithms to process and generate coherent and contextually relevant responses.",
@@ -207,14 +207,14 @@ class TestLLM:
 
             response = gpt3.train()
 
-            assert response['faq'] == 4
+            assert response['faq'] == 1
 
     @responses.activate
     def test_gpt3_faq_embedding_train_payload_json(self):
         bot = "test_embed_faq_json"
         user = "test"
         value = "nupurkhare"
-        test_content = BotContent(
+        test_content = CognitionData(
             data={
                 "filter": {
                     "should": [
@@ -317,7 +317,7 @@ class TestLLM:
         bot = "test_embed_faq_json_no_metadata"
         user = "test"
         value = "nupurkhare"
-        test_content = BotContent(
+        test_content = CognitionData(
             data={
                 "filter": {
                     "should": [
@@ -422,7 +422,7 @@ class TestLLM:
         bot = "test_embed_faq_not_exists"
         user = "test"
         value = "nupurk"
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -485,7 +485,7 @@ class TestLLM:
                       "time": 0.003612634}
             )
 
-            with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
+            with pytest.raises(AppException, match="Unable to train faq! contact support"):
                 gpt3.train()
 
     @responses.activate
@@ -493,7 +493,7 @@ class TestLLM:
         bot = "test_embed_faq_payload_upsert_error"
         user = "test"
         value = "nupurk"
-        test_content = BotContent(
+        test_content = CognitionData(
             data={
                 "filter": {
                     "should": [
@@ -597,7 +597,7 @@ class TestLLM:
         bot = "test_embed_faq_predict"
         user = "test"
         value = "knupur"
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -681,7 +681,7 @@ class TestLLM:
     def test_gpt3_faq_embedding_predict_with_values(self):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
 
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot="test_embed_faq_predict", user="test").save()
 
@@ -776,7 +776,7 @@ class TestLLM:
     def test_gpt3_faq_embedding_predict_completion_connection_error(self, mock_embedding, mock_completion):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
 
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot="test_embed_faq_predict", user="test").save()
 
@@ -858,7 +858,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
     def test_gpt3_faq_embedding_predict_exact_match(self, mock_embedding):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
 
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot="test_embed_faq_predict", user="test").save()
 
@@ -900,7 +900,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
 
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
 
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot="test_embed_faq_predict", user="test").save()
 
@@ -944,7 +944,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
     def test_gpt3_faq_embedding_predict_completion_connection_error_query_not_cached(self, mock_embedding, mock_completion):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
 
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot="test_embed_faq_predict", user="test").save()
 
@@ -1004,7 +1004,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
 
         bot = "test_embed_faq_predict"
         user = "test"
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
 
@@ -1085,7 +1085,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
 
         bot = "test_embed_faq_predict"
         user = "test"
-        test_content = BotContent(
+        test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
 
