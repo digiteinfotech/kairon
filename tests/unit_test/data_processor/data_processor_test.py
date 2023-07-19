@@ -65,7 +65,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              TrainingDataGenerator, TrainingDataGeneratorResponse,
                                              TrainingExamplesTrainingDataGenerator, Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
-                                             SlotMapping, KeyVault, MultiflowStories, BotContent, LLMSettings,
+                                             SlotMapping, KeyVault, MultiflowStories, CognitionData, LLMSettings,
                                              MultiflowStoryEvents, Synonyms,
                                              Lookup
                                              )
@@ -2196,10 +2196,10 @@ class TestMongoProcessor:
         bot = "tests"
         user = "testUser"
         value = "nupurk"
-        BotContent(
+        CognitionData(
             data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
             bot=bot, user=user).save()
-        BotContent(
+        CognitionData(
             data="Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.",
             bot=bot, user=user).save()
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -13678,7 +13678,7 @@ class TestMongoProcessor:
                          "create_embeddings": True}]}
 
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
-            processor.save_payload_content(payload, user, bot)
+            processor.save_cognition_content(payload, user, bot)
 
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
@@ -13693,10 +13693,10 @@ class TestMongoProcessor:
             "content_type": "text",
             "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
                          "create_embeddings": True}]}
-        pytest.payload_id = processor.save_payload_content(payload, user, bot)
+        pytest.payload_id = processor.save_cognition_content(payload, user, bot)
         payload_id = '64b0f2e66707e9282a13f6cd'
         with pytest.raises(AppException, match="Payload data already exists!"):
-            processor.update_payload_content(payload_id, payload, user, bot)
+            processor.update_cognition_content(payload_id, payload, user, bot)
 
     def test_save_payload_content_metadata_int(self):
         processor = MongoProcessor()
@@ -13707,7 +13707,7 @@ class TestMongoProcessor:
             "content_type": "text",
             "metadata": [{"column_name": "Number", "data_type": "int", "enable_search": True,
                          "create_embeddings": True}]}
-        actual = processor.save_payload_content(payload, user, bot)
+        actual = processor.save_cognition_content(payload, user, bot)
         assert actual
 
     def test_save_payload_content_as_json(self):
@@ -13726,7 +13726,7 @@ class TestMongoProcessor:
             "content_type": "json",
             "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True,
                          "create_embeddings": True}]}
-        actual = processor.save_payload_content(payload, user, bot)
+        actual = processor.save_cognition_content(payload, user, bot)
         assert actual
 
     def test_save_payload_content_column_name_empty(self):
@@ -13741,7 +13741,7 @@ class TestMongoProcessor:
             "bot": bot,
             "user": user}
         with pytest.raises(ValidationError, match="Column name cannot be empty"):
-            BotContent(**payload).save()
+            CognitionData(**payload).save()
 
     def test_save_payload_content_data_type_invalid(self):
         processor = MongoProcessor()
@@ -13756,7 +13756,7 @@ class TestMongoProcessor:
             "user": user
         }
         with pytest.raises(ValidationError, match="Only str and int data types are supported"):
-            BotContent(**payload).save()
+            CognitionData(**payload).save()
 
     def test_update_payload_content(self):
         processor = MongoProcessor()
@@ -13767,7 +13767,7 @@ class TestMongoProcessor:
             "content_type": "text",
             "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
                          "create_embeddings": True}]}
-        processor.update_payload_content(pytest.payload_id, payload, user, bot)
+        processor.update_cognition_content(pytest.payload_id, payload, user, bot)
 
     def test_update_payload_content_not_found(self):
         processor = MongoProcessor()
@@ -13786,25 +13786,25 @@ class TestMongoProcessor:
             "metadata": [{"column_name": "language", "data_type": "str", "enable_search": True,
                          "create_embeddings": True}]}
         with pytest.raises(AppException, match="Payload with given id not found!"):
-            processor.update_payload_content(payload_id, payload, user, bot)
+            processor.update_cognition_content(payload_id, payload, user, bot)
 
     def test_delete_payload_content(self):
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
-        processor.delete_payload_content(pytest.payload_id, user, bot)
+        processor.delete_cognition_content(pytest.payload_id, user, bot)
 
     def test_delete_payload_content_does_not_exists(self):
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
         with pytest.raises(AppException, match="Payload does not exists!"):
-            processor.delete_payload_content("507f191e050c19729de860ea", user, bot)
+            processor.delete_cognition_content("507f191e050c19729de860ea", user, bot)
 
     def test_get_payload_content_not_exists(self):
         processor = MongoProcessor()
         bot = 'testing'
-        assert list(processor.get_payload_content(bot)) == []
+        assert list(processor.get_cognition_content(bot)) == []
 
     def test_get_payload_content(self):
         processor = MongoProcessor()
@@ -13815,8 +13815,8 @@ class TestMongoProcessor:
             "content_type": "text",
             "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
                          "create_embeddings": True}]}
-        pytest.content_id = processor.save_payload_content(payload, user, bot)
-        data = list(processor.get_payload_content(bot))
+        pytest.content_id = processor.save_cognition_content(payload, user, bot)
+        data = list(processor.get_cognition_content(bot))
         print(data)
         assert data[0][
                    'content'] == 100

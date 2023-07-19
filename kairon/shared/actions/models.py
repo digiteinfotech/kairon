@@ -80,7 +80,7 @@ class DispatchType(str, Enum):
     text = "text"
 
 
-class DbOperation(str, Enum):
+class DbActionOperationType(str, Enum):
     payload_search = "payload_search"
     embedding_search = "embedding_search"
 

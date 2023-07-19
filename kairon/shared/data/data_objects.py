@@ -31,7 +31,7 @@ from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
 from kairon.shared.data.signals import push_notification, auditlogger
-from kairon.shared.models import TemplateType, StoryStepType, StoryType, BotContentType, MetadataDataType
+from kairon.shared.models import TemplateType, StoryStepType, StoryType, CognitionDataType, CognitionMetadataType
 from kairon.shared.utils import Utility
 from .base_data import Auditlog
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
@@ -695,17 +695,17 @@ class Rules(Auditlog):
         DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
-class PayloadMetadata(EmbeddedDocument):
+class CongnitionMetadata(EmbeddedDocument):
     column_name = StringField(required=True)
-    data_type = StringField(required=True, default=MetadataDataType.str.value,
-                            choices=[MetadataDataType.str.value, MetadataDataType.int.value])
+    data_type = StringField(required=True, default=CognitionMetadataType.str.value,
+                            choices=[CognitionMetadataType.str.value, CognitionMetadataType.int.value])
     enable_search = BooleanField(default=True)
     create_embeddings = BooleanField(default=True)
 
     def validate(self, clean=True):
         if clean:
             self.clean()
-        if self.data_type not in [MetadataDataType.str.value, MetadataDataType.int.value]:
+        if self.data_type not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value]:
             raise ValidationError("Only str and int data types are supported")
         if Utility.check_empty_string(self.column_name):
             raise ValidationError("Column name cannot be empty")
@@ -717,11 +717,11 @@ class PayloadMetadata(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
-class BotContent(Auditlog):
+class CognitionData(Auditlog):
     vector_id = SequenceField(required=True)
     data = DynamicField(required=True)
-    content_type = StringField(default=BotContentType.text.value, choices=[BotContentType.text.value, BotContentType.json.value])
-    metadata = ListField(EmbeddedDocumentField(PayloadMetadata), default=None)
+    content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value, CognitionDataType.json.value])
+    metadata = ListField(EmbeddedDocumentField(CongnitionMetadata), default=None)
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

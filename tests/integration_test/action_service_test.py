@@ -8,7 +8,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, VectorDbOperation, VectorDbPayload
+    DatabaseAction, DbOperation, VectorDbPayload
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -2015,7 +2015,7 @@ class TestActionServer(AsyncHTTPTestCase):
         payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
         DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="embedding_search"),
+            operation=DbOperation(type="from_value", value="embedding_search"),
             payload=VectorDbPayload(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
             set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -2105,7 +2105,7 @@ class TestActionServer(AsyncHTTPTestCase):
         }
         DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="payload_search"),
+            operation=DbOperation(type="from_value", value="payload_search"),
             payload=VectorDbPayload(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
             set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
@@ -2178,7 +2178,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="embedding_search"),
+            operation=DbOperation(type="from_value", value="embedding_search"),
             payload=VectorDbPayload(type="from_slot", value='name'),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
             set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -2262,7 +2262,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="payload_search"),
+            operation=DbOperation(type="from_value", value="payload_search"),
             payload=VectorDbPayload(type="from_slot", value='color'),
             response=HttpActionResponse(value="The name of the city with id ${data.0.id} is ${data.0.city}"),
             set_slots=[SetSlotsFromResponse(name="city_name", value="${data.0.city}")],
@@ -2332,7 +2332,7 @@ class TestActionServer(AsyncHTTPTestCase):
         payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
         DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="embedding_search"),
+            operation=DbOperation(type="from_value", value="embedding_search"),
             payload=VectorDbPayload(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}", dispatch=False),
             set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -2415,7 +2415,7 @@ class TestActionServer(AsyncHTTPTestCase):
         payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
         DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="vector_search"),
+            operation=DbOperation(type="from_value", value="vector_search"),
             payload=VectorDbPayload(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}", dispatch=False),
             set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -2473,7 +2473,7 @@ class TestActionServer(AsyncHTTPTestCase):
                          user="user")
         action_config = DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="embedding_search"),
+            operation=DbOperation(type="from_value", value="embedding_search"),
             payload=VectorDbPayload(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector"),
             bot="5f50fd0a56b697ca10d35d2e",
