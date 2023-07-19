@@ -65,7 +65,7 @@ async def update_http_action(
     return Response(data=response, message=message)
 
 
-@router.post("/embeddings/db", response_model=Response)
+@router.post("/db", response_model=Response)
 async def add_db_action(
         request_data: DatabaseActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
@@ -78,7 +78,7 @@ async def add_db_action(
     return Response(data={"_id": action_id}, message="Action added!")
 
 
-@router.get("/embeddings/db/{action}", response_model=Response)
+@router.get("/db/{action}", response_model=Response)
 async def get_vector_db_action(action: str = Path(default=None, description="name", example="database_action"),
                                current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
@@ -88,7 +88,7 @@ async def get_vector_db_action(action: str = Path(default=None, description="nam
     return Response(data=action_config)
 
 
-@router.get("/embeddings/db", response_model=Response)
+@router.get("/db", response_model=Response)
 async def list_db_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns list of vectordb actions for bot.
@@ -97,7 +97,7 @@ async def list_db_actions(current_user: User = Security(Authentication.get_curre
     return Response(data=actions)
 
 
-@router.put("/embeddings/db", response_model=Response)
+@router.put("/db", response_model=Response)
 async def update_db_action(
         request_data: DatabaseActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
