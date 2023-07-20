@@ -416,7 +416,7 @@ class TestLLM:
                       "time": 0.003612634}
             )
 
-            with pytest.raises(AppException, match="Unable to train faq! contact support"):
+            with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
                 gpt3.train()
 
     @responses.activate

@@ -695,7 +695,7 @@ class Rules(Auditlog):
         DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
-class CongnitionMetadata(EmbeddedDocument):
+class CognitionMetadata(EmbeddedDocument):
     column_name = StringField(required=True)
     data_type = StringField(required=True, default=CognitionMetadataType.str.value,
                             choices=[CognitionMetadataType.str.value, CognitionMetadataType.int.value])
@@ -722,7 +722,7 @@ class CognitionData(Auditlog):
     data = DynamicField(required=True)
     content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value,
                                                             CognitionDataType.json.value])
-    metadata = ListField(EmbeddedDocumentField(CongnitionMetadata), default=None)
+    metadata = ListField(EmbeddedDocumentField(CognitionMetadata), default=None)
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -734,9 +734,9 @@ class CognitionData(Auditlog):
             self.clean()
 
         if self.metadata:
-            for data in self.metadata or []:
-                data.validate()
-        Utility.check_data_type(self.data, self.metadata)
+            for metadata_item in self.metadata or []:
+                metadata_item.validate()
+                Utility.check_data_type(self.data, metadata_item.to_mongo().to_dict())
 
 
 @auditlogger.log
