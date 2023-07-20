@@ -18,7 +18,7 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict, Union
+from typing import Text, List, Dict, Union, Any
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
@@ -63,6 +63,7 @@ from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
+from ..api.models import Metadata
 from ..exceptions import AppException
 
 
@@ -131,6 +132,21 @@ class Utility:
             return True
         else:
             return False
+
+    @staticmethod
+    def check_data_type(data: Any, metadata: List[Metadata]):
+        if metadata and isinstance(data, dict):
+            for metadata_item in metadata:
+                column_name = metadata_item.column_name
+                data_type = metadata_item.data_type
+                if column_name in data:
+                    column_value = data[column_name]
+                    if not isinstance(column_value, eval(data_type)):
+                        try:
+                            converted_value = eval(data_type)(column_value)
+                            data[column_name] = converted_value
+                        except Exception as e:
+                            raise AppException("Invalid data type")
 
     @staticmethod
     def validate_slot_initial_value_and_values(slot_value: Dict):

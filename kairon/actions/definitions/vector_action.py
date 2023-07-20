@@ -8,7 +8,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, DatabaseAction
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, VectorDbValueType
+from kairon.shared.actions.models import ActionType, DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.vector_embeddings.db.factory import VectorEmbeddingsDbFactory
@@ -70,9 +70,9 @@ class ActionDatabase(ActionsBase):
             collection_name = vector_action_config['collection']
             db_type = vector_action_config['db_type']
             vector_db = VectorEmbeddingsDbFactory.get_instance(db_type)(collection_name)
-            operation_type = vector_action_config['operation']
+            operation_type = vector_action_config['query']
             payload_type = vector_action_config['payload']
-            request_body = tracker.get_slot(payload_type.get('value')) if payload_type.get('type') == VectorDbValueType.from_slot.value \
+            request_body = tracker.get_slot(payload_type.get('value')) if payload_type.get('type') == DbQueryValueType.from_slot.value \
                 else payload_type.get('value')
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)

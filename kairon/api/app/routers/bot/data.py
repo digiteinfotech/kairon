@@ -117,7 +117,7 @@ def get_text(
 
 
 @router.post("/cognition", response_model=Response)
-def save_cognition(
+def save_cognition_data(
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -125,9 +125,9 @@ def save_cognition(
     Saves cognition content into the bot
     """
     return {
-        "message": "Cognition saved!",
+        "message": "Record saved!",
         "data": {
-            "_id": processor.save_cognition_content(
+            "_id": processor.save_cognition_data(
                     cognition.dict(),
                     current_user.get_user(),
                     current_user.get_bot(),
@@ -137,7 +137,7 @@ def save_cognition(
 
 
 @router.put("/cognition/{cognition_id}", response_model=Response)
-def update_cognition(
+def update_cognition_data(
         cognition_id: str,
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -146,9 +146,9 @@ def update_cognition(
     Updates cognition content into the bot
     """
     return {
-        "message": "Cognition updated!",
+        "message": "Record updated!",
         "data": {
-            "_id": processor.update_cognition_content(
+            "_id": processor.update_cognition_data(
                 cognition_id,
                 cognition.dict(),
                 current_user.get_user(),
@@ -159,24 +159,24 @@ def update_cognition(
 
 
 @router.delete("/cognition/{cognition_id}", response_model=Response)
-def delete_cognition(
+def delete_cognition_data(
         cognition_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Deletes cognition content of the bot
     """
-    processor.delete_cognition_content(cognition_id, current_user.get_bot())
+    processor.delete_cognition_data(cognition_id, current_user.get_bot())
     return {
-        "message": "Cognition deleted!"
+        "message": "Record deleted!"
     }
 
 
 @router.get("/cognition", response_model=Response)
-def list_cognition(
+def list_cognition_data(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches cognition content of the bot
     """
-    return {"data": list(processor.get_cognition_content(current_user.get_bot()))}
+    return {"data": list(processor.list_cognition_data(current_user.get_bot()))}

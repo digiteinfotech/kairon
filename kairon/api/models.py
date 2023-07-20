@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
-from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, VectorDbValueType, \
+from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, DbQueryValueType, \
     DbActionOperationType
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.exceptions import AppException
@@ -13,7 +13,7 @@ from kairon.exceptions import AppException
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
 from ..shared.models import StoryStepType, StoryType, TemplateType, HttpContentType, LlmPromptSource, LlmPromptType, \
-    CognitionDataType
+    CognitionDataType, CognitionMetadataType
 
 
 class RecaptchaVerifiedRequest(BaseModel):
@@ -354,8 +354,8 @@ class HttpActionConfigRequest(BaseModel):
         return v.upper()
 
 
-class OperationConfig(BaseModel):
-    type: VectorDbValueType
+class QueryConfig(BaseModel):
+    type: DbQueryValueType
     value: DbActionOperationType
 
     @root_validator
@@ -372,7 +372,7 @@ class OperationConfig(BaseModel):
 
 
 class PayloadConfig(BaseModel):
-    type: VectorDbValueType
+    type: DbQueryValueType
     value: Any
 
     @root_validator
@@ -390,7 +390,7 @@ class PayloadConfig(BaseModel):
 
 class DatabaseActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
-    operation: OperationConfig
+    query: QueryConfig
     payload: PayloadConfig
     response: ActionResponseEvaluation = None
     set_slots: List[SetSlotsUsingActionResponse] = []
@@ -864,7 +864,7 @@ class PromptActionConfigRequest(BaseModel):
 
 class Metadata(BaseModel):
     column_name: str
-    data_type: Union[str, int]
+    data_type: CognitionMetadataType
     enable_search: bool = True
     create_embeddings: bool = True
 
@@ -873,6 +873,16 @@ class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType
     metadata: List[Metadata] = None
+
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        data = values.get("data")
+        metadata = values.get("metadata", [])
+
+        Utility.check_data_type(data, metadata)
+        return values
 
 
 class RazorpayActionRequest(BaseModel):
