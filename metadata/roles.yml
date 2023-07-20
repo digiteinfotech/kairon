@@ -18,6 +18,7 @@ roles:
       generateStories: true
       manageQnaStories: true
       broadcast: true
+      customAnalytics: true
     pages:
       chatbots:
         renameBot: true
@@ -77,6 +78,9 @@ roles:
         updateSecret: true
         getSecret: true
         deleteSecret: true
+        addCustomWidget: true
+        deleteCustomWidget: true
+        updateCustomWidget: true
       chatHistory:
         viewHistory: true
         deleteHistory: true
@@ -120,6 +124,7 @@ roles:
       generateStories: true
       manageQnaStories: true
       broadcast: true
+      customAnalytics: true
     pages:
       chatbots:
         renameBot: false
@@ -179,6 +184,9 @@ roles:
         updateSecret: true
         getSecret: true
         deleteSecret: true
+        addCustomWidget: true
+        deleteCustomWidget: true
+        updateCustomWidget: true
       chatHistory:
         viewHistory: true
         deleteHistory: true
@@ -222,6 +230,7 @@ roles:
       generateStories: true
       manageQnaStories: true
       broadcast: true
+      customAnalytics: true
     pages:
       chatbots:
         renameBot: false
@@ -281,6 +290,9 @@ roles:
         updateSecret: false
         getSecret: false
         deleteSecret: false
+        addCustomWidget: false
+        deleteCustomWidget: false
+        updateCustomWidget: false
       chatHistory:
         viewHistory: true
         deleteHistory: false
@@ -324,6 +336,7 @@ roles:
       generateStories: false
       manageQnaStories: true
       broadcast: false
+      customAnalytics: true
     pages:
       chatbots:
         renameBot: false
@@ -383,6 +396,9 @@ roles:
         updateSecret: false
         getSecret: false
         deleteSecret: false
+        addCustomWidget: false
+        deleteCustomWidget: false
+        updateCustomWidget: false
       chatHistory:
         viewHistory: true
         deleteHistory: false
@@ -406,3 +422,109 @@ roles:
         list: false
         delete: false
         viewLogs: true
+
+  view:
+    menu:
+      chatbots: false
+      common: false
+      conversations: false
+      components: false
+      advancedConfigurations: false
+      trainingHistory: false
+      modelConfiguration: false
+      configureClient: false
+      configureTelemetry: false
+      integrations: false
+      administration: false
+      chatHistory: false
+      analytics: false
+      logs: false
+      generateStories: false
+      manageQnaStories: false
+      broadcast: false
+      customAnalytics: true
+    pages:
+      chatbots:
+        renameBot: false
+        deleteBot: false
+      common:
+        trainBot: false
+        testBot: false
+      conversations:
+        add: false
+        update: false
+        view: false
+        delete: false
+      components:
+        add: false
+        update: false
+        view: false
+        delete: false
+      advancedConfigurations:
+        uploadFiles: false
+        fileDownload: false
+        modelDownload: false
+        dataValidationLogs: false
+      trainingHistory:
+        reloadModel: false
+        testModel: false
+        viewModelTrainingLogs: false
+        viewModelTestingLogs: false
+        modelTestingResults: false
+      modelConfiguration:
+        applyTemplate: false
+      configureClient:
+        save: false
+        get: false
+        generate: false
+      configureTelemetry:
+        save: false
+        get: false
+      integrations:
+        get: false
+        save: false
+        getEndpoint: false
+      administration:
+        addIntegrationToken: false
+        updateIntegrationToken: false
+        revokeIntegrationToken: false
+        getIntegrationToken: false
+        addActionServerUrl: false
+        updateActionServerUrl: false
+        addHistoryServerUrl: false
+        updateHistoryServerUrl: false
+        addMember: false
+        updateMember: false
+        getMember: false
+        deleteMember: false
+        transferOwnership: false
+        addSecret: false
+        updateSecret: false
+        getSecret: false
+        deleteSecret: false
+        addCustomWidget: false
+        deleteCustomWidget: false
+        updateCustomWidget: false
+      chatHistory:
+        viewHistory: false
+        deleteHistory: false
+        downloadHistory: false
+        viewDeletionLogs: false
+      dataValidationLogs:
+        viewLogs: false
+        validateExistingData: false
+      modelTestingLogs:
+        viewLogs: false
+        testModel: false
+      manageQnaStories:
+        add: false
+        edit: false
+        delete: false
+        augment: false
+        download: false
+      broadcast:
+        add: false
+        edit: false
+        list: false
+        delete: false
+        viewLogs: false
