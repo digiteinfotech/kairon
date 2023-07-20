@@ -1,6 +1,7 @@
 intents:
 - greet
 - deny
+- apply
 
 responses:
   utter_greet:
@@ -15,6 +16,12 @@ responses:
   - text: Thanks you for loving us. Keep using.
   utter_bad_feedback:
   - text: Thanks you for your feedback. We will train better till next time.
+  utter_ask_job_apply_email:
+  - text: enter email
+  utter_ask_job_apply_name:
+  - text: plz provide ur name
+  utter_ask_job_apply_age:
+  - text: enter ur age
 
 actions:
 - utter_greet
@@ -23,3 +30,14 @@ actions:
 - utter_feedback
 - utter_good_feedback
 - utter_bad_feedback
+- validate_job_apply
+
+forms:
+  job_apply:
+    required_slots:
+      name:
+      - type: from_text
+      age:
+      - type: from_text
+      email:
+      - type: from_text

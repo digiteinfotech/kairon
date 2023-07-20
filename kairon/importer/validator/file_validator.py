@@ -273,6 +273,12 @@ class TrainingDataValidator(Validator):
                     story_utterance_not_found_in_domain.append(msg)
                 stories_utterances.add(event.action_name)
 
+        form_utterances = set()
+        for form, form_data in self.domain.forms.items():
+            for slot in form_data['required_slots']:
+                form_utterances.add(f"utter_ask_{form}_{slot}")
+        utterance_actions = utterance_actions.difference(form_utterances)
+
         for utterance in utterance_actions:
             if utterance not in stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
                 msg = f"The utterance '{utterance}' is not used in any story."
