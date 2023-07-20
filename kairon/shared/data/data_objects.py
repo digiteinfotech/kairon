@@ -720,7 +720,8 @@ class CongnitionMetadata(EmbeddedDocument):
 class CognitionData(Auditlog):
     vector_id = SequenceField(required=True)
     data = DynamicField(required=True)
-    content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value, CognitionDataType.json.value])
+    content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value,
+                                                            CognitionDataType.json.value])
     metadata = ListField(EmbeddedDocumentField(CongnitionMetadata), default=None)
     user = StringField(required=True)
     bot = StringField(required=True)
@@ -733,8 +734,9 @@ class CognitionData(Auditlog):
             self.clean()
 
         if self.metadata:
-            for data in self.metadata:
+            for data in self.metadata or []:
                 data.validate()
+        Utility.check_data_type(self.data, self.metadata)
 
 
 @auditlogger.log

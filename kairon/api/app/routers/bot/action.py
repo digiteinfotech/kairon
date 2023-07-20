@@ -73,8 +73,8 @@ async def add_db_action(
     """
     Stores the vectordb action config and story event
     """
-    action_id = mongo_processor.add_vector_embedding_db_action(request_data.dict(), current_user.get_user(),
-                                                               current_user.get_bot())
+    action_id = mongo_processor.add_db_action(request_data.dict(), current_user.get_user(),
+                                              current_user.get_bot())
     return Response(data={"_id": action_id}, message="Action added!")
 
 
@@ -84,7 +84,7 @@ async def get_vector_db_action(action: str = Path(default=None, description="nam
     """
     Returns configuration set for the VectorDb action
     """
-    action_config = mongo_processor.get_vector_embedding_db_action_config(action=action, bot=current_user.get_bot())
+    action_config = mongo_processor.get_db_action_config(action=action, bot=current_user.get_bot())
     return Response(data=action_config)
 
 
@@ -93,7 +93,7 @@ async def list_db_actions(current_user: User = Security(Authentication.get_curre
     """
     Returns list of vectordb actions for bot.
     """
-    actions = list(mongo_processor.list_vector_embedding_db_actions(bot=current_user.get_bot()))
+    actions = list(mongo_processor.list_db_actions(bot=current_user.get_bot()))
     return Response(data=actions)
 
 
@@ -105,8 +105,8 @@ async def update_db_action(
     """
     Updates the vectordb action config and related story event
     """
-    action_id = mongo_processor.update_vector_embedding_db_action(request_data=request_data.dict(), user=current_user.get_user(),
-                                                                  bot=current_user.get_bot())
+    action_id = mongo_processor.update_db_action(request_data=request_data.dict(), user=current_user.get_user(),
+                                                 bot=current_user.get_bot())
     return Response(data={"_id": action_id}, message="Action updated!")
 
 

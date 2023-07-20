@@ -85,6 +85,6 @@ class DbActionOperationType(str, Enum):
     embedding_search = "embedding_search"
 
 
-class VectorDbValueType(str, Enum):
+class DbQueryValueType(str, Enum):
     from_value = "from_value"
     from_slot = "from_slot"
