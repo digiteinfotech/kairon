@@ -36,7 +36,7 @@ from starlette.requests import Request
 
 from kairon.api import models
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
-    SetSlotsUsingActionResponse, PromptActionConfigRequest, DatabaseActionRequest, QueryConfig, PayloadConfig
+    SetSlotsUsingActionResponse, PromptActionConfigRequest, DatabaseActionRequest
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor

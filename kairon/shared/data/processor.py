@@ -87,12 +87,11 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, CognitionData, MultiFlowStoryMetadata,
-    Synonyms, Lookup, CongnitionMetadata
+    Synonyms, Lookup, CognitionMetadata
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots
 from ..custom_widgets.data_objects import CustomWidgets
-from ...api.models import Metadata
 
 
 class MongoProcessor:
@@ -5494,16 +5493,13 @@ class MongoProcessor:
         bot_settings = self.get_bot_settings(bot=bot, user=user)
         if not bot_settings["llm_settings"]['enable_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
-        payload['bot'] = bot
-        payload['user'] = user
-        payload_id = CognitionData(**payload).save().to_mongo().to_dict()["_id"].__str__()
-        # payload_obj = CognitionData()
-        # payload_obj.data = payload.get('data')
-        # payload_obj.content_type = payload.get('content_type')
-        # payload_obj.metadata = [CongnitionMetadata(**meta) for meta in payload.get('metadata', [])]
-        # payload_obj.user = user
-        # payload_obj.bot = bot
-        # payload_id = payload_obj.save().to_mongo().to_dict()["_id"].__str__()
+        payload_obj = CognitionData()
+        payload_obj.data = payload.get('data')
+        payload_obj.content_type = payload.get('content_type')
+        payload_obj.metadata = [CognitionMetadata(**meta) for meta in payload.get('metadata', [])]
+        payload_obj.user = user
+        payload_obj.bot = bot
+        payload_id = payload_obj.save().to_mongo().to_dict()["_id"].__str__()
         return payload_id
 
     def update_cognition_data(self, payload_id: str, payload: Dict, user: Text, bot: Text):
@@ -5516,7 +5512,7 @@ class MongoProcessor:
             payload_obj = CognitionData.objects(bot=bot, id=payload_id).get()
             payload_obj.data = data
             payload_obj.content_type = content_type
-            payload_obj.metadata = [CongnitionMetadata(**meta) for meta in payload.get('metadata', [])]
+            payload_obj.metadata = [CognitionMetadata(**meta) for meta in payload.get('metadata', [])]
             payload_obj.user = user
             payload_obj.timestamp = datetime.utcnow()
             payload_obj.save()

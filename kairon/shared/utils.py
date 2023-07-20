@@ -63,7 +63,6 @@ from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource, CognitionMetadataType
-from ..api.models import Metadata
 from ..exceptions import AppException
 
 
@@ -134,20 +133,19 @@ class Utility:
             return False
 
     @staticmethod
-    def check_data_type(data: Any, metadata: List[Metadata]):
+    def check_data_type(data: Any, metadata: Dict):
         if metadata and isinstance(data, dict):
-            for metadata_item in metadata:
-                column_name = metadata_item.column_name
-                data_type = metadata_item.data_type
-                if column_name in data:
-                    column_value = data[column_name]
-                    if type(column_value) != type(data_type):
-                        try:
-                            expected_type = CognitionMetadataType[data_type].value
-                            converted_value = int(column_value) if expected_type == 'int' else str(column_value)
-                            data[column_name] = converted_value
-                        except Exception as e:
-                            raise AppException("Invalid data type")
+            column_name = metadata["column_name"]
+            data_type = metadata["data_type"]
+            if column_name in data:
+                column_value = data[column_name]
+                expected_type = CognitionMetadataType[data_type].value
+                try:
+                    converted_value = int(column_value) if expected_type == 'int' else column_value
+                    data[column_name] = converted_value
+                    return converted_value
+                except Exception as e:
+                    raise AppException("Invalid data type")
 
     @staticmethod
     def validate_slot_initial_value_and_values(slot_value: Dict):

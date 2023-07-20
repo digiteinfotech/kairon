@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 
 import openai
 from loguru import logger as logging
+from tiktoken import get_encoding
 from tqdm import tqdm
 
 from kairon.exceptions import AppException
@@ -11,18 +12,11 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
+from kairon.shared.data.data_objects import CognitionData
 from kairon.shared.llm.base import LLMBase
-from typing import Text, Dict, List, Union
-
 from kairon.shared.llm.clients.factory import LLMClientFactory
 from kairon.shared.models import CognitionDataType
 from kairon.shared.utils import Utility
-import openai
-from kairon.shared.data.data_objects import CognitionData
-from urllib.parse import urljoin
-from kairon.exceptions import AppException
-from loguru import logger as logging
-from tqdm import tqdm
 
 
 class GPT3FAQEmbedding(LLMBase):
@@ -62,25 +56,18 @@ class GPT3FAQEmbedding(LLMBase):
                 else:
                     for metadata in content.metadata:
                         column_name = metadata["column_name"]
-                        data_type = metadata["data_type"]
-                        column_value = content.data.get(column_name)
-                        converted_value = eval(data_type)(column_value)
+                        converted_value = Utility.check_data_type(content.data, metadata)
                         if metadata["enable_search"]:
                             search_payload[column_name] = converted_value
                         if metadata["create_embeddings"]:
                             create_embeddings[column_name] = converted_value
                     embeddings = self.__get_embedding(json.dumps(create_embeddings))
                 points = [{'id': content.vector_id, 'vector': embeddings, 'payload': search_payload}]
-                self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                       err_msg="Unable to train FAQ! Contact support")
-                count += 1
             else:
-                points = [{'id': content.vector_id,
-                           'vector': self.__get_embedding(content.data),
-                           'payload': content.data}]
-                self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                       err_msg="Unable to train faq! contact support")
-                count += 1
+                points = [{'id': content.vector_id, 'vector': self.__get_embedding(content.data), 'payload': content.data}]
+            self.__collection_upsert__(self.bot + self.suffix, {'points': points},
+                                       err_msg="Unable to train FAQ! Contact support")
+            count += 1
         return {"faq": count}
 
     def predict(self, query: Text, *args, **kwargs) -> Dict:
