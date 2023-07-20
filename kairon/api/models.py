@@ -1,14 +1,15 @@
-from typing import List, Any, Dict, Optional, Union
+from typing import List, Any, Dict, Optional
+
 import validators
 from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 
+from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, DbQueryValueType, \
     DbActionOperationType
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
-from kairon.exceptions import AppException
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr

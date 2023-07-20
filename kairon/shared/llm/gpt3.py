@@ -1,21 +1,21 @@
 import json
+from typing import Text, Dict, List
+from urllib.parse import urljoin
 
+import openai
+from loguru import logger as logging
+from tqdm import tqdm
+
+from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
+from kairon.shared.data.data_objects import CognitionData
 from kairon.shared.llm.base import LLMBase
-from typing import Text, Dict, List, Union
-
 from kairon.shared.llm.clients.factory import LLMClientFactory
 from kairon.shared.models import CognitionDataType
 from kairon.shared.utils import Utility
-import openai
-from kairon.shared.data.data_objects import CognitionData
-from urllib.parse import urljoin
-from kairon.exceptions import AppException
-from loguru import logger as logging
-from tqdm import tqdm
 
 
 class GPT3FAQEmbedding(LLMBase):
@@ -55,7 +55,8 @@ class GPT3FAQEmbedding(LLMBase):
                         column_name = metadata["column_name"]
                         data_type = metadata["data_type"]
                         column_value = content.data.get(column_name)
-                        converted_value = eval(data_type)(column_value)
+                        converted_value = int(column_value) if type(column_value) != type(
+                            data_type) and data_type == 'int' else str(column_value)
                         if metadata["enable_search"]:
                             search_payload[column_name] = converted_value
                         if metadata["create_embeddings"]:

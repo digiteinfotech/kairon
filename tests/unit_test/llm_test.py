@@ -8,6 +8,7 @@ import pytest
 import responses
 from mongoengine import connect
 
+from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
@@ -15,7 +16,6 @@ from kairon.shared.data.data_objects import CognitionData, LLMSettings
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding, LLMBase
 from kairon.shared.utils import Utility
-from kairon.exceptions import AppException
 
 
 class TestLLM:
