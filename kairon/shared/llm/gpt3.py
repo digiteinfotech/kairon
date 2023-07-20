@@ -43,37 +43,37 @@ class GPT3FAQEmbedding(LLMBase):
         self.__create_collection__(self.bot + self.suffix)
         self.__create_collection__(self.bot + self.cached_resp_suffix)
         count = 0
+        search_payload = {}
+        create_embeddings = {}
         contents = list(CognitionData.objects(bot=self.bot))
         for content in tqdm(contents, desc="Training FAQ"):
             metadata_list = content['metadata'] or []
             content_type = content.content_type
             if content_type == CognitionDataType.json.value:
                 if not metadata_list:
-                    vector = self.__get_embedding(json.dumps(content.data))
-                    points = [{'id': content.vector_id, 'vector': vector, 'payload': {"content": content.data}}]
-                    self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                               err_msg="Unable to train FAQ! Contact support")
-                    count += 1
+                    embeddings = self.__get_embedding(json.dumps(content.data))
+                    search_payload = content.data
                 else:
                     for metadata in content.metadata:
-                        if metadata['enable_search']:
-                            points = [{'id': content.vector_id,
-                                       'payload': {"content": content.data}}]
-                            self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                                       err_msg="Unable to train FAQ! Contact support")
-                            count += 1
-                        if metadata['create_embeddings']:
-                            vector = self.__get_embedding(json.dumps(content.data))
-                            points = [{'id': content.vector_id, 'vector': vector, 'payload': {"content": content.data}}]
-                            self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                                       err_msg="Unable to train FAQ! Contact support")
-                            count += 1
+                        column_name = metadata["column_name"]
+                        data_type = metadata["data_type"]
+                        column_value = content.data.get(column_name)
+                        converted_value = eval(data_type)(column_value)
+                        if metadata["enable_search"]:
+                            search_payload[column_name] = converted_value
+                        if metadata["create_embeddings"]:
+                            create_embeddings[column_name] = converted_value
+                    embeddings = self.__get_embedding(json.dumps(create_embeddings))
+                points = [{'id': content.vector_id, 'vector': embeddings, 'payload': search_payload}]
+                self.__collection_upsert__(self.bot + self.suffix, {'points': points},
+                                       err_msg="Unable to train FAQ! Contact support")
+                count += 1
             else:
                 points = [{'id': content.vector_id,
                            'vector': self.__get_embedding(content.data),
-                           'payload': {"content": content.data}}]
+                           'payload': content.data}]
                 self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                           err_msg="Unable to train faq! contact support")
+                                       err_msg="Unable to train faq! contact support")
                 count += 1
         return {"faq": count}
 

@@ -23,6 +23,7 @@ from rasa.shared.utils.io import read_config_file
 from slack.web.slack_response import SlackResponse
 
 from kairon.api.app.main import app
+from kairon.api.models import Metadata
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
@@ -1170,10 +1171,11 @@ def test_get_content_not_exists():
 
 def test_payload_upload_api_with_gpt_feature_disabled():
     payload = {
-            "data": "A transformer is an encoder decoder model that uses the attention mechanism. It can take advantage of pluralization and also process a large amount of data at the same time because of its model architecture.",
-            "content_type": "text",
-            "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}]}
+            "data": {"name": "Nupur", "age": 25, "city": "Bengaluru"},
+            "content_type": "json",
+            "metadata": [{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
+            {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -1192,9 +1194,9 @@ def test_payload_upload_api(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     payload = {
-            "data": "A transformer is an encoder decoder model that uses the attention mechanism. It can take advantage of pluralization and also process a large amount of data at the same time because of its model architecture.",
+            "data": {"details": "AWS"},
             "content_type": "text",
-            "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True, "create_embeddings": True}]
+            "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}]
     }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -1204,9 +1206,33 @@ def test_payload_upload_api(monkeypatch):
     actual = response.json()
     print(actual)
     pytest.payload_id = actual["data"]["_id"]
-    assert actual["message"] == "Cognition saved!"
+    assert actual["message"] == "Record saved!"
     assert actual["data"]["_id"]
     assert actual["error_code"] == 0
+
+
+def test_payload_upload_invalid_data_type(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = {
+            "data": {"name": "Ram", "age": "Twenty-Three", "color": "red"},
+            "content_type": "json",
+            "metadata": [
+                {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
+                {"column_name": "color", "data_type": "str", "enable_search": False, "create_embeddings": True}
+            ]
+        }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
 
 
 def test_payload_updated_api():
@@ -1214,18 +1240,18 @@ def test_payload_updated_api():
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
         json={
             "payload_id": pytest.payload_id,
-            "data": "A transformer is an encoder decoder model that uses the attention mechanism.",
-            "content_type": "text",
-            "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}]},
+            "data": {"color": "red", "city": "Pune"},
+            "content_type": "json",
+            "metadata": [{"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
     )
     actual = response.json()
     print(actual)
     assert actual["success"]
-    assert actual["message"] == "Cognition updated!"
-    assert actual["error_code"] == 0
+    assert actual["message"] == "Record updated!"
+    assert actual["error_code"] == 0    
 
 
 def test_payload_content_update_api_already_exists(monkeypatch):
@@ -1238,10 +1264,10 @@ def test_payload_content_update_api_already_exists(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
             "payload_id": payload_id,
-            "data": "A transformer is an encoder decoder model that uses the attention mechanism.",
-            "content_type": "text",
-            "metadata": [{"column_name": "Details", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}]
+            "data": {"color": "red", "city": "Pune"},
+            "content_type": "json",
+            "metadata": [{"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True},
+            {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
@@ -1260,10 +1286,9 @@ def test_payload_content_update_api_id_not_found():
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
             "text_id": payload_id,
-            "data": "It can take advantage of pluralization.",
-            "content_type": "text",
-            "metadata": [{"column_name": "transformers", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}]},
+            "data": {"city": "Pune"},
+            "content_type": "json",
+            "metadata": [{"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
     )
@@ -1297,7 +1322,7 @@ def test_delete_payload_content():
     actual = response.json()
     print(actual)
     assert actual["success"]
-    assert actual["message"] == "Cognition deleted!"
+    assert actual["message"] == "Record deleted!"
     assert actual["data"] is None
     assert actual["error_code"] == 0
 
@@ -6329,7 +6354,7 @@ def test_get_secret_2():
 def test_add_vectordb_action_empty_name():
     request_body = {
         "name": '',
-        "operation": {"type": "from_value", "value": "embedding_search"},
+        "query": {"type": "from_value", "value": "embedding_search"},
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
     }
@@ -6349,7 +6374,7 @@ def test_add_vectordb_action_empty_name():
 def test_add_vectordb_action_empty_operation_value():
     request_body = {
         "name": 'action_test_empty_operation_value',
-        "operation": {"type": "from_value", "value": ""},
+        "query": {"type": "from_value", "value": ""},
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
     }
@@ -6362,11 +6387,11 @@ def test_add_vectordb_action_empty_operation_value():
     actual = response.json()
     print(actual)
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'operation', 'value'],
+    assert actual["message"] == [{'loc': ['body', 'query', 'value'],
                                   'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
                                   'type': 'type_error.enum',
                                   'ctx': {'enum_values': ['payload_search', 'embedding_search']}},
-                                 {'loc': ['body', 'operation', '__root__'], 'msg': 'value cannot be empty',
+                                 {'loc': ['body', 'query', '__root__'], 'msg': 'value cannot be empty',
                                   'type': 'value_error'}]
     assert not actual["success"]
 
@@ -6374,7 +6399,7 @@ def test_add_vectordb_action_empty_operation_value():
 def test_add_vectordb_action_empty_operation_type():
     request_body = {
         "name": 'action_test_empty_operation_type',
-        "operation": {"type": "", "value": "embedding_search"},
+        "query": {"type": "", "value": "embedding_search"},
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
     }
@@ -6387,10 +6412,10 @@ def test_add_vectordb_action_empty_operation_type():
     actual = response.json()
     print(actual)
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'operation', 'type'],
+    assert actual["message"] == [{'loc': ['body', 'query', 'type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
                                   'type': 'type_error.enum', 'ctx': {'enum_values': ['from_value', 'from_slot']}},
-                                 {'loc': ['body', 'operation', '__root__'], 'msg': 'type cannot be empty',
+                                 {'loc': ['body', 'query', '__root__'], 'msg': 'type cannot be empty',
                                   'type': 'value_error'}]
     assert not actual["success"]
 
@@ -6398,7 +6423,7 @@ def test_add_vectordb_action_empty_operation_type():
 def test_add_vectordb_action_empty_payload_type():
     request_body = {
         "name": 'test_add_vectordb_action_empty_payload_type',
-        "operation": {"type": "from_value", "value": "payload_search"},
+        "query": {"type": "from_value", "value": "payload_search"},
         "payload": {"type": "", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
     }
@@ -6422,7 +6447,7 @@ def test_add_vectordb_action_empty_payload_type():
 def test_add_vectordb_action_empty_payload_value():
     request_body = {
         "name": 'action_test_empty_value',
-        "operation": {"type": "from_value", "value": "payload_search"},
+        "query": {"type": "from_value", "value": "payload_search"},
         "payload": {"type": "from_value", "value": ''},
         "response": {"value": "0"}
     }
@@ -6442,7 +6467,7 @@ def test_add_vectordb_action_empty_payload_value():
 def test_add_vectordb_action():
     request_body = {
         "name": 'vectordb_action_test',
-        "operation": {"type": "from_value", "value": "payload_search"},
+        "query": {"type": "from_value", "value": "payload_search"},
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -6469,7 +6494,7 @@ def test_add_vectordb_action():
 def test_add_vectordb_action_case_insensitivity():
     request_body = {
         "name": 'VECTORDB_ACTION_CASE_INSENSITIVE',
-        "operation": {"type": "from_value", "value": "payload_search"},
+        "query": {"type": "from_value", "value": "payload_search"},
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -6514,7 +6539,7 @@ def test_add_vectordb_action_case_insensitivity():
 def test_add_vectordb_action_existing():
     request_body = {
         "name": 'test_add_vectordb_action_existing',
-        "operation": {"type": "from_value", "value": "embedding_search"},
+        "query": {"type": "from_value", "value": "embedding_search"},
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"},
         "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
@@ -6557,7 +6582,7 @@ def test_add_vectordb_action_with_slots():
 
     request_body = {
         "name": 'test_add_vectordb_action_with_slots',
-        "operation": {"type": "from_value", "value": "payload_search"},
+        "query": {"type": "from_value", "value": "payload_search"},
         "payload": {"type": "from_slot", "value": "vectordb"},
         "response": {"value": "0"}
     }
@@ -6577,7 +6602,7 @@ def test_add_vectordb_action_with_slots():
 def test_add_vectordb_action_with_invalid_operation_type():
     request_body = {
         "name": 'test_add_vectordb_action_with_invalid_operation_type',
-        "operation": {"type": "from_val", "value": "payload_search"},
+        "query": {"type": "from_val", "value": "payload_search"},
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -6606,7 +6631,7 @@ def test_add_vectordb_action_with_invalid_operation_type():
 def test_update_vectordb_action():
     request_body = {
         "name": 'test_update_vectordb_action',
-        "operation": {"type": "from_value", "value": "payload_search"},
+        "query": {"type": "from_value", "value": "payload_search"},
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -6628,7 +6653,7 @@ def test_update_vectordb_action():
 
     request_body = {
         "name": 'test_update_vectordb_action',
-        "operation": {"type": "from_value", "value": "embedding_search"},
+        "query": {"type": "from_value", "value": "embedding_search"},
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"},
         "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
@@ -6655,7 +6680,7 @@ def test_update_vectordb_action():
 def test_update_vectordb_action_non_existing():
     request_body = {
         "name": 'test_update_vectordb_action_non_existing',
-        "operation": {"type": "from_value", "value": "embedding_search"},
+        "query": {"type": "from_value", "value": "embedding_search"},
         "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
         "set_slots": [{"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}]
@@ -6669,7 +6694,7 @@ def test_update_vectordb_action_non_existing():
 
     request_body = {
         "name": "test_update_vectordb_action_non_existing_new",
-        "operation": {"type": "from_value", "value": "embedding_search"},
+        "query": {"type": "from_value", "value": "embedding_search"},
         "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
         "set_slots": [{"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}]
@@ -6689,7 +6714,7 @@ def test_update_vectordb_action_non_existing():
 def test_update_vector_action_wrong_parameter():
     request_body = {
         "name": "test_update_vector_action_1",
-        "operation": {"type": "from_value", "value": "embedding_search"},
+        "query": {"type": "from_value", "value": "embedding_search"},
         "payload": {"type": "from_value", "value": {"ids": [8], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
         "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
@@ -6705,7 +6730,7 @@ def test_update_vector_action_wrong_parameter():
 
     request_body = {
         "name": "test_update_vector_action_1",
-        "operation": {"type": "from_value", "value": "embedding_search"},
+        "query": {"type": "from_value", "value": "embedding_search"},
         "payload": {"type": "from_val", "value": {"ids": [81], "with_payload": True, "with_vector": True}},
         "response": {"value": "nupur"},
         "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
@@ -6757,7 +6782,7 @@ def test_list_vector_db_action():
 def test_delete_vectordb_action():
     request_body = {
         "name": "test_delete_vectordb_action",
-        "operation": {"type": "from_value", "value": "payload_search"},
+        "query": {"type": "from_value", "value": "payload_search"},
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -6789,7 +6814,7 @@ def test_delete_vectordb_action():
 def test_delete_vectordb_action_non_existing():
     request_body = {
         "name": "test_delete_vectordb_action_non_existing",
-        "operation": {"type": "from_value", "value": "payload_search"},
+        "query": {"type": "from_value", "value": "payload_search"},
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
