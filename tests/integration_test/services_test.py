@@ -1231,7 +1231,6 @@ def test_payload_upload_invalid_data_type(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["message"] == 'Invalid data type'
 
