@@ -1,10 +1,16 @@
 import json
+from typing import Text, Dict, List
+from urllib.parse import urljoin
 
+import openai
+from loguru import logger as logging
+from tqdm import tqdm
+
+from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
-from kairon.shared.data.data_objects import BotContent
 from kairon.shared.llm.base import LLMBase
 from typing import Text, Dict, List, Union
 

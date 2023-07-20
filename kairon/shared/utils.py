@@ -62,7 +62,7 @@ from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelType
 from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
-from .models import StoryStepType, LlmPromptType, LlmPromptSource
+from .models import StoryStepType, LlmPromptType, LlmPromptSource, CognitionMetadataType
 from ..api.models import Metadata
 from ..exceptions import AppException
 
@@ -141,9 +141,10 @@ class Utility:
                 data_type = metadata_item.data_type
                 if column_name in data:
                     column_value = data[column_name]
-                    if not isinstance(column_value, eval(data_type)):
+                    if type(column_value) != type(data_type):
                         try:
-                            converted_value = eval(data_type)(column_value)
+                            expected_type = CognitionMetadataType[data_type].value
+                            converted_value = int(column_value) if expected_type == 'int' else str(column_value)
                             data[column_name] = converted_value
                         except Exception as e:
                             raise AppException("Invalid data type")

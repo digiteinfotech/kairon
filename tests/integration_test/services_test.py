@@ -1233,6 +1233,7 @@ def test_payload_upload_invalid_data_type(monkeypatch):
     actual = response.json()
     print(actual)
     assert not actual["success"]
+    assert actual["message"] == 'Invalid data type'
 
 
 def test_payload_updated_api():
