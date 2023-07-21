@@ -6178,7 +6178,6 @@ def test_add_vectordb_action_empty_name():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
     assert not actual["success"]
