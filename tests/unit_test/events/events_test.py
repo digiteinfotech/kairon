@@ -690,10 +690,10 @@ class TestEventExecution:
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
-        assert len(mongo_processor.fetch_stories(bot)) == 2
-        assert len(list(mongo_processor.fetch_training_examples(bot))) == 8
-        assert len(list(mongo_processor.fetch_responses(bot))) == 8
-        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_stories(bot)) == 3
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 12
+        assert len(list(mongo_processor.fetch_responses(bot))) == 11
+        assert len(mongo_processor.fetch_actions(bot)) == 1
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
 
     def test_trigger_data_importer_import_with_intent_issues(self, monkeypatch):
@@ -762,10 +762,10 @@ class TestEventExecution:
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
-        assert len(mongo_processor.fetch_stories(bot)) == 2
-        assert len(list(mongo_processor.fetch_training_examples(bot))) == 8
-        assert len(list(mongo_processor.fetch_responses(bot))) == 8
-        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_stories(bot)) == 3
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 12
+        assert len(list(mongo_processor.fetch_responses(bot))) == 11
+        assert len(mongo_processor.fetch_actions(bot)) == 1
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
 
     def test_trigger_faq_importer_validate_only(self, monkeypatch):

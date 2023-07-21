@@ -217,6 +217,10 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('intents')
         assert 'The utterance \'utter_good_feedback\' is not used in any story.' in validator.summary['utterances']
         assert 'The utterance \'utter_bad_feedback\' is not used in any story.' in validator.summary['utterances']
+        assert set(validator.summary['utterances']) == {"The utterance 'utter_bad_feedback' is not used in any story.",
+                                                        "The utterance 'utter_iamabot' is not used in any story.",
+                                                        "The utterance 'utter_feedback' is not used in any story.",
+                                                        "The utterance 'utter_good_feedback' is not used in any story."}
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
         assert not validator.summary.get('domain')

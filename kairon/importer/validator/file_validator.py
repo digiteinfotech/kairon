@@ -275,7 +275,7 @@ class TrainingDataValidator(Validator):
 
         form_utterances = set()
         for form, form_data in self.domain.forms.items():
-            for slot in form_data['required_slots']:
+            for slot in form_data.get('required_slots', {}):
                 form_utterances.add(f"utter_ask_{form}_{slot}")
         utterance_actions = utterance_actions.difference(form_utterances)
 
