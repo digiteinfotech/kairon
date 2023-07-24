@@ -1,0 +1,98 @@
+version: '2.0'
+config:
+  store_entities_as_slots: true
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+intents:
+- greet:
+    use_entities: []
+- goodbye:
+    use_entities: []
+- affirm:
+    use_entities: []
+- deny:
+    use_entities: []
+- mood_great:
+    use_entities: []
+- mood_unhappy:
+    use_entities: []
+- bot_challenge:
+    use_entities: []
+- restart:
+    use_entities: []
+- back:
+    use_entities: []
+- out_of_scope:
+    use_entities: []
+- session_start:
+    use_entities: []
+- nlu_fallback:
+    use_entities: []
+entities:
+- bot
+- kairon_action_response
+- image
+- audio
+- video
+- document
+- doc_url
+slots:
+  doc_url:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: true
+  document:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: true
+  video:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: true
+  audio:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: true
+  image:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: true
+  kairon_action_response:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    auto_fill: true
+    influence_conversation: true
+  bot:
+    type: rasa.shared.core.slots.AnySlot
+    initial_value: 64bdf3ff0a2ff4923faa83ee
+    auto_fill: true
+    influence_conversation: false
+responses:
+  utter_greet:
+  - text: Hey! How are you?
+  - text: How may i help you?
+  utter_happy:
+  - text: Great, carry on!
+  utter_cheer_up:
+  - text: 'Here is something to cheer you up:'
+    image: https://i.imgur.com/nGF1K8f.jpg
+  utter_did_that_help:
+  - text: Did that help you?
+  utter_please_rephrase:
+  - text: I'm sorry, I didn't quite understand that. Could you rephrase?
+  utter_iamabot:
+  - text: I am a bot, powered by Rasa.
+  utter_goodbye:
+  - text: Bye
+  utter_default:
+  - text: Sorry I didn't get that. Can you rephrase?
+actions:
+- kairon_faq_action
+forms: {}
+e2e_actions: []

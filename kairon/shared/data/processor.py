@@ -5488,3 +5488,24 @@ class MongoProcessor:
             final_data["_id"] = item["_id"].__str__()
             final_data['content'] = data
             yield final_data
+
+    async def create_template(self, name: Text, bot: Text, user: Text):
+        """
+        create template
+
+        :param name: template name
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        use_case_path = os.path.join("./template/use-cases", secure_filename(name))
+        if os.path.exists(use_case_path):
+            await self.save_from_path(path=use_case_path, bot=bot, user=user)
+        else:
+            raise AppException("Invalid Template!")
+
+    def get_templates(self, bot: Text):
+        """
+        Fetches templates
+        """
+        return Utility.list_directories("./template/use-cases")
