@@ -8357,6 +8357,7 @@ class TestActionServer(AsyncHTTPTestCase):
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
 
+        responses.reset()
         action_name = "kairon_faq_action"
         google_action_name = "custom_search_action"
         bot = "5u08kd0a56b698ca10hgjgjkhgjks"
