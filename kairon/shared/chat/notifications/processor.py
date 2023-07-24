@@ -42,7 +42,7 @@ class MessageBroadcastProcessor:
             raise AppException(f"Channel '{channel}' not configured!")
         config["bot"] = bot
         config["user"] = user
-        return MessageBroadcastSettings(**config).save().to_mongo().to_dict()["_id"].__str__()
+        return MessageBroadcastSettings(**config).save().id.__str__()
 
     @staticmethod
     def update_scheduled_task(notification_id: Text, bot: Text, user: Text, config: Dict):

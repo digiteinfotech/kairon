@@ -1,4 +1,4 @@
-FROM amazonlinux:latest
+FROM amazonlinux:2.0.20230307.0
 
 WORKDIR /app
 USER root
@@ -15,7 +15,6 @@ python -m pip install rasa==2.8.15 && \
 python -m pip install dnspython && \
 python -m pip install pyjwt && \
 python -m pip install elastic-apm
-RUN python -m pip install pydantic~=1.8.2
 RUN python -m pip install password-strength
 RUN python -m pip install passlib[bcrypt]
 RUN python -m pip install cryptography~=3.4.8
@@ -39,6 +38,7 @@ RUN python -m pip install tensorflow-cpu==2.6.5
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install pandas
 RUN python -m pip install openai==0.27.0
+RUN python -m pip install pydantic==1.10.11
 
 COPY kairon/ /app/kairon/
 COPY metadata /app/metadata

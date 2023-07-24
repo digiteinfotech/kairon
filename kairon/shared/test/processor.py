@@ -7,6 +7,7 @@ from mongoengine import Q, DoesNotExist
 
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS, ModelTestingLogType
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.test.data_objects import ModelTestingLogs
 
 
@@ -103,7 +104,7 @@ class ModelTestingLogProcessor:
         doc_count = ModelTestingLogs.objects(
             bot=bot, type='common', start_timestamp__gte=initiated_today
         ).count()
-        if doc_count >= Utility.environment['model']["test"]["limit_per_day"]:
+        if doc_count >= BotSettings.objects(bot=bot).get().test_limit_per_day:
             if raise_exception:
                 raise AppException("Daily limit exceeded.")
             else:

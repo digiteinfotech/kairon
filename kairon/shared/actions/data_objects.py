@@ -3,6 +3,7 @@ from datetime import datetime
 from mongoengine import (
     EmbeddedDocument,
     EmbeddedDocumentField,
+    EmbeddedDocumentListField,
     StringField,
     DateTimeField,
     BooleanField,
@@ -14,7 +15,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType
+    EvaluationType, DispatchType, VectorDbValueType, VectorDbOperationClass
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -138,6 +139,60 @@ class HttpActionConfig(Auditlog):
             if param.encrypt is True and param.parameter_type == ActionParameterType.value.value:
                 if not ActionUtility.is_empty(param.value):
                     param.value = Utility.encrypt_message(param.value)
+
+
+class VectorDbOperation(EmbeddedDocument):
+    type = StringField(required=True, choices=[op_type.value for op_type in VectorDbValueType])
+    value = StringField(required=True, choices=[payload.value for payload in VectorDbOperationClass])
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.type):
+            raise ValidationError("operation type is required")
+        if not self.value or self.value is None:
+            raise ValidationError("operation value is required")
+
+
+class VectorDbPayload(EmbeddedDocument):
+    type = StringField(required=True, choices=[op_type.value for op_type in VectorDbValueType])
+    value = DynamicField(required=True)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.type):
+            raise ValidationError("payload type is required")
+        if not self.value or self.value is None:
+            raise ValidationError("payload value is required")
+
+
+@auditlogger.log
+@push_notification.apply
+class VectorEmbeddingDbAction(Auditlog):
+    name = StringField(required=True)
+    collection = StringField(required=True)
+    operation = EmbeddedDocumentField(VectorDbOperation, required=True)
+    payload = EmbeddedDocumentField(VectorDbPayload, default=VectorDbPayload())
+    response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
+    set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
+    db_type = StringField(required=True, default='qdrant')
+    failure_response = StringField(default='I have failed to process your request.')
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if self.name is None or not self.name.strip():
+            raise ValidationError("Action name cannot be empty")
+        self.response.validate()
+        self.payload.validate()
+        self.operation.validate()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        if Utility.check_empty_string(self.collection):
+            self.collection = self.bot + "_faq_embd"
 
 
 class ActionServerLogs(DynamicDocument):
@@ -555,8 +610,8 @@ class PromptAction(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
-    llm_prompts = ListField(EmbeddedDocumentField(LlmPrompt), required=True)
-    set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
+    llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
+    set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)
 
@@ -578,8 +633,9 @@ class PromptAction(Auditlog):
             raise ValidationError("top_results should not be greater than 30")
         if not self.llm_prompts:
             raise ValidationError("llm_prompts are required!")
-        Utility.validate_kairon_faq_llm_prompts(self.to_mongo().to_dict()['llm_prompts'], ValidationError)
-        Utility.validate_llm_hyperparameters(self.hyperparameters, ValidationError)
+        dict_data = self.to_mongo().to_dict()
+        Utility.validate_kairon_faq_llm_prompts(dict_data['llm_prompts'], ValidationError)
+        Utility.validate_llm_hyperparameters(dict_data['hyperparameters'], ValidationError)
 
 
 @auditlogger.log

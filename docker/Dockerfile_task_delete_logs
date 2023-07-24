@@ -1,4 +1,4 @@
-FROM amazonlinux:latest
+FROM amazonlinux:2.0.20230307.0
 
 SHELL ["/bin/bash", "-c"]
 
@@ -22,6 +22,7 @@ RUN python -m pip install passlib[bcrypt]
 RUN python -m pip install python-multipart
 RUN python -m pip install validators
 RUN python -m pip install secure
+RUN python -m pip install numpy==1.22.0
 RUN python -m spacy download en_core_web_md
 RUN python -m spacy link en_core_web_md en
 RUN python -m pip install password-strength
@@ -32,7 +33,6 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install transformers==4.5.0
 RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install fastapi_sso
-RUN python -m pip install numpy==1.22.0
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0
 RUN python -m pip install ujson==5.1.0

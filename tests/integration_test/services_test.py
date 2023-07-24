@@ -2042,7 +2042,9 @@ def test_train(monkeypatch):
 
 
 def test_upload_limit_exceeded(monkeypatch):
-    monkeypatch.setitem(Utility.environment['model']['data_importer'], 'limit_per_day', 1)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 2
+    bot_settings.save()
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=false",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -2057,6 +2059,9 @@ def test_upload_limit_exceeded(monkeypatch):
 
 @responses.activate
 def test_upload_using_event_failure(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 5
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
     responses.add(
         "POST", event_url, json={"success": False, "message": "Failed to trigger url"}
@@ -2165,7 +2170,9 @@ def test_get_qna(monkeypatch):
 
 
 def test_model_testing_not_trained(monkeypatch):
-    monkeypatch.setitem(Utility.environment['model']['test'], 'limit_per_day', 0)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.test_limit_per_day = 0
+    bot_settings.save()
     response = client.post(
         url=f"/api/bot/{pytest.bot}/test",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -2304,6 +2311,9 @@ def test_upload_with_chat_client_config_only():
 
 @responses.activate
 def test_upload_with_chat_client_config():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 15
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
     responses.reset()
     responses.add(
@@ -3403,9 +3413,9 @@ def test_add_multiflow_story_with_path():
             },
             {"step": {"name": "utter_hobby", "type": "BOT", "node_id": "2", "component_id": "PLhfhs"},
                 "connections": [{"name": "frontend", "type": "SLOT", "value": "Yes", "node_id": "3", "component_id": "MNbcg"},
-                                {"name": "backend", "type": "INTENT", "node_id": "4", "component_id": "QQAA"}]
+                                {"name": "backend", "type": "HTTP_ACTION", "node_id": "4", "component_id": "QQAA"}]
             },
-            {"step": {"name": "backend", "type": "INTENT", "node_id": "4", "component_id": "QQAA"},
+            {"step": {"name": "backend", "type": "HTTP_ACTION", "node_id": "4", "component_id": "QQAA"},
                 "connections": [{"name": "utter_backend", "type": "BOT", "node_id": "5", "component_id": "NNXX"}]
             },
             {"step": {"name": "utter_backend", "type": "BOT", "node_id": "5", "component_id": "NNXX"},
@@ -3990,7 +4000,9 @@ def mock_is_training_inprogress(monkeypatch):
 
 
 def test_train_daily_limit_exceed(mock_is_training_inprogress, monkeypatch):
-    monkeypatch.setitem(Utility.environment['model']['train'], 'limit_per_day', 1)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.training_limit_per_day = 2
+    bot_settings.save()
     response = client.post(
         f"/api/bot/{pytest.bot}/train",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -4028,6 +4040,9 @@ def test_model_testing_limit_exceeded(monkeypatch):
 
 @responses.activate
 def test_model_testing_event(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.test_limit_per_day = 5
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_testing}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
@@ -6149,6 +6164,498 @@ def test_get_secret_2():
     assert actual['success']
 
 
+def test_add_vectordb_action_empty_name():
+    request_body = {
+        "name": '',
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_empty_operation_value():
+    request_body = {
+        "name": 'action_test_empty_operation_value',
+        "operation": {"type": "from_value", "value": ""},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'operation', 'value'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
+                                  'type': 'type_error.enum',
+                                  'ctx': {'enum_values': ['payload_search', 'embedding_search']}},
+                                 {'loc': ['body', 'operation', '__root__'], 'msg': 'value cannot be empty',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_empty_operation_type():
+    request_body = {
+        "name": 'action_test_empty_operation_type',
+        "operation": {"type": "", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'operation', 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['from_value', 'from_slot']}},
+                                 {'loc': ['body', 'operation', '__root__'], 'msg': 'type cannot be empty',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_empty_payload_type():
+    request_body = {
+        "name": 'test_add_vectordb_action_empty_payload_type',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'payload', 'type'],
+                                  'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['from_value', 'from_slot']}},
+                                 {'loc': ['body', 'payload', '__root__'],
+                                  'msg': 'type is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_empty_payload_value():
+    request_body = {
+        "name": 'action_test_empty_value',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": ''},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] ==  [{'loc': ['body', 'payload', '__root__'], 'msg': 'value is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_vectordb_action():
+    request_body = {
+        "name": 'vectordb_action_test',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action added!'
+    assert actual["success"]
+
+
+def test_add_vectordb_action_case_insensitivity():
+    request_body = {
+        "name": 'VECTORDB_ACTION_CASE_INSENSITIVE',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action added!'
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/VECTORDB_ACTION_CASE_INSENSITIVE",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert not actual['data']
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/vectordb_action_case_insensitive",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual['data']
+    assert actual["success"]
+
+
+def test_add_vectordb_action_existing():
+    request_body = {
+        "name": 'test_add_vectordb_action_existing',
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"},
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action exists!'
+    assert not actual["success"]
+
+
+def test_add_vectordb_action_with_slots():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={"name": "vectordb", "type": "text", "initial_value": "bot", "influence_conversation": False},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert "data" in actual
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "name": 'test_add_vectordb_action_with_slots',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_slot", "value": "vectordb"},
+        "response": {"value": "0"}
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_add_vectordb_action_with_invalid_operation_type():
+    request_body = {
+        "name": 'test_add_vectordb_action_with_invalid_operation_type',
+        "operation": {"type": "from_val", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert str(actual['message']).__contains__("value is not a valid enumeration member")
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_update_vectordb_action():
+    request_body = {
+        "name": 'test_update_vectordb_action',
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "0"}
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "name": 'test_update_vectordb_action',
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
+        "response": {"value": "0"},
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated!'
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/test_update_vectordb_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+
+
+def test_update_vectordb_action_non_existing():
+    request_body = {
+        "name": 'test_update_vectordb_action_non_existing',
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
+        "response": {"value": "15"},
+        "set_slots": [{"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    request_body = {
+        "name": "test_update_vectordb_action_non_existing_new",
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
+        "response": {"value": "15"},
+        "set_slots": [{"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_update_vector_action_wrong_parameter():
+    request_body = {
+        "name": "test_update_vector_action_1",
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_value", "value": {"ids": [8], "with_payload": True, "with_vector": True}},
+        "response": {"value": "15"},
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+
+    request_body = {
+        "name": "test_update_vector_action_1",
+        "operation": {"type": "from_value", "value": "embedding_search"},
+        "payload": {"type": "from_val", "value": {"ids": [81], "with_payload": True, "with_vector": True}},
+        "response": {"value": "nupur"},
+        "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
+def test_get_vectordb_action():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/test_add_vectordb_action_with_slots",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+
+
+def test_get_vector_action_non_exisitng():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db/never_added_vectordb_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] is not None
+    assert not actual["success"]
+
+
+def test_list_vector_db_action():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual['data'][0]['name'] == 'vectordb_action_test'
+
+
+def test_delete_vectordb_action():
+    request_body = {
+        "name": "test_delete_vectordb_action",
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "30"},
+        "set_slots": []
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/test_delete_vectordb_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"]
+    assert actual["success"]
+
+
+def test_delete_http_action_non_existing():
+    request_body = {
+        "name": "test_delete_http_action_non_existing",
+        "operation": {"type": "from_value", "value": "payload_search"},
+        "payload": {"type": "from_value", "value": {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "India"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }},
+        "response": {"value": "1"},
+    }
+
+    client.post(
+        url=f"/api/bot/{pytest.bot}/action/embeddings/db",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/new_vectordb_action_never_added",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"]
+    assert not actual["success"]
+
+
 def test_add_http_action_malformed_url():
     request_body = {
         "auth_token": "",
@@ -6998,23 +7505,23 @@ def test_list_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
-    assert actual['data'] == {
-        'actions': ['action_greet'],
-        'http_action': ['test_add_http_action_no_token',
-                        'test_add_http_action_with_valid_dispatch_type',
-                        'test_add_http_action_with_dynamic_params',
-                        'test_update_http_action_with_dynamic_params',
-                        'test_add_http_action_with_sender_id_parameter_type',
-                        'test_add_http_action_with_token_and_story',
-                        'test_add_http_action_no_params',
-                        'test_add_http_action_existing',
-                        'test_update_http_action',
-                        'test_update_http_action_6', 'test_update_http_action_non_existing', 'new_http_action4'],
-        'utterances': ['utter_greet', 'utter_cheer_up', 'utter_did_that_help', 'utter_happy', 'utter_goodbye',
-                       'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
-        'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
-        'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
-        'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []}
+    print(actual['data'])
+    assert actual['data'] == {'actions': ['action_greet'],
+                              'http_action': ['test_add_http_action_no_token', 'test_add_http_action_with_valid_dispatch_type',
+                                              'test_add_http_action_with_dynamic_params', 'test_update_http_action_with_dynamic_params',
+                                              'test_add_http_action_with_sender_id_parameter_type', 'test_add_http_action_with_token_and_story',
+                                              'test_add_http_action_no_params', 'test_add_http_action_existing', 'test_update_http_action',
+                                              'test_update_http_action_6', 'test_update_http_action_non_existing', 'new_http_action4'],
+                              'vector_embeddings_db_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
+                                                              'test_add_vectordb_action_existing', 'test_add_vectordb_action_with_slots',
+                                                              'test_update_vectordb_action', 'test_update_vectordb_action_non_existing',
+                                                              'test_update_vector_action_1'],
+                              'utterances': ['utter_greet', 'utter_cheer_up', 'utter_did_that_help', 'utter_happy', 'utter_goodbye',
+                                             'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
+                              'slot_set_action': [], 'form_validation_action': [], 'email_action': [],
+                              'google_search_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+                              'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
+                              'prompt_action': []}
 
     assert actual["success"]
 
@@ -12090,6 +12597,28 @@ def test_list_whatsapp_templates_error():
 
 
 @responses.activate
+def test_initiate_bsp_onboarding_without_channels(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
+    monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
+    url = "https://hub.360dialog.io/api/v2/token"
+    responses.add("POST", json={}, url=url, status=500)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?clientId=kairon&client=sdfgh5678&channels=[]",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"].startswith("Failed to save channel config, onboarding unsuccessful!")
+    assert actual["data"] is None
+
+
+@responses.activate
 def test_initiate_bsp_onboarding_failure(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(whatsapp="360dialog", bot=pytest.bot, user="test_user")
@@ -12101,7 +12630,7 @@ def test_initiate_bsp_onboarding_failure(monkeypatch):
     responses.add("POST", json={}, url=url, status=500)
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?clientId=kairon&client=sdfgh5678&channels=['sdfghjk678']",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -12114,7 +12643,7 @@ def test_initiate_bsp_onboarding_failure(monkeypatch):
 def test_initiate_bsp_onboarding_disabled(monkeypatch):
     monkeypatch.setitem(Utility.environment["channels"]["360dialog"], 'partner_id', 'f167CmPA')
     response = client.post(
-        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?clientId=kairon&client=sdfgh5678&channels=['sdfghjk678']",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -12137,7 +12666,7 @@ def test_initiate_bsp_onboarding(monkeypatch):
         with patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.generate_waba_key") as mock_generate_waba_key:
             mock_generate_waba_key.return_value = "dfghjk5678"
             response = client.post(
-                f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?client_name=kairon&client_id=sdfgh5678&channel_id=sdfghjk678",
+                f"/api/bot/{pytest.bot}/channels/whatsapp/360dialog/onboarding?clientId=kairon&client=sdfgh5678&channels=['sdfghjk678']",
                 headers={"Authorization": pytest.token_type + " " + pytest.access_token},
             )
     actual = response.json()
@@ -12583,11 +13112,20 @@ def test_get_bot_settings():
     actual["data"].pop("user")
     actual["data"].pop("timestamp")
     actual["data"].pop("status")
-    assert actual['data'] == {
-        "ignore_utterances": False, "force_import": False, "rephrase_response": False,
-        "website_data_generator_depth_search_limit": 2, "chat_token_expiry": 30, 'notification_scheduling_limit': 4,
-        "refresh_token_expiry": 60, 'llm_settings': {'enable_faq': False, 'provider': 'azure'}, 'whatsapp': 'meta'
-    }
+    assert actual['data'] == {'chat_token_expiry': 30,
+                              'data_generation_limit_per_day': 3,
+                              'data_importer_limit_per_day': 5,
+                              'force_import': False,
+                              'ignore_utterances': False,
+                              'llm_settings': {'enable_faq': False, 'provider': 'azure'},
+                              'multilingual_limit_per_day': 2,
+                              'notification_scheduling_limit': 4,
+                              'refresh_token_expiry': 60,
+                              'rephrase_response': False,
+                              'test_limit_per_day': 5,
+                              'training_limit_per_day': 5,
+                              'website_data_generator_depth_search_limit': 2,
+                              'whatsapp': 'meta'}
 
 
 def test_delete_channels_config():
@@ -14083,7 +14621,7 @@ def test_add_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] is None
+    assert "id" in actual["data"]
 
 
 @responses.activate
@@ -14114,7 +14652,7 @@ def test_add_end_user_metrics_with_ip(monkeypatch):
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] is None
+    assert "id" in actual["data"]
 
 
 @responses.activate
@@ -14135,7 +14673,42 @@ def test_add_end_user_metrics_ip_request_failure(monkeypatch):
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"] is None
+    assert "id" in actual["data"]
+
+
+def test_add_and_update_conversation_feedback(monkeypatch):
+    log_type = "conversation_feedback"
+    data = {"feedback": "",
+            "rating": 1,
+            "botId": "6322ebbb3c62158dab4aee71",
+            "botReply": [{"text":"Hello! How are you?"}],
+            "userReply": "",
+            "date":"2023-07-17T06:48:02.453Z",
+            "sender_id": None
+            }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json = {"data": data}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "id" in actual["data"]
+    assert actual['message'] == 'Metrics added'
+    id = actual["data"]["id"]
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/metric/user/logs/{log_type}/{id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": {"feedback": "Good"}}
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == "Metrics updated"
 
 
 def test_get_end_user_metrics():
@@ -14433,7 +15006,9 @@ def test_multilingual_translate_no_destination_lang():
 
 
 def test_multilingual_translate_limit_exceeded(monkeypatch):
-    monkeypatch.setitem(Utility.environment['multilingual'], 'limit_per_day', 0)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.multilingual_limit_per_day = 0
+    bot_settings.save()
 
     response = client.post(
         f"/api/bot/{pytest.bot}/multilingual/translate",
@@ -14448,6 +15023,9 @@ def test_multilingual_translate_limit_exceeded(monkeypatch):
 
 @responses.activate
 def test_multilingual_translate_using_event_with_actions_and_responses(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.multilingual_limit_per_day = 2
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.multilingual}")
     responses.add(
         responses.POST,
@@ -14528,7 +15106,9 @@ def test_multilingual_language_support(monkeypatch):
 
 @responses.activate
 def test_data_generation_from_website(monkeypatch):
-    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_generation_limit_per_day = 10
+    bot_settings.save()
 
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_generator}")
     responses.add(
@@ -14593,7 +15173,9 @@ def test_data_generation_no_website_url(monkeypatch):
 
 @responses.activate
 def test_data_generation_limit_exceeded(monkeypatch):
-    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 0)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_generation_limit_per_day = 0
+    bot_settings.save()
 
     response = client.post(
         f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com",
@@ -14607,7 +15189,9 @@ def test_data_generation_limit_exceeded(monkeypatch):
 
 @responses.activate
 def test_data_generation_in_progress(monkeypatch):
-    monkeypatch.setitem(Utility.environment['data_generation'], 'limit_per_day', 10)
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_generation_limit_per_day = 10
+    bot_settings.save()
 
     event_url = urljoin(Utility.environment['events']['server_url'],
                         f"/api/events/execute/{EventClass.data_generator}")
@@ -14747,8 +15331,296 @@ def test_get_auditlog_for_user_2():
     assert audit_log_data[0]["user"] == email
 
 
+def test_add_custom_widget():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/custom",
+        json={
+            "name": "agtech weekly trends", "http_url": "http://agtech.com/trends/1",
+            "request_parameters": [{"key": "crop_type", "value": "tomato", "parameter_type": "value"},
+                                   {"key": "org", "value": "ORG_NAME", "parameter_type": "key_vault"}],
+            "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
+                        {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
+
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == 'Widget config added!'
+    assert actual["data"]
+    pytest.widget_id = actual["data"]
+    assert actual["error_code"] == 0
+
+
+def test_get_custom_widget():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["data"]["widgets"] == [{
+            "name": "agtech weekly trends", "http_url": "http://agtech.com/trends/1",
+            "request_parameters": [{"key": "crop_type", "value": "tomato", "parameter_type": "value"},
+                                   {"key": "org", "value": "ORG_NAME", "parameter_type": "key_vault"}],
+            "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
+                        {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
+            "timeout": 5, "bot": pytest.bot, 'request_method': 'GET', "_id": pytest.widget_id
+        }]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+@responses.activate
+def test_add_member_with_view_role():
+    email = "test_view@demo.ai"
+    response = client.post(
+        "/api/account/registration",
+        json={
+            "email": email,
+            "first_name": "Dem",
+            "last_name": "User22",
+            "password": "Welcome@1",
+            "confirm_password": "Welcome@1",
+            "account": email,
+        },
+    )
+    actual = response.json()
+    assert actual['message'] == "Account Registered!"
+    assert actual['error_code'] == 0
+    assert actual['success']
+
+    response = client.post(
+        f"/api/user/{pytest.bot}/member",
+        json={"email": email, "role": "view"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['message']
+    assert actual['error_code'] == 0
+    assert actual['success']
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": email, "password": "Welcome@1"},
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'User Authenticated'
+    pytest.refresh_token_view_role = actual['data']['refresh_token']
+    pytest.access_token_view_role = actual["data"]["access_token"]
+
+
+@responses.activate
+def test_trigger_widget():
+    expected_query_parameters = {"crop_type": "tomato", "org": "kairon"}
+    expected_query_parameters.update({"start_date": "11-11-2021", "end_date": "21-11-2021"})
+    expected_resp = {"data": [{"1": 200, "2": 300, "3": 400, "4": 500, "5": 600}]}
+
+    for key_vault in [{"key": "ORG_NAME", "value": "kairon"}, {"key": "AUTH_TOKEN", "value": "sdfghjk456789"}]:
+        response = client.post(
+            f"/api/bot/{pytest.bot}/secrets/add",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            json=key_vault
+        )
+        actual = response.json()
+        assert actual['error_code'] == 0
+        assert actual['success']
+
+    responses.add(
+        "GET", "http://agtech.com/trends/1", json=expected_resp,
+        match=[
+            responses.matchers.query_param_matcher(expected_query_parameters),
+            responses.matchers.header_matcher({"client": "kairon", "authorization": "sdfghjk456789"})],
+    )
+
+    # Test with view role
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}?start_date=11-11-2021&end_date=21-11-2021",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token_view_role},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == expected_resp
+    assert not actual["message"]
+
+    # Test with admin role
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}?start_date=11-11-2021&end_date=21-11-2021",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == expected_resp
+    assert not actual["message"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/logs/all",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 2
+    assert not actual["message"]
+
+
+def test_add_custom_widget_invalid_config():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/custom",
+        json={
+            "name": "agtech weekly trends 1", "http_url": "http://agtech.com/trends/1",
+            "request_parameters": [{"key": "crop_type", "value": "tomato", "parameter_type": "sender_id"},
+                                   {"key": "org", "value": "ORG_NAME", "parameter_type": "key_vault"}],
+            "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
+                        {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == [
+        {'ctx': {'enum_values': ['value', 'key_vault']}, 'loc': ['body', 'request_parameters', 0, 'parameter_type'],
+         'msg': "value is not a valid enumeration member; permitted: 'value', 'key_vault'", 'type': 'type_error.enum'}]
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_add_custom_widget_already_exists():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/custom",
+        json={
+            "name": "agtech weekly trends", "http_url": "http://agtech.com/trends/1",
+            "request_parameters": [{"key": "crop_type", "value": "tomato", "parameter_type": "value"},
+                                   {"key": "org", "value": "ORG_NAME", "parameter_type": "key_vault"}],
+            "headers": [{"key": "client", "value": "kairon", "parameter_type": "value"},
+                        {"key": "authorization", "value": "AUTH_TOKEN", "parameter_type": "key_vault"}],
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Widget with name exists!"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_custom_widget_invalid_config():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/{pytest.widget_id}",
+        json={
+            "name": "agtech weekly trends 1", "http_url": None
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == [
+        {'loc': ['body', 'http_url'], 'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}]
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_custom_widget():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/{pytest.widget_id}",
+        json={
+            "name": "agtech trends ", "http_url": "http://agtech.com/trends",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == 'Widget config updated!'
+    assert not actual["data"]
+    assert actual["error_code"] == 0
+
+
+def test_list_custom_widgets():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["data"]["widgets"] == [pytest.widget_id]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+def test_get_custom_widget_post_update():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["data"]["widgets"] == [{
+        "name": "agtech trends ", "http_url": 'http://agtech.com/trends', "timeout": 5, 'request_method': 'GET',
+        'request_parameters': [], '_id': pytest.bot, 'headers': [],
+        "bot": pytest.bot, "_id": pytest.widget_id
+    }]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+def test_delete_custom_widget():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == 'Widget config removed!'
+    assert not actual["data"]
+    assert actual["error_code"] == 0
+
+
+def test_trigger_widget_failure():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/trigger/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token_view_role},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert not actual["data"]
+    assert actual["message"] == 'Widget does not exists!'
+
+
+def test_delete_custom_widget_invalid_widget_id():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/widgets/custom/{pytest.widget_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Widget does not exists!"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_list_custom_widgets_empty():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["data"]["widgets"] == []
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
+def test_get_custom_widget_post_delete():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/custom",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert not actual["data"]["widgets"]
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+
+
 @responses.activate
 def test_upload_invalid_csv():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
@@ -14769,6 +15641,9 @@ def test_upload_invalid_csv():
 
 @responses.activate
 def test_upload_faq():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.data_importer_limit_per_day = 10
+    bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.faq_importer}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}

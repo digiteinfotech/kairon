@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
 
-from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.constants import MetricType, UpdateMetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, DictData
@@ -59,8 +59,45 @@ async def add_end_user_metrics(
     Stores End User Metrics
     """
     data = request_data.dict()["data"]
-    MeteringProcessor.add_log_with_geo_location(
+    id = MeteringProcessor.add_log_with_geo_location(
         metric_type=metric_type.value, request=request, bot=current_user.get_bot(), user=current_user.get_user(),
         account_id=current_user.bot_account, **data
     )
-    return Response(message='Metrics added')
+    return Response(message='Metrics added', data={"id": id})
+
+
+@router.post("/user/logs/{metric_type}", response_model=Response)
+async def add_end_user_metrics(
+        request_data: DictData, request: Request,
+        metric_type: MetricType = Path(default=None, description="metric type", example=MetricType.user_metrics),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
+):
+    """
+    Stores End User Metrics
+    """
+    data = request_data.dict()["data"]
+    id = MeteringProcessor.add_log_with_geo_location(
+        metric_type=metric_type.value, request=request, bot=current_user.get_bot(), user=current_user.get_user(),
+        account_id=current_user.bot_account, **data
+    )
+    return Response(message='Metrics added', data={"id": id})
+
+
+@router.put("/user/logs/{metric_type}/{id}", response_model=Response)
+async def update_end_user_metrics(
+        id: str,
+        request_data: DictData,
+        metric_type: UpdateMetricType = Path(default=None, description="metric type",
+                                               example=MetricType.conversation_feedback),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
+):
+    """
+    Update End User Metrics
+    """
+    data = request_data.data
+    MeteringProcessor.update_metrics(id=id,
+                                     metric_type=metric_type.value, bot=current_user.get_bot(),
+                                     user=current_user.get_user(),
+                                     account_id=current_user.bot_account, **data
+                                     )
+    return Response(message='Metrics updated')

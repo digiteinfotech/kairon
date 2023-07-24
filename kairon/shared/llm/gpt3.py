@@ -1,18 +1,21 @@
+from typing import Text, Dict, List
+from urllib.parse import urljoin
+
+import openai
+from loguru import logger as logging
+from tiktoken import get_encoding
+from tqdm import tqdm
+
+from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
+from kairon.shared.data.data_objects import BotContent
 from kairon.shared.llm.base import LLMBase
-from typing import Text, Dict, List, Union
-
 from kairon.shared.llm.clients.factory import LLMClientFactory
 from kairon.shared.utils import Utility
-import openai
-from kairon.shared.data.data_objects import BotContent
-from urllib.parse import urljoin
-from kairon.exceptions import AppException
-from loguru import logger as logging
-from tqdm import tqdm
+
 
 class GPT3FAQEmbedding(LLMBase):
     __embedding__ = 1536
@@ -30,6 +33,8 @@ class GPT3FAQEmbedding(LLMBase):
         self.api_key = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value, raise_err=True)
         self.client = LLMClientFactory.get_resource_provider(llm_settings["provider"])(self.api_key,
                                                                                        **self.llm_settings)
+        self.tokenizer = get_encoding("cl100k_base")
+        self.EMBEDDING_CTX_LENGTH = 8191
         self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:
@@ -86,8 +91,16 @@ class GPT3FAQEmbedding(LLMBase):
 
         return response
 
+    def truncate_text(self, text: Text) -> Text:
+        """
+        Truncate text to 8191 tokens for openai
+        """
+        tokens = self.tokenizer.encode(text)[:self.EMBEDDING_CTX_LENGTH]
+        return self.tokenizer.decode(tokens)
+
     def __get_embedding(self, text: Text) -> List[float]:
-        result, _ = self.client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=text)
+        truncated_text = self.truncate_text(text)
+        result, _ = self.client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=truncated_text)
         return result
 
     def __get_answer(self, query, system_prompt: Text, context: Text, **kwargs):

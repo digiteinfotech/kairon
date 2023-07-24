@@ -7,7 +7,7 @@ from starlette.requests import Request
 
 from kairon import Utility
 from kairon.shared.constants import PluginTypes
-from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.constants import MetricType, UpdateMetricType
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.plugins.factory import PluginFactory
 
@@ -27,6 +27,25 @@ class MeteringProcessor:
         :param metric_type: metric_type
         """
         metric = Metering(bot=bot, metric_type=metric_type, account=account)
+        for key, value in kwargs.items():
+            setattr(metric, key, value)
+        metric.save()
+        return metric.id.__str__()
+
+    @staticmethod
+    def update_metrics(id: Text, bot: Text, metric_type: Text, **kwargs):
+        """
+        update custom metrics for an end user.
+
+        :param id: id
+        :param bot: bot id
+        :param account: account id
+        :param metric_type: metric_type
+        """
+        if metric_type not in UpdateMetricType._value2member_map_.keys():
+            raise ValueError(f"Invalid metric type {metric_type}")
+
+        metric = Metering.objects(bot=bot, metric_type=metric_type).get(id=id)
         for key, value in kwargs.items():
             setattr(metric, key, value)
         metric.save()
@@ -72,7 +91,7 @@ class MeteringProcessor:
             location_info = PluginFactory.get_instance(PluginTypes.ip_info).execute(ip=ip)
             if location_info:
                 kwargs.update(location_info)
-        MeteringProcessor.add_metrics(bot, account_id, metric_type, **kwargs)
+        return MeteringProcessor.add_metrics(bot, account_id, metric_type, **kwargs)
 
     @staticmethod
     def get_logs(account: int, start_idx: int = 0, page_size: int = 10, start_date: datetime = None,

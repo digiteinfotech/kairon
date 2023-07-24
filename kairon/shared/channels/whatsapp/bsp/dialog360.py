@@ -1,3 +1,4 @@
+import ast
 from typing import Text
 from loguru import logger
 from mongoengine import DoesNotExist
@@ -57,18 +58,23 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         config["config"] = conf
         return ChatDataProcessor.save_channel_config(config, bot, user)
 
-    def save_channel_config(self, client_name: Text, client_id: Text, channel_id: Text, partner_id: Text=None):
+    def save_channel_config(self, clientId: Text, client: Text, channels: list, partner_id: Text = None):
         if partner_id is None:
             partner_id = Utility.environment["channels"]["360dialog"]["partner_id"]
 
+        if isinstance(channels, str):
+            channels = ast.literal_eval(channels)
+        if len(channels) == 0:
+            raise AppException("Failed to save channel config, onboarding unsuccessful!")
+
         conf = {
             "config": {
-                "client_name": Utility.sanitise_data(client_name),
-                "client_id": Utility.sanitise_data(client_id),
-                "channel_id": Utility.sanitise_data(channel_id),
+                "client_name": Utility.sanitise_data(clientId),
+                "client_id": Utility.sanitise_data(client),
+                "channel_id": Utility.sanitise_data(channels[0]),
                 "partner_id": Utility.sanitise_data(partner_id),
-                "waba_account_id": self.get_account(channel_id),
-                "api_key": BSP360Dialog.generate_waba_key(channel_id),
+                "waba_account_id": self.get_account(channels[0]),
+                "api_key": BSP360Dialog.generate_waba_key(channels[0]),
                 "bsp_type": WhatsappBSPTypes.bsp_360dialog.value
             }, "connector_type": ChannelTypes.WHATSAPP.value
         }

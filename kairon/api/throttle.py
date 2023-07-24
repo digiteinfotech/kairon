@@ -1,4 +1,4 @@
-from kairon.shared.data.data_objects import Intents, TrainingExamples, ModelTraining
+from kairon.shared.data.data_objects import Intents, TrainingExamples, ModelTraining, BotSettings
 from kairon.shared.account.data_objects import Account, Bot
 from kairon.shared.models import User
 from kairon.exceptions import AppException
@@ -33,8 +33,7 @@ def limit_training(func):
         today = datetime.today()
         today_start = today.replace(hour=0, minute=0, second=0)
         account = Account.objects().get(id=current_user.account)
-        limit = account.license['training'] if "training" in account.license else Utility.environment['model']['train'][
-            "limit_per_day"]
+        limit = account.license['training'] if "training" in account.license else BotSettings.objects(bot=current_user.get_bot()).get().training_limit_per_day
         count = ModelTraining.objects(bot=current_user.get_bot(), start_timestamp__gte=today_start).count()
         if count >= limit:
             raise AppException("Training limit exhausted!")

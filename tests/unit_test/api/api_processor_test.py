@@ -1473,10 +1473,10 @@ class TestAccountProcessor:
         access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token,
                                                                                                           user)
         data_stack = Utility.decode_limited_access_token(refresh)
-        value = list(Metering.objects(username=username).order_by("-timestamp"))
-        assert value[0]["metric_type"] == "login_refresh_token"
-        assert value[0]["username"] == "nupurrkhare@digite.com"
-        assert value[0]["timestamp"]
+        value = Metering.objects(username=username).get(metric_type="login_refresh_token")
+        assert value.metric_type == "login_refresh_token"
+        assert value.username == "nupurrkhare@digite.com"
+        assert value.timestamp
 
     def test_generate_token_from_refresh_token_for_login(self):
         user = AccountProcessor.get_user("nupur.khare@digite.com")

@@ -36,13 +36,14 @@ from starlette.requests import Request
 
 from kairon.api import models
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
-    SetSlotsUsingActionResponse, PromptActionConfigRequest
+    SetSlotsUsingActionResponse, PromptActionConfigRequest, VectorEmbeddingActionRequest, OperationConfig, PayloadConfig
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
-    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction
+    HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
+    VectorEmbeddingDbAction, SetSlotsFromResponse
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -2552,6 +2553,91 @@ class TestMongoProcessor:
         assert file_content_rules == b'version: "2.0"\n'
         zip_file.close()
 
+    def test_download_data_files_multiflow_stories(self, monkeypatch):
+        from zipfile import ZipFile
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        story_name = "multiflow_story_STORY_download_data_files"
+        steps = [
+            {"step": {"name": "asking", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_asking", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_asking", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moodyy", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foodyy", "type": "HTTP_ACTION", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foodyy", "type": "HTTP_ACTION", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moodyy", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moodyy", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moodyy", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "tests_download", "user@integration.com")
+        file = processor.download_files("tests_download", "user@integration.com")
+        assert file.endswith(".zip")
+        zip_file = ZipFile(file, mode='r')
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        file_info_stories = zip_file.getinfo('data/stories.yml')
+        file_info_rules = zip_file.getinfo('data/rules.yml')
+        file_content_stories = zip_file.read(file_info_stories)
+        file_content_rules = zip_file.read(file_info_rules)
+
+        assert file_content_stories == b'version: "2.0"\nstories:\n- story: multiflow_story_story_download_data_files_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_content_rules == b'version: "2.0"\nrules:\n- rule: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foody\n'
+        zip_file.close()
+
+    def test_download_data_files_empty_data(self, monkeypatch):
+        from zipfile import ZipFile
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+
+        file = processor.download_files("tests_download_empty_data", "user@integration.com")
+        assert file.endswith(".zip")
+        zip_file = ZipFile(file, mode='r')
+        assert zip_file.filelist.__len__() == 8
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        file_info_stories = zip_file.getinfo('data/stories.yml')
+        file_info_rules = zip_file.getinfo('data/rules.yml')
+        file_content_stories = zip_file.read(file_info_stories)
+        file_content_rules = zip_file.read(file_info_rules)
+        assert file_content_stories == b'version: "2.0"\n'
+        assert file_content_rules == b'version: "2.0"\n'
+        zip_file.close()
+
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
         expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
@@ -2845,6 +2931,185 @@ class TestMongoProcessor:
         assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
         assert multiflow_story[0]['name'] == 'test_get_multiflow_stories_with_empty_path_type_metadata'
 
+    def test_get_multiflow_stories_with_STORY_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_STORY"
+        bot = "test_get_path_story"
+        user = "test_get_user_path_story"
+        steps = [
+            {"step": {"name": "asker", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_ask", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_ask", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_food", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'STORY'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_story"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_story'
+
+    def test_get_multiflow_stories_with_RULE_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_RULE"
+        bot = "test_get_path_rule"
+        user = "test_get_user_path_rule"
+        steps = [
+            {"step": {"name": "asker", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_asker", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_asker", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "HTTP_ACTION", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "HTTP_ACTION", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "HTTP_ACTION", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "HTTP_ACTION", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_rule"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_rule'
+
+    def test_get_multiflow_stories_with_empty_metadata(self):
+        processor = MongoProcessor()
+        story_name = "get_multiflow_story_empty_metadata"
+        bot = "test_get_path_empty_metadata"
+        user = "test_get_user_path_empty_metadata"
+        steps = [
+            {"step": {"name": "question", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_question", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_question", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_path_empty_metadata"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == []
+        assert multiflow_story[0]['name'] == 'get_multiflow_story_empty_metadata'
+
+    def test_get_multiflow_stories_with_empty_path_type_metadata(self):
+        processor = MongoProcessor()
+        story_name = "test_get_multiflow_stories_with_empty_path_type_metadata"
+        bot = "test_get_empty_path_type_metadata"
+        user = "test_get_user_empty_path_type_metadata"
+        steps = [
+            {"step": {"name": "questionairre", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_questionairre", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_questionairre", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6'}, {"node_id": "5"}]
+        story_dict = {'name': story_name, 'steps': steps, 'metadata': metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = list(processor.get_multiflow_stories("test_get_empty_path_type_metadata"))
+        assert multiflow_story.__len__() == 1
+        assert multiflow_story[0]['metadata'] == [{'node_id': '6', 'flow_type': 'STORY'}, {'node_id': '5', 'flow_type': 'STORY'}]
+        assert multiflow_story[0]['name'] == 'test_get_multiflow_stories_with_empty_path_type_metadata'
+
     def test_edit_training_example_duplicate(self):
         processor = MongoProcessor()
         examples = list(processor.get_training_examples("greet", "tests"))
@@ -2892,6 +3157,11 @@ class TestMongoProcessor:
                                         bot="tests", user="testUser")
         examples = list(processor.get_training_examples("greet", "tests"))
         assert any(example['text'] == "What is the weather [today](date)" for example in examples)
+        processor.edit_training_example(examples[0]["_id"], example="What is the weather today", intent="greet",
+                                        bot="tests", user="testUser")
+        example = TrainingExamples.objects(bot="tests", status=True).get(id=examples[0]["_id"])
+        assert example.text == "What is the weather today"
+        assert not example.entities
 
     def test_edit_responses_duplicate(self):
         processor = MongoProcessor()
@@ -5762,6 +6032,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_add_lookup_values'
         user = 'test_user'
+        processor.add_lookup("number", bot, user)
         processor.add_lookup_values(
             {"name": "number", "value": ["one"]}, bot, user)
         table = list(LookupTables.objects(name__iexact='number', bot=bot, user=user))
@@ -8713,6 +8984,426 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='Intent does not exists'):
             list(processor.add_or_move_training_example(examples_to_move, 'non_existent', "tests", "testUser"))
 
+    def test_add_vector_embedding_action_config_op_embedding_search(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_vectordb_action_op_embedding_search'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+        actual_vectordb_action = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual_vectordb_action is not None
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        assert actual_vectordb_action['name'] == action
+        assert actual_vectordb_action['payload']['type'] == 'from_value'
+        assert actual_vectordb_action['payload']['value'] == {'ids': [0], 'with_payload': True, 'with_vector': True}
+        assert actual_vectordb_action['operation']['type'] == 'from_value'
+        assert actual_vectordb_action['operation']['value'] == 'embedding_search'
+        assert actual_vectordb_action['response']['value'] == '0'
+
+    def test_add_vector_embedding_action_config_op_payload_search(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_vectordb_action_op_payload_search'
+        response = '1'
+        operation = {'type': 'from_value', 'value': 'payload_search'}
+        payload_body = {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+        actual_vectordb_action = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual_vectordb_action is not None
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        assert actual_vectordb_action['name'] == action
+        assert actual_vectordb_action['payload']['type'] == 'from_value'
+        assert actual_vectordb_action['payload']['value'] == payload_body
+        assert actual_vectordb_action['operation']['type'] == 'from_value'
+        assert actual_vectordb_action['operation']['value'] == 'payload_search'
+        assert actual_vectordb_action['response']['value'] == '1'
+
+    def test_add_vector_embedding_action_config_op_embedding_search_from_slot(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_vectordb_action_op_embedding_search_from_slot'
+        response = 'nupur.khare'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload = {'type': 'from_slot', 'value': 'email'}
+        processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com", "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response),
+            set_slots=[SetSlotsUsingActionResponse(name="age", value="${data.age}", evaluation_type="expression")]
+        )
+        processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+        actual_vectordb_action = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual_vectordb_action is not None
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        assert actual_vectordb_action['name'] == action
+        assert actual_vectordb_action['payload']['type'] == 'from_slot'
+        assert actual_vectordb_action['payload']['value'] == 'email'
+        assert actual_vectordb_action['operation']['type'] == 'from_value'
+        assert actual_vectordb_action['operation']['value'] == 'embedding_search'
+        assert actual_vectordb_action['response']['value'] == 'nupur.khare'
+
+    def test_add_vector_embedding_action_config_op_embedding_search_from_slot_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_slot'
+        user = 'test_vector_user_slot'
+        action = 'test_vectordb_action_slot'
+        response = 'nupur.khare'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload = {'type': 'from_slot', 'value': 'cuisine'}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response),
+            set_slots=[SetSlotsUsingActionResponse(name="age", value="${data.age}", evaluation_type="expression")]
+        )
+        with pytest.raises(AppException, match="Slot with name cuisine not found!"):
+            processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+
+    def test_add_vector_embedding_action_config_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_vectordb_action_op_embedding_search'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        with pytest.raises(AppException, match="Action exists"):
+            processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+
+    def test_add_vector_embedding_action_config_empty_payload_values(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_empty_name'
+        user = 'test_vector_user_empty_name'
+        action = 'test_add_vectordb_action_config_empty_name'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action = vectordb_action_config.dict()
+        vectordb_action['name'] = ''
+        with pytest.raises(ValidationError, match="Action name cannot be empty"):
+            processor.add_vector_embedding_db_action(vectordb_action, user, bot)
+        vectordb_action_config_two = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action_two = vectordb_action_config_two.dict()
+        vectordb_action_two['payload']['value'] = ''
+        with pytest.raises(ValidationError, match="payload value is required"):
+            processor.add_vector_embedding_db_action(vectordb_action_two, user, bot)
+        vectordb_action_config_three = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action_three = vectordb_action_config_three.dict()
+        vectordb_action_three['payload']['type'] = ''
+        with pytest.raises(ValidationError, match="payload type is required"):
+            processor.add_vector_embedding_db_action(vectordb_action_three, user, bot)
+
+    def test_add_vector_embedding_action_config_empty_operation_values(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_empty_operation_values'
+        user = 'test_vector_user_empty_operation_values'
+        action = 'test_add_vector_embedding_action_config_empty_operation_values'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'payload_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action = vectordb_action_config.dict()
+        vectordb_action['name'] = ''
+        with pytest.raises(ValidationError, match="Action name cannot be empty"):
+            processor.add_vector_embedding_db_action(vectordb_action, user, bot)
+        vectordb_action_config_two = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action_two = vectordb_action_config_two.dict()
+        vectordb_action_two['operation']['value'] = ''
+        with pytest.raises(ValidationError, match="operation value is required"):
+            processor.add_vector_embedding_db_action(vectordb_action_two, user, bot)
+        vectordb_action_config_three = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        vectordb_action_three = vectordb_action_config_three.dict()
+        vectordb_action_three['operation']['type'] = ''
+        with pytest.raises(ValidationError, match="operation type is required"):
+            processor.add_vector_embedding_db_action(vectordb_action_three, user, bot)
+
+    def test_get_vector_embedding_action(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_get'
+        user = 'test_vector_user'
+        action = 'test_get_vectordb_action'
+        response = 'nupur.khare'
+
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload = {'type': 'from_slot', 'value': 'email'}
+        VectorEmbeddingDbAction(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=HttpActionResponse(value=response),
+            set_slots=[SetSlotsFromResponse(name="email", value="${data.email}", evaluation_type="expression")],
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        actual = processor.get_vector_embedding_db_action_config(bot=bot, action=action)
+        assert actual is not None
+        assert actual['name'] == action
+        assert actual['operation'] == {'type': 'from_value', 'value': 'embedding_search'}
+        assert actual['payload'] == {'type': 'from_slot', 'value': 'email'}
+        assert actual['collection'] == 'test_vector_bot_get_faq_embd'
+        assert actual['response'] == {'value': 'nupur.khare', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'}
+        assert actual['db_type'] == 'qdrant'
+        assert actual['set_slots'] == [{'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}]
+
+    def test_get_vector_embedding_action_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot_get_action'
+        user = 'test_vector_user'
+        action = 'test_get_vectordb_action'
+        response = 'nupur.khare'
+
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload = {'type': 'from_slot', 'value': 'email'}
+        VectorEmbeddingDbAction(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=HttpActionResponse(value=response),
+            set_slots=[SetSlotsFromResponse(name="email", value="${data.email}", evaluation_type="expression")],
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        try:
+            processor.get_vector_embedding_db_action_config(bot=bot, action='embedding')
+            assert False
+        except AppException as e:
+            assert str(e) == "Action does not exists!"
+
+    def test_list_vector_embedding_action(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        actions = list(processor.list_vector_embedding_db_actions(bot, True))
+        assert len(actions) == 3
+
+    def test_update_vector_embedding_action(self):
+        processor = MongoProcessor()
+        bot = 'test_update_vectordb_action_bot'
+        user = 'test_update_vectordb_action_user'
+        action = 'test_update_vectordb_action'
+        response = '15'
+        operation = {'type': 'from_value', 'value': 'payload_search'}
+        payload_body = {
+            "filter": {
+                "should": [
+                    {"key": "city", "match": {"value": "London"}},
+                    {"key": "color", "match": {"value": "red"}}
+                ]
+            }
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        processor.add_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+        actual = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual is not None
+        assert actual['name'] == action
+        assert actual['response']['value'] == '15'
+        assert actual['payload']['value'] == {'filter': {'should': [{'key': 'city', 'match': {'value': 'London'}}, {'key': 'color', 'match': {'value': 'red'}}]}}
+        response_two = 'nimble'
+        processor.add_slot({"name": "name", "type": "text", "initial_value": "nupur",
+                            "influence_conversation": True}, bot, user,
+                           raise_exception_if_exists=False)
+        payload_two = {'type': 'from_value', 'value': 'name'}
+        vectordb_action_config_updated = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload_two,
+            response=ActionResponseEvaluation(value=response_two),
+            set_slots=[SetSlotsUsingActionResponse(name="name", value="${data.name}", evaluation_type="expression")]
+        )
+        processor.update_vector_embedding_db_action(vectordb_action_config_updated.dict(), user, bot)
+        actual_two = VectorEmbeddingDbAction.objects(name=action, bot=bot, status=True).get()
+        assert actual_two is not None
+        assert actual_two['name'] == action
+        assert actual_two['response']['value'] == 'nimble'
+        assert actual_two['payload']['value'] == 'name'
+
+    def test_update_vector_embedding_action_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_update_vectordb_action_bot'
+        user = 'test_update_vectordb_action_user'
+        action = 'test_update_vectordb_action_does_not_exists'
+        response = 'Digite'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        vectordb_action_config = VectorEmbeddingActionRequest(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=ActionResponseEvaluation(value=response)
+        )
+        with pytest.raises(AppException, match='Action with name "test_update_vectordb_action_does_not_exists" not found'):
+            processor.update_vector_embedding_db_action(vectordb_action_config.dict(), user, bot)
+
+    def test_delete_vector_embedding_action_config(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_delete_vector_embedding_action_config'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        Actions(name=action, type=ActionType.vector_embeddings_db_action.value, bot=bot, user=user).save()
+        VectorEmbeddingDbAction(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=HttpActionResponse(value=response),
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+        processor.delete_action(action, user=user, bot=bot)
+        try:
+            HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
+                action_name__iexact=action)
+            assert False
+        except DoesNotExist:
+            assert True
+
+    def test_delete_vector_embedding_action_config_non_existing(self):
+        processor = MongoProcessor()
+        bot = 'test_vector_bot'
+        user = 'test_vector_user'
+        action = 'test_delete_vector_embedding_action_config_non_existing'
+        response = '0'
+        operation = {'type': 'from_value', 'value': 'embedding_search'}
+        payload_body = {
+            "ids": [
+                0
+            ],
+            "with_payload": True,
+            "with_vector": True
+        }
+        payload = {'type': 'from_value', 'value': payload_body}
+        VectorEmbeddingDbAction(
+            name=action,
+            operation=operation,
+            payload=payload,
+            response=HttpActionResponse(value=response),
+            bot=bot,
+            user=user
+        ).save().to_mongo()
+
+        try:
+            processor.delete_action("test_delete_vector_embedding_action_config_non_existing_non_existing", user=user, bot=bot)
+            assert False
+        except AppException as e:
+            assert str(e).__contains__(
+                'Action with name "test_delete_vector_embedding_action_config_non_existing_non_existing" not found')
+
     def test_add_http_action_config(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -8758,8 +9449,7 @@ class TestMongoProcessor:
         assert actual_http_action['headers'][1]['key'] == "param4"
         assert actual_http_action['headers'][1]['value'] == "value2"
         assert actual_http_action['headers'][1]['parameter_type'] == "value"
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_add_http_action_config_no_response(self):
         processor = MongoProcessor()
@@ -8807,8 +9497,7 @@ class TestMongoProcessor:
                 {'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                 {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}], 'bot': 'test_bot_2',
                                       'user': 'test_user', 'status': True}
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_add_http_action_config_complete_data(self):
         processor = MongoProcessor()
@@ -8851,8 +9540,7 @@ class TestMongoProcessor:
                           'set_slots': [{'name': 'bot', 'value': '${data.key}', 'evaluation_type': 'script'},
                                         {'name': 'email', 'value': '${data.email}', 'evaluation_type': 'expression'}],
                           'bot': 'test_bot_1', 'user': 'test_user', 'status': True}
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_add_http_action_config_missing_values(self):
         processor = MongoProcessor()
@@ -8950,7 +9638,7 @@ class TestMongoProcessor:
             request_method=request_method,
             bot=bot,
             user=user
-        ).save().to_mongo().to_dict()["_id"].__str__()
+        ).save().id.__str__()
 
         http_action_config = HttpActionConfigRequest(
             action_name=action,
@@ -9164,8 +9852,7 @@ class TestMongoProcessor:
         assert actual_http_action['headers'][1]['key'] == "param4"
         assert actual_http_action['headers'][1]['value'] == "value2"
         assert actual_http_action['headers'][1]['parameter_type'] == "value"
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_update_http_config_with_dynamic_params(self):
         processor = MongoProcessor()
@@ -9224,8 +9911,7 @@ class TestMongoProcessor:
         assert actual_http_action['headers'][1]['key'] == "param4"
         assert actual_http_action['headers'][1]['value'] == "value2"
         assert actual_http_action['headers'][1]['parameter_type'] == "value"
-        assert Utility.is_exist(Slots, raise_error=False, name__iexact="bot")
-        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action)
+        assert Utility.is_exist(Actions, raise_error=False, name__iexact=action, bot=bot)
 
     def test_update_http_config(self):
         processor = MongoProcessor()
@@ -9362,7 +10048,8 @@ class TestMongoProcessor:
             'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
             'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
+            'vector_embeddings_db_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -9384,7 +10071,7 @@ class TestMongoProcessor:
             'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'vector_embeddings_db_action': []
         }
 
     def test_add_complex_story(self):
@@ -9408,6 +10095,7 @@ class TestMongoProcessor:
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'kairon_bot_response': [],
                            'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
+                           'vector_embeddings_db_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -9985,11 +10673,54 @@ class TestMongoProcessor:
             {"step": {"name": "utter_asking", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "foody", "type": "INTENT", "node_id": "4",
+                 {"name": "moody", "type": "HTTP_ACTION", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody_act", "type": "HTTP_ACTION", "node_id": "4",
                   "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "foody", "type": "INTENT", "node_id": "4",
+            {"step": {"name": "foody_act", "type": "HTTP_ACTION", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "HTTP_ACTION", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(bot=bot).get()
+        assert len(multiflow_story.events) == 6
+        assert len(multiflow_story.metadata) == 2
+
+    def test_add_multiflow_story_with_multiple_user_events_RULE(self):
+        processor = MongoProcessor()
+        story_name = "test_add_multiflow_story_with_multiple_user_events_RULE"
+        bot = "test_path_rule"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "wish", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody_act", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody_act", "type": "INTENT", "node_id": "4",
                       "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
@@ -10008,13 +10739,10 @@ class TestMongoProcessor:
                               "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
              }
         ]
-        metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'RULE'}]
+        metadata = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'STORY'}]
         story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
-        processor.add_multiflow_story(story_dict, bot, user)
-        multiflow_story = MultiflowStories.objects(bot=bot).get()
-        assert len(multiflow_story.events) == 6
-        assert len(multiflow_story.metadata) == 2
-
+        with pytest.raises(AppException, match="Path tagged as RULE can have only one intent!"):
+            processor.add_multiflow_story(story_dict, bot, user)
 
     def test_add_multiflow_story_with_no_path_type(self):
         processor = MongoProcessor()
@@ -10029,7 +10757,7 @@ class TestMongoProcessor:
             {"step": {"name": "utter_welcome", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "coffee", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "coffee", "type": "HTTP_ACTION", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "tea", "type": "INTENT", "node_id": "4",
                   "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
@@ -10046,7 +10774,7 @@ class TestMongoProcessor:
                       "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
              },
-            {"step": {"name": "coffee", "type": "INTENT", "node_id": "3",
+            {"step": {"name": "coffee", "type": "HTTP_ACTION", "node_id": "3",
                       "component_id": "633w6kSXuz3qqnPU571jZyCv"},
              "connections": [{"name": "utter_coffee", "type": "BOT", "node_id": "6",
                               "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
@@ -10059,6 +10787,47 @@ class TestMongoProcessor:
         assert len(multiflow_story.events) == 6
         assert multiflow_story.metadata[0]['flow_type'] == 'STORY'
         assert multiflow_story.metadata[0]['flow_type'] == 'STORY'
+
+    def test_add_multiflow_story_with_leaf_node_slot(self):
+        processor = MongoProcessor()
+        story_name = "multiflow_story_with_leaf_node_slot"
+        bot = "test_story_with_leaf_node_slot"
+        user = "test_user"
+        steps = [
+            {"step": {"name": "weathery", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_weathery", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_weathery", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "sunny", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "rainy", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "sunny", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_sunny", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_sunny", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "umbrella", "type": "SLOT", "value": 'Yes', "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "rainy", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "umbrella", "type": "SLOT", "value": 'Yes', "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        with pytest.raises(AppException, match="Slots cannot be leaf nodes!"):
+            processor.add_multiflow_story(story_dict, bot, user)
 
     def test_load_multiflow_stories(self):
         processor = MongoProcessor()
@@ -10075,7 +10844,7 @@ class TestMongoProcessor:
             {"step": {"name": "utter_welcome", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "coffee", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "coffee", "type": "HTTP_ACTION", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
                  {"name": "tea", "type": "INTENT", "node_id": "4",
                   "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
@@ -10092,7 +10861,7 @@ class TestMongoProcessor:
                       "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
              },
-            {"step": {"name": "coffee", "type": "INTENT", "node_id": "3",
+            {"step": {"name": "coffee", "type": "HTTP_ACTION", "node_id": "3",
                       "component_id": "633w6kSXuz3qqnPU571jZyCv"},
              "connections": [{"name": "utter_coffee", "type": "BOT", "node_id": "6",
                               "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
@@ -10137,11 +10906,11 @@ class TestMongoProcessor:
             {"step": {"name": "utter_shopping", "type": "BOT", "node_id": "2",
                       "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
              "connections": [
-                 {"name": "clothes", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
-                 {"name": "handbags", "type": "INTENT", "node_id": "4",
+                 {"name": "clothes", "type": "HTTP_ACTION", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "handbags", "type": "HTTP_ACTION", "node_id": "4",
                   "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
              },
-            {"step": {"name": "handbags", "type": "INTENT", "node_id": "4",
+            {"step": {"name": "handbags", "type": "HTTP_ACTION", "node_id": "4",
                       "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
              "connections": [
                  {"name": "utter_handbags", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
@@ -10154,7 +10923,7 @@ class TestMongoProcessor:
                       "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
              "connections": None
              },
-            {"step": {"name": "clothes", "type": "INTENT", "node_id": "3",
+            {"step": {"name": "clothes", "type": "HTTP_ACTION", "node_id": "3",
                       "component_id": "633w6kSXuz3qqnPU571jZyCv"},
              "connections": [{"name": "utter_clothes", "type": "BOT", "node_id": "6",
                               "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
@@ -11068,7 +11837,7 @@ class TestMongoProcessor:
             'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
-            'email_action': [], 'form_validation_action': [], 'prompt_action': [],
+            'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'vector_embeddings_db_action': [],
             'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase']}
 
     def test_delete_non_existing_complex_story(self):
@@ -11176,6 +11945,7 @@ class TestMongoProcessor:
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
+            'vector_embeddings_db_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
@@ -13050,15 +13820,20 @@ class TestTrainingDataProcessor:
         assert actual_response is False
 
     def test_daily_file_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 0)
-        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit("tests", False)
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_generation_limit_per_day = 0
+        bot_settings.save()
+        actual_response = TrainingDataGenerationProcessor.check_data_generation_limit(bot, False)
         assert actual_response is True
 
     def test_daily_file_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['data_generation'], "limit_per_day", 0)
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.data_generation_limit_per_day = 0
+        bot_settings.save()
         with pytest.raises(AppException) as exp:
-            assert TrainingDataGenerationProcessor.check_data_generation_limit("tests")
-
+            assert TrainingDataGenerationProcessor.check_data_generation_limit(bot)
         assert str(exp.value) == "Daily limit exceeded."
 
 
@@ -13112,7 +13887,7 @@ class TestModelProcessor:
                                            model_path="model_path"
                                            )
         model_training = ModelTraining.objects(bot="tests", status="Done")
-        ids = [model.to_mongo().to_dict()['_id'] for model in model_training]
+        ids = [model.id for model in model_training]
         index = ids.index(training_status_inprogress_id)
         assert model_training.count() == 5
         assert training_status_inprogress_id in ids
@@ -13166,19 +13941,28 @@ class TestModelProcessor:
         assert str(exp.value) == "Previous model training in progress."
 
     def test_is_daily_training_limit_exceeded_False(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 8)
-        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests")
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.training_limit_per_day = 8
+        bot_settings.save()
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded(bot)
         assert actual_response is False
 
     def test_is_daily_training_limit_exceeded_True(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 0)
-        actual_response = ModelProcessor.is_daily_training_limit_exceeded("tests", False)
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.training_limit_per_day = 0
+        bot_settings.save()
+        actual_response = ModelProcessor.is_daily_training_limit_exceeded(bot, False)
         assert actual_response is True
 
     def test_is_daily_training_limit_exceeded_exception(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment['model']['train'], "limit_per_day", 0)
+        bot = 'tests'
+        bot_settings = BotSettings.objects(bot=bot).get()
+        bot_settings.training_limit_per_day = 0
+        bot_settings.save()
         with pytest.raises(AppException) as exp:
-            assert ModelProcessor.is_daily_training_limit_exceeded("tests")
+            assert ModelProcessor.is_daily_training_limit_exceeded(bot)
 
         assert str(exp.value) == "Daily model training limit exceeded."
 

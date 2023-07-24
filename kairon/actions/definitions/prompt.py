@@ -10,7 +10,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots
+from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.models import LlmPromptType, LlmPromptSource
@@ -55,11 +55,11 @@ class ActionPrompt(ActionsBase):
         llm_logs = None
         recommendations = None
         bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
-        user_msg = tracker.latest_message.get('text')
         is_from_cache = False
         slots_to_fill = {}
 
         try:
+            user_msg = self.__get_user_msg(tracker)
             k_faq_action_config, bot_settings = self.retrieve_config()
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm = LLMFactory.get_instance("faq")(self.bot, bot_settings["llm_settings"])
@@ -178,3 +178,12 @@ class ActionPrompt(ActionsBase):
     def __add_user_context_to_http_response(http_response, tracker_data):
         response_context = {"data": http_response, 'context': tracker_data}
         return response_context
+    
+    @staticmethod
+    def __get_user_msg(tracker: Tracker):
+        user_msg = tracker.latest_message.get('text')
+        if not ActionUtility.is_empty(user_msg) and user_msg.startswith("/"):
+            msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
+            if not ActionUtility.is_empty(msg):
+                user_msg = msg
+        return user_msg

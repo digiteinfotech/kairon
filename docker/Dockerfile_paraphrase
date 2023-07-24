@@ -1,4 +1,4 @@
-FROM amazonlinux:latest
+FROM amazonlinux:2.0.20230307.0
 
 ENV RASA_NLU_DOCKER="YES" \
     RASA_NLU_HOME=/app
@@ -27,6 +27,7 @@ RUN python -m pip install cryptography~=3.4.8
 RUN python -m pip install websockets==10.1
 RUN python -m pip install numpy==1.22.0
 RUN python -m pip install pyjwt==2.6.0
+RUN python -m pip install urllib3==1.26.15
 
 WORKDIR ${RASA_NLU_HOME}
 COPY augmentation ${RASA_NLU_HOME}/augmentation

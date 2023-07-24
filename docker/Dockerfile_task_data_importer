@@ -1,4 +1,4 @@
-FROM amazonlinux:latest
+FROM amazonlinux:2.0.20230307.0
 
 SHELL ["/bin/bash", "-c"]
 
@@ -39,6 +39,7 @@ RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install openpyxl
 RUN python -m pip install pandas
 RUN python -m pip install croniter
+RUN python -m pip install pydantic==1.10.11
 
 RUN mkdir ssl
 RUN mkdir training_data

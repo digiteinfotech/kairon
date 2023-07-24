@@ -68,7 +68,7 @@ class TornadoAuthenticate:
                 issued_at = datetime.utcfromtimestamp(iat_val)
                 if Utility.is_exist(
                         UserActivityLog, raise_error=False, user=username, type=UserActivityType.reset_password.value,
-                        timestamp__gte=issued_at):
+                        timestamp__gte=issued_at, check_base_fields=False):
                     raise HTTPError(
                         status_code=401,
                         reason='Session expired. Please login again.',

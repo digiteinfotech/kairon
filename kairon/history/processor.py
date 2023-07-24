@@ -290,6 +290,7 @@ class HistoryProcessor:
                                                          "latest_event_time": {"$last": "$event.timestamp"},
                                                          "steps": {"$sum": 1},}
                                               },
+                                             {"$sort": {"latest_event_time": -1}},
                                              {"$project": {
                                                  "sender_id": "$_id",
                                                  "_id": 0,

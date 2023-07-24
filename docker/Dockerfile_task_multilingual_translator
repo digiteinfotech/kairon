@@ -1,4 +1,4 @@
-FROM amazonlinux:latest
+FROM amazonlinux:2.0.20230307.0
 
 SHELL ["/bin/bash", "-c"]
 
@@ -21,6 +21,7 @@ RUN python -m pip install passlib[bcrypt]
 RUN python -m pip install password-strength
 RUN python -m pip install elastic-apm
 RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install fastapi_sso
 RUN python -m pip install uvicorn>=0.12.3
 RUN python -m pip install websockets==10.1

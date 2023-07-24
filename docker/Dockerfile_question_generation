@@ -1,4 +1,4 @@
-FROM amazonlinux:latest
+FROM amazonlinux:2.0.20230307.0
 
 WORKDIR /app
 USER root
@@ -15,7 +15,7 @@ RUN python -m pip install nlp==0.2.0
 RUN python -m pip install torch
 RUN python -m pip install protobuf
 RUN python -m pip install elastic-apm
-RUN python -m pip install fastapi>=0.68.1
+RUN python -m pip install fastapi==0.78.0
 RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install websockets==10.1
 RUN python -m pip install aiohttp==3.8.0

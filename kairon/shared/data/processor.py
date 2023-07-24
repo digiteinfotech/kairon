@@ -43,8 +43,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet
-from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType
+    LlmPrompt, FormSlotSet, VectorEmbeddingDbAction, VectorDbOperation, VectorDbPayload
+from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, VectorDbValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource
@@ -91,6 +91,7 @@ from .data_objects import (
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots
+from ..custom_widgets.data_objects import CustomWidgets
 
 
 class MongoProcessor:
@@ -1282,7 +1283,7 @@ class MongoProcessor:
         for custom_component in Utility.environment['model']['pipeline']['custom']:
             self.__insert_bot_id(config_obj, bot, custom_component)
         self.add_default_fallback_config(config_obj, bot, user)
-        return config_obj.save().to_mongo().to_dict()["_id"].__str__()
+        return config_obj.save().id.__str__()
 
     def __insert_bot_id(self, config_obj: dict, bot: Text, component_name: Text):
         gpt_classifier = next((
@@ -1684,6 +1685,8 @@ class MongoProcessor:
             training_example.text = text
             if entities:
                 training_example.entities = list(self.__extract_entities(entities))
+            else:
+                training_example.entities = None
             training_example.timestamp = datetime.utcnow()
             training_example.save()
         except DoesNotExist:
@@ -2256,7 +2259,7 @@ class MongoProcessor:
         data_object.template_type = template_type
 
         id = (
-            data_object.save().to_mongo().to_dict()["_id"].__str__()
+            data_object.save().id.__str__()
         )
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
@@ -2304,7 +2307,7 @@ class MongoProcessor:
         story_obj.start_checkpoints = [STORY_START]
 
         id = (
-            story_obj.save().to_mongo().to_dict()["_id"].__str__()
+            story_obj.save().id.__str__()
         )
 
         self.add_slot({"name": "bot", "type": "any", "initial_value": bot, "influence_conversation": False}, bot, user,
@@ -2358,7 +2361,7 @@ class MongoProcessor:
         )
         data_object['block_name'] = name
         story_id = (
-            data_object.save().to_mongo().to_dict()["_id"].__str__()
+            data_object.save().id.__str__()
         )
         return story_id
 
@@ -2399,7 +2402,7 @@ class MongoProcessor:
             story_obj.metadata = path_metadata
             story_obj.block_name = name
             story_id = (
-                story_obj.save().to_mongo().to_dict()["_id"].__str__()
+                story_obj.save().id.__str__()
             )
             return story_id
         except DoesNotExist:
@@ -2537,7 +2540,7 @@ class MongoProcessor:
             item = value.to_mongo().to_dict()
             block_name = item.pop("block_name")
             events = item.pop("events")
-            final_data['metadata'] = item.pop("metadata")
+            final_data['metadata'] = item.get("metadata", [])
             final_data['type'] = StoryType.multiflow_story.value
             final_data["_id"] = item["_id"].__str__()
             final_data['name'] = block_name
@@ -2612,7 +2615,7 @@ class MongoProcessor:
                 user=user,
             )
 
-        return session_config.save().to_mongo().to_dict()["_id"].__str__()
+        return session_config.save().id.__str__()
 
     def get_session_config(self, bot: Text):
         """
@@ -2667,7 +2670,7 @@ class MongoProcessor:
 
         endpoint.bot = bot
         endpoint.user = user
-        return endpoint.save().to_mongo().to_dict()["_id"].__str__()
+        return endpoint.save().id.__str__()
 
     def delete_endpoint(self, bot: Text, endpoint_type: ENDPOINT_TYPE):
         """
@@ -2918,7 +2921,7 @@ class MongoProcessor:
                 set__content_type=content_type, set__params_list=params_list, set__headers=headers,
                 set__response=response, set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
             )
-            return http_action.to_mongo().to_dict()["_id"].__str__()
+            return http_action.id.__str__()
 
     def add_http_action_config(self, http_action_config: Dict, user: str, bot: str):
         """
@@ -2948,7 +2951,7 @@ class MongoProcessor:
             set_slots=set_slots,
             bot=bot,
             user=user
-        ).save().to_mongo().to_dict()["_id"].__str__()
+        ).save().id.__str__()
         self.add_action(http_action_config['action_name'], bot, user, action_type=ActionType.http_action.value,
                         raise_exception=False)
         return doc_id
@@ -2991,6 +2994,94 @@ class MongoProcessor:
         """
         actions = HttpActionConfig.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
+
+    def update_vector_embedding_db_action(self, request_data: Dict, user: str, bot: str):
+        """
+        Updates VectorDb configuration.
+        :param request_data: Dict containing configuration to be modified
+        :param user: user id
+        :param bot: bot id
+        :return: VectorDb configuration id for updated VectorDb action config
+        """
+
+        if not Utility.is_exist(VectorEmbeddingDbAction, raise_error=False, name=request_data.get('name'), bot=bot, status=True):
+            raise AppException(f'Action with name "{request_data.get("name")}" not found')
+        self.__validate_payload(request_data.get('payload'), bot)
+        action = VectorEmbeddingDbAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action.operation = VectorDbOperation(**request_data['operation'])
+        action.payload = VectorDbPayload(**request_data['payload'])
+        action.response = HttpActionResponse(**request_data.get('response', {}))
+        action.set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in
+                            request_data.get('set_slots')]
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        action_id = action.save().id.__str__()
+        return action_id
+
+    def add_vector_embedding_db_action(self, vector_db_action_config: Dict, user: str, bot: str):
+        """
+        Adds a new VectorDb action.
+        :param vector_db_action_config: dict object containing configuration for the Http action
+        :param user: user id
+        :param bot: bot id
+        :return: Http configuration id for saved Http action config
+        """
+        self.__validate_payload(vector_db_action_config.get('payload'), bot)
+        Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, VectorEmbeddingDbAction)
+        set_slots = [SetSlotsFromResponse(**slot) for slot in vector_db_action_config.get('set_slots')]
+        action_id = VectorEmbeddingDbAction(
+            name=vector_db_action_config['name'],
+            operation=VectorDbOperation(**vector_db_action_config.get('operation')),
+            payload=VectorDbPayload(**vector_db_action_config.get('payload')),
+            response=HttpActionResponse(**vector_db_action_config.get('response', {})),
+            set_slots=set_slots,
+            bot=bot,
+            user=user,
+        ).save().id.__str__()
+        self.add_action(vector_db_action_config['name'], bot, user, action_type=ActionType.vector_embeddings_db_action.value,
+                        raise_exception=False)
+        return action_id
+
+    def __validate_payload(self, payload, bot: Text):
+        if payload.get('type') == VectorDbValueType.from_slot.value:
+            slot = payload.get('value')
+            if not Utility.is_exist(Slots, raise_error=False, name=slot, bot=bot, status=True):
+                raise AppException(f'Slot with name {slot} not found!')
+
+    def get_vector_embedding_db_action_config(self, bot: str, action: str):
+        """
+        Fetches VectorDb action config from collection.
+        :param bot: bot id
+        :param action: action name
+        :return: VectorEmbeddingDbAction object containing configuration for the Http action.
+        """
+        try:
+            vector_embedding_config_dict = VectorEmbeddingDbAction.objects(bot=bot, name=action, status=True).get()
+            vector_embedding_config = vector_embedding_config_dict.to_mongo().to_dict()
+            vector_embedding_config['_id'] = vector_embedding_config['_id'].__str__()
+            return vector_embedding_config
+        except DoesNotExist as ex:
+            logging.exception(ex)
+            raise AppException("Action does not exists!")
+
+    def list_vector_embedding_db_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all VectorDb actions from collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of VectorDb actions.
+        """
+        for action in VectorEmbeddingDbAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
+            yield action
 
     def list_actions(self, bot: Text):
         all_actions = list(Actions.objects(bot=bot, status=True).aggregate([
@@ -3044,7 +3135,7 @@ class MongoProcessor:
             set_slot=action_config.get('set_slot'),
             bot=bot,
             user=user,
-        ).save().to_mongo().to_dict()["_id"].__str__()
+        ).save().id.__str__()
         self.add_action(
             action_config['name'], bot, user, action_type=ActionType.google_search_action.value,
             raise_exception=False
@@ -3129,7 +3220,7 @@ class MongoProcessor:
 
         slot.user = user
         slot.bot = bot
-        slot_id = slot.save().to_mongo().to_dict()['_id'].__str__()
+        slot_id = slot.save().id.__str__()
         self.add_entity(slot_value.get('name'), bot, user, False)
         return slot_id
 
@@ -3681,7 +3772,7 @@ class MongoProcessor:
         synonym.name = synonym_name
         synonym.user = user
         synonym.bot = bot
-        return synonym.save().to_mongo().to_dict()['_id'].__str__()
+        return synonym.save().id.__str__()
 
     def add_synonym_value(self, value: Text, synonym_name: Text, bot, user):
         """
@@ -3706,7 +3797,7 @@ class MongoProcessor:
         entity_synonym.value = value
         entity_synonym.user = user
         entity_synonym.bot = bot
-        return entity_synonym.save().to_mongo().to_dict()['_id'].__str__()
+        return entity_synonym.save().id.__str__()
 
     def add_synonym_values(self, synonyms_dict: Dict, bot, user):
         """
@@ -3721,7 +3812,8 @@ class MongoProcessor:
             raise AppException("Synonym value cannot be an empty!")
 
         synonym_exist = Utility.is_exist(Synonyms, raise_error=False,
-                                         name__iexact=synonyms_dict.get('name'))
+                                         name__iexact=synonyms_dict.get('name')
+                                         ,bot=bot, status=True)
         if not synonym_exist:
             raise AppException("Synonym does not exist!")
 
@@ -3740,7 +3832,7 @@ class MongoProcessor:
             entity_synonym.value = val
             entity_synonym.user = user
             entity_synonym.bot = bot
-            id = entity_synonym.save().to_mongo().to_dict()['_id'].__str__()
+            id = entity_synonym.save().id.__str__()
             added_values.append({"_id": id, "value": val})
         return added_values
 
@@ -3761,7 +3853,7 @@ class MongoProcessor:
         if values:
             raise AppException("Synonym value already exists")
         try:
-            val = EntitySynonyms.objects(bot=bot, name__exact=name).get(id=value_id)
+            val = EntitySynonyms.objects(bot=bot, status=True, name__exact=name).get(id=value_id)
             val.value = value
             val.user = user
             val.timestamp = datetime.utcnow()
@@ -3777,7 +3869,7 @@ class MongoProcessor:
         """
         try:
             synonym = Synonyms.objects(bot=bot, status=True).get(id=id)
-            Utility.hard_delete_document([EntitySynonyms], bot=bot, name__iexact=synonym.name)
+            Utility.hard_delete_document([EntitySynonyms], bot=bot, status=True, name__iexact=synonym.name)
             synonym.delete()
         except DoesNotExist as e:
             raise AppException(e)
@@ -3991,7 +4083,7 @@ class MongoProcessor:
             regex.pattern = regex_dict.get('pattern')
             regex.bot = bot
             regex.user = user
-            regex_id = regex.save().to_mongo().to_dict()['_id'].__str__()
+            regex_id = regex.save().id.__str__()
             return regex_id
 
     def edit_regex(self, regex_dict: Dict, bot, user):
@@ -4033,13 +4125,13 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user id
         """
-        Utility.is_exist(Lookup, raise_error=True, exp_message="Lookup already exists!", status=True,bot=bot, name__iexact=lookup_name)
+        Utility.is_exist(Lookup, raise_error=True, exp_message="Lookup already exists!", status=True, bot=bot, name__iexact=lookup_name)
         lookup = Lookup()
         lookup.name = lookup_name
         lookup.user = user
         lookup.bot = bot
         lookup.save()
-        return lookup.to_mongo().to_dict()['_id'].__str__()
+        return lookup.id.__str__()
 
     def add_lookup_value(self, lookup_name, lookup_value, bot, user):
         """
@@ -4049,20 +4141,21 @@ class MongoProcessor:
         :param bot: bot id
         :param user: user id
         """
-        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=lookup_name)
+        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=lookup_name, bot=bot, status=True)
         if not lookup_exist:
             raise AppException("Lookup does not exists")
         Utility.is_exist(LookupTables,
                          raise_error=True,
                          exp_message="Lookup value already exists",
-                         value__exact=lookup_value)
+                         value__exact=lookup_value,
+                         bot=bot, status=True)
         lookup_table = LookupTables()
         lookup_table.name = lookup_name
         lookup_table.value = lookup_value
         lookup_table.user = user
         lookup_table.bot = bot
         lookup_table.save()
-        return lookup_table.to_mongo().to_dict()['_id'].__str__()
+        return lookup_table.id.__str__()
 
     def add_lookup_values(self, lookup_dict: Dict, bot, user):
         """
@@ -4076,7 +4169,7 @@ class MongoProcessor:
         if not lookup_dict.get('value'):
             raise AppException("Lookup value cannot be an empty string")
 
-        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=lookup_dict.get('name'))
+        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=lookup_dict.get('name'), bot=bot, status=True)
         if not lookup_exist:
             raise AppException("Lookup does not exists")
 
@@ -4096,7 +4189,7 @@ class MongoProcessor:
             lookup_table.user = user
             lookup_table.bot = bot
             lookup_table.save()
-            id = lookup_table.to_mongo().to_dict()['_id'].__str__()
+            id = lookup_table.id.__str__()
             added_values.append({"_id": id, "value": val})
         return added_values
 
@@ -4139,7 +4232,7 @@ class MongoProcessor:
         :return: None
         :raises: AppException
         """
-        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=name)
+        lookup_exist = Utility.is_exist(Lookup, raise_error=False, name__iexact=name, bot=bot, status=True)
         if not lookup_exist:
             raise AppException("Lookup does not exists")
 
@@ -4148,7 +4241,7 @@ class MongoProcessor:
         if value in value_list:
             raise AppException("Lookup value already exists")
         try:
-            val = LookupTables.objects(bot=bot, name__iexact=name).get(id=lookup_id)
+            val = LookupTables.objects(bot=bot, status= True, name__iexact=name).get(id=lookup_id)
             val.value = value
             val.user = user
             val.timestamp = datetime.utcnow()
@@ -4166,7 +4259,7 @@ class MongoProcessor:
             raise AppException("Lookup Id cannot be empty or spaces")
         try:
             lookup = Lookup.objects(bot=bot, status=True).get(id=lookup_id)
-            Utility.hard_delete_document([LookupTables], bot=bot, name__iexact=lookup.name)
+            Utility.hard_delete_document([LookupTables], bot=bot, name__exact=lookup.name)
             lookup.delete()
         except DoesNotExist:
             raise AppException("Invalid lookup!")
@@ -4248,7 +4341,7 @@ class MongoProcessor:
             self.__add_form_responses(slots_to_fill['ask_questions'],
                                       utterance_name=f'utter_ask_{name}_{slots_to_fill["slot"]}',
                                       form=name, bot=bot, user=user)
-        form_id = Forms(name=name, required_slots=required_slots, bot=bot, user=user).save().to_mongo().to_dict()["_id"].__str__()
+        form_id = Forms(name=name, required_slots=required_slots, bot=bot, user=user).save().id.__str__()
         self.__add_or_update_form_validations(f'validate_{name}', path, bot, user)
         self.add_action(f'validate_{name}', bot, user, action_type=ActionType.form_validation_action.value)
         return form_id
@@ -4295,7 +4388,7 @@ class MongoProcessor:
             form = Forms.objects(name=name, bot=bot, status=True).get()
             slots_required_for_form = [slots_to_fill['slot'] for slots_to_fill in path]
             self.__validate_slots_attached_to_form(set(slots_required_for_form), bot)
-            existing_slots_for_form = set(form.to_mongo().to_dict()['required_slots'])
+            existing_slots_for_form = set(form.required_slots)
             slots_to_remove = existing_slots_for_form.difference(set(slots_required_for_form))
             new_slots_to_add = set(slots_required_for_form).difference(existing_slots_for_form)
 
@@ -4355,7 +4448,7 @@ class MongoProcessor:
         slot_mapping.mapping = mapping['mapping']
         slot_mapping.user = user
         slot_mapping.timestamp = datetime.utcnow()
-        return slot_mapping.save().to_mongo().to_dict()['_id'].__str__()
+        return slot_mapping.save().id.__str__()
 
     def get_slot_mappings(self, bot: Text):
         """
@@ -4475,6 +4568,8 @@ class MongoProcessor:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.vector_embeddings_db_action.value:
+                Utility.delete_document([VectorEmbeddingDbAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.prompt_action.value:
                 PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False
@@ -4495,7 +4590,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("action_name"), bot, EmailActionConfig)
-        email = EmailActionConfig(**action).save().to_mongo().to_dict()["_id"].__str__()
+        email = EmailActionConfig(**action).save().id.__str__()
         self.add_action(action['action_name'], bot, user, action_type=ActionType.email_action.value,
                         raise_exception=False)
         return email
@@ -4553,7 +4648,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("name"), bot, JiraAction)
-        jira_action = JiraAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        jira_action = JiraAction(**action).save().id.__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.jira_action.value, raise_exception=False
         )
@@ -4621,7 +4716,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("name"), bot, ZendeskAction)
-        zendesk_action = ZendeskAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        zendesk_action = ZendeskAction(**action).save().id.__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.zendesk_action.value, raise_exception=False
         )
@@ -4676,7 +4771,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("name"), bot, PipedriveLeadsAction)
-        pipedrive_action = PipedriveLeadsAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        pipedrive_action = PipedriveLeadsAction(**action).save().id.__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.pipedrive_leads_action.value, raise_exception=False
         )
@@ -4731,7 +4826,7 @@ class MongoProcessor:
         action['bot'] = bot
         action['user'] = user
         Utility.is_valid_action_name(action.get("name"), bot, HubspotFormsAction)
-        hubspot_action = HubspotFormsAction(**action).save().to_mongo().to_dict()["_id"].__str__()
+        hubspot_action = HubspotFormsAction(**action).save().id.__str__()
         self.add_action(
             action['name'], bot, user, action_type=ActionType.hubspot_forms_action.value, raise_exception=False
         )
@@ -4795,7 +4890,7 @@ class MongoProcessor:
         :param user: user id
         """
         Utility.is_exist(KeyVault, "Key exists!", key=key, bot=bot)
-        return KeyVault(key=key, value=value, bot=bot, user=user).save().to_mongo().to_dict()["_id"].__str__()
+        return KeyVault(key=key, value=value, bot=bot, user=user).save().id.__str__()
 
     @staticmethod
     def get_secret(key: Text, bot: Text, raise_err: bool = True):
@@ -4826,7 +4921,7 @@ class MongoProcessor:
         key_value.value = value
         key_value.user = user
         key_value.save()
-        return key_value.to_mongo().to_dict()["_id"].__str__()
+        return key_value.id.__str__()
 
     @staticmethod
     def list_secrets(bot: Text):
@@ -4848,6 +4943,13 @@ class MongoProcessor:
         """
         if not Utility.is_exist(KeyVault, raise_error=False, key=key, bot=bot):
             raise AppException(f"key '{key}' does not exists!")
+        custom_widgets = list(CustomWidgets.objects(__raw__={
+            "bot": bot,
+            "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
+                    {"request_parameters": {
+                        "$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}}]
+        }).values_list("name"))
+
         http_action = list(HttpActionConfig.objects(__raw__={
             "bot": bot, "status": True,
             "$or": [{"headers": {"$elemMatch": {"parameter_type": ActionParameterType.key_vault.value, "value": key}}},
@@ -4889,6 +4991,9 @@ class MongoProcessor:
 
         if len(actions):
             raise AppException(f"Key is attached to action: {actions}")
+
+        if len(custom_widgets):
+            raise AppException(f"Key is attached to custom widget: {custom_widgets}")
         KeyVault.objects(key=key, bot=bot).delete()
 
     def add_two_stage_fallback_action(
@@ -4983,7 +5088,7 @@ class MongoProcessor:
         Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
         request_data['bot'] = bot
         request_data['user'] = user
-        prompt_action_id = PromptAction(**request_data).save().to_mongo().to_dict()["_id"].__str__()
+        prompt_action_id = PromptAction(**request_data).save().id.__str__()
         self.add_action(
             request_data['name'], bot, user, action_type=ActionType.prompt_action.value, raise_exception=False
         )
@@ -5279,7 +5384,7 @@ class MongoProcessor:
         )
         request_data["bot"] = bot
         request_data["user"] = user
-        action_id = RazorpayAction(**request_data).save().to_mongo().to_dict()["_id"].__str__()
+        action_id = RazorpayAction(**request_data).save().id.__str__()
         self.add_action(
             request_data['name'], bot, user, raise_exception=False, action_type=ActionType.razorpay_action
         )
@@ -5342,7 +5447,7 @@ class MongoProcessor:
         content_obj.user = user
         content_obj.bot = bot
         id = (
-            content_obj.save().to_mongo().to_dict()["_id"].__str__()
+            content_obj.save().id.__str__()
         )
         return id
 
