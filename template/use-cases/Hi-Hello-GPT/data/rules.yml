@@ -1,0 +1,6 @@
+version: "2.0"
+rules:
+- rule: ask the user to rephrase whenever they send a message with low nlu confidence
+  steps:
+  - intent: nlu_fallback
+  - action: kairon_faq_action

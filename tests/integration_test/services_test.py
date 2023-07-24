@@ -11390,6 +11390,47 @@ def test_add_http_action_case_insensitivity():
     assert actual["success"]
 
 
+def test_add_template_invalid():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Invalid"}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Invalid Template!"
+    assert not actual['success']
+
+
+def test_add_template():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"data": "Hi-Hello-GPT"}
+    )
+
+    actual = response.json()
+    assert actual['data'] is None
+    assert actual['error_code'] == 0
+    assert actual['message'] == "Template added successfully!"
+    assert actual['success']
+
+
+def test_list_of_templates():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/templates",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['success']
+    assert actual['error_code'] == 0
+    assert actual['message'] is None
+    assert "Hi-Hello-GPT" in actual['data']
+
+
 def test_get_ui_config_empty():
     response = client.get(
         url=f"/api/account/config/ui",
