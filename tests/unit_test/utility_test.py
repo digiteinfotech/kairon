@@ -1073,8 +1073,8 @@ class TestUtility:
             raise requests.exceptions.ConnectTimeout()
         with mock.patch("kairon.shared.utils.requests.request") as mocked:
             mocked.side_effect = __mock_connection_error
-            with pytest.raises(AppException, match='Failed to connect to service: localhost'):
-                Utility.execute_http_request("POST", "http://localhost:2000/endpoint")
+            with pytest.raises(AppException, match='Failed to connect to service: test.com'):
+                Utility.execute_http_request("POST", "http://test.com/endpoint")
 
     def test_execute_http_request_exception(self):
         def __mock_connection_error(*args, **kwargs):

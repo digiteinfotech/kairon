@@ -1043,56 +1043,6 @@ class TestChatServer(AsyncHTTPTestCase):
                                                   channel_type="whatsapp") > 0
 
     @responses.activate
-    @mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp.process_message", autospec=True)
-    def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(self, mock_process_message):
-        def _mock_validate_hub_signature(*args, **kwargs):
-            return True
-
-        responses.add(
-            "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
-        )
-        mock_process_message.side_effect = Exception
-        with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
-            response = self.fetch(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                method="POST",
-                body=json.dumps({
-                    "object": "whatsapp_business_account",
-                    "entry": [{
-                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                        "changes": [{
-                            "value": {
-                                "messaging_product": "whatsapp",
-                                "metadata": {
-                                    "display_phone_number": "910123456789",
-                                    "phone_number_id": "12345678"
-                                },
-                                "contacts": [{
-                                    "profile": {
-                                        "name": "udit"
-                                    },
-                                    "wa_id": "wa-123456789"
-                                }],
-                                "messages": [{
-                                    "from": "910123456789",
-                                    "id": "wappmsg.ID",
-                                    "timestamp": "21-09-2022 12:05:00",
-                                    "text": {
-                                        "body": "hi"
-                                    },
-                                    "type": "text"
-                                }]
-                            },
-                            "field": "messages"
-                        }]
-                    }]
-                }))
-        actual = response.body.decode("utf8")
-        self.assertEqual(response.code, 200)
-        assert actual == 'success'
-
-    @responses.activate
     def test_whatsapp_valid_button_message_request(self):
         def _mock_validate_hub_signature(*args, **kwargs):
             return True
@@ -1271,10 +1221,10 @@ class TestChatServer(AsyncHTTPTestCase):
     @responses.activate
     def test_whatsapp_bsp_valid_text_message_request(self):
         responses.add(
-            "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
         )
         responses.add(
-            "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
         )
         response = self.fetch(
             f"/api/bot/whatsapp/{bot2}/{token}",
@@ -1308,10 +1258,10 @@ class TestChatServer(AsyncHTTPTestCase):
     @responses.activate
     def test_whatsapp_bsp_valid_button_message_request(self):
         responses.add(
-            "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
         )
         responses.add(
-            "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
         )
         response = self.fetch(
             f"/api/bot/whatsapp/{bot2}/{token}",
@@ -1342,10 +1292,10 @@ class TestChatServer(AsyncHTTPTestCase):
     @responses.activate
     def test_whatsapp_bsp_valid_attachment_message_request(self):
         responses.add(
-            "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
+            "POST", "https://waba.360dialog.io/v1/messages", json={}
         )
         responses.add(
-            "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+            "PUT", 'https://waba.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
         )
 
         response = self.fetch(

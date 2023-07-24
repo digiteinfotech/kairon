@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 import logging
-from typing import Text, Dict
 
 import requests
 
@@ -156,14 +155,3 @@ class WhatsappCloud(object):
         access_token = str(self.access_token).encode('utf8')
 
         return hmac.new(app_secret, access_token, hashlib.sha256).hexdigest()
-
-    def send_template_message(self, namespace: Text, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None):
-        payload = {
-            "language": {
-                "code": language_code
-            },
-            "name": name
-        }
-        if components:
-            payload.update({"components": components})
-        return self.send(payload, to_phone_number, messaging_type="template")
