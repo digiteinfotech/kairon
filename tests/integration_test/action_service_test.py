@@ -8246,11 +8246,10 @@ class TestActionServer(AsyncHTTPTestCase):
             prompt_data = file.read()
         assert mock_completion.call_args.args[3] == prompt_data
 
-    @patch("kairon.shared.llm.gpt3.get_encoding", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
     @mock.patch.object(ActionUtility, "perform_google_search", autospec=True)
-    def test_kairon_faq_response_with_google_search_prompt(self, mock_google_search, mock_embedding, mock_completion, mock_tokenizer):
+    def test_kairon_faq_response_with_google_search_prompt(self, mock_google_search, mock_embedding, mock_completion):
         from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
         from openai.util import convert_to_openai_object
         from openai.openai_response import OpenAIResponse
@@ -8294,13 +8293,6 @@ class TestActionServer(AsyncHTTPTestCase):
         ]
         PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
-        def mock_tiktoken_request(*args, **kwargs):
-            mock_response = {
-                "status": "success",
-                "tiktoken": "mocked_tiktoken_value"
-            }
-            return mock.Mock(text=json.dumps(mock_response))
-
         def mock_completion_for_answer(*args, **kwargs):
             return convert_to_openai_object(
                 OpenAIResponse({'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}, {}))
@@ -8310,7 +8302,6 @@ class TestActionServer(AsyncHTTPTestCase):
         mock_embedding.return_value = embedding
         mock_completion.return_value = generated_text
         mock_google_search.side_effect = _run_action
-        mock_tokenizer.return_value = mock_tiktoken_request()
 
         request_object = json.load(open("tests/testing_data/actions/action-request.json"))
         request_object["tracker"]["slots"]["bot"] = bot
