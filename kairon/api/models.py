@@ -881,8 +881,9 @@ class CognitiveDataRequest(BaseModel):
 
         data = values.get("data")
         metadata = values.get("metadata", [])
-        for metadata_item in metadata:
-            Utility.retrieve_data(data, metadata_item.dict())
+        if metadata:
+            for metadata_item in metadata:
+                Utility.retrieve_data(data, metadata_item.dict())
         return values
 
 

@@ -1195,7 +1195,7 @@ def test_payload_upload_api(monkeypatch):
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     payload = {
             "data": {"details": "AWS"},
-            "content_type": "text",
+            "content_type": "json",
             "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}]
     }
     response = client.post(
@@ -1240,14 +1240,14 @@ def test_payload_updated_api():
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
         json={
             "payload_id": pytest.payload_id,
-            "data": {"color": "red", "city": "Pune"},
-            "content_type": "json",
-            "metadata": [{"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]},
+            "data": 'Data Collection means gathering relevant data from various sources, which can include databases, APIs, websites, sensors, social media, and more.',
+            "content_type": "text"
+        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["message"] == "Record updated!"
     assert actual["error_code"] == 0    
@@ -1263,10 +1263,8 @@ def test_payload_content_update_api_already_exists(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
             "payload_id": payload_id,
-            "data": {"color": "red", "city": "Pune"},
-            "content_type": "json",
-            "metadata": [{"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]
+            "data": 'Data Collection means gathering relevant data from various sources, which can include databases, APIs, websites, sensors, social media, and more.',
+            "content_type": "text",
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
@@ -1285,9 +1283,9 @@ def test_payload_content_update_api_id_not_found():
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
             "text_id": payload_id,
-            "data": {"city": "Pune"},
-            "content_type": "json",
-            "metadata": [{"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]},
+            "data": 'Data Science is an emerging field.',
+            "content_type": "text",
+            },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
     )

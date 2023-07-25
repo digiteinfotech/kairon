@@ -13698,6 +13698,18 @@ class TestMongoProcessor:
             "metadata": [{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
             {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]}
         pytest.payload_id = processor.save_cognition_data(payload, user, bot)
+
+    def test_save_payload_content_with_update(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        payload = {
+            "data": 'Data science is an interdisciplinary field that involves extracting knowledge and insights from data using various scientific methods, algorithms, processes, and systems.',
+            "content_type": "text",
+            "bot": bot,
+            "user": user
+        }
+        pytest.payload_id_two = processor.save_cognition_data(payload, user, bot)
         payload_id = '64b0f2e66707e9282a13f6cd'
         with pytest.raises(AppException, match="Payload data already exists!"):
             processor.update_cognition_data(payload_id, payload, user, bot)
@@ -13777,12 +13789,9 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
-        payload ={
-            "data": {"name": "Sita", "occupation": "Actor"},
-            "content_type": "json",
-            "metadata": [{"column_name": "name", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}, {"column_name": "occupation", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}],
+        payload = {
+            "data": 'AI can process large amounts of data in ways that humans cannot.',
+            "content_type": "text",
             "bot": bot,
             "user": user
         }
@@ -13794,11 +13803,8 @@ class TestMongoProcessor:
         user = 'testUser'
         payload_id = '5349b4ddd2719d08c09890f3'
         payload = {
-            "data": {"color": "blue", "rainbow": "yes"},
-            "content_type": "json",
-            "metadata": [{"column_name": "color", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}, {"column_name": "rainbow", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}],
+            "data": 'Data science plays a crucial role in various industries, including finance, healthcare, marketing, e-commerce, and many others.',
+            "content_type": "text",
             "bot": bot,
             "user": user
         }
@@ -13840,7 +13846,7 @@ class TestMongoProcessor:
         data = list(processor.list_cognition_data(bot))
         print(data)
         assert data[0][
-                   'content'] == {'name': 'Ram', 'age': 23, 'color': 'red'}
+                   'content'] == 'Data science is an interdisciplinary field that involves extracting knowledge and insights from data using various scientific methods, algorithms, processes, and systems.'
         assert data[0]['_id']
 
 
