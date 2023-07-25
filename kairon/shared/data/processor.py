@@ -5502,7 +5502,7 @@ class MongoProcessor:
         if os.path.exists(use_case_path):
             await self.save_from_path(path=use_case_path, bot=bot, user=user)
         else:
-            raise AppException("Invalid template!")
+            raise AppException("Invalid Template!")
 
     def get_templates(self, bot: Text):
         """
