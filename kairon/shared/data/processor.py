@@ -5505,7 +5505,7 @@ class MongoProcessor:
     def update_cognition_data(self, payload_id: str, payload: Dict, user: Text, bot: Text):
         data = payload['data']
         content_type = payload['content_type']
-        Utility.is_exist(CognitionData, bot=bot, id__ne=payload_id, data=data,
+        Utility.is_exist(CognitionData, bot=bot, id__ne=payload_id, data=data, content_type__ne=CognitionDataType.json.value,
                          exp_message="Payload data already exists!")
 
         try:
