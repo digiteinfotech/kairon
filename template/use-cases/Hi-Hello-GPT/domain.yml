@@ -5,27 +5,27 @@ session_config:
   session_expiration_time: 60
   carry_over_slots_to_new_session: true
 intents:
-- greet:
+- affirm:
     use_entities: []
 - goodbye:
     use_entities: []
-- affirm:
+- mood_unhappy:
+    use_entities: []
+- session_start:
     use_entities: []
 - deny:
     use_entities: []
-- mood_great:
-    use_entities: []
-- mood_unhappy:
-    use_entities: []
 - bot_challenge:
     use_entities: []
-- restart:
+- greet:
+    use_entities: []
+- mood_great:
     use_entities: []
 - back:
     use_entities: []
-- out_of_scope:
+- restart:
     use_entities: []
-- session_start:
+- out_of_scope:
     use_entities: []
 - nlu_fallback:
     use_entities: []
@@ -75,10 +75,8 @@ slots:
     influence_conversation: false
 responses:
   utter_greet:
-  - text: Hey! How are you?
   - text: How may i help you?
-  utter_happy:
-  - text: Great, carry on!
+  - text: Hey! How are you?
   utter_cheer_up:
   - text: 'Here is something to cheer you up:'
     image: https://i.imgur.com/nGF1K8f.jpg
@@ -92,7 +90,10 @@ responses:
   - text: Bye
   utter_default:
   - text: Sorry I didn't get that. Can you rephrase?
+  utter_happy:
+  - text: Great, carry on!
 actions:
 - kairon_faq_action
+- google_search_action
 forms: {}
 e2e_actions: []

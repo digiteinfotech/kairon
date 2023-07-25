@@ -5489,7 +5489,7 @@ class MongoProcessor:
             final_data['content'] = data
             yield final_data
 
-    async def create_template(self, name: Text, bot: Text, user: Text):
+    async def apply_bot_template(self, name: Text, bot: Text, user: Text):
         """
         create template
 
@@ -5502,7 +5502,7 @@ class MongoProcessor:
         if os.path.exists(use_case_path):
             await self.save_from_path(path=use_case_path, bot=bot, user=user)
         else:
-            raise AppException("Invalid Template!")
+            raise AppException("Invalid template!")
 
     def get_templates(self, bot: Text):
         """

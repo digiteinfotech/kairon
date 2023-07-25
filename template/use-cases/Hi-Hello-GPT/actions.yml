@@ -1,6 +1,17 @@
 email_action: []
 form_validation_action: []
-google_search_action: []
+google_search_action:
+- api_key:
+    _cls: CustomActionRequestParameters
+    encrypt: false
+    key: api_key
+    parameter_type: value
+    value: AIzaSyBf0VkLPZ8Dax9eFj-Eg3IZjS0G0I0mtvU
+  dispatch_response: true
+  failure_response: No Search Results Found!
+  name: google_search_action
+  num_results: 1
+  search_engine_id: 54051e9dae61947d2
 http_action: []
 jira_action: []
 pipedrive_leads_action: []
