@@ -140,7 +140,7 @@ class Utility:
             if column_name in data and data[column_name] and data_type == CognitionMetadataType.int.value:
                 try:
                     return int(data[column_name])
-                except ValueError as e:
+                except ValueError:
                     raise AppException("Invalid data type")
             else:
                 return data[column_name]
