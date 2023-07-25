@@ -49,9 +49,9 @@ class GPT3FAQEmbedding(LLMBase):
                 if not content['metadata'] or []:
                     search_payload, vector_embeddings = content.data, json.dumps(content.data)
                 else:
-                    search_payload, vector_embeddings = Utility.prepare_metadata(content.data, content.metadata)
+                    search_payload, vector_embeddings = Utility.get_embeddings_and_payload(content.data, content.metadata)
             else:
-                search_payload, vector_embeddings = content.data, content.data
+                search_payload, vector_embeddings = {'content': content.data}, content.data
             points = [{'id': content.vector_id, 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
             self.__collection_upsert__(self.bot + self.suffix, {'points': points},
                                        err_msg="Unable to train FAQ! Contact support")

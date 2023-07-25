@@ -13773,22 +13773,6 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Invalid data type"):
             actual = processor.save_cognition_data(payload, user, bot)
 
-    def test_save_payload_content_column_name_not_in_data(self):
-        processor = MongoProcessor()
-        bot = 'test_bot_payload'
-        user = 'testUser'
-        payload = {
-            "data": {"name": "Ram", "color": "red"},
-            "content_type": "json",
-            "metadata": [
-                {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "color", "data_type": "str", "enable_search": False, "create_embeddings": True},
-                {"column_name": "age", "data_type": "int", "enable_search": False, "create_embeddings": True}
-            ]
-        }
-        with pytest.raises(AppException, match="column_name not in data"):
-            actual = processor.save_cognition_data(payload, user, bot)
-
     def test_update_payload_content(self):
         processor = MongoProcessor()
         bot = 'test_bot_payload'

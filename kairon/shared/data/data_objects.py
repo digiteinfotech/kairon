@@ -736,7 +736,7 @@ class CognitionData(Auditlog):
         if self.metadata:
             for metadata_item in self.metadata or []:
                 metadata_item.validate()
-                Utility.check_data_type(self.data, metadata_item.to_mongo().to_dict())
+                Utility.retrieve_data(self.data, metadata_item.to_mongo().to_dict())
 
 
 @auditlogger.log

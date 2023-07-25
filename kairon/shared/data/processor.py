@@ -5505,11 +5505,11 @@ class MongoProcessor:
     def update_cognition_data(self, payload_id: str, payload: Dict, user: Text, bot: Text):
         data = payload['data']
         content_type = payload['content_type']
-        Utility.is_exist(CognitionData, bot=bot, id__ne=payload_id, data=data, content_type__ne=CognitionDataType.json.value,
+        Utility.is_exist(CognitionData, bot=bot, id__ne=payload_id, data=data, content_type=content_type,
                          exp_message="Payload data already exists!")
 
         try:
-            payload_obj = CognitionData.objects(bot=bot, id=payload_id).get()
+            payload_obj = CognitionData.objects(bot=bot, id=payload_id, content_type=payload.get('content_type')).get()
             payload_obj.data = data
             payload_obj.content_type = content_type
             payload_obj.metadata = [CognitionMetadata(**meta) for meta in payload.get('metadata', [])]

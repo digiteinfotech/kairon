@@ -114,7 +114,7 @@ class TestLLM:
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                   'vector': embedding,
-                                                                  'payload': test_content.data
+                                                                  'payload': {'content': test_content.data}
                                                                   }]})],
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
@@ -262,7 +262,7 @@ class TestLLM:
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                            'vector': embedding,
-                                                                           'payload': test_content.data
+                                                                           'payload': {'name': 'Ram', 'age': 23, 'color': 'red'}
                                                                            }]})],
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
@@ -484,7 +484,7 @@ class TestLLM:
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                   'vector': embedding,
-                                                                  'payload': test_content.data
+                                                                  'payload': {'content': test_content.data}
                                                                   }]})],
                 json={"result": None,
                       'status': {'error': 'Json deserialize error: missing field `vectors` at line 1 column 34779'},

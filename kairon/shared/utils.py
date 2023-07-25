@@ -133,36 +133,31 @@ class Utility:
             return False
 
     @staticmethod
-    def check_data_type(data: Any, metadata: Dict):
+    def retrieve_data(data: Any, metadata: Dict):
         if metadata and isinstance(data, dict):
-            column_name = metadata["column_name"]
             data_type = metadata["data_type"]
-            if column_name in data:
-                column_value = data[column_name]
-                expected_type = CognitionMetadataType[data_type].value
+            column_name = metadata["column_name"]
+            if column_name in data and data[column_name] and data_type == CognitionMetadataType.int.value:
                 try:
-                    converted_value = int(column_value) if expected_type == 'int' else column_value
-                    data[column_name] = converted_value
-                    return converted_value
-                except Exception as e:
+                    return int(data[column_name])
+                except ValueError as e:
                     raise AppException("Invalid data type")
             else:
-                raise AppException("column_name not in data")
+                return data[column_name]
 
     @staticmethod
-    def prepare_metadata(data: Any, metadata: Dict):
+    def get_embeddings_and_payload(data: Any, metadata: Dict):
         search_payload = {}
-        create_embeddings = {}
-        embeddings = ''
+        create_embedding_data = {}
         for metadata_item in metadata:
             column_name = metadata_item["column_name"]
-            converted_value = Utility.check_data_type(data, metadata_item)
-            if metadata_item["enable_search"]:
+            converted_value = Utility.retrieve_data(data, metadata_item)
+            if converted_value and metadata_item["enable_search"]:
                 search_payload[column_name] = converted_value
-            if metadata_item["create_embeddings"]:
-                create_embeddings[column_name] = converted_value
-            embeddings = json.dumps(create_embeddings)
-        return search_payload, embeddings
+            if converted_value and metadata_item["create_embeddings"]:
+                create_embedding_data[column_name] = converted_value
+        create_embedding_data = json.dumps(create_embedding_data)
+        return search_payload, create_embedding_data
 
     @staticmethod
     def validate_slot_initial_value_and_values(slot_value: Dict):
