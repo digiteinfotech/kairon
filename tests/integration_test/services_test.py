@@ -12177,7 +12177,7 @@ def test_apply_template_invalid():
     actual = response.json()
     assert actual['data'] is None
     assert actual['error_code'] == 422
-    assert actual['message'] == "Invalid template!"
+    assert actual['message'] == "Invalid Template!"
     assert not actual['success']
 
 
