@@ -272,6 +272,81 @@ class TestLLM:
             assert response['faq'] == 1
 
     @responses.activate
+    def test_gpt3_faq_embedding_train_int(self):
+        bot = "test_embed_faq_int"
+        user = "test"
+        value = "nupurkhare"
+        test_content = CognitionData(
+            data={"name": "Ram", "age": 23, "color": "red"},
+            content_type="json",
+            metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                      {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
+                      {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            bot=bot, user=user).save()
+        secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
+
+        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
+        request_header = {"Authorization": "Bearer nupurkhare"}
+        input = {"name": "Ram", "color": "red"}
+        responses.add(
+            url="https://api.openai.com/v1/embeddings",
+            method="POST",
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": json.dumps(input)}),
+                responses.matchers.header_matcher(request_header)],
+            json={'data': [{'embedding': embedding}]}
+        )
+
+        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
+            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            responses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                adding_headers={}
+            )
+
+            responses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': gpt3.bot + gpt3.cached_resp_suffix, 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
+                                                                           'vector': embedding,
+                                                                           'payload': test_content.data
+                                                                           }]})],
+                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+            )
+
+            response = gpt3.train()
+
+            assert response['faq'] == 1
+
+    @responses.activate
     def test_gpt3_faq_embedding_train_payload_json_no_metadata(self):
         bot = "test_embed_faq_json_no_metadata"
         user = "test"

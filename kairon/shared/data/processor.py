@@ -47,7 +47,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
-    LlmPromptSource
+    LlmPromptSource, CognitionDataType
 from kairon.shared.utils import Utility, StoryValidator
 from .base_data import AuditLogData
 from .constant import (
@@ -5455,7 +5455,7 @@ class MongoProcessor:
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
 
-        Utility.is_exist(CognitionData, bot=bot, id__ne=content_id, data=content,
+        Utility.is_exist(CognitionData, bot=bot, id__ne=content_id, data=content, content_type__ne=CognitionDataType.json.value,
                          exp_message="Text already exists!")
 
         try:

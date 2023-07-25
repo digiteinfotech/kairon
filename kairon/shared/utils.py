@@ -146,6 +146,23 @@ class Utility:
                     return converted_value
                 except Exception as e:
                     raise AppException("Invalid data type")
+            else:
+                raise AppException("column_name not in data")
+
+    @staticmethod
+    def prepare_metadata(data: Any, metadata: Dict):
+        search_payload = {}
+        create_embeddings = {}
+        embeddings = ''
+        for metadata_item in metadata:
+            column_name = metadata_item["column_name"]
+            converted_value = Utility.check_data_type(data, metadata_item)
+            if metadata_item["enable_search"]:
+                search_payload[column_name] = converted_value
+            if metadata_item["create_embeddings"]:
+                create_embeddings[column_name] = converted_value
+            embeddings = json.dumps(create_embeddings)
+        return search_payload, embeddings
 
     @staticmethod
     def validate_slot_initial_value_and_values(slot_value: Dict):
