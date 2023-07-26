@@ -36,7 +36,7 @@ from starlette.requests import Request
 
 from kairon.api import models
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
-    SetSlotsUsingActionResponse, PromptActionConfigRequest, VectorEmbeddingActionRequest, OperationConfig, PayloadConfig
+    SetSlotsUsingActionResponse, PromptActionConfigRequest, VectorEmbeddingActionRequest
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -2528,6 +2528,41 @@ class TestMongoProcessor:
         assert file_content_rules == b'version: "2.0"\nrules:\n- rule: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: foodyy\n  - action: utter_foodyy\n'
         zip_file.close()
 
+    def test_download_data_files_prompt_action(self, monkeypatch):
+        from zipfile import ZipFile
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        BotSettings(bot="tests_download_prompt", user="user@integration.com", llm_settings=LLMSettings(enable_faq=True)).save()
+        request = {'name': 'prompt_action_with_default_values',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                                   {'name': 'Query Prompt',
+                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                                    'instructions': 'Answer according to the context', 'type': 'query',
+                                    'source': 'static', 'is_enabled': True}
+                                   ],
+                   "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
+                                 {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+                   "dispatch_response": False
+                   }
+        processor.add_prompt_action(request, "tests_download_prompt", "user@integration.com")
+        file = processor.download_files("tests_download_prompt", "user@integration.com")
+        assert file.endswith(".zip")
+        zip_file = ZipFile(file, mode='r')
+        assert zip_file.getinfo('actions.yml')
+        file_info_actions = zip_file.getinfo('actions.yml')
+        file_content_actions = zip_file.read(file_info_actions)
+        expected_content = b"name: System Prompt\n    source: static\n    type: system\n  - is_enabled: true"
+        assert file_content_actions.__contains__(expected_content)
+        zip_file.close()
+
     def test_download_data_files_empty_data(self, monkeypatch):
         from zipfile import ZipFile
         def _mock_bot_info(*args, **kwargs):
@@ -2640,7 +2675,7 @@ class TestMongoProcessor:
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
-        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
+        expected_actions = b'email_action: []\nform_validation_action: []\ngoogle_search_action: []\nhttp_action: []\njira_action: []\npipedrive_leads_action: []\nprompt_action: []\nslot_set_action: []\ntwo_stage_fallback: []\nzendesk_action: []\n'.decode(
             encoding='utf-8')
 
         def _mock_bot_info(*args, **kwargs):
@@ -2673,7 +2708,7 @@ class TestMongoProcessor:
         action_config = processor.load_action_configurations("tests")
         assert action_config == {'http_action': [], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
-                                 'pipedrive_leads_action': [], 'two_stage_fallback': []}
+                                 'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -5036,6 +5071,8 @@ class TestMongoProcessor:
                 with patch('kairon.shared.actions.data_objects.JiraAction.validate'):
                     with patch('pipedrive.client.Client'):
                         processor = MongoProcessor()
+                        BotSettings(bot='test_validate_and_prepare_data_all_actions', user='test',
+                                    llm_settings=LLMSettings(enable_faq=True)).save()
                         actions = UploadFile(filename="actions.yml",
                                              file=BytesIO(open('tests/testing_data/actions/actions.yml', 'rb').read()))
                         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
@@ -5044,7 +5081,7 @@ class TestMongoProcessor:
                             'http_actions': [], 'slot_set_actions': [], 'form_validation_actions': [],
                             'email_actions': [],
                             'google_search_actions': [], 'jira_actions': [], 'zendesk_actions': [],
-                            'pipedrive_leads_actions': []
+                            'pipedrive_leads_actions': [], 'prompt_actions': []
                         }
                         assert non_event_validation_summary['component_count']['http_actions'] == 4
                         assert non_event_validation_summary['component_count']['jira_actions'] == 2
@@ -5054,6 +5091,7 @@ class TestMongoProcessor:
                         assert non_event_validation_summary['component_count']['slot_set_actions'] == 3
                         assert non_event_validation_summary['component_count']['form_validation_actions'] == 4
                         assert non_event_validation_summary['component_count']['pipedrive_leads_actions'] == 2
+                        assert non_event_validation_summary['component_count']['prompt_actions'] == 2
                         assert non_event_validation_summary['validation_failed'] is False
                         assert files_received == {'actions'}
                         assert not is_event_data
@@ -5067,6 +5105,7 @@ class TestMongoProcessor:
                         assert len(saved_actions['zendesk_action']) == 2
                         assert len(saved_actions['email_action']) == 2
                         assert len(saved_actions['pipedrive_leads_action']) == 2
+                        assert len(saved_actions['prompt_action']) == 2
                         assert len(saved_actions['two_stage_fallback']) == 1
                         assert saved_actions['two_stage_fallback'][0]['name'] == "kairon_two_stage_fallback"
                         assert saved_actions['two_stage_fallback'][0]['text_recommendations'] == \

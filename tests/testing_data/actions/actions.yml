@@ -236,3 +236,39 @@ two_stage_fallback:
   - is_dynamic_msg: false
     payload: greet
     text: Hi
+
+prompt_action:
+- name: prompt_action_1
+  num_bot_responses: 5
+  top_results: 5
+  similarity_threshold: 1
+  enable_response_cache: True
+  llm_prompts:
+    - name: System Prompt
+      data: You are a personal assistant.
+      type: system
+      source: static
+      is_enabled: True
+    - name: Query Prompt
+      data: A programming language is a system of notation for writing computer programs.
+      instructions: Answer according to the context.
+      type: query
+      source: static
+      is_enabled: True
+- name: prompt_action_2
+  num_bot_responses: 5
+  top_results: 5
+  similarity_threshold: 1
+  enable_response_cache: True
+  llm_prompts:
+    - name: System Prompt
+      data: You are a personal assistant.
+      type: system
+      source: static
+      is_enabled: True
+    - name: Similarity Prompt
+      data: Data Science is an emerging field.
+      instructions: Answer according to the context.
+      type: user
+      source: static
+      is_enabled: True
