@@ -646,7 +646,7 @@ class TestTrainingDataValidator:
         assert len(error_summary['zendesk_actions']) == 2
         assert len(error_summary['pipedrive_leads_actions']) == 3
         print(error_summary['prompt_actions'])
-        assert len(error_summary['prompt_actions']) == 55
+        assert len(error_summary['prompt_actions']) == 51
         print(component_count)
         assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
