@@ -3394,7 +3394,8 @@ class MongoProcessor:
             ActionType.email_action.value: EmailActionConfig, ActionType.zendesk_action.value: ZendeskAction,
             ActionType.jira_action.value: JiraAction, ActionType.form_validation_action.value: FormValidationAction,
             ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,
-            ActionType.pipedrive_leads_action.value: PipedriveLeadsAction
+            ActionType.pipedrive_leads_action.value: PipedriveLeadsAction,
+            ActionType.prompt_action.value: PromptAction
         }
         saved_actions = set(Actions.objects(bot=bot, status=True, type__ne=None).values_list('name'))
         for action_type, actions_list in actions.items():
@@ -3423,6 +3424,7 @@ class MongoProcessor:
         action_config.update(self.load_google_search_action(bot))
         action_config.update(self.load_pipedrive_leads_action(bot))
         action_config.update(self.load_two_stage_fallback_action_config(bot))
+        action_config.update(self.load_prompt_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -3523,6 +3525,14 @@ class MongoProcessor:
         :return: dict
         """
         return {ActionType.form_validation_action.value: list(self.list_form_validation_actions(bot))}
+
+    def load_prompt_action(self, bot: Text):
+        """
+        Loads Prompt actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {ActionType.prompt_action.value: list(self.get_prompt_action(bot))}
 
     @staticmethod
     def get_existing_slots(bot: Text):
