@@ -526,14 +526,12 @@ class TrainingDataValidator(Validator):
                 if len(required_fields.difference(set(action.keys()))) > 0:
                     data_error.append(f'Required fields {required_fields} not found in action: {action.get("name")}')
                     continue
-                if action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int):
+                if action.get('num_bot_responses') and (action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
                     data_error.append(f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
-                if action['top_results'] > 30 or not isinstance(action['top_results'], int):
+                if action.get('top_results') and (action['top_results'] > 30 or not isinstance(action['top_results'], int)):
                     data_error.append(f'top_results should not be greater than 30 and of type int: {action.get("name")}')
-                if not 0.3 <= action['similarity_threshold'] <= 1 or not isinstance(action['similarity_threshold'], int):
+                if action.get('similarity_threshold') and (not 0.3 <= action['similarity_threshold'] <= 1 or not isinstance(action['similarity_threshold'], int)):
                     data_error.append(f'similarity_threshold should be within 0.3 and 1 and of type int: {action.get("name")}')
-                if not action['llm_prompts']:
-                    data_error.append(f'LLM prompts are required: {action.get("name")}')
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
                 if action.get('hyperparameters') is not None:
                     llm_hyperparameters_errors = TrainingDataValidator.__validate_llm_prompts_hyperparamters(action.get('hyperparameters'))
@@ -562,7 +560,7 @@ class TrainingDataValidator(Validator):
             if prompt.get('type') not in ['user', 'system', 'query']:
                 error_list.append('Invalid prompt type')
             if prompt.get('source') not in ['static', 'slot', 'action', 'history', 'bot_content']:
-                error_list.append('Invalid prompt type')
+                error_list.append('Invalid prompt source')
             if prompt.get('type') and not isinstance(prompt.get('type'), str):
                 error_list.append('type in LLM Prompts should be of type string.')
             if prompt.get('source') and not isinstance(prompt.get('source'), str):
@@ -573,18 +571,17 @@ class TrainingDataValidator(Validator):
                 error_list.append('System prompt must have static source')
             if prompt.get('type') == 'query' and prompt.get('source') != 'static':
                 error_list.append('Query prompt must have static source')
-            if Utility.check_empty_string(prompt.get('data')) and prompt.get('source') == 'action':
+            if not prompt.get('data') and prompt.get('source') == 'action':
                 error_list.append('Data must contain action name')
-            if Utility.check_empty_string(prompt.get('data')) and prompt.get('source') == 'slot':
+            if not prompt.get('data') and prompt.get('source') == 'slot':
                 error_list.append('Data must contain slot name')
             if Utility.check_empty_string(prompt.get('name')):
                 error_list.append('Name cannot be empty')
             if prompt.get('data') and not isinstance(prompt.get('data'), str):
                 error_list.append('data field in prompts should of type string.')
-            if Utility.check_empty_string(prompt.get('data')) and prompt.get('source') == 'static':
+            if not prompt.get('data') and prompt.get('source') == 'static':
                 error_list.append('data is required for static prompts')
-            if prompt.get('type') != 'system' and prompt.get('source') != 'history' and \
-                    Utility.check_empty_string(prompt.get('instructions')):
+            if prompt.get('type') != 'system' and prompt.get('source') != 'history' and prompt.get('instructions'):
                 error_list.append('instructions are required')
             if system_prompt_count > 1:
                 error_list.append('Only one system prompt can be present')
@@ -615,9 +612,7 @@ class TrainingDataValidator(Validator):
             elif key == 'logit_bias' and not isinstance(value, dict):
                 error_list.append("logit_bias must be a dictionary!")
             elif key == 'stop':
-                if value and not isinstance(value, (str, int, list)):
-                    error_list.append("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
-                elif value and (isinstance(value, list) and len(value) > 4):
+                if value and (not isinstance(value, (str, int, list)) or (isinstance(value, list) and len(value) > 4)):
                     error_list.append("Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.")
         return error_list
 
