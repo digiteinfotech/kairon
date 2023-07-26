@@ -39,6 +39,7 @@ RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install pandas
 RUN python -m pip install openai==0.27.0
 RUN python -m pip install pydantic==1.10.11
+RUN python -m pip install tiktoken
 
 COPY kairon/ /app/kairon/
 COPY metadata /app/metadata
