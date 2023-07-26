@@ -1,5 +1,18 @@
 email_action: []
 form_validation_action: []
+prompt_action:
+- name: kairon_faq_action
+  num_bot_responses: 5
+  top_results: 5
+  similarity_threshold: 5
+  enable_response_cache: True
+  llm_prompts:
+    - name: Query Prompt
+      data: A programming language is a system of notation for writing computer programs.
+      instructions: Answer according to the context given above.
+      type: query
+      source: static
+      is_enabled: True
 google_search_action:
 - api_key:
     _cls: CustomActionRequestParameters
