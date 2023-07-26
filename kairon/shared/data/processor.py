@@ -3532,7 +3532,7 @@ class MongoProcessor:
         :param bot: bot id
         :return: dict
         """
-        return {ActionType.prompt_action.value: list(self.get_prompt_action(bot))}
+        return {ActionType.prompt_action.value: list(self.get_prompt_action(bot, False))}
 
     @staticmethod
     def get_existing_slots(bot: Text):
@@ -5143,17 +5143,21 @@ class MongoProcessor:
         action.user = user
         action.save()
 
-    def get_prompt_action(self, bot: Text):
+    def get_prompt_action(self, bot: Text, with_doc_id: bool = True):
         """
         fetches prompt(Kairon FAQ) Action
 
         :param bot: bot id
+        :param with_doc_id: action id
         :return: yield dict
         """
         actions = []
         for action in PromptAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
-            action['_id'] = action['_id'].__str__()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
             action.pop('timestamp')
             action.pop('bot')
             action.pop('user')
