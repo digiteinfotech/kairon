@@ -34,7 +34,7 @@ class CloudUtility:
     def __check_bucket_exist(s3, bucket_name):
         """
         Checks whether the bucket exists.
-        It is assumed that role supplied has permissions to perform the operation and
+        It is assumed that role supplied has permissions to perform the query and
         therefore the ClientError will only be thrown when bucket does not exists.
         """
         try:

@@ -43,11 +43,11 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, VectorEmbeddingDbAction, VectorDbOperation, VectorDbPayload
-from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, VectorDbValueType
+    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery
+from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
-    LlmPromptSource
+    LlmPromptSource, CognitionDataType
 from kairon.shared.utils import Utility, StoryValidator
 from .base_data import AuditLogData
 from .constant import (
@@ -86,8 +86,8 @@ from .data_objects import (
     ModelDeployment,
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
-    MultiflowStories, MultiflowStoryEvents, BotContent, MultiFlowStoryMetadata,
-    Synonyms, Lookup
+    MultiflowStories, MultiflowStoryEvents, CognitionData, MultiFlowStoryMetadata,
+    Synonyms, Lookup, CognitionMetadata
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots
@@ -2995,7 +2995,7 @@ class MongoProcessor:
         actions = HttpActionConfig.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
 
-    def update_vector_embedding_db_action(self, request_data: Dict, user: str, bot: str):
+    def update_db_action(self, request_data: Dict, user: str, bot: str):
         """
         Updates VectorDb configuration.
         :param request_data: Dict containing configuration to be modified
@@ -3004,12 +3004,12 @@ class MongoProcessor:
         :return: VectorDb configuration id for updated VectorDb action config
         """
 
-        if not Utility.is_exist(VectorEmbeddingDbAction, raise_error=False, name=request_data.get('name'), bot=bot, status=True):
+        if not Utility.is_exist(DatabaseAction, raise_error=False, name=request_data.get('name'), bot=bot, status=True):
             raise AppException(f'Action with name "{request_data.get("name")}" not found')
         self.__validate_payload(request_data.get('payload'), bot)
-        action = VectorEmbeddingDbAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
-        action.operation = VectorDbOperation(**request_data['operation'])
-        action.payload = VectorDbPayload(**request_data['payload'])
+        action = DatabaseAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action.query = DbOperation(**request_data['query'])
+        action.payload = DbQuery(**request_data['payload'])
         action.response = HttpActionResponse(**request_data.get('response', {}))
         action.set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in
                             request_data.get('set_slots')]
@@ -3018,7 +3018,7 @@ class MongoProcessor:
         action_id = action.save().id.__str__()
         return action_id
 
-    def add_vector_embedding_db_action(self, vector_db_action_config: Dict, user: str, bot: str):
+    def add_db_action(self, vector_db_action_config: Dict, user: str, bot: str):
         """
         Adds a new VectorDb action.
         :param vector_db_action_config: dict object containing configuration for the Http action
@@ -3027,36 +3027,36 @@ class MongoProcessor:
         :return: Http configuration id for saved Http action config
         """
         self.__validate_payload(vector_db_action_config.get('payload'), bot)
-        Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, VectorEmbeddingDbAction)
+        Utility.is_valid_action_name(vector_db_action_config.get("name"), bot, DatabaseAction)
         set_slots = [SetSlotsFromResponse(**slot) for slot in vector_db_action_config.get('set_slots')]
-        action_id = VectorEmbeddingDbAction(
+        action_id = DatabaseAction(
             name=vector_db_action_config['name'],
-            operation=VectorDbOperation(**vector_db_action_config.get('operation')),
-            payload=VectorDbPayload(**vector_db_action_config.get('payload')),
+            query=DbOperation(**vector_db_action_config.get('query')),
+            payload=DbQuery(**vector_db_action_config.get('payload')),
             response=HttpActionResponse(**vector_db_action_config.get('response', {})),
             set_slots=set_slots,
             bot=bot,
             user=user,
         ).save().id.__str__()
-        self.add_action(vector_db_action_config['name'], bot, user, action_type=ActionType.vector_embeddings_db_action.value,
+        self.add_action(vector_db_action_config['name'], bot, user, action_type=ActionType.database_action.value,
                         raise_exception=False)
         return action_id
 
     def __validate_payload(self, payload, bot: Text):
-        if payload.get('type') == VectorDbValueType.from_slot.value:
+        if payload.get('type') == DbQueryValueType.from_slot.value:
             slot = payload.get('value')
             if not Utility.is_exist(Slots, raise_error=False, name=slot, bot=bot, status=True):
                 raise AppException(f'Slot with name {slot} not found!')
 
-    def get_vector_embedding_db_action_config(self, bot: str, action: str):
+    def get_db_action_config(self, bot: str, action: str):
         """
         Fetches VectorDb action config from collection.
         :param bot: bot id
         :param action: action name
-        :return: VectorEmbeddingDbAction object containing configuration for the Http action.
+        :return: DatabaseAction object containing configuration for the Http action.
         """
         try:
-            vector_embedding_config_dict = VectorEmbeddingDbAction.objects(bot=bot, name=action, status=True).get()
+            vector_embedding_config_dict = DatabaseAction.objects(bot=bot, name=action, status=True).get()
             vector_embedding_config = vector_embedding_config_dict.to_mongo().to_dict()
             vector_embedding_config['_id'] = vector_embedding_config['_id'].__str__()
             return vector_embedding_config
@@ -3064,14 +3064,14 @@ class MongoProcessor:
             logging.exception(ex)
             raise AppException("Action does not exists!")
 
-    def list_vector_embedding_db_actions(self, bot: str, with_doc_id: bool = True):
+    def list_db_actions(self, bot: str, with_doc_id: bool = True):
         """
         Fetches all VectorDb actions from collection
         :param bot: bot id
         :param with_doc_id: return document id along with action configuration if True
         :return: List of VectorDb actions.
         """
-        for action in VectorEmbeddingDbAction.objects(bot=bot, status=True):
+        for action in DatabaseAction.objects(bot=bot, status=True):
             action = action.to_mongo().to_dict()
             if with_doc_id:
                 action['_id'] = action['_id'].__str__()
@@ -4568,8 +4568,8 @@ class MongoProcessor:
                 Utility.delete_document([KaironTwoStageFallbackAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.razorpay_action.value:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
-            elif action.type == ActionType.vector_embeddings_db_action.value:
-                Utility.delete_document([VectorEmbeddingDbAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.database_action.value:
+                Utility.delete_document([DatabaseAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.prompt_action.value:
                 PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
             action.status = False
@@ -5442,7 +5442,7 @@ class MongoProcessor:
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
 
-        content_obj = BotContent()
+        content_obj = CognitionData()
         content_obj.data = content
         content_obj.user = user
         content_obj.bot = bot
@@ -5455,11 +5455,11 @@ class MongoProcessor:
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
 
-        Utility.is_exist(BotContent, bot=bot, id__ne=content_id, data=content,
-                                exp_message="Text already exists!")
+        Utility.is_exist(CognitionData, bot=bot, id__ne=content_id, data=content, content_type__ne=CognitionDataType.json.value,
+                         exp_message="Text already exists!")
 
         try:
-            content_obj = BotContent.objects(bot=bot, id=content_id).get()
+            content_obj = CognitionData.objects(bot=bot, id=content_id).get()
             content_obj.data = content
             content_obj.user = user
             content_obj.timestamp = datetime.utcnow()
@@ -5469,7 +5469,7 @@ class MongoProcessor:
 
     def delete_content(self, content_id: str, user: Text, bot: Text):
         try:
-            content = BotContent.objects(bot=bot, id=content_id).get()
+            content = CognitionData.objects(bot=bot, id=content_id).get()
             content.delete()
         except DoesNotExist:
             raise AppException("Text does not exists!")
@@ -5481,10 +5481,65 @@ class MongoProcessor:
         :param bot: bot id
         :return: yield dict
         """
-        for value in BotContent.objects(bot=bot):
+        for value in CognitionData.objects(bot=bot):
             final_data = {}
             item = value.to_mongo().to_dict()
             data = item.pop("data")
             final_data["_id"] = item["_id"].__str__()
             final_data['content'] = data
+            yield final_data
+
+    def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
+        bot_settings = self.get_bot_settings(bot=bot, user=user)
+        if not bot_settings["llm_settings"]['enable_faq']:
+            raise AppException('Faq feature is disabled for the bot! Please contact support.')
+        payload_obj = CognitionData()
+        payload_obj.data = payload.get('data')
+        payload_obj.content_type = payload.get('content_type')
+        payload_obj.metadata = [CognitionMetadata(**meta) for meta in payload.get('metadata', [])]
+        payload_obj.user = user
+        payload_obj.bot = bot
+        payload_id = payload_obj.save().to_mongo().to_dict()["_id"].__str__()
+        return payload_id
+
+    def update_cognition_data(self, payload_id: str, payload: Dict, user: Text, bot: Text):
+        data = payload['data']
+        content_type = payload['content_type']
+        Utility.is_exist(CognitionData, bot=bot, id__ne=payload_id, data=data, content_type__ne=CognitionDataType.json.value,
+                         exp_message="Payload data already exists!")
+
+        try:
+            payload_obj = CognitionData.objects(bot=bot, id=payload_id).get()
+            payload_obj.data = data
+            payload_obj.content_type = content_type
+            payload_obj.user = user
+            payload_obj.timestamp = datetime.utcnow()
+            payload_obj.save()
+        except DoesNotExist:
+            raise AppException("Payload with given id not found!")
+
+    def delete_cognition_data(self, payload_id: str, bot: Text):
+        try:
+            payload = CognitionData.objects(bot=bot, id=payload_id).get()
+            payload.delete()
+        except DoesNotExist:
+            raise AppException("Payload does not exists!")
+
+    def list_cognition_data(self, bot: Text):
+        """
+        fetches content
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        for value in CognitionData.objects(bot=bot):
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            data = item.pop("data")
+            data_type = item.pop("content_type")
+            metadata = item.pop("metadata")
+            final_data["_id"] = item["_id"].__str__()
+            final_data['content'] = data
+            final_data['content_type'] = data_type
+            final_data['metadata'] = metadata
             yield final_data

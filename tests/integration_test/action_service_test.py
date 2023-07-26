@@ -8,7 +8,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    VectorEmbeddingDbAction, VectorDbOperation, VectorDbPayload
+    DatabaseAction, DbOperation, DbQuery
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -2120,12 +2120,12 @@ class TestActionServer(AsyncHTTPTestCase):
     @responses.activate
     def test_vectordb_action_execution_embedding_search_from_value(self):
         action_name = "test_vectordb_action_execution"
-        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56b698ca10d75d2e", user="user").save()
+        Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56b698ca10d75d2e", user="user").save()
         payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
-        VectorEmbeddingDbAction(
+        DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="embedding_search"),
-            payload=VectorDbPayload(type="from_value", value=payload_body),
+            query=DbOperation(type="from_value", value="embedding_search"),
+            payload=DbQuery(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
             set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
             bot="5f50fd0a56b698ca10d75d2e",
@@ -2202,7 +2202,7 @@ class TestActionServer(AsyncHTTPTestCase):
     @responses.activate
     def test_vectordb_action_execution_payload_search_from_value(self):
         action_name = "test_vectordb_action_execution"
-        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50md0a56b698ca10d35d2e", user="user").save()
+        Actions(name=action_name, type=ActionType.database_action.value, bot="5f50md0a56b698ca10d35d2e", user="user").save()
         payload_body = {
             "filter": {
                 "should": [
@@ -2211,10 +2211,10 @@ class TestActionServer(AsyncHTTPTestCase):
                 ]
             }
         }
-        VectorEmbeddingDbAction(
+        DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="payload_search"),
-            payload=VectorDbPayload(type="from_value", value=payload_body),
+            query=DbOperation(type="from_value", value="payload_search"),
+            payload=DbQuery(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
             set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
             bot="5f50md0a56b698ca10d35d2e",
@@ -2279,14 +2279,14 @@ class TestActionServer(AsyncHTTPTestCase):
     @responses.activate
     def test_vectordb_action_execution_embedding_search_from_slot(self):
         action_name = "test_vectordb_action_execution"
-        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fx0a56b698ca10d35d2e", user="user").save()
+        Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56b698ca10d35d2e", user="user").save()
         slot = 'name'
         Slots(name=slot, type='text', bot='5f50fx0a56b698ca10d35d2e', user='user').save()
 
-        VectorEmbeddingDbAction(
+        DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="embedding_search"),
-            payload=VectorDbPayload(type="from_slot", value='name'),
+            query=DbOperation(type="from_value", value="embedding_search"),
+            payload=DbQuery(type="from_slot", value='name'),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
             set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
             bot="5f50fx0a56b698ca10d35d2e",
@@ -2362,14 +2362,14 @@ class TestActionServer(AsyncHTTPTestCase):
     @responses.activate
     def test_vectordb_action_execution_payload_search_from_slot(self):
         action_name = "test_vectordb_action_execution"
-        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fx0a56v698ca10d39c2e", user="user").save()
+        Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56v698ca10d39c2e", user="user").save()
         slot = 'color'
         Slots(name=slot, type='text', bot='5f50fx0a56v698ca10d39c2e', user='user').save()
 
-        VectorEmbeddingDbAction(
+        DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="payload_search"),
-            payload=VectorDbPayload(type="from_slot", value='color'),
+            query=DbOperation(type="from_value", value="payload_search"),
+            payload=DbQuery(type="from_slot", value='color'),
             response=HttpActionResponse(value="The name of the city with id ${data.0.id} is ${data.0.city}"),
             set_slots=[SetSlotsFromResponse(name="city_name", value="${data.0.city}")],
             bot="5f50fx0a56v698ca10d39c2e",
@@ -2433,12 +2433,12 @@ class TestActionServer(AsyncHTTPTestCase):
     @responses.activate
     def test_vectordb_action_execution_no_response_dispatch(self):
         action_name = "test_vectordb_action_execution_no_response_dispatch"
-        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56v098ca10d75d2e", user="user").save()
+        Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56v098ca10d75d2e", user="user").save()
         payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
-        VectorEmbeddingDbAction(
+        DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="embedding_search"),
-            payload=VectorDbPayload(type="from_value", value=payload_body),
+            query=DbOperation(type="from_value", value="embedding_search"),
+            payload=DbQuery(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}", dispatch=False),
             set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
             bot="5f50fd0a56v098ca10d75d2e",
@@ -2514,12 +2514,12 @@ class TestActionServer(AsyncHTTPTestCase):
 
     def test_vectordb_action_execution_invalid_operation_type(self):
         action_name = "test_vectordb_action_execution_invalid_operation_type"
-        Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56v908ca10d75d2e", user="user").save()
+        Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56v908ca10d75d2e", user="user").save()
         payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
-        VectorEmbeddingDbAction(
+        DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="vector_search"),
-            payload=VectorDbPayload(type="from_value", value=payload_body),
+            query=DbOperation(type="from_value", value="vector_search"),
+            payload=DbQuery(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}", dispatch=False),
             set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
             bot="5f50fd0a56v908ca10d75d2e",
@@ -2568,16 +2568,16 @@ class TestActionServer(AsyncHTTPTestCase):
         log.pop('timestamp')
 
     @patch("kairon.shared.actions.utils.ActionUtility.get_action")
-    @patch("kairon.actions.definitions.vector_action.VectorEmbeddingsDbAction.retrieve_config")
+    @patch("kairon.actions.definitions.vector_action.ActionDatabase.retrieve_config")
     def test_vectordb_action_failed_execution(self, mock_action_config, mock_action):
         action_name = "test_run_with_get_action"
         payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
-        action = Actions(name=action_name, type=ActionType.vector_embeddings_db_action.value, bot="5f50fd0a56b697ca10d35d2e",
+        action = Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56b697ca10d35d2e",
                          user="user")
-        action_config = VectorEmbeddingDbAction(
+        action_config = DatabaseAction(
             name=action_name,
-            operation=VectorDbOperation(type="from_value", value="embedding_search"),
-            payload=VectorDbPayload(type="from_value", value=payload_body),
+            query=DbOperation(type="from_value", value="embedding_search"),
+            payload=DbQuery(type="from_value", value=payload_body),
             response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector"),
             bot="5f50fd0a56b697ca10d35d2e",
             user="user"
@@ -2700,6 +2700,8 @@ class TestActionServer(AsyncHTTPTestCase):
         response_json = json.loads(response.body.decode("utf8"))
         self.assertEqual(response.code, 200)
         self.assertEqual(response_json, {'events': [], 'responses': []})
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        assert log['exception'] == 'No action found for given bot and name'
 
     def test_slot_set_action_from_value(self):
         action_name = "test_slot_set_from_value"

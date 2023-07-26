@@ -6,7 +6,7 @@ from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
-    RazorpayActionRequest, PromptActionConfigRequest, VectorEmbeddingActionRequest
+    RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -65,48 +65,48 @@ async def update_http_action(
     return Response(data=response, message=message)
 
 
-@router.post("/embeddings/db", response_model=Response)
-async def add_vector_embeddings_db_action(
-        request_data: VectorEmbeddingActionRequest,
+@router.post("/db", response_model=Response)
+async def add_db_action(
+        request_data: DatabaseActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Stores the vectordb action config and story event
     """
-    action_id = mongo_processor.add_vector_embedding_db_action(request_data.dict(), current_user.get_user(),
-                                                               current_user.get_bot())
+    action_id = mongo_processor.add_db_action(request_data.dict(), current_user.get_user(),
+                                              current_user.get_bot())
     return Response(data={"_id": action_id}, message="Action added!")
 
 
-@router.get("/embeddings/db/{action}", response_model=Response)
-async def get_vector_embeddings_db_action(action: str = Path(default=None, description="name", example="vector_embeddings_db_action"),
-                                          current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+@router.get("/db/{action}", response_model=Response)
+async def get_vector_db_action(action: str = Path(default=None, description="name", example="database_action"),
+                               current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns configuration set for the VectorDb action
     """
-    action_config = mongo_processor.get_vector_embedding_db_action_config(action=action, bot=current_user.get_bot())
+    action_config = mongo_processor.get_db_action_config(action=action, bot=current_user.get_bot())
     return Response(data=action_config)
 
 
-@router.get("/embeddings/db", response_model=Response)
-async def list_vector_embeddings_db_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+@router.get("/db", response_model=Response)
+async def list_db_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """
     Returns list of vectordb actions for bot.
     """
-    actions = list(mongo_processor.list_vector_embedding_db_actions(bot=current_user.get_bot()))
+    actions = list(mongo_processor.list_db_actions(bot=current_user.get_bot()))
     return Response(data=actions)
 
 
-@router.put("/embeddings/db", response_model=Response)
-async def update_vector_embeddings_db_action(
-        request_data: VectorEmbeddingActionRequest,
+@router.put("/db", response_model=Response)
+async def update_db_action(
+        request_data: DatabaseActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Updates the vectordb action config and related story event
     """
-    action_id = mongo_processor.update_vector_embedding_db_action(request_data=request_data.dict(), user=current_user.get_user(),
-                                                                  bot=current_user.get_bot())
+    action_id = mongo_processor.update_db_action(request_data=request_data.dict(), user=current_user.get_user(),
+                                                 bot=current_user.get_bot())
     return Response(data={"_id": action_id}, message="Action updated!")
 
 

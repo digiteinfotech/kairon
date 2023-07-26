@@ -15,7 +15,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType, VectorDbValueType, VectorDbOperationClass
+    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -141,19 +141,19 @@ class HttpActionConfig(Auditlog):
                     param.value = Utility.encrypt_message(param.value)
 
 
-class VectorDbOperation(EmbeddedDocument):
-    type = StringField(required=True, choices=[op_type.value for op_type in VectorDbValueType])
-    value = StringField(required=True, choices=[payload.value for payload in VectorDbOperationClass])
+class DbOperation(EmbeddedDocument):
+    type = StringField(required=True, choices=[op_type.value for op_type in DbQueryValueType])
+    value = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.type):
-            raise ValidationError("operation type is required")
+            raise ValidationError("query type is required")
         if not self.value or self.value is None:
-            raise ValidationError("operation value is required")
+            raise ValidationError("query value is required")
 
 
-class VectorDbPayload(EmbeddedDocument):
-    type = StringField(required=True, choices=[op_type.value for op_type in VectorDbValueType])
+class DbQuery(EmbeddedDocument):
+    type = StringField(required=True, choices=[op_type.value for op_type in DbQueryValueType])
     value = DynamicField(required=True)
 
     def validate(self, clean=True):
@@ -165,11 +165,11 @@ class VectorDbPayload(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
-class VectorEmbeddingDbAction(Auditlog):
+class DatabaseAction(Auditlog):
     name = StringField(required=True)
     collection = StringField(required=True)
-    operation = EmbeddedDocumentField(VectorDbOperation, required=True)
-    payload = EmbeddedDocumentField(VectorDbPayload, default=VectorDbPayload())
+    query = EmbeddedDocumentField(DbOperation, required=True)
+    payload = EmbeddedDocumentField(DbQuery, default=DbQuery())
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
     db_type = StringField(required=True, default='qdrant')
@@ -187,7 +187,7 @@ class VectorEmbeddingDbAction(Auditlog):
             raise ValidationError("Action name cannot be empty")
         self.response.validate()
         self.payload.validate()
-        self.operation.validate()
+        self.query.validate()
 
     def clean(self):
         self.name = self.name.strip().lower()

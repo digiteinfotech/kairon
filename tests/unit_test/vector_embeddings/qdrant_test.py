@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 
 import pytest
@@ -64,3 +65,19 @@ class TestQdrant:
     def test_get_instance_raises_exception_when_db_not_implemented(self):
         with pytest.raises(AppException, match="Database not yet implemented!"):
             VectorEmbeddingsDbFactory.get_instance("mongo")
+
+    @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
+    def test_embedding_search_valid_request_body_payload(self, mock_http_request):
+        Utility.load_environment()
+        qdrant = Qdrant('5f50fd0a56v098ca10d75d2e')
+        request_body = {'ids': [0], 'with_payload': True, 'with_vector': True}
+        mock_http_request.return_value = 'expected_result'
+        result = qdrant.embedding_search(request_body)
+        assert result == 'expected_result'
+
+        mock_http_request.assert_called_once()
+        called_args = mock_http_request.call_args
+        called_payload = called_args.kwargs['request_body']
+        assert called_payload == request_body
+        assert called_args.kwargs['http_url'] == 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e/points'
+        assert called_args.kwargs['request_method'] == 'POST'

@@ -1,3 +1,4 @@
+import json
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
@@ -11,9 +12,10 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
-from kairon.shared.data.data_objects import BotContent
+from kairon.shared.data.data_objects import CognitionData
 from kairon.shared.llm.base import LLMBase
 from kairon.shared.llm.clients.factory import LLMClientFactory
+from kairon.shared.models import CognitionDataType
 from kairon.shared.utils import Utility
 
 
@@ -41,13 +43,18 @@ class GPT3FAQEmbedding(LLMBase):
         self.__create_collection__(self.bot + self.suffix)
         self.__create_collection__(self.bot + self.cached_resp_suffix)
         count = 0
-        contents = list(BotContent.objects(bot=self.bot))
+        contents = list(CognitionData.objects(bot=self.bot))
         for content in tqdm(contents, desc="Training FAQ"):
-            points = [{'id': content.vector_id,
-                       'vector': self.__get_embedding(content.data),
-                       'payload': {"content": content.data}}]
+            if content.content_type == CognitionDataType.json.value:
+                if not content['metadata'] or []:
+                    search_payload, vector_embeddings = content.data, json.dumps(content.data)
+                else:
+                    search_payload, vector_embeddings = Utility.get_embeddings_and_payload(content.data, content.metadata)
+            else:
+                search_payload, vector_embeddings = {'content': content.data}, content.data
+            points = [{'id': content.vector_id, 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
             self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                       err_msg="Unable to train faq! contact support")
+                                       err_msg="Unable to train FAQ! Contact support")
             count += 1
         return {"faq": count}
 

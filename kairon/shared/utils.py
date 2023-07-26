@@ -18,7 +18,7 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict, Union
+from typing import Text, List, Dict, Union, Any
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
@@ -62,7 +62,7 @@ from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelType
 from .data.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
-from .models import StoryStepType, LlmPromptType, LlmPromptSource
+from .models import StoryStepType, LlmPromptType, LlmPromptSource, CognitionMetadataType
 from ..exceptions import AppException
 
 
@@ -131,6 +131,33 @@ class Utility:
             return True
         else:
             return False
+
+    @staticmethod
+    def retrieve_data(data: Any, metadata: Dict):
+        if metadata and isinstance(data, dict):
+            data_type = metadata["data_type"]
+            column_name = metadata["column_name"]
+            if column_name in data and data[column_name] and data_type == CognitionMetadataType.int.value:
+                try:
+                    return int(data[column_name])
+                except ValueError:
+                    raise AppException("Invalid data type")
+            else:
+                return data[column_name]
+
+    @staticmethod
+    def get_embeddings_and_payload(data: Any, metadata: Dict):
+        search_payload = {}
+        create_embedding_data = {}
+        for metadata_item in metadata:
+            column_name = metadata_item["column_name"]
+            converted_value = Utility.retrieve_data(data, metadata_item)
+            if converted_value and metadata_item["enable_search"]:
+                search_payload[column_name] = converted_value
+            if converted_value and metadata_item["create_embeddings"]:
+                create_embedding_data[column_name] = converted_value
+        create_embedding_data = json.dumps(create_embedding_data)
+        return search_payload, create_embedding_data
 
     @staticmethod
     def validate_slot_initial_value_and_values(slot_value: Dict):

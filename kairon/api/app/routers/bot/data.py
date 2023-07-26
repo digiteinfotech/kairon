@@ -1,15 +1,14 @@
 import os
 
 from fastapi import UploadFile, File, Security, APIRouter
+from starlette.responses import FileResponse
 
-from kairon.api.models import Response, TextData
+from kairon.api.models import Response, TextData, CognitiveDataRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import DESIGNER_ACCESS
-from kairon.shared.models import User
-from starlette.responses import FileResponse
-
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import User
 from kairon.shared.utils import Utility
 
 router = APIRouter()
@@ -115,3 +114,69 @@ def get_text(
     Fetches text content of the bot
     """
     return {"data": list(processor.get_content(current_user.get_bot()))}
+
+
+@router.post("/cognition", response_model=Response)
+def save_cognition_data(
+        cognition: CognitiveDataRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Saves cognition content into the bot
+    """
+    return {
+        "message": "Record saved!",
+        "data": {
+            "_id": processor.save_cognition_data(
+                    cognition.dict(),
+                    current_user.get_user(),
+                    current_user.get_bot(),
+            )
+        }
+    }
+
+
+@router.put("/cognition/{cognition_id}", response_model=Response)
+def update_cognition_data(
+        cognition_id: str,
+        cognition: CognitiveDataRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Updates cognition content into the bot
+    """
+    return {
+        "message": "Record updated!",
+        "data": {
+            "_id": processor.update_cognition_data(
+                cognition_id,
+                cognition.dict(),
+                current_user.get_user(),
+                current_user.get_bot(),
+            )
+        }
+    }
+
+
+@router.delete("/cognition/{cognition_id}", response_model=Response)
+def delete_cognition_data(
+        cognition_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Deletes cognition content of the bot
+    """
+    processor.delete_cognition_data(cognition_id, current_user.get_bot())
+    return {
+        "message": "Record deleted!"
+    }
+
+
+@router.get("/cognition", response_model=Response)
+def list_cognition_data(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches cognition content of the bot
+    """
+    return {"data": list(processor.list_cognition_data(current_user.get_bot()))}
