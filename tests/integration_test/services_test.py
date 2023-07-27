@@ -1,10 +1,13 @@
-import shutil
-import tempfile
-from datetime import datetime, timedelta
+import json
 import os
 import re
+import shutil
 import tarfile
+import tempfile
+from datetime import datetime, timedelta
 from io import BytesIO
+from unittest.mock import patch
+from urllib.parse import urlencode
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
@@ -27,15 +30,14 @@ from kairon.api.models import Metadata
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
-from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.constants import EventClass
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
+from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
-    KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT, \
-    DEFAULT_NLU_FALLBACK_RESPONSE
+    KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig, \
     BotSettings, LLMSettings
 from kairon.shared.data.model_processor import ModelProcessor
@@ -47,14 +49,10 @@ from kairon.shared.metering.data_object import Metering
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
+from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility, MailUtility
-from kairon.shared.multilingual.utils.translator import Translator
-import json
-from unittest.mock import patch
-from urllib.parse import urlencode
-
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -1250,7 +1248,7 @@ def test_payload_updated_api():
     print(actual)
     assert actual["success"]
     assert actual["message"] == "Record updated!"
-    assert actual["error_code"] == 0    
+    assert actual["error_code"] == 0
 
 
 def test_payload_content_update_api_already_exists(monkeypatch):
@@ -2392,6 +2390,7 @@ def test_get_data_importer_logs():
     del actual['data']["logs"][1]['start_timestamp']
     del actual['data']["logs"][1]['end_timestamp']
     del actual['data']["logs"][1]['files_received']
+    print(actual['data']["logs"][1])
     assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
                                  'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
@@ -2404,7 +2403,8 @@ def test_get_data_importer_logs():
                                              {'type': 'google_search_actions', 'count': 0, 'data': []},
                                              {'type': 'jira_actions', 'count': 0, 'data': []},
                                              {'type': 'zendesk_actions', 'count': 0, 'data': []},
-                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}],
+                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
+                                             {'type': 'prompt_actions', 'count': 0, 'data': []}],
                                  'exception': '',
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
@@ -2444,7 +2444,8 @@ def test_get_data_importer_logs():
                                             {'type': 'google_search_actions', 'count': 0, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
-                                            {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []}]
+                                            {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
+                                            {'type': 'prompt_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config'}
@@ -7697,13 +7698,14 @@ def test_list_actions():
                                                   'test_update_vector_action_1', 'test_delete_vectordb_action_non_existing'],
                               'http_action': ['test_add_http_action_no_token', 'test_add_http_action_with_valid_dispatch_type',
                                               'test_add_http_action_with_dynamic_params', 'test_update_http_action_with_dynamic_params',
-                                              'test_add_http_action_with_sender_id_parameter_type', 'test_add_http_action_with_token_and_story',
-                                              'test_add_http_action_no_params', 'test_add_http_action_existing', 'test_update_http_action',
+                                              'test_add_http_action_with_sender_id_parameter_type',
+                                              'test_add_http_action_with_token_and_story', 'test_add_http_action_no_params',
+                                              'test_add_http_action_existing', 'test_update_http_action',
                                               'test_update_http_action_6', 'test_update_http_action_non_existing', 'new_http_action4'],
-                              'utterances': ['utter_greet', 'utter_cheer_up', 'utter_did_that_help', 'utter_happy', 'utter_goodbye',
-                                             'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
+                              'utterances': ['utter_greet', 'utter_cheer_up', 'utter_did_that_help', 'utter_happy',
+                                             'utter_goodbye', 'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
                               'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
-                              'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [],
+                              'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []}
 
     assert actual["success"]
@@ -8659,7 +8661,8 @@ def test_upload_actions_and_config():
                                             {'type': 'google_search_actions', 'count': 0, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
-                                            {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0}]
+                                            {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
+                                            {'type': 'prompt_actions', 'data': [], 'count': 0}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
