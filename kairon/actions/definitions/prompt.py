@@ -144,17 +144,20 @@ class ActionPrompt(ActionsBase):
                 elif prompt['source'] == LlmPromptSource.slot.value:
                     slot_data = tracker.get_slot(prompt['data'])
                     context_prompt += f"{prompt['name']}:\n{slot_data}\n"
-                    context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                    if prompt['instructions']:
+                        context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 elif prompt['source'] == LlmPromptSource.action.value:
                     action = ActionFactory.get_instance(self.bot, prompt['data'])
                     await action.execute(dispatcher, tracker, domain)
                     if action.is_success:
                         response = action.response
                         context_prompt += f"{prompt['name']}:\n{response}\n"
-                        context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                        if prompt['instructions']:
+                            context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 else:
                     context_prompt += f"{prompt['name']}:\n{prompt['data']}\n"
-                    context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                    if prompt['instructions']:
+                        context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
             elif prompt['type'] == LlmPromptType.query.value and prompt['is_enabled']:
                 query_prompt += f"{prompt['name']}:\n{prompt['data']}\n"
                 query_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
@@ -172,6 +175,7 @@ class ActionPrompt(ActionsBase):
         params['use_similarity_prompt'] = use_similarity_prompt
         params['similarity_prompt_name'] = similarity_prompt_name
         params['similarity_prompt_instructions'] = similarity_prompt_instructions
+        params['instructions'] = k_faq_action_config.get('instructions', [])
         return params
 
     @staticmethod

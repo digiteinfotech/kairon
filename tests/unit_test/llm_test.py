@@ -614,7 +614,7 @@ class TestLLM:
                 {'role': 'system',
                  'content': 'You are a personal assistant. Answer the question according to the below context'},
                 {'role': 'user',
-                 'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}
+                 'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
         ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -695,7 +695,7 @@ class TestLLM:
             {"role": "system",
              "content": "You are a personal assistant. Answer the question according to the below context"},
             {'role': 'user',
-             'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}
+             'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
         ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -754,18 +754,11 @@ class TestLLM:
             assert response['content'] == generated_text
             assert gpt3.logs == [
                 {'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
-                {'messages': [{'role': 'system',
-                                                'content': 'You are a personal assistant. Answer the question according to the below context'},
-                                               {'role': 'user',
-                                                'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}],
-                                  'raw_completion_response': {'choices': [{'message': {
-                                      'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                                      'role': 'assistant'}}]}, 'type': 'answer_query',
-                                  'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                                      'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
-                                                      'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                                                      'logit_bias': {}}},
-                                 {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
+                {'messages': [{'role': 'system', 'content': 'You are a personal assistant. Answer the question according to the below context'},
+                              {'role': 'user', 'content': 'Based on below context answer question, if answer not in context check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}],
+                 'raw_completion_response': {'choices': [{
+                     'message': {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.', 'role': 'assistant'}}]},
+                 'type': 'answer_query', 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}}, {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
 
     @responses.activate
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -1019,7 +1012,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             {'role': 'user', 'content': 'hello'},
             {'role': 'assistant', 'content': 'how are you'},
             {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: What kind of language is python?\n A:'}
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: What kind of language is python? \nA:'}
         ]}
         mock_completion_request.update(hyperparameters)
         request_header = {"Authorization": "Bearer knupur"}
@@ -1101,11 +1094,12 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
                    {"role": "user",
                     "content": f"{k_faq_action_config['query_prompt']}\n\n Q: {query}\n A:"}
                ]}
+
         mock_completion_request = {"messages": [
                    {"role": "system",
                     "content": DEFAULT_SYSTEM_PROMPT},
                     {'role': 'user',
-                        'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+                        'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \nQ: Explain python is called high level programming language in laymen terms? \nA:'}
                ]}
         mock_rephrase_request.update(hyperparameters)
         mock_completion_request.update(hyperparameters)
