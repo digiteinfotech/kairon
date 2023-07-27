@@ -15478,8 +15478,8 @@ def test_get_auditlog_for_user_2():
     assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 2
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
-    assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
-    assert audit_log_data[0]["entity"] == "ModelTraining"
+    assert audit_log_data[0]["action"] == AuditlogActions.SOFT_DELETE.value
+    assert audit_log_data[0]["entity"] == "Bot"
     assert audit_log_data[0]["user"] == email
 
 
