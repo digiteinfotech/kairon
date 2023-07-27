@@ -581,8 +581,6 @@ class TrainingDataValidator(Validator):
                 error_list.append('data field in prompts should of type string.')
             if not prompt.get('data') and prompt.get('source') == 'static':
                 error_list.append('data is required for static prompts')
-            if (prompt.get('type') != 'system' and prompt.get('source') != 'history') and not prompt.get('instructions'):
-                error_list.append('instructions are required')
             if system_prompt_count > 1:
                 error_list.append('Only one system prompt can be present')
             if system_prompt_count == 0:

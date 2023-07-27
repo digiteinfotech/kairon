@@ -1431,11 +1431,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'history', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                    'instructions': '', 'type': 'query',
-                                    'source': 'slot', 'is_enabled': True}], 'num_bot_responses': 5,
+                                    'source': 'history', 'is_enabled': True}], 'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -1445,7 +1441,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
     actual = response.json()
     print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
-                                  'msg': 'instructions are required for type query!', 'type': 'value_error'}]
+                                  'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
     assert actual["error_code"] == 422
@@ -1615,10 +1611,6 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'http_action_prompt',
-                                    'instructions': 'Follow the instructions', 'type': 'query',
-                                    'source': 'action', 'is_enabled': True},
                                    {'name': 'Query Prompt',
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
@@ -1927,10 +1919,8 @@ def test_update_prompt_action_with_query_prompt_with_false():
     )
     actual = response.json()
     print(actual["message"])
-    assert actual["message"] == 'Action updated!'
-    assert not actual["data"]
-    assert actual["success"]
-    assert actual["error_code"] == 0
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'], 'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
+    assert not actual["success"]
 
 
 def test_update_prompt_action():
@@ -7677,22 +7667,22 @@ def test_list_actions():
     assert actual["success"]
 
 
-# @responses.activate
-# def test_train_using_event(monkeypatch):
-#     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
-#     responses.add(
-#         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
-#     )
-#     response = client.post(
-#         f"/api/bot/{pytest.bot}/train",
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#     actual = response.json()
-#     assert actual["success"]
-#     assert actual["error_code"] == 0
-#     assert actual["data"] is None
-#     assert actual["message"] == "Model training started."
-#     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
+@responses.activate
+def test_train_using_event(monkeypatch):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/train",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["message"] == "Model training started."
+    complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
 
 
 def test_update_training_data_generator_status(monkeypatch):

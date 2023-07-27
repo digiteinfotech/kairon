@@ -270,9 +270,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com",
-                            "influence_conversation": True}, bot, user,
-                           raise_exception_if_exists=False)
         request = {'name': 'test_add_prompt_action_with_invalid_query_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -282,14 +279,10 @@ class TestMongoProcessor:
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'history', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'email',
-                                    'instructions': '', 'type': 'query',
-                                    'source': 'slot', 'is_enabled': True}],
+                                    'source': 'history', 'is_enabled': True}],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="instructions are required for type query!"):
+        with pytest.raises(ValidationError, match="Query prompt must have static source!"):
             processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_invalid_num_bot_responses(self):
