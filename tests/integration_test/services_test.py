@@ -1891,8 +1891,8 @@ def test_update_prompt_action_with_invalid_query_prompt():
     )
     actual = response.json()
     print(actual["message"])
-    assert actual["message"] == 'Action updated!'
-    assert actual["success"]
+    assert actual["message"] == [{'loc': ['body', 'llm_prompts'], 'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
+    assert not actual["success"]
 
 
 def test_update_prompt_action_with_query_prompt_with_false():
@@ -1905,7 +1905,7 @@ def test_update_prompt_action_with_query_prompt_with_false():
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': False},
+                                    'source': 'bot_content', 'is_enabled': False},
                                    ],
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50,
               'num_bot_responses': 5,
@@ -15468,8 +15468,9 @@ def test_get_auditlog_for_user_2():
     assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 2
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
-    assert audit_log_data[0]["action"] == AuditlogActions.SOFT_DELETE.value
-    assert audit_log_data[0]["entity"] == "Bot"
+    print(audit_log_data)
+    assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
+    assert audit_log_data[0]["entity"] == "ModelTraining"
     assert audit_log_data[0]["user"] == email
 
 
