@@ -1096,6 +1096,7 @@ def test_download_conversation_with_error_with_kairon_client_access_denied1(mock
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 401
     assert actual["message"] == "['owner', 'admin'] access is required to perform this operation on the bot"
     assert not actual["success"]
@@ -1118,6 +1119,7 @@ def test_download_conversation_with_error_with_kairon_client_access_denied2(mock
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 401
     assert actual["message"] == "['owner', 'admin'] access is required to perform this operation on the bot"
     assert not actual["success"]

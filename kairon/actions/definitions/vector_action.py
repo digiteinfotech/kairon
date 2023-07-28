@@ -6,16 +6,15 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.actions.data_objects import VectorEmbeddingDbAction
+from kairon.shared.actions.data_objects import ActionServerLogs, DatabaseAction
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType, VectorDbValueType
+from kairon.shared.actions.models import ActionType, DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.vector_embeddings.db.factory import VectorEmbeddingsDbFactory
 
 
-class VectorEmbeddingsDbAction(ActionsBase):
+class ActionDatabase(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
         """
@@ -33,11 +32,11 @@ class VectorEmbeddingsDbAction(ActionsBase):
         """
         Fetch Vector action configuration parameters from the database.
 
-        :return: VectorEmbeddingDbAction containing configuration for the action as dict.
+        :return: DatabaseAction containing configuration for the action as dict.
         """
         try:
-            vector_action_dict = VectorEmbeddingDbAction.objects(bot=self.bot, name=self.name,
-                                                                 status=True).get().to_mongo().to_dict()
+            vector_action_dict = DatabaseAction.objects(bot=self.bot, name=self.name,
+                                                        status=True).get().to_mongo().to_dict()
             logger.debug("vector_action_config: " + str(vector_action_dict))
             return vector_action_dict
         except DoesNotExist as e:
@@ -71,9 +70,9 @@ class VectorEmbeddingsDbAction(ActionsBase):
             collection_name = vector_action_config['collection']
             db_type = vector_action_config['db_type']
             vector_db = VectorEmbeddingsDbFactory.get_instance(db_type)(collection_name)
-            operation_type = vector_action_config['operation']
+            operation_type = vector_action_config['query']
             payload_type = vector_action_config['payload']
-            request_body = tracker.get_slot(payload_type.get('value')) if payload_type.get('type') == VectorDbValueType.from_slot.value \
+            request_body = tracker.get_slot(payload_type.get('value')) if payload_type.get('type') == DbQueryValueType.from_slot.value \
                 else payload_type.get('value')
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
@@ -96,7 +95,7 @@ class VectorEmbeddingsDbAction(ActionsBase):
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)
             ActionServerLogs(
-                type=ActionType.vector_embeddings_db_action.value,
+                type=ActionType.database_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
                 action=self.name,
                 config=vector_action_config,

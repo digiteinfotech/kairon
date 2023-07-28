@@ -1,8 +1,9 @@
 import pytest
 
-from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.importer.validator.file_validator import TrainingDataValidator
+from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
+from kairon.shared.utils import Utility
 
 
 class TestTrainingDataValidator:
@@ -403,7 +404,7 @@ class TestTrainingDataValidator:
         assert not is_data_invalid
         assert error_summary == {'http_actions': [], 'email_actions': [], 'form_validation_actions': [],
                                  'google_search_actions': [], 'jira_actions': [], 'slot_set_actions': [],
-                                 'zendesk_actions': [], 'pipedrive_leads_actions': []}
+                                 'zendesk_actions': [], 'pipedrive_leads_actions': [], 'prompt_actions': []}
         assert component_count
 
     def test_validate_custom_actions_with_errors(self):
@@ -533,6 +534,106 @@ class TestTrainingDataValidator:
                           'api_token': '2345678dfghj', 'metadata': {
                              'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'
                          }, 'title': 'new lead detected', 'response': 'lead_created'}
+                     ],
+                     'prompt_action': [
+                         {'name': 'prompt_action_invalid_query_prompt',
+                          'llm_prompts': [
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                              {'name': '',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'history', 'is_enabled': True}],
+                          "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40,
+                          "similarity_threshold": 0.70,
+                          "num_bot_responses": 5},
+                         {'name': 'prompt_action_invalid_num_bot_responses',
+                          'llm_prompts': [
+                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 100,
+                               'instructions': '', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt three',
+                               'data': '',
+                               'instructions': '', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}
+                          ],
+                          "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                          "similarity_threshold": 0.70,
+                          "num_bot_responses": 15},
+                         {'name': 'prompt_action_with_invalid_system_prompt_source',
+                          'llm_prompts': [
+                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'history',
+                               'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                              {'name': 'Similarity Prompt two',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                          ],
+                          "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                          "similarity_threshold": 0.70, "num_bot_responses": 5,
+                          'hyperparameters': {'temperature': 3.0, 'max_tokens': 5000, 'model': 'gpt - 3.5 - turbo',
+                                       'top_p': 4,
+                                       'n': 10, 'stream': False, 'stop': {}, 'presence_penalty': 5,
+                                       'frequency_penalty': 5, 'logit_bias': []}},
+                         {'name': 'prompt_action_with_no_llm_prompts',
+                          "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
+                          "similarity_threshold": 0.70, "num_bot_responses": 5,
+                          'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
+                                              'top_p': 0.0,
+                                              'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
+                                              'frequency_penalty': 0.0, 'logit_bias': {}}},
+                         {'name': 'test_add_prompt_action_one',
+                          'llm_prompts': [
+                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                          "dispatch_response": False
+                          },
+                         {'name': 'test_add_prompt_action_one',
+                          'llm_prompts': [
+                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                          "dispatch_response": False
+                          },
+                         [{'name': 'test_add_prompt_action_faq_action_in_list',
+                           'llm_prompts': [
+                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static', 'is_enabled': True},
+                               {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                           "dispatch_response": False
+                           }],
+                         {'name': 'test_add_prompt_action_three',
+                          'llm_prompts': [
+                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'System Prompt two', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Test Prompt', 'type': 'test', 'source': 'test', 'is_enabled': True},
+                              {'name': 'Similarity Prompt', 'instructions': 50, 'type': 1, 'source': 2, 'is_enabled': True},
+                              {'name': 'Http action Prompt', 'data': '', 'instructions': 'Answer according to the context',
+                               'type': 'user', 'source': 'action', 'is_enabled': True},
+                              {'name': 'Identification Prompt', 'data': '', 'instructions': 'Answer according to the context',
+                               'type': 'user', 'source': 'slot', 'is_enabled': True},
+                              {'name': 'History Prompt one', 'type': 'user', 'source': 'history', 'is_enabled': True},
+                              {'name': 'History Prompt two', 'type': 'user', 'source': 'history', 'is_enabled': True}
+                          ],
+                          "dispatch_response": False,
+                          'hyperparameters': {'temperature': 3.0, 'max_tokens': 5000, 'model': 'gpt - 3.5 - turbo',
+                                              'top_p': 4,
+                                              'n': 10, 'stream': False, 'stop': ['a', 'b', 'c', 'd', 'e'], 'presence_penalty': 5,
+                                              'frequency_penalty': 5, 'logit_bias': []}
+                          },
                      ]}
         is_data_invalid, error_summary, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
         assert is_data_invalid
@@ -544,6 +645,9 @@ class TestTrainingDataValidator:
         assert len(error_summary['google_search_actions']) == 2
         assert len(error_summary['zendesk_actions']) == 2
         assert len(error_summary['pipedrive_leads_actions']) == 3
+        print(error_summary['prompt_actions'])
+        assert len(error_summary['prompt_actions']) == 51
+        print(component_count)
         assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
-                                   'zendesk_actions': 4, 'pipedrive_leads_actions': 5}
+                                   'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8}
