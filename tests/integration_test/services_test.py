@@ -11938,6 +11938,7 @@ def test_add_google_search_action():
         'api_key': {'value': '12345678'},
         'search_engine_id': 'asdfg:123456',
         'failure_response': 'I have failed to process your request',
+        'perform_global_search': True,
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/googlesearch",
@@ -12063,6 +12064,7 @@ def test_edit_google_search_action():
         'api_key': {"value": '1234567889'},
         'search_engine_id': 'asdfg:12345689',
         'failure_response': 'Failed to perform search',
+        'perform_global_search': False,
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/googlesearch",
@@ -12141,6 +12143,7 @@ def test_list_google_search_action():
     assert actual["data"][0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
     assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
     assert actual["data"][0]['failure_response'] == 'Failed to perform search'
+    assert actual["data"][0]['perform_global_search'] is False
     assert actual["data"][0]['num_results'] == 1
     assert actual["data"][0]['dispatch_response']
     assert not actual["data"][0].get('set_slot')

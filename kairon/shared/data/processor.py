@@ -3132,6 +3132,7 @@ class MongoProcessor:
             failure_response=action_config.get('failure_response'),
             num_results=action_config.get('num_results'),
             dispatch_response=action_config.get('dispatch_response', True),
+            perform_global_search=action_config.get('perform_global_search', False),
             set_slot=action_config.get('set_slot'),
             bot=bot,
             user=user,
@@ -3158,6 +3159,7 @@ class MongoProcessor:
         action.failure_response = action_config.get('failure_response')
         action.num_results = action_config.get('num_results')
         action.dispatch_response = action_config.get('dispatch_response', True)
+        action.perform_global_search = action_config.get('perform_global_search', False)
         action.set_slot = action_config.get('set_slot')
         action.user = user
         action.timestamp = datetime.utcnow()

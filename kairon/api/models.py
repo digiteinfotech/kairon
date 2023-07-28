@@ -710,6 +710,7 @@ class GoogleSearchActionRequest(BaseModel):
     failure_response: str = 'I have failed to process your request.'
     num_results: int = 1
     dispatch_response: bool = True
+    perform_global_search: bool = False
     set_slot: str = None
 
     @validator("num_results")
