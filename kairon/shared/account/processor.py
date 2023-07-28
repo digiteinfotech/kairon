@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from datetime import datetime
@@ -79,7 +80,8 @@ class AccountProcessor:
         return bot_exists
 
     @staticmethod
-    def add_bot(name: str, account: int, user: str, is_new_account: bool = False, add_default_data: bool = True, **metadata):
+    def add_bot(name: str, account: int, user: str, is_new_account: bool = False, add_default_data: bool = True,
+                template_name: str = None, **metadata):
         """
         add a bot to account
 
@@ -89,6 +91,7 @@ class AccountProcessor:
         :param user: user id
         :param is_new_account: True if it is a new account
         :param add_default_data: True if default data is to be added
+        :param template_name: template name
         :return: bot id
         """
         from kairon.shared.data.processor import MongoProcessor
@@ -117,6 +120,8 @@ class AccountProcessor:
         processor.add_or_overwrite_config(config, bot_id, user)
         processor.add_default_fallback_data(bot_id, user, True, True)
         processor.add_system_required_slots(bot_id, user)
+        if template_name:
+            asyncio.create_task(processor.apply_template(template_name, bot_id, user))
         if add_default_data:
             processor.add_default_training_data(bot_id, user)
         return bot
