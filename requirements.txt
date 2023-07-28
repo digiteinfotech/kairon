@@ -73,3 +73,6 @@ faiss-cpu
 urllib3==1.26.15
 pytest-metadata==2.0.4
 tiktoken
+RestrictedPython
+AccessControl
+pykka

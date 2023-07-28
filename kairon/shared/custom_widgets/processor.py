@@ -77,7 +77,7 @@ class CustomWidgetsProcessor:
             config = CustomWidgets.objects(id=widget_id, bot=bot).get().to_mongo().to_dict()
             headers, headers_eval_log = CustomWidgetsProcessor.__prepare_request_parameters(bot, config.get("headers"))
             request_body, request_body_eval_log = CustomWidgetsProcessor.__prepare_request_body(config)
-            CustomWidgetsProcessor.__attach_filters(request_body, request_body_eval_log, filters)
+            request_body, request_body_eval_log = CustomWidgetsProcessor.__attach_filters(request_body, request_body_eval_log, filters)
             timeout = config.get("timeout", 1)
             resp = Utility.execute_http_request(config["request_method"], config["http_url"], request_body, headers, timeout)
             return resp, None
@@ -136,3 +136,4 @@ class CustomWidgetsProcessor:
                 request_body_eval_log = {}
             request_body.update(filters)
             request_body_eval_log.update(filters)
+        return request_body, request_body_eval_log
