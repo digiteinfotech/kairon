@@ -377,8 +377,8 @@ class ActionUtility:
 
         results = []
         try:
-            search_results = list(search(search_term, advanced=True, **kwargs))
-            for item in search_results or []:
+            search_results = search(search_term, advanced=True, **kwargs)
+            for item in search_results.get('items') or []:
                 results.append({'title': item['title'], 'text': item['snippet'], 'link': item['link']})
         except Exception as e:
             logger.exception(e)
