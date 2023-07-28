@@ -944,10 +944,10 @@ def test_api_login_enabled_sso_only(monkeypatch):
 def test_add_bot():
     response = client.post(
         "/api/account/bot",
-        json={"data": "covid-bot"},
+        json={"data": {"name": "covid-bot"}},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    assert response.headers == {'content-length': '67', 'content-type': 'application/json', 'server': 'Secure',
+    assert response.headers == {'content-length': '100', 'content-type': 'application/json', 'server': 'Secure',
                                 'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
                                 'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
                                 'x-content-type-options': 'nosniff',
@@ -963,6 +963,7 @@ def test_add_bot():
     assert response['message'] == 'Bot created'
     assert response['error_code'] == 0
     assert response['success']
+    assert response['data']['bot_id']
 
 
 def test_list_bots():
@@ -5634,7 +5635,7 @@ def test_train_insufficient_data(monkeypatch):
 
     response = client.post(
         "/api/account/bot",
-        json={"data": "sample-bot"},
+        json={"data": {"name": "sample-bot"}},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -11981,47 +11982,6 @@ def test_delete_google_search_action_not_exists():
     assert actual["message"] == 'Action with name "google_custom_search" not found'
 
 
-def test_apply_template_invalid():
-    response = client.post(
-        f"/api/bot/{pytest.bot}/templates",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json={"data": "Invalid"}
-    )
-
-    actual = response.json()
-    assert actual['data'] is None
-    assert actual['error_code'] == 422
-    assert actual['message'] == "Invalid Template!"
-    assert not actual['success']
-
-
-def test_apply_template():
-    response = client.post(
-        f"/api/bot/{pytest.bot}/templates",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json={"data": "Hi-Hello-GPT"}
-    )
-
-    actual = response.json()
-    assert actual['data'] is None
-    assert actual['error_code'] == 0
-    assert actual['message'] == "Template added successfully!"
-    assert actual['success']
-
-
-def test_list_of_templates():
-    response = client.get(
-        f"/api/bot/{pytest.bot}/templates",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual['success']
-    assert actual['error_code'] == 0
-    assert actual['message'] is None
-    assert "Hi-Hello-GPT" in actual['data']
-
-
 def test_list_hubspot_forms_action_no_actions():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/hubspot/forms",
@@ -12416,7 +12376,7 @@ def test_delete_integration_token():
 def test_integration_token_from_one_bot_on_another_bot():
     response = client.post(
         "/api/account/bot",
-        json={"data": "demo-bot"},
+        json={"data": {"name": "demo-bot"}},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
     assert response['message'] == 'Bot created'
@@ -12584,6 +12544,19 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Cannot edit secondary slack app. Please delete and install the app again using oAuth.'
+
+
+def test_add_bot_with_template_name():
+    response = client.post(
+        "/api/account/bot",
+        json={"data": {"name": "hi-hello-gpt-bot", "template_name": "Hi-Hello-GPT"}},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response['message'] == 'Bot created'
+    assert response['error_code'] == 0
+    assert response['success']
+    assert response['data']['bot_id']
 
 
 def test_add_channel_config(monkeypatch):
@@ -14869,7 +14842,7 @@ def test_generate_limited_access_temporary_token():
 
     response = client.post(
         "/api/account/bot",
-        json={"data": "covid-bot"},
+        json={"data": {"name": "covid-bot"}},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = response.json()

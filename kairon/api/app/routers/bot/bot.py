@@ -1489,31 +1489,6 @@ async def delete_form(
     return Response(message='Form deleted')
 
 
-@router.post("/templates", response_model=Response)
-async def apply_template(
-        request_data: TextData,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Stores the templates.
-    """
-    await mongo_processor.apply_bot_template(
-        request_data.data, bot=current_user.get_bot(), user=current_user.get_user()
-    )
-    return Response(message='Template added successfully!')
-
-
-@router.get("/templates", response_model=Response)
-async def list_templates(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
-):
-    """
-    Returns list of templates for bot.
-    """
-    templates = mongo_processor.get_templates(current_user.get_bot())
-    return Response(data=templates)
-
-
 @router.get("/entities", response_model=Response)
 async def list_entities(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     """

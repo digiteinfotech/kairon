@@ -13417,33 +13417,6 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         assert len(logs) == num_logs + 1
 
-    def test_get_templates(self):
-        processor = MongoProcessor()
-        templates = processor.get_templates("test")
-        assert len(templates) == 4
-        assert set(templates) == {'Hi-Hello-GPT', 'Covid-19', 'Hi-Hello', 'GPT-FAQ'}
-
-    @pytest.mark.asyncio
-    async def test_apply_bot_template_with_invalid_name(self):
-        processor = MongoProcessor()
-        template_name = "Invalid-Name"
-        bot = "test"
-        user = "test_user"
-        with pytest.raises(AppException, match="Invalid Template!"):
-            await processor.apply_bot_template(template_name, bot, user)
-
-    @pytest.mark.asyncio
-    async def test_apply_bot_template(self):
-        template_name = "Hi-Hello-GPT"
-        bot = "test"
-        user = "test_user"
-        processor = MongoProcessor()
-        await (processor.apply_bot_template(template_name, bot, user))
-        actions = processor.get_actions("test")
-        action_names = [action["name"] for action in actions]
-        assert len(actions) == 2
-        assert set(action_names) == {"google_search_action", "kairon_faq_action"}
-
     def test_save_faq_csv(self):
         processor = MongoProcessor()
         bot = 'tests'
