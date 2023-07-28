@@ -120,7 +120,7 @@ class AccountProcessor:
         processor.add_or_overwrite_config(config, bot_id, user)
         processor.add_default_fallback_data(bot_id, user, True, True)
         processor.add_system_required_slots(bot_id, user)
-        if template_name:
+        if not Utility.check_empty_string(template_name):
             asyncio.create_task(processor.apply_template(template_name, bot_id, user))
         if add_default_data:
             processor.add_default_training_data(bot_id, user)

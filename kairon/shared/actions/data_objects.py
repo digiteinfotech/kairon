@@ -377,12 +377,11 @@ class EmailActionConfig(Auditlog):
 @push_notification.apply
 class GoogleSearchAction(Auditlog):
     name = StringField(required=True)
-    api_key = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
-    search_engine_id = StringField(required=True)
+    api_key = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
+    search_engine_id = StringField(default=None)
     failure_response = StringField(default='I have failed to process your request.')
     num_results = IntField(default=1)
     dispatch_response = BooleanField(default=True)
-    perform_global_search = BooleanField(default=False)
     set_slot = StringField()
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -397,7 +396,8 @@ class GoogleSearchAction(Auditlog):
 
     def clean(self):
         self.name = self.name.strip().lower()
-        self.api_key.key = "api_key"
+        if self.api_key:
+            self.api_key.key = "api_key"
         if Utility.check_empty_string(self.failure_response):
             self.failure_response = 'I have failed to process your request.'
         try:

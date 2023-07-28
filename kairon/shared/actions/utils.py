@@ -372,6 +372,28 @@ class ActionUtility:
             raise ActionFailure(f'Slot not found in database: {slot}')
 
     @staticmethod
+    def perform_google_search_globally(search_term, **kwargs):
+        from googlesearch import search
+
+        results = []
+        try:
+            search_results = list(search(search_term, advanced=True, **kwargs))
+            for item in search_results or []:
+                results.append({'title': item['title'], 'text': item['snippet'], 'link': item['link']})
+        except Exception as e:
+            logger.exception(e)
+            raise ActionFailure(e)
+        return results
+
+    @staticmethod
+    def perform_combined_google_search(api_key: str, search_engine_id: str, search_term: str, **kwargs):
+        if ActionUtility.is_empty(api_key):
+            results = ActionUtility.perform_google_search_globally(search_term, **kwargs)
+        else:
+            results = ActionUtility.perform_google_search(api_key, search_engine_id, search_term, **kwargs)
+        return results
+
+    @staticmethod
     def perform_google_search(api_key: str, search_engine_id: str, search_term: str, **kwargs):
         from googleapiclient.discovery import build
 

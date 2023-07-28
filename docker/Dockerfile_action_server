@@ -26,6 +26,7 @@ RUN python -m pip install ujson==5.1.0
 RUN python -m pip install Pillow==9.0.0
 RUN python -m pip install blinker
 RUN python -m pip install google-api-python-client
+RUN python -m pip install googlesearch-python
 RUN python -m pip install cryptography
 RUN python -m pip install jira
 RUN python -m pip install zenpy

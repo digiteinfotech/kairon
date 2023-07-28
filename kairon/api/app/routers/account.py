@@ -4,7 +4,7 @@ from starlette.requests import Request
 
 from kairon.shared.auth import Authentication
 from kairon.api.models import Response, RegisterAccount, TextData, Password, FeedbackRequest, DictData, \
-    RecaptchaVerifiedTextData
+    RecaptchaVerifiedTextData, AddBotRequest
 from kairon.shared.constants import OWNER_ACCESS
 from kairon.shared.models import User
 from kairon.shared.account.processor import AccountProcessor
@@ -133,12 +133,12 @@ async def send_confirm_link(email: RecaptchaVerifiedTextData, background_tasks: 
 
 
 @router.post("/bot", response_model=Response)
-async def add_bot(request: DictData, current_user: User = Depends(Authentication.get_current_user)):
+async def add_bot(request: AddBotRequest, current_user: User = Depends(Authentication.get_current_user)):
     """
     Add new bot in a account.
     """
-    bot = AccountProcessor.add_bot(request.data.get('name'), current_user.account, current_user.get_user(),
-                                   template_name=request.data.get('template_name'))
+    bot = AccountProcessor.add_bot(request.name, current_user.account, current_user.get_user(),
+                                   template_name=request.from_template)
     bot_id = bot['_id'].__str__()
     return Response(data={"bot_id": bot_id}, message="Bot created")
 

@@ -19,7 +19,7 @@ google_search_action:
     encrypt: false
     key: api_key
     parameter_type: value
-    value: AIzaSyAf0MkLPE8Dax8eKj-Eg4IZjS1G0I0mtvU
+    value: None
   dispatch_response: true
   failure_response: No Search Results Found!
   name: google_search_action

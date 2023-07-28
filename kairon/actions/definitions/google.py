@@ -1,6 +1,5 @@
 from typing import Text, Dict, Any
 
-from googlesearch import search
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
@@ -60,7 +59,6 @@ class ActionGoogleSearch(ActionsBase):
         action_config = self.retrieve_config()
         bot_response = action_config.get("failure_response")
         api_key = action_config.get('api_key')
-        perform_global_search = action_config.get('perform_global_search')
         try:
             if not ActionUtility.is_empty(latest_msg) and latest_msg.startswith("/"):
                 user_msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
@@ -69,12 +67,9 @@ class ActionGoogleSearch(ActionsBase):
             tracker_data = ActionUtility.build_context(tracker)
             api_key = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_key, self.bot)
             if not ActionUtility.is_empty(latest_msg):
-                if perform_global_search:
-                    results = list(search("Google Search: https://nimblework.com", num_results=10, advanced=True))
-                else:
-                    results = ActionUtility.perform_google_search(
-                        api_key, action_config['search_engine_id'], latest_msg, num=action_config.get("num_results")
-                    )
+                results = ActionUtility.perform_combined_google_search(
+                    api_key, action_config['search_engine_id'], latest_msg, num_results=action_config.get("num_results")
+                )
                 if results:
                     bot_response = ActionUtility.format_search_result(results)
                     self.__response = bot_response
