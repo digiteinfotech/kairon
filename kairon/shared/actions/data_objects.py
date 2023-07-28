@@ -382,7 +382,6 @@ class GoogleSearchAction(Auditlog):
     failure_response = StringField(default='I have failed to process your request.')
     num_results = IntField(default=1)
     dispatch_response = BooleanField(default=True)
-    perform_global_search = BooleanField(default=False)
     set_slot = StringField()
     bot = StringField(required=True)
     user = StringField(required=True)
