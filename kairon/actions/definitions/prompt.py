@@ -160,7 +160,8 @@ class ActionPrompt(ActionsBase):
                         context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
             elif prompt['type'] == LlmPromptType.query.value and prompt['is_enabled']:
                 query_prompt += f"{prompt['name']}:\n{prompt['data']}\n"
-                query_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                if prompt['instructions']:
+                    query_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 is_query_prompt_enabled = True
 
         params["top_results"] = k_faq_action_config.get('top_results', 10)
