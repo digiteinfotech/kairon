@@ -137,9 +137,8 @@ async def add_bot(request: AddBotRequest, current_user: User = Depends(Authentic
     """
     Add new bot in a account.
     """
-    bot = AccountProcessor.add_bot(request.name, current_user.account, current_user.get_user(),
-                                   template_name=request.from_template)
-    bot_id = bot['_id'].__str__()
+    bot_id = await AccountProcessor.add_bot_with_template(request.name, current_user.account, current_user.get_user(),
+                                                          template_name=request.from_template)
     return Response(data={"bot_id": bot_id}, message="Bot created")
 
 

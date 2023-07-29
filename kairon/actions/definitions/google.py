@@ -67,8 +67,9 @@ class ActionGoogleSearch(ActionsBase):
             tracker_data = ActionUtility.build_context(tracker)
             api_key = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_key, self.bot)
             if not ActionUtility.is_empty(latest_msg):
-                results = ActionUtility.perform_combined_google_search(
-                    api_key, action_config['search_engine_id'], latest_msg, num_results=action_config.get("num_results")
+                results = ActionUtility.perform_google_search(
+                    api_key, action_config['search_engine_id'], latest_msg,
+                    num_results=action_config.get("num_results"), website=action_config.get("website")
                 )
                 if results:
                     bot_response = ActionUtility.format_search_result(results)

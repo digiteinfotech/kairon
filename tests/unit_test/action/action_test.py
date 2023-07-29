@@ -2485,131 +2485,30 @@ class TestActions:
 
     def test_google_search_action_globally(self, monkeypatch):
         import googlesearch
+        from collections import namedtuple
+
+        MockSearchResult = namedtuple('MockSearchResult', ['url', 'title', 'description'])
 
         def _run_action(*arge, **kwargs):
-            return {
-                "kind": "customsearch#search",
-                "url": {
-                    "type": "application/json",
-                    "template": "https://www.googleapis.com/customsearch/v1?q={searchTerms}&num={count?}&start={startIndex?}&lr={language?}&safe={safe?}&cx={cx?}&sort={sort?}&filter={filter?}&gl={gl?}&cr={cr?}&googlehost={googleHost?}&c2coff={disableCnTwTranslation?}&hq={hq?}&hl={hl?}&siteSearch={siteSearch?}&siteSearchFilter={siteSearchFilter?}&exactTerms={exactTerms?}&excludeTerms={excludeTerms?}&linkSite={linkSite?}&orTerms={orTerms?}&relatedSite={relatedSite?}&dateRestrict={dateRestrict?}&lowRange={lowRange?}&highRange={highRange?}&searchType={searchType}&fileType={fileType?}&rights={rights?}&imgSize={imgSize?}&imgType={imgType?}&imgColorType={imgColorType?}&imgDominantColor={imgDominantColor?}&alt=json"
-                },
-                "queries": {
-                    "request": [
-                        {
-                            "title": "Google Custom Search - \"what is kanban\"",
-                            "totalResults": "63",
-                            "searchTerms": "\"what is kanban\"",
-                            "count": 10,
-                            "startIndex": 1,
-                            "inputEncoding": "utf8",
-                            "outputEncoding": "utf8",
-                            "safe": "off",
-                            "cx": "008204382765647029238:pt5fuheh0do"
-                        }
-                    ],
-                    "nextPage": [
-                        {
-                            "title": "Google Custom Search - \"what is kanban\"",
-                            "totalResults": "63",
-                            "searchTerms": "\"what is kanban\"",
-                            "count": 10,
-                            "startIndex": 11,
-                            "inputEncoding": "utf8",
-                            "outputEncoding": "utf8",
-                            "safe": "off",
-                            "cx": "008204382765647029238:pt5fuheh0do"
-                        }
-                    ]
-                },
-                "context": {
-                    "title": "DGT"
-                },
-                "searchInformation": {
-                    "searchTime": 0.427328,
-                    "formattedSearchTime": "0.43",
-                    "totalResults": "63",
-                    "formattedTotalResults": "63"
-                },
-                "items": [
-                    {
-                        "kind": "customsearch#result",
-                        "title": "What Is Kanban? An Overview Of The Kanban Method",
-                        "htmlTitle": "<b>What Is Kanban</b>? An Overview Of The Kanban Method",
-                        "link": "https://www.digite.com/kanban/what-is-kanban/",
-                        "displayLink": "www.digite.com",
-                        "snippet": "Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in ...",
-                        "htmlSnippet": "Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in&nbsp;...",
-                        "cacheId": "JwKNqNQN0h0J",
-                        "formattedUrl": "https://www.digite.com/kanban/what-is-kanban/",
-                        "htmlFormattedUrl": "https://www.digite.com/kanban/<b>what-is-kanban</b>/",
-                        "pagemap": {
-                            "cse_thumbnail": [
-                                {
-                                    "src": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRT-YhBrALL2k95qNSSMy_RT3TWdaolYNsPkEAEMfK-6t1K7eFj8N6aUpM",
-                                    "width": "318",
-                                    "height": "159"
-                                }
-                            ],
-                            "metatags": [
-                                {
-                                    "og:image": "https://d112uwirao0vo9.cloudfront.net/wp-content/uploads/2019/11/Kanban.jpg",
-                                    "og:image:width": "400",
-                                    "article:published_time": "2013-08-18GMT+053008:45:29+05:30",
-                                    "twitter:card": "summary_large_image",
-                                    "shareaholic:keywords": "tag:kanban 101, type:page",
-                                    "og:site_name": "Digite",
-                                    "twitter:label1": "Time to read",
-                                    "og:image:type": "image/jpeg",
-                                    "shareaholic:article_modified_time": "2021-12-28T15:13:48+05:30",
-                                    "og:description": "Kanban is a way for teams and organizations to visualize work, identify and eliminate bottlenecks and achieve dramatic operational improvements.",
-                                    "twitter:creator": "@digiteinc",
-                                    "article:publisher": "http://www.facebook.com/digite",
-                                    "og:image:secure_url": "https://d112uwirao0vo9.cloudfront.net/wp-content/uploads/2019/11/Kanban.jpg",
-                                    "twitter:image": "https://d112uwirao0vo9.cloudfront.net/wp-content/uploads/2019/11/Kanban.jpg",
-                                    "twitter:data1": "17 minutes",
-                                    "shareaholic:shareable_page": "true",
-                                    "twitter:site": "@digiteinc",
-                                    "article:modified_time": "2021-12-28GMT+053015:13:48+05:30",
-                                    "shareaholic:article_published_time": "2013-08-18T08:45:29+05:30",
-                                    "shareaholic:language": "en-US",
-                                    "shareaholic:article_author_name": "admin",
-                                    "og:type": "article",
-                                    "og:image:alt": "What is Kanban?",
-                                    "twitter:title": "What Is Kanban? An Overview Of The Kanban Method",
-                                    "og:title": "What Is Kanban? An Overview Of The Kanban Method",
-                                    "og:image:height": "200",
-                                    "shareaholic:site_id": "d451b9c8eb7dc631f67dc9184b724726",
-                                    "og:updated_time": "2021-12-28T15:13:48+05:30",
-                                    "shareaholic:wp_version": "9.7.1",
-                                    "shareaholic:image": "https://d112uwirao0vo9.cloudfront.net/wp-content/uploads/2019/11/Kanban.jpg",
-                                    "article:tag": "Kanban 101",
-                                    "shareaholic:url": "https://www.digite.com/kanban/what-is-kanban/",
-                                    "viewport": "width=device-width, initial-scale=1.0",
-                                    "twitter:description": "Kanban is a way for teams and organizations to visualize work, identify and eliminate bottlenecks and achieve dramatic operational improvements.",
-                                    "og:locale": "en_US",
-                                    "shareaholic:site_name": "Digite",
-                                    "og:url": "https://www.digite.com/kanban/what-is-kanban/"
-                                }
-                            ],
-                            "cse_image": [
-                                {
-                                    "src": "https://d112uwirao0vo9.cloudfront.net/wp-content/uploads/2019/11/Kanban.jpg"
-                                }
-                            ]
-                        }
-                    }]}
+            search_results = [
+                MockSearchResult(
+                    url="https://www.digite.com/kanban/what-is-kanban/",
+                    title="What Is Kanban? An Overview Of The Kanban Method",
+                    description="Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in ..."),
+            ]
+            return search_results
 
         monkeypatch.setattr(googlesearch, 'search', _run_action)
-        results = ActionUtility.perform_google_search_globally('what is kanban', num_results=1)
+        results = ActionUtility.perform_google_search(None, 'asdfg::567890', 'what is kanban', num_results=1)
         assert results == [{
             'title': 'What Is Kanban? An Overview Of The Kanban Method',
-            'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in\xa0...',
+            'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in ...',
             'link': 'https://www.digite.com/kanban/what-is-kanban/'
         }]
 
     def test_google_search_globally_action_error(self):
         with pytest.raises(ActionFailure):
-            ActionUtility.perform_google_search_globally('what is kanban', num_results=1)
+            ActionUtility.perform_google_search(None, 'asdfg::567890', 'what is kanban', num_results=1)
 
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'

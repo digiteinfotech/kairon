@@ -3129,6 +3129,7 @@ class MongoProcessor:
             name=action_config['name'],
             api_key=CustomActionRequestParameters(**action_config['api_key']),
             search_engine_id=action_config['search_engine_id'],
+            website=action_config.get('website'),
             failure_response=action_config.get('failure_response'),
             num_results=action_config.get('num_results'),
             dispatch_response=action_config.get('dispatch_response', True),
@@ -3155,6 +3156,7 @@ class MongoProcessor:
         action = GoogleSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
         action.api_key = CustomActionRequestParameters(**action_config['api_key'])
         action.search_engine_id = action_config['search_engine_id']
+        action.website = action_config.get('website')
         action.failure_response = action_config.get('failure_response')
         action.num_results = action_config.get('num_results')
         action.dispatch_response = action_config.get('dispatch_response', True)

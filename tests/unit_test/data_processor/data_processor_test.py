@@ -12517,6 +12517,7 @@ class TestMongoProcessor:
             'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456', "dispatch_response": False, "set_slot": "google_search_result",
             'failure_response': 'I have failed to process your request',
+            'website': 'https://www.google.com',
         }
         assert processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
@@ -12589,6 +12590,7 @@ class TestMongoProcessor:
                                          'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['search_engine_id'] == 'asdfg:123456'
         assert actions[0]['failure_response'] == 'I have failed to process your request'
+        assert actions[0]['website'] == 'https://www.google.com'
         assert actions[0]['num_results'] == 1
         assert not actions[0]['dispatch_response']
         assert actions[0]['set_slot'] == "google_search_result"
@@ -12617,6 +12619,7 @@ class TestMongoProcessor:
             'api_key': {'value': '1234567889'},
             'search_engine_id': 'asdfg:12345689',
             'failure_response': 'Failed to perform search',
+            'website': 'https://nimblework.com',
         }
         assert not processor.edit_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
@@ -12632,6 +12635,7 @@ class TestMongoProcessor:
                                          'parameter_type': 'value', 'value': '1234567889'}
         assert actions[0]['search_engine_id'] == 'asdfg:12345689'
         assert actions[0]['failure_response'] == 'Failed to perform search'
+        assert actions[0]['website'] == 'https://nimblework.com'
         assert actions[0]['num_results'] == 1
         assert actions[0]['dispatch_response']
         assert not actions[0].get('set_slot')
