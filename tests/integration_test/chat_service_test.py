@@ -14,6 +14,7 @@ from tornado.test.testing_test import AsyncHTTPTestCase
 
 from kairon.api.models import RegisterAccount
 from kairon.chat.agent.agent import KaironAgent
+from kairon.chat.agent.message_processor import KaironMessageProcessor
 from kairon.chat.handlers.channels.messenger import MessengerHandler
 from kairon.chat.server import make_app
 from kairon.chat.utils import ChatUtils
@@ -354,10 +355,69 @@ class TestChatServer(AsyncHTTPTestCase):
             )
             actual = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
+            data = MeteringProcessor.get_logs(bot_account, metric_type=MetricType.test_chat, bot=bot)
+            assert data
             assert not actual["success"]
             assert actual["error_code"] == 422
             assert actual["data"] is None
             assert actual["message"] == 'data is required!'
+
+    def test_chat_with_user_with_metadata(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            with patch.object(KaironMessageProcessor, "handle_message") as mocked_handle_message:
+                mocked_handle_message.return_value = {
+                    "nlu": "intent_prediction",
+                    "action": "action_prediction",
+                    "response": "response_data",
+                    "slots": "slot_data",
+                    "events": "event_data",
+                }
+
+                request_body = {
+                    "data": "Hi",
+                    "metadata": {
+                        "name": "test_chat"
+                    }
+                }
+
+                response = self.fetch(
+                    f"/api/bot/{bot}/chat",
+                    method="POST",
+                    body=json.dumps(request_body).encode("utf8"),
+                    headers={"Authorization": token_type + " " + token},
+                )
+                actual = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                assert actual['success']
+                assert actual['error_code'] == 0
+                metadata = mocked_handle_message.call_args
+                assert metadata.args[0].metadata['name'] == 'test_chat'
+
+    def test_chat_with_user_with_invalid_metadata(self):
+        with patch.object(Utility, "get_local_mongo_store") as mocked:
+            mocked.side_effect = self.empty_store
+            patch.dict(Utility.environment['action'], {"url": None})
+
+            request_body = {
+                "data": "Hi",
+                "metadata": 20
+            }
+
+            response = self.fetch(
+                f"/api/bot/{bot}/chat",
+                method="POST",
+                body=json.dumps(request_body).encode("utf8"),
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 422
+            assert actual["message"] == 'metadata must be a dictionary!'
+            assert actual["data"] is None
 
     def test_chat_fetch_from_cache(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
