@@ -2489,7 +2489,9 @@ class TestActions:
 
         MockSearchResult = namedtuple('MockSearchResult', ['url', 'title', 'description'])
 
-        def _run_action(*arge, **kwargs):
+        def _run_action(*args, **kwargs):
+            assert args == ('what is kanban? site: https://nimblework.com',)
+            assert kwargs == {'advanced': True, 'num_results': 1, 'website': 'https://nimblework.com'}
             search_results = [
                 MockSearchResult(
                     url="https://www.digite.com/kanban/what-is-kanban/",
@@ -2499,16 +2501,13 @@ class TestActions:
             return search_results
 
         monkeypatch.setattr(googlesearch, 'search', _run_action)
-        results = ActionUtility.perform_google_search(None, 'asdfg::567890', 'what is kanban', num_results=1)
+        results = ActionUtility.perform_google_search(None, 'asdfg::567890', 'what is kanban?',
+                                                      num_results=1, website="https://nimblework.com")
         assert results == [{
             'title': 'What Is Kanban? An Overview Of The Kanban Method',
             'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in ...',
             'link': 'https://www.digite.com/kanban/what-is-kanban/'
         }]
-
-    def test_google_search_globally_action_error(self):
-        with pytest.raises(ActionFailure):
-            ActionUtility.perform_google_search(None, 'asdfg::567890', 'what is kanban', num_results=1)
 
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'
