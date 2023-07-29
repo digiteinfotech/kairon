@@ -1,4 +1,3 @@
-import asyncio
 import json
 import uuid
 from datetime import datetime
@@ -82,17 +81,20 @@ class AccountProcessor:
     @staticmethod
     async def add_bot_with_template(name: str, account: int, user: str, is_new_account: bool = False,
                                     add_default_data: bool = True, template_name: str = None, **metadata):
-        from kairon.shared.data.processor import MongoProcessor
-
         """
         add a bot to account and apply template
 
+        :param metadata: metadata of new bot
         :param name: bot name
         :param account: account id
         :param user: user id
+        :param is_new_account: True if it is a new account
+        :param add_default_data: True if default data is to be added
         :param template_name: template name
         :return: bot id
         """
+        from kairon.shared.data.processor import MongoProcessor
+
         bot = AccountProcessor.add_bot(name, account, user, is_new_account=is_new_account,
                                        add_default_data=add_default_data, **metadata)
         bot_id = bot['_id'].__str__()
