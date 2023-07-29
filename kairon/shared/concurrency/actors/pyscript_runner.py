@@ -6,7 +6,7 @@ from RestrictedPython.Guards import safer_getattr
 from loguru import logger
 
 from ..actors.base import BaseActor
-from ...exceptions import AppException
+from kairon.exceptions import AppException
 
 global_safe = _safe_globals
 global_safe['_getattr_'] = safer_getattr

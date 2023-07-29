@@ -22,7 +22,8 @@ from kairon.api.models import (
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
     TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest
 )
-from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS
+from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
+    VIEW_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.importer.data_objects import ValidationLogs
@@ -1607,7 +1608,7 @@ router.include_router(v2, prefix="/v2")
 
 @router.get("/settings", response_model=Response)
 async def get_bot_settings(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=VIEW_ACCESS),
 ):
     """Retrieves bot settings"""
     bot_settings = MongoProcessor.get_bot_settings(current_user.get_bot(), current_user.get_user())
