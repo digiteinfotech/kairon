@@ -1,0 +1,39 @@
+email_action: []
+form_validation_action: []
+prompt_action:
+- name: kairon_faq_action
+  num_bot_responses: 5
+  top_results: 5
+  similarity_threshold: 0.5
+  enable_response_cache: True
+  llm_prompts:
+    - data: You are helpful, creative, clever and very friendly personal assistant.
+      instructions: ''
+      is_enabled: true
+      name: System Context
+      source: static
+      type: system
+    - name: Query Prompt
+      data: A programming language is a system of notation for writing computer programs.
+      instructions: Answer according to the context given above.
+      type: query
+      source: static
+      is_enabled: True
+google_search_action:
+- api_key:
+    _cls: CustomActionRequestParameters
+    encrypt: false
+    key: api_key
+    parameter_type: value
+    value: None
+  dispatch_response: false
+  failure_response: ''
+  name: google_search_action
+  num_results: 1
+  search_engine_id: 54051e9dae61947d2
+http_action: []
+jira_action: []
+pipedrive_leads_action: []
+slot_set_action: []
+two_stage_fallback: []
+zendesk_action: []

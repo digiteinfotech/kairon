@@ -374,13 +374,21 @@ class ActionUtility:
     @staticmethod
     def perform_google_search(api_key: str, search_engine_id: str, search_term: str, **kwargs):
         from googleapiclient.discovery import build
+        from googlesearch import search
 
         results = []
         try:
-            service = build("customsearch", "v1", developerKey=api_key)
-            search_results = service.cse().list(q=search_term, cx=search_engine_id, **kwargs).execute()
-            for item in search_results.get('items') or []:
-                results.append({'title': item['title'], 'text': item['snippet'], 'link': item['link']})
+            if ActionUtility.is_empty(api_key):
+                website = kwargs.get('website')
+                search_term = f"{search_term} site: {website}" if website else search_term
+                search_results = search(search_term, advanced=True, **kwargs)
+                for item in search_results or []:
+                    results.append({'title': item.title, 'text': item.description, 'link': item.url})
+            else:
+                service = build("customsearch", "v1", developerKey=api_key)
+                search_results = service.cse().list(q=search_term, cx=search_engine_id, **kwargs).execute()
+                for item in search_results.get('items') or []:
+                    results.append({'title': item['title'], 'text': item['snippet'], 'link': item['link']})
         except Exception as e:
             logger.exception(e)
             raise ActionFailure(e)

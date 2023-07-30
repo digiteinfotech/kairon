@@ -942,10 +942,10 @@ def test_api_login_enabled_sso_only(monkeypatch):
 def test_add_bot():
     response = client.post(
         "/api/account/bot",
-        json={"data": "covid-bot"},
+        json={"name": "covid-bot"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    assert response.headers == {'content-length': '67', 'content-type': 'application/json', 'server': 'Secure',
+    assert response.headers == {'content-length': '100', 'content-type': 'application/json', 'server': 'Secure',
                                 'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
                                 'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
                                 'x-content-type-options': 'nosniff',
@@ -961,6 +961,7 @@ def test_add_bot():
     assert response['message'] == 'Bot created'
     assert response['error_code'] == 0
     assert response['success']
+    assert response['data']['bot_id']
 
 
 def test_list_bots():
@@ -5775,7 +5776,7 @@ def test_train_insufficient_data(monkeypatch):
 
     response = client.post(
         "/api/account/bot",
-        json={"data": "sample-bot"},
+        json={"name": "sample-bot"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -11893,6 +11894,7 @@ def test_add_google_search_action():
         'api_key': {'value': '12345678'},
         'search_engine_id': 'asdfg:123456',
         'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
     }
     response = client.post(
         f"/api/bot/{pytest.bot}/action/googlesearch",
@@ -12018,6 +12020,7 @@ def test_edit_google_search_action():
         'api_key': {"value": '1234567889'},
         'search_engine_id': 'asdfg:12345689',
         'failure_response': 'Failed to perform search',
+        'website': 'https://nimblework.com',
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/action/googlesearch",
@@ -12096,6 +12099,7 @@ def test_list_google_search_action():
     assert actual["data"][0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
     assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
     assert actual["data"][0]['failure_response'] == 'Failed to perform search'
+    assert actual['data'][0]['website'] == 'https://nimblework.com'
     assert actual["data"][0]['num_results'] == 1
     assert actual["data"][0]['dispatch_response']
     assert not actual["data"][0].get('set_slot')
@@ -12517,7 +12521,7 @@ def test_delete_integration_token():
 def test_integration_token_from_one_bot_on_another_bot():
     response = client.post(
         "/api/account/bot",
-        json={"data": "demo-bot"},
+        json={"name": "demo-bot"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
     assert response['message'] == 'Bot created'
@@ -12685,6 +12689,19 @@ def test_add_channel_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Cannot edit secondary slack app. Please delete and install the app again using oAuth.'
+
+
+def test_add_bot_with_template_name():
+    response = client.post(
+        "/api/account/bot",
+        json={"name": "hi-hello-gpt-bot", "from_template": "Hi-Hello-GPT"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response['message'] == 'Bot created'
+    assert response['error_code'] == 0
+    assert response['success']
+    assert response['data']['bot_id']
 
 
 def test_add_channel_config(monkeypatch):
@@ -14970,7 +14987,7 @@ def test_generate_limited_access_temporary_token():
 
     response = client.post(
         "/api/account/bot",
-        json={"data": "covid-bot"},
+        json={"name": "covid-bot"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = response.json()

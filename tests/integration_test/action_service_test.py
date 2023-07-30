@@ -4867,7 +4867,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         def _run_action(*args, **kwargs):
             assert args == ('1234567890', 'asdfg::123456', 'my custom text')
-            assert kwargs == {'num': 1}
+            assert kwargs == {'num_results': 1, 'website': None}
             return [{
                 'title': 'Kanban',
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
@@ -4894,7 +4894,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         def _run_action(*args, **kwargs):
             assert args == ('1234567890', 'asdfg::123456', '/action_google_search')
-            assert kwargs == {'num': 1}
+            assert kwargs == {'num_results': 1, 'website': None}
             return [{
                 'title': 'Kanban',
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
@@ -4925,6 +4925,76 @@ class TestActionServer(AsyncHTTPTestCase):
         Actions(name=action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
         GoogleSearchAction(name=action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                            search_engine_id='asdfg::123456', bot=bot, user=user, dispatch_response=False, set_slot="google_response").save()
+
+        def _run_action(*args, **kwargs):
+            return [{
+                'title': 'Kanban',
+                'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
+                'link': "https://www.digite.com/kanban/what-is-kanban/"
+            }]
+
+        expected_resp = 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = "what is Kanban?"
+
+        with patch.object(ActionUtility, "perform_google_search") as mocked:
+            mocked.side_effect = _run_action
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            self.assertEqual(response_json, {'events': [
+                {'event': 'slot', 'timestamp': None, 'name': 'google_response', 'value': expected_resp},
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': expected_resp},
+            ], 'responses': []})
+
+    def test_process_google_search_action_globally(self):
+        action_name = "test_process_google_search_action_globally"
+        bot = "5f50fd0a56b698asdfghjkiuytre"
+        user = 'test_user'
+        Actions(name=action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
+        GoogleSearchAction(name=action_name, search_engine_id='asdfg::123456', bot=bot, user=user,
+                           dispatch_response=True, set_slot="google_response", website="https://nimblework.com").save()
+
+        def _run_action(*args, **kwargs):
+            assert args == (None, 'asdfg::123456', 'what is Kanban?',)
+            assert kwargs == {'num_results': 1, 'website': "https://nimblework.com"}
+            return [{
+                'title': 'Kanban',
+                'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
+                'link': "https://www.digite.com/kanban/what-is-kanban/"
+            }]
+
+        expected_resp = 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
+        request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+        request_object["tracker"]["slots"]["bot"] = bot
+        request_object["next_action"] = action_name
+        request_object["tracker"]["sender_id"] = user
+        request_object["tracker"]["latest_message"]['text'] = "what is Kanban?"
+
+        with patch.object(ActionUtility, "perform_google_search") as mocked:
+            mocked.side_effect = _run_action
+            response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+            response_json = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            self.assertEqual(response_json, {'events': [
+                {'event': 'slot', 'timestamp': None, 'name': 'google_response', 'value': expected_resp},
+                {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': expected_resp},
+            ],
+                'responses': [{
+                    'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>',
+                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+                    'image': None, 'attachment': None}]})
+
+    def test_process_google_search_action_globally_dispatch_false(self):
+        action_name = "test_process_google_search_action_globally_dispatch_false"
+        bot = "5f50fd0a56b698asdfghjkiuytre"
+        user = 'test_user'
+        Actions(name=action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
+        GoogleSearchAction(name=action_name, search_engine_id='asdfg::123456', bot=bot, user=user,
+                           dispatch_response=False, set_slot="google_response").save()
 
         def _run_action(*args, **kwargs):
             return [{

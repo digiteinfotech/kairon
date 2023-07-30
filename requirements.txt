@@ -57,6 +57,7 @@ zenpy
 pipedrive-python-lib
 openapi_spec_validator
 google-cloud-translate
+googlesearch-python
 dramatiq
 dramatiq-mongodb==0.6.1
 keybert
