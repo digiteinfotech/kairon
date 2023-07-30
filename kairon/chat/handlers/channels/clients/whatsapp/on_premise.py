@@ -3,6 +3,8 @@ from typing import Text, Dict
 
 import requests
 
+from kairon.exceptions import AppException
+from kairon.shared.utils import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 
 logger = logging.getLogger(__name__)
@@ -74,7 +76,10 @@ class WhatsappOnPremise(WhatsappCloud):
         logger.debug(resp)
         return resp
 
-    def send_template_message(self, namespace: Text, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None):
+    def send_template_message(self, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None, namespace: Text = None):
+        if Utility.check_empty_string(namespace):
+            raise AppException("namespace is required to send messages using on-premises api!")
+
         payload = {
             "namespace": namespace,
             "language": {

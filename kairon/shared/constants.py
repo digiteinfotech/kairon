@@ -139,5 +139,5 @@ class VectorEmbeddingsDatabases(str, Enum):
     qdrant = "qdrant"
 
 
-class ActorTypes(str, Enum):
+class ActorType(str, Enum):
     pyscript_runner = "pyscript_runner"

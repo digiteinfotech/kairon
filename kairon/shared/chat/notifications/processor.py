@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
-from typing import Text, Dict
+from types import ModuleType
+from typing import Text, Dict, Callable
 
 from loguru import logger
 from bson import ObjectId
@@ -56,6 +57,7 @@ class MessageBroadcastProcessor:
                 if config.get("data_extraction_config") else None
             settings.recipients_config = RecipientsConfiguration(**config["recipients_config"])
             settings.template_config = [TemplateConfiguration(**template) for template in config["template_config"]]
+            settings.pyscript = config.get("pyscript")
             settings.user = user
             settings.timestamp = datetime.utcnow()
             settings.save()
@@ -79,7 +81,7 @@ class MessageBroadcastProcessor:
     @staticmethod
     def add_event_log(bot: Text, log_type: Text, reference_id: Text = None, status: Text = None, **kwargs):
         try:
-            if log_type == MessageBroadcastLogType.send.value:
+            if log_type in {MessageBroadcastLogType.send.value, MessageBroadcastLogType.self.value}:
                 raise DoesNotExist()
             log = MessageBroadcastLogs.objects(bot=bot, reference_id=reference_id, log_type=log_type).get()
         except DoesNotExist:
@@ -89,7 +91,7 @@ class MessageBroadcastProcessor:
         if status:
             log.status = status
         for key, value in kwargs.items():
-            if not getattr(log, key, None):
+            if not getattr(log, key, None) and not isinstance(value, Callable) and not isinstance(value, ModuleType):
                 setattr(log, key, value)
         log.save()
         return reference_id

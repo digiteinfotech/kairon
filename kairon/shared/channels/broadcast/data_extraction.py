@@ -1,6 +1,7 @@
 import ast
 from abc import ABC
 from typing import Text, Dict, Any
+from loguru import logger
 
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -26,6 +27,10 @@ class MessageBroadcastUsingDataExtraction(MessageBroadcastBase, ABC):
     def pull_data(self):
         data = {}
         extraction_log = {}
+        if not Utility.check_empty_string(self.config.get('pyscript')):
+            logger.debug("Skipping pull_data as pyscript exists!")
+            return
+
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, status=EVENT_STATUS.TRIGGERED_API.value
         )

@@ -2,13 +2,13 @@ from typing import Text
 
 from kairon.exceptions import AppException
 from ..actors.pyscript_runner import PyScriptRunner
-from kairon.shared.constants import ActorTypes
+from kairon.shared.constants import ActorType
 
 
 class ActorFactory:
 
     __actors = {
-        ActorTypes.pyscript_runner: PyScriptRunner
+        ActorType.pyscript_runner.value: PyScriptRunner
     }
 
     @staticmethod

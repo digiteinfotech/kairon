@@ -7,7 +7,7 @@ from RestrictedPython import PrintCollector
 
 from kairon.exceptions import AppException
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
-from kairon.shared.constants import ActorTypes
+from kairon.shared.constants import ActorType
 
 
 class TestActors:
@@ -21,7 +21,7 @@ class TestActors:
         print(total)
         """
         script = textwrap.dedent(script)
-        result = ActorOrchestrator.run(ActorTypes.pyscript_runner, source_code=script)
+        result = ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script)
         assert isinstance(result['_print'], PrintCollector)
         assert result["data"] == [1, 2, 3, 4, 5]
         assert result['total'] == 15
@@ -40,7 +40,7 @@ class TestActors:
         responses.add(
             "GET", "http://localhos", json={"data": "kairon", "message": "OK"}
         )
-        result = ActorOrchestrator.run(ActorTypes.pyscript_runner, source_code=script, predefined_objects={"requests": requests, "json": json})
+        result = ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script, predefined_objects={"requests": requests, "json": json})
         assert result["requests"]
         assert result['json']
         assert result["response"]
@@ -57,7 +57,7 @@ class TestActors:
         script = textwrap.dedent(script)
 
         with pytest.raises(AppException, match="Script execution error: import of 'requests' is unauthorized"):
-            ActorOrchestrator.run(ActorTypes.pyscript_runner, source_code=script)
+            ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script)
 
     def test_actor_pyrunner_with_timeout(self):
         import time
@@ -68,8 +68,8 @@ class TestActors:
             """
         script = textwrap.dedent(script)
 
-        with pytest.raises(pykka._exceptions.Timeout):
-            ActorOrchestrator.run(ActorTypes.pyscript_runner, source_code=script, predefined_objects={"time": time}, timeout=1)
+        with pytest.raises(AppException, match="Operation timed out: 1 seconds"):
+            ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script, predefined_objects={"time": time}, timeout=1)
 
     def test_actor_pyrunner_with_interpreter_error(self):
         script = """
@@ -78,7 +78,7 @@ class TestActors:
         script = textwrap.dedent(script)
 
         with pytest.raises(AppException, match=re.escape('Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')):
-            ActorOrchestrator.run(ActorTypes.pyscript_runner, source_code=script)
+            ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script)
 
     def test_invalid_actor(self):
         with pytest.raises(AppException, match="custom actor not implemented!"):

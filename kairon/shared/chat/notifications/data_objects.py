@@ -1,5 +1,5 @@
 from mongoengine import Document, StringField, DateTimeField, DictField, DynamicDocument, EmbeddedDocument, \
-    EmbeddedDocumentField, ValidationError, ListField, BooleanField
+    EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField
 
 from kairon import Utility
 from kairon.shared.data.signals import push_notification
@@ -99,14 +99,27 @@ class MessageBroadcastSettings(Document):
     connector_type = StringField(required=True)
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
     data_extraction_config = EmbeddedDocumentField(DataExtractionConfiguration)
-    recipients_config = EmbeddedDocumentField(RecipientsConfiguration, required=True)
-    template_config = ListField(EmbeddedDocumentField(TemplateConfiguration), required=True)
+    recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
+    template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
+    pyscript = StringField()
+    pyscript_timeout = IntField(default=10)
     bot = StringField(required=True)
     user = StringField(required=True)
     status = BooleanField(default=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
     meta = {"indexes": [{"fields": ["bot", ("id", "bot", "status")]}]}
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.pyscript):
+            if not self.template_config or not self.recipients_config:
+                raise ValidationError("Either use pyscript or provide recipients_config and template_config!")
+        if self.scheduler_config:
+            self.scheduler_config.validate()
+        if self.recipients_config:
+            self.recipients_config.validate()
+        for template in self.template_config or []:
+            template.validate()
 
 
 @push_notification.apply

@@ -75,5 +75,6 @@ class MessageBroadcastRequest(BaseModel):
     connector_type: str
     scheduler_config: SchedulerConfiguration = None
     data_extraction_config: DataExtractionConfiguration = None
-    recipients_config: RecipientsConfiguration
-    template_config: List[TemplateConfiguration]
+    recipients_config: RecipientsConfiguration = None
+    template_config: List[TemplateConfiguration] = None
+    pyscript: str = None

@@ -2,6 +2,7 @@ import asyncio
 import os
 import shutil
 import tempfile
+import textwrap
 import uuid
 from io import BytesIO
 from unittest.mock import patch
@@ -1111,7 +1112,7 @@ class TestEventExecution:
         user = 'test_user'
         config = {
             "name": "one_time_schedule",
-            "connector_type": "whatsapp",
+            "connector_type": "whatsapp", 'pyscript_timeout': 10,
             "recipients_config": {
                 "recipient_type": "static",
                 "recipients": "918958030541,"
@@ -1185,7 +1186,7 @@ class TestEventExecution:
              "filename": "Brochure.pdf"}}]}]
         config = {
             "name": "one_time_schedule",
-            "connector_type": "whatsapp",
+            "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "recipients_config": {
                 "recipient_type": "dynamic",
                 "recipients": "${contacts}"
@@ -1283,13 +1284,13 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
-        assert mock_send.call_args[0][1] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
-        assert mock_send.call_args[0][2] == 'brochure_pdf'
-        assert mock_send.call_args[0][3] == '876543212345'
-        assert mock_send.call_args[0][4] == 'hi'
-        assert mock_send.call_args[0][5] == [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+        assert mock_send.call_args[0][1] == 'brochure_pdf'
+        assert mock_send.call_args[0][2] == '876543212345'
+        assert mock_send.call_args[0][3] == 'hi'
+        assert mock_send.call_args[0][4] == [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
             'filename': 'Brochure.pdf'}}]}]
+        assert mock_send.call_args.kwargs["namespace"] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
 
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
@@ -1301,7 +1302,7 @@ class TestEventExecution:
         user = 'test_user'
         config = {
             "name": "one_time_schedule",
-            "connector_type": "whatsapp",
+            "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "recipients_config": {
                 "recipient_type": "dynamic",
                 "recipients": "${contacts}"
@@ -1382,7 +1383,7 @@ class TestEventExecution:
         user = 'test_user'
         config = {
             "name": "one_time_schedule",
-            "connector_type": "whatsapp",
+            "connector_type": "whatsapp", 'pyscript_timeout': 15,
             "recipients_config": {
                 "recipient_type": "dynamic",
                 "recipients": "${contacts}"
@@ -1546,7 +1547,7 @@ class TestEventExecution:
         user = 'test_user'
         config = {
             "name": "one_time_schedule",
-            "connector_type": "whatsapp",
+            "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "recipients_config": {
                 "recipient_type": "static",
                 "recipients": "918958030541"
@@ -1607,7 +1608,7 @@ class TestEventExecution:
         user = 'test_user'
         config = {
             "name": "one_time_schedule",
-            "connector_type": "whatsapp",
+            "connector_type": "whatsapp", 'pyscript_timeout': 10,
             "recipients_config": {
                 "recipient_type": "static",
                 "recipients": "918958030541,"
@@ -1682,3 +1683,212 @@ class TestEventExecution:
                                    EventRequestType.update_schedule.value]:
             with pytest.raises(Exception):
                 ScheduledEventsBase("test", "test").enqueue(event_request_type, config={})
+
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_pyscript(self, mock_is_exist, mock_channel_config,
+                                                           mock_get_bot_settings, mock_send):
+        bot = 'test_execute_message_broadcast_with_pyscript'
+        user = 'test_user'
+        script = """
+            api_response = requests.get("http://kairon.local", headers={"api_key": "asdfghjkl", "access_key": "dsfghjkl"})
+            api_response = api_response.json()
+            log(**api_response)
+
+            components = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                  'filename': 'Brochure.pdf'}}]}]
+            i = 0
+            for contact in api_response["contacts"]:
+                resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")
+                log(i=i, contact=contact, whatsapp_response=resp)            
+            """
+        script = textwrap.dedent(script)
+        config = {
+            "name": "one_time_schedule",
+            "connector_type": "whatsapp", 'pyscript_timeout': 30,
+            "pyscript": script
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        responses.start()
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", "http://kairon.local",
+            match=[matchers.header_matcher({"api_key": "asdfghjkl", "access_key": "dsfghjkl"})],
+            json={"contacts": ["9876543210", "876543212345"]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
+        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+        event.execute(event_id)
+        responses.reset()
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 6
+        [log.pop("timestamp") for log in logs[0]]
+        reference_id = logs[0][0].get("reference_id")
+        assert logs[0][0] == {'bot': bot, 'contact': '876543212345', 'i': 0, 'log_type': 'self',
+                              'reference_id': reference_id, 'whatsapp_response': {
+                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}
+        assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+                              'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+                              'recipient': '876543212345', 'template_params':
+                                  [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                      'filename': 'Brochure.pdf'}}]}]}
+        assert logs[0][2] == {'reference_id': reference_id, 'log_type': 'self', 'bot': bot, 'i': 0,
+                              'contact': '9876543210', 'whatsapp_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}
+        assert logs[0][3] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+                              'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+                              'recipient': '9876543210', 'template_params': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                'filename': 'Brochure.pdf'}}]}]}
+        assert logs[0][4] == {'bot': bot, 'contacts': ['9876543210', '876543212345'], 'log_type': 'self',
+                              'reference_id': reference_id}
+        logged_config = logs[0][5].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        assert logged_config.pop("template_config") == []
+        assert logged_config == config
+
+        assert logs[0][5] == {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
+                              'user': 'test_user', 'broadcast_id': event_id, 'failure_cnt': 0, 'total': 2,
+                              'api_response': {'contacts': ['9876543210', '876543212345']},
+                              'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                  'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
+                              'resp': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}
+
+        with pytest.raises(AppException, match="Notification settings not found!"):
+            MessageBroadcastProcessor.get_settings(event_id, bot)
+
+        assert mock_send.call_args[0][1] == 'brochure_pdf'
+        assert mock_send.call_args[0][2] == '876543212345'
+        assert mock_send.call_args[0][3] == 'en'
+        assert mock_send.call_args[0][4] == [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+            'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+            'filename': 'Brochure.pdf'}}]}]
+        assert mock_send.call_args[0][5] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
+
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_pyscript_failure(self, mock_is_exist, mock_channel_config, mock_get_bot_settings):
+        bot = 'test_execute_message_broadcast_with_pyscript_failure'
+        user = 'test_user'
+        script = """
+                import time         
+                """
+        script = textwrap.dedent(script)
+        config = {
+            "name": "one_time_schedule",
+            "connector_type": "whatsapp", 'pyscript_timeout': 30,
+            "pyscript": script
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        responses.start()
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+        event.execute(event_id)
+        responses.reset()
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 1
+        [log.pop("timestamp") for log in logs[0]]
+        reference_id = logs[0][0].get("reference_id")
+        logged_config = logs[0][0].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        assert logged_config.pop("template_config") == []
+        assert logged_config == config
+
+        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
+                              'user': user, 'broadcast_id': event_id,
+                              "exception": "Script execution error: import of 'time' is unauthorized"}
+
+        with pytest.raises(AppException, match="Notification settings not found!"):
+            MessageBroadcastProcessor.get_settings(event_id, bot)
+
+    @patch("kairon.shared.channels.broadcast.whatsapp.json")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_pyscript_timeout(self, mock_is_exist, mock_channel_config,
+                                                             mock_get_bot_settings, mock_json):
+        import time
+
+        bot = 'test_execute_message_broadcast_with_pyscript_timeout'
+        user = 'test_user'
+        script = """
+                json()     
+                """
+        script = textwrap.dedent(script)
+        config = {
+            "name": "one_time_schedule",
+            "connector_type": "whatsapp", 'pyscript_timeout': 1,
+            "pyscript": script
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        responses.start()
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
+
+        def sleep_for_some_time(*args, **kwargs):
+            time.sleep(3)
+
+        mock_json.side_effect = sleep_for_some_time
+
+        event = MessageBroadcastEvent(bot, user)
+        event.validate()
+        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+        event.execute(event_id)
+        responses.reset()
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
+        assert len(logs[0]) == logs[1] == 1
+        [log.pop("timestamp") for log in logs[0]]
+        reference_id = logs[0][0].get("reference_id")
+        logged_config = logs[0][0].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        assert logged_config.pop("template_config") == []
+        assert logged_config == config
+
+        assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
+                              'user': user, 'broadcast_id': event_id, 'exception': 'Operation timed out: 1 seconds'}
+
+        with pytest.raises(AppException, match="Notification settings not found!"):
+            MessageBroadcastProcessor.get_settings(event_id, bot)

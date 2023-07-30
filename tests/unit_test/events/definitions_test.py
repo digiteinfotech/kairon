@@ -1104,7 +1104,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
                           'recipients_config': {'recipient_type': 'static', 'recipients': "918958030541,"},
                           'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
@@ -1153,7 +1153,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
                           'recipients_config': {'recipient_type': 'static', 'recipients': "918958030541,"},
                           'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
@@ -1201,7 +1201,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
                           'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
@@ -1244,7 +1244,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
                           'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
@@ -1266,7 +1266,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
                           'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
@@ -1297,7 +1297,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
                           'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',

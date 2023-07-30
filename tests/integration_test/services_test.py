@@ -13180,13 +13180,13 @@ def test_list_broadcast_config():
     actual["data"]['schedules'][1].pop("bot")
     actual["data"]['schedules'][1].pop("user")
     assert actual["data"] == {'schedules': [
-        {'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        {'name': 'first_scheduler', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
          'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *', "timezone": "Asia/Kolkata"},
          'data_extraction_config': {'method': 'GET', 'url': 'http://kairon.remote', 'headers': {}, 'request_body': {}},
          'recipients_config': {'recipient_type': 'dynamic', 'recipients': '918958030541,'}, 'template_config': [
             {'template_type': 'dynamic', 'template_id': 'brochure_pdf', "language": "en",
              'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': '${response.data}'}], 'status': True},
-        {'name': 'one_time_schedule', 'connector_type': 'whatsapp',
+        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
          'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
             {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
              'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'status': True}]}
@@ -13227,7 +13227,7 @@ def test_list_broadcast_():
     actual["data"]["schedules"][0].pop("timestamp")
     actual["data"]["schedules"][0].pop("user")
     assert actual["data"] == {'schedules': [
-        {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
+        {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
          'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
             {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
              'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'bot': pytest.bot, 'status': True, }]}

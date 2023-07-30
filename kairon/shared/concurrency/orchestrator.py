@@ -1,5 +1,8 @@
 from typing import Text
 
+import pykka
+
+from kairon.exceptions import AppException
 from kairon.shared.concurrency.actors.factory import ActorFactory
 
 
@@ -13,5 +16,7 @@ class ActorOrchestrator:
             future = actor.execute(**kwargs)
             result = future.get(actor_timeout)
             return result
+        except pykka._exceptions.Timeout as e:
+            raise AppException(f"Operation timed out: {e}")
         finally:
             actor.actor_ref.stop()
