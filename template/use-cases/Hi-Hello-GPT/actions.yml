@@ -26,8 +26,8 @@ google_search_action:
     key: api_key
     parameter_type: value
     value: None
-  dispatch_response: true
-  failure_response: No Search Results Found!
+  dispatch_response: false
+  failure_response: ''
   name: google_search_action
   num_results: 1
   search_engine_id: 54051e9dae61947d2

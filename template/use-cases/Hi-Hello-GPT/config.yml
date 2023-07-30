@@ -11,7 +11,7 @@ pipeline:
 - epochs: 100
   name: DIETClassifier
 - name: FallbackClassifier
-  threshold: 0.7
+  threshold: 0.3
 - name: EntitySynonymMapper
 - epochs: 100
   name: ResponseSelector

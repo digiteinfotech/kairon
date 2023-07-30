@@ -1,59 +1,16 @@
 version: "2.0"
 nlu:
-- intent: affirm
-  examples: |
-    - that sounds good
-    - correct
-    - yes
-    - indeed
-    - of course
-- intent: bot_challenge
-  examples: |
-    - am I talking to a human?
-    - are you a bot?
-    - are you a human?
-    - am I talking to a bot?
-- intent: deny
-  examples: |
-    - don't like that
-    - no
-    - I don't think so
-    - not really
-    - never
-    - no way
 - intent: goodbye
   examples: |
-    - see you around
-    - see you later
     - bye
     - goodbye
+    - see you around
+    - see you later
 - intent: greet
   examples: |
     - hey
+    - hello
+    - hi
     - good morning
     - good evening
-    - hi
     - hey there
-    - hello
-- intent: mood_great
-  examples: |
-    - wonderful
-    - very good
-    - great
-    - amazing
-    - I am great
-    - perfect
-    - I am feeling very good
-    - I'm good
-- intent: mood_unhappy
-  examples: |
-    - very bad
-    - sad
-    - very sad
-    - awful
-    - unhappy
-    - bad
-    - terrible
-    - not very good
-    - extremely sad
-    - so sad

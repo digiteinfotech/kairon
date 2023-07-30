@@ -5,27 +5,9 @@ session_config:
   session_expiration_time: 60
   carry_over_slots_to_new_session: true
 intents:
-- affirm:
-    use_entities: []
-- goodbye:
-    use_entities: []
-- mood_unhappy:
-    use_entities: []
-- session_start:
-    use_entities: []
-- deny:
-    use_entities: []
-- bot_challenge:
-    use_entities: []
 - greet:
     use_entities: []
-- mood_great:
-    use_entities: []
-- back:
-    use_entities: []
-- restart:
-    use_entities: []
-- out_of_scope:
+- goodbye:
     use_entities: []
 - nlu_fallback:
     use_entities: []
@@ -73,25 +55,7 @@ slots:
     initial_value: 64bdf3ff0a2ff4923faa83ee
     auto_fill: true
     influence_conversation: false
-responses:
-  utter_greet:
-  - text: How may i help you?
-  - text: Hey! How are you?
-  utter_cheer_up:
-  - text: 'Here is something to cheer you up:'
-    image: https://i.imgur.com/nGF1K8f.jpg
-  utter_did_that_help:
-  - text: Did that help you?
-  utter_please_rephrase:
-  - text: I'm sorry, I didn't quite understand that. Could you rephrase?
-  utter_iamabot:
-  - text: I am a bot, powered by Rasa.
-  utter_goodbye:
-  - text: Bye
-  utter_default:
-  - text: Sorry I didn't get that. Can you rephrase?
-  utter_happy:
-  - text: Great, carry on!
+responses: {}
 actions:
 - kairon_faq_action
 - google_search_action
