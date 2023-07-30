@@ -115,6 +115,8 @@ class GPT3FAQEmbedding(LLMBase):
         use_query_prompt = kwargs.get('use_query_prompt')
         previous_bot_responses = kwargs.get('previous_bot_responses')
         hyperparameters = kwargs.get('hyperparameters', Utility.get_llm_hyperparameters())
+        instructions = kwargs.get('instructions', [])
+        instructions = '\n'.join(instructions)
 
         if use_query_prompt and query_prompt:
             query = self.__rephrase_query(query, system_prompt, query_prompt, hyperparameters=hyperparameters)
@@ -123,7 +125,8 @@ class GPT3FAQEmbedding(LLMBase):
         ]
         if previous_bot_responses:
             messages.extend(previous_bot_responses)
-        messages.append({"role": "user", "content": f"{context} \n Q: {query}\n A:"})
+        messages.append({"role": "user", "content": f"{context} \n{instructions} \nQ: {query} \nA:"}) if instructions \
+            else messages.append({"role": "user", "content": f"{context} \nQ: {query} \nA:"})
 
         completion, raw_response = self.client.invoke(GPT3ResourceTypes.chat_completion.value, messages=messages,
                                                       **hyperparameters)
@@ -248,6 +251,7 @@ class GPT3FAQEmbedding(LLMBase):
 
             similarity_context = "\n".join([item['payload']['content'] for item in search_result['result']])
             similarity_context = f"{similarity_prompt_name}:\n{similarity_context}\n"
-            similarity_context += f"Instructions on how to use {similarity_prompt_name}: {similarity_prompt_instructions}\n"
+            if similarity_prompt_instructions:
+                similarity_context += f"Instructions on how to use {similarity_prompt_name}: {similarity_prompt_instructions}\n"
             context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt

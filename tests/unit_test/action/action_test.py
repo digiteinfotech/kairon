@@ -1,6 +1,5 @@
 import json
 import os
-import urllib.parse
 
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
@@ -12,8 +11,8 @@ from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
-from kairon.actions.definitions.prompt import ActionPrompt
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
+from kairon.actions.definitions.prompt import ActionPrompt
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
@@ -2134,7 +2133,8 @@ class TestActions:
                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                                 'dispatch_response': True, 'set_slots': [], 'llm_prompts': llm_prompts}
+                                 'dispatch_response': True, 'set_slots': [], 'llm_prompts': llm_prompts,
+                                 'instructions': []}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
         bot_settings.pop("status")
@@ -2482,6 +2482,32 @@ class TestActions:
     def test_google_search_action_error(self):
         with pytest.raises(ActionFailure):
             ActionUtility.perform_google_search('123459876', 'asdfg::567890', 'what is kanban')
+
+    def test_google_search_action_globally(self, monkeypatch):
+        import googlesearch
+        from collections import namedtuple
+
+        MockSearchResult = namedtuple('MockSearchResult', ['url', 'title', 'description'])
+
+        def _run_action(*args, **kwargs):
+            assert args == ('what is kanban? site: https://nimblework.com',)
+            assert kwargs == {'advanced': True, 'num_results': 1, 'website': 'https://nimblework.com'}
+            search_results = [
+                MockSearchResult(
+                    url="https://www.digite.com/kanban/what-is-kanban/",
+                    title="What Is Kanban? An Overview Of The Kanban Method",
+                    description="Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in ..."),
+            ]
+            return search_results
+
+        monkeypatch.setattr(googlesearch, 'search', _run_action)
+        results = ActionUtility.perform_google_search(None, 'asdfg::567890', 'what is kanban?',
+                                                      num_results=1, website="https://nimblework.com")
+        assert results == [{
+            'title': 'What Is Kanban? An Overview Of The Kanban Method',
+            'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in ...',
+            'link': 'https://www.digite.com/kanban/what-is-kanban/'
+        }]
 
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'
@@ -3119,7 +3145,7 @@ class TestActions:
                                        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
                                                         'type': 'system', 'source': 'static', 'is_enabled': True},
                                                        {'name': 'History Prompt', 'type': 'user', 'source': 'history',
-                                                        'is_enabled': True}],
+                                                        'is_enabled': True}], 'instructions': [],
                                        'status': True}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):

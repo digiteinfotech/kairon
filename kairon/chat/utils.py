@@ -1,6 +1,6 @@
 import datetime
 import json
-from typing import Text
+from typing import Text, Dict
 
 from loguru import logger
 from pymongo.collection import Collection
@@ -23,10 +23,10 @@ from ..shared.metering.metering_processor import MeteringProcessor
 class ChatUtils:
 
     @staticmethod
-    async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False):
+    async def chat(data: Text, account: int, bot: Text, user: Text, is_integration_user: bool = False, metadata: Dict = None):
         model = AgentProcessor.get_agent(bot)
-        msg = UserMessage(data, sender_id=user, metadata={"is_integration_user": is_integration_user, "bot": bot,
-                                                          "account": account, "channel_type": "chat_client"})
+        metadata = ChatUtils.__get_metadata(account, bot, is_integration_user, metadata)
+        msg = UserMessage(data, sender_id=user, metadata=metadata)
         chat_response = await model.handle_message(msg)
         ChatUtils.__attach_agent_handoff_metadata(account, bot, user, chat_response, model.tracker_store)
         return chat_response
@@ -156,4 +156,15 @@ class ChatUtils:
 
         if not request_body.get('data') or Utility.check_empty_string(request_body.get('data')):
             raise AppException("data is required!")
+        if request_body.get('metadata') and not isinstance(request_body.get('metadata'), dict):
+            raise AppException("metadata must be a dictionary!")
         return request_body
+
+    @staticmethod
+    def __get_metadata(account: int, bot: Text, is_integration_user: bool = False, metadata: Dict = None):
+        default_metadata = {"is_integration_user": is_integration_user, "bot": bot, "account": account,
+                    "channel_type": "chat_client"}
+        if not metadata:
+           metadata = {}
+        metadata.update(default_metadata)
+        return metadata

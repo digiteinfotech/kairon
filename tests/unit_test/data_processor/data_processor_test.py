@@ -279,10 +279,6 @@ class TestMongoProcessor:
                                    {'name': 'Query Prompt',
                                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'history', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'history', 'is_enabled': True}],
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70,
                    "num_bot_responses": 5}
@@ -408,27 +404,6 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="data is required for static prompts!"):
             processor.add_prompt_action(request, bot, user)
 
-    def test_add_prompt_action_with_empty_llm_prompt_instructions(self):
-        processor = MongoProcessor()
-        bot = 'test_bot'
-        user = 'test_user'
-        request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_instructions',
-                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', 'instructions': '', 'type': 'user',
-                                    'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True}],
-                   "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                   "similarity_threshold": 0.70, "num_bot_responses": 5}
-        with pytest.raises(ValidationError, match="instructions are required!"):
-            processor.add_prompt_action(request, bot, user)
 
     def test_add_prompt_action_with_multiple_history_source_prompts(self):
         processor = MongoProcessor()
@@ -542,6 +517,7 @@ class TestMongoProcessor:
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
              'status': True, "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                                  {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+             'instructions': [],
                    "dispatch_response": False}]
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
@@ -813,7 +789,7 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True,
+             'status': True, 'instructions': [],
              "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                             {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
                    "dispatch_response": False}]
@@ -831,7 +807,7 @@ class TestMongoProcessor:
                                  'logit_bias': {}},
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True}], 'status': True,
-             "set_slots": [],
+             "set_slots": [], 'instructions': [],
              "dispatch_response": True
              }]
 
@@ -879,7 +855,7 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, "set_slots": [], "dispatch_response": True}]
+             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -906,7 +882,7 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, "set_slots": [], "dispatch_response": True}]
+             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
 
     def test_delete_prompt_action(self):
         processor = MongoProcessor()
@@ -12517,6 +12493,7 @@ class TestMongoProcessor:
             'api_key': {'value': '12345678'},
             'search_engine_id': 'asdfg:123456', "dispatch_response": False, "set_slot": "google_search_result",
             'failure_response': 'I have failed to process your request',
+            'website': 'https://www.google.com',
         }
         assert processor.add_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
@@ -12589,6 +12566,7 @@ class TestMongoProcessor:
                                          'parameter_type': 'value', 'value': '12345678'}
         assert actions[0]['search_engine_id'] == 'asdfg:123456'
         assert actions[0]['failure_response'] == 'I have failed to process your request'
+        assert actions[0]['website'] == 'https://www.google.com'
         assert actions[0]['num_results'] == 1
         assert not actions[0]['dispatch_response']
         assert actions[0]['set_slot'] == "google_search_result"
@@ -12617,6 +12595,7 @@ class TestMongoProcessor:
             'api_key': {'value': '1234567889'},
             'search_engine_id': 'asdfg:12345689',
             'failure_response': 'Failed to perform search',
+            'website': 'https://nimblework.com',
         }
         assert not processor.edit_google_search_action(action, bot, user)
         assert Actions.objects(name='google_custom_search', status=True, bot=bot).get()
@@ -12632,6 +12611,7 @@ class TestMongoProcessor:
                                          'parameter_type': 'value', 'value': '1234567889'}
         assert actions[0]['search_engine_id'] == 'asdfg:12345689'
         assert actions[0]['failure_response'] == 'Failed to perform search'
+        assert actions[0]['website'] == 'https://nimblework.com'
         assert actions[0]['num_results'] == 1
         assert actions[0]['dispatch_response']
         assert not actions[0].get('set_slot')

@@ -377,8 +377,9 @@ class EmailActionConfig(Auditlog):
 @push_notification.apply
 class GoogleSearchAction(Auditlog):
     name = StringField(required=True)
-    api_key = EmbeddedDocumentField(CustomActionRequestParameters, required=True)
-    search_engine_id = StringField(required=True)
+    api_key = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
+    search_engine_id = StringField(default=None)
+    website = StringField(default=None)
     failure_response = StringField(default='I have failed to process your request.')
     num_results = IntField(default=1)
     dispatch_response = BooleanField(default=True)
@@ -396,7 +397,8 @@ class GoogleSearchAction(Auditlog):
 
     def clean(self):
         self.name = self.name.strip().lower()
-        self.api_key.key = "api_key"
+        if self.api_key:
+            self.api_key.key = "api_key"
         if Utility.check_empty_string(self.failure_response):
             self.failure_response = 'I have failed to process your request.'
         try:
@@ -611,6 +613,7 @@ class PromptAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
+    instructions = ListField(StringField())
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)
