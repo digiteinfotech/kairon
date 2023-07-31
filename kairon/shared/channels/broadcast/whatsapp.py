@@ -11,7 +11,6 @@ from kairon.shared.channels.broadcast.data_extraction import MessageBroadcastUsi
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
 from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor
@@ -52,6 +51,8 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
             self.__send_using_pyscript()
 
     def __send_using_pyscript(self):
+        from kairon.shared.concurrency.orchestrator import ActorOrchestrator
+
         script = self.config['pyscript']
         timeout = self.config.get('pyscript_timeout', 10)
         channel_client = self.__get_client()

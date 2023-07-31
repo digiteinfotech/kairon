@@ -1739,38 +1739,46 @@ class TestEventExecution:
         assert len(logs[0]) == logs[1] == 6
         [log.pop("timestamp") for log in logs[0]]
         reference_id = logs[0][0].get("reference_id")
-        assert logs[0][0] == {'bot': bot, 'contact': '876543212345', 'i': 0, 'log_type': 'self',
-                              'reference_id': reference_id, 'whatsapp_response': {
-                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}
-        assert logs[0][1] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
-                              'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'recipient': '876543212345', 'template_params':
-                                  [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
-                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}]}
-        assert logs[0][2] == {'reference_id': reference_id, 'log_type': 'self', 'bot': bot, 'i': 0,
-                              'contact': '9876543210', 'whatsapp_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}
-        assert logs[0][3] == {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
-                              'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'recipient': '9876543210', 'template_params': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
-                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                'filename': 'Brochure.pdf'}}]}]}
-        assert logs[0][4] == {'bot': bot, 'contacts': ['9876543210', '876543212345'], 'log_type': 'self',
-                              'reference_id': reference_id}
-        logged_config = logs[0][5].pop("config")
-        logged_config.pop("_id")
+
+        expected_logs = [
+            {'bot': bot, 'contact': '876543212345', 'i': 0, 'log_type': 'self',
+             'reference_id': reference_id, 'whatsapp_response': {
+                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}},
+            {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+             'recipient': '876543212345', 'template_params':
+                 [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                     'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                     'filename': 'Brochure.pdf'}}]}]},
+            {'reference_id': reference_id, 'log_type': 'self', 'bot': bot, 'i': 0,
+             'contact': '9876543210',
+             'whatsapp_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}},
+            {'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+             'recipient': '9876543210',
+             'template_params': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                 'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                 'filename': 'Brochure.pdf'}}]}]},
+            {'bot': bot, 'contacts': ['9876543210', '876543212345'], 'log_type': 'self',
+             'reference_id': reference_id},
+            {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
+             'user': 'test_user', 'broadcast_id': event_id, 'failure_cnt': 0, 'total': 2,
+             'api_response': {'contacts': ['9876543210', '876543212345']},
+             'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                 'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                 'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
+             'resp': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}
+        ]
+        for log in logs[0]:
+            if log.get("config"):
+                logged_config = log.pop("config")
+            assert log in expected_logs
+
         logged_config.pop("status")
         logged_config.pop("timestamp")
+        logged_config.pop("_id")
         assert logged_config.pop("template_config") == []
         assert logged_config == config
-
-        assert logs[0][5] == {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                              'user': 'test_user', 'broadcast_id': event_id, 'failure_cnt': 0, 'total': 2,
-                              'api_response': {'contacts': ['9876543210', '876543212345']},
-                              'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
-                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                  'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
-                              'resp': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)

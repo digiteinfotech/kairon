@@ -57,11 +57,12 @@ class Whatsapp:
         await self._handle_user_message(text, message["from"], message, bot)
 
     async def __handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
-        access_token = self.config.get('access_token')
+        provider = self.config.get("bsp_type", "meta")
+        access_token = self.__get_access_token()
         for entry in payload["entry"]:
             for changes in entry["changes"]:
                 self.last_message = changes
-                client = WhatsappFactory.get_client("meta")
+                client = WhatsappFactory.get_client(provider)
                 self.client = client(access_token, from_phone_number_id=self.get_business_phone_number_id())
                 msg_metadata = changes.get("value", {}).get("metadata", {})
                 metadata.update(msg_metadata)
@@ -69,34 +70,20 @@ class Whatsapp:
                 for message in messages or []:
                     await self.message(message, metadata, bot)
 
-    async def handle_meta_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
+    async def handle_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
         msg = "success"
         payload = json_decode(request.body)
-        app_secret = self.config["app_secret"]
+        provider = self.config.get("bsp_type", "meta")
+        metadata.update({"channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": provider})
         signature = request.headers.get("X-Hub-Signature") or ""
-        if not MessengerHandler.validate_hub_signature(app_secret, request.body, signature):
-            logger.warning("Wrong app secret secret! Make sure this matches the secret in your whatsapp app settings.")
-            msg = "not validated"
-            return msg
+        if provider == "meta":
+            if not MessengerHandler.validate_hub_signature(self.config["api_key"], request.body, signature):
+                logger.warning("Wrong app secret secret! Make sure this matches the secret in your whatsapp app settings.")
+                msg = "not validated"
+                return msg
 
-        await self.__handle_meta_payload(payload, metadata, bot)
+        IOLoop.current().spawn_callback(self.__handle_meta_payload, payload, metadata, bot)
         return msg
-
-    async def handle_360dialog_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
-        payload = json_decode(request.body)
-        if payload.get("messages"):
-            IOLoop.current().spawn_callback(self.__handle_360dialog_payload, payload, metadata, bot)
-        return "success"
-
-    async def __handle_360dialog_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
-        access_token = self.config.get('api_key')
-        for msg in payload.get("messages", {}):
-            self.last_message = msg
-            client = WhatsappFactory.get_client(WhatsappBSPTypes.bsp_360dialog.value)
-            self.client = client(access_token, config=self.config,
-                                 from_phone_number_id=self.get_business_phone_number_id())
-            metadata.update(msg)
-            await self.message(msg, metadata, bot)
 
     def get_business_phone_number_id(self) -> Text:
         return self.last_message.get("value", {}).get("metadata", {}).get("phone_number_id", "")
@@ -119,6 +106,13 @@ class Whatsapp:
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):
         await AgentProcessor.get_agent(bot).handle_message(user_message)
+
+    def __get_access_token(self):
+        provider = self.config.get("bsp_type", "meta")
+        if provider == "meta":
+            return self.config.get('access_token')
+        else:
+            return self.config.get('api_key')
 
 
 class WhatsappBot(OutputChannel):
@@ -207,17 +201,9 @@ class WhatsappHandler(MessengerHandler):
         user = super().authenticate_channel(token, bot, self.request)
         channel_conf = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
         whatsapp_channel = Whatsapp(channel_conf["config"])
-        client = channel_conf["config"].get("bsp_type", "meta")
         metadata = self.get_metadata(self.request) or {}
-        metadata.update({
-            "is_integration_user": True, "bot": bot, "account": user.account,
-            "channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": client
-        })
-        client_handlers = {
-            "meta": whatsapp_channel.handle_meta_payload,
-            WhatsappBSPTypes.bsp_360dialog.value: whatsapp_channel.handle_360dialog_payload
-        }
-        msg = await client_handlers[client](self.request, metadata, bot)
+        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account})
+        msg = await whatsapp_channel.handle_payload(self.request, metadata, bot)
         self.set_status(HTTPStatus.OK)
         self.write(msg)
         return
