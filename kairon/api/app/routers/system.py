@@ -19,3 +19,11 @@ async def get_system_metadata():
     Retrieves System Metadata.
     """
     return Response(data=Utility.system_metadata)
+
+
+@router.get("/templates/use-case", response_model=Response)
+async def get_templates():
+    """
+    Fetches use-case templates name
+    """
+    return {"data": {"use-cases": Utility.list_directories("./template/use-cases")}}

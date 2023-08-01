@@ -771,14 +771,6 @@ async def list_epoch_and_fallback_properties(
     return {"data": config}
 
 
-@router.get("/templates/use-case", response_model=Response)
-async def get_templates(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
-    """
-    Fetches use-case templates name
-    """
-    return {"data": {"use-cases": Utility.list_directories("./template/use-cases")}}
-
-
 @router.post("/templates/use-case", response_model=Response)
 async def set_templates(
         request_data: TextData,

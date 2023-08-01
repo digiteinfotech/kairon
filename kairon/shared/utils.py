@@ -704,6 +704,14 @@ class Utility:
                     shutil.move(cleanUp, new_path)
 
     @staticmethod
+    def copy_file_to_dir(input_path: Text, output_path: Text):
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        file_name = os.path.basename(input_path)
+        output_file_path = os.path.join(output_path, file_name)
+        shutil.copy(input_path, output_file_path)
+
+    @staticmethod
     def initiate_apm_client_config():
         logger.debug(f'apm_enable: {Utility.environment["elasticsearch"].get("enable")}')
         if Utility.environment["elasticsearch"].get("enable"):
