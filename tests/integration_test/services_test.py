@@ -4856,7 +4856,7 @@ def test_delete_endpoint():
 
 def test_get_templates():
     response = client.get(
-        f"/api/bot/{pytest.bot}/templates/use-case",
+        f"/api/system/templates/use-case",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
