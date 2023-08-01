@@ -77,7 +77,7 @@ class Whatsapp:
         metadata.update({"channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": provider})
         signature = request.headers.get("X-Hub-Signature") or ""
         if provider == "meta":
-            if not MessengerHandler.validate_hub_signature(self.config["api_key"], request.body, signature):
+            if not MessengerHandler.validate_hub_signature(self.__get_access_token(), request.body, signature):
                 logger.warning("Wrong app secret secret! Make sure this matches the secret in your whatsapp app settings.")
                 msg = "not validated"
                 return msg

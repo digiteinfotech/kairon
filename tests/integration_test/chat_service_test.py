@@ -1060,42 +1060,47 @@ class TestChatServer(AsyncHTTPTestCase):
         responses.add(
             "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
         )
-        with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
-            response = self.fetch(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                method="POST",
-                body=json.dumps({
-                    "object": "whatsapp_business_account",
-                    "entry": [{
-                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                        "changes": [{
-                            "value": {
-                                "messaging_product": "whatsapp",
-                                "metadata": {
-                                    "display_phone_number": "910123456789",
-                                    "phone_number_id": "12345678"
+        with mock.patch.object(EndpointConfig, "request") as mock_action_execution:
+            mock_action_execution.return_value = {"responses": [{"response": "Welcome to kairon!"}], "events": []}
+
+            with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+                response = self.fetch(
+                    f"/api/bot/whatsapp/{bot}/{token}",
+                    headers={"hub.verify_token": "valid"},
+                    method="POST",
+                    body=json.dumps({
+                        "object": "whatsapp_business_account",
+                        "entry": [{
+                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                            "changes": [{
+                                "value": {
+                                    "messaging_product": "whatsapp",
+                                    "metadata": {
+                                        "display_phone_number": "910123456789",
+                                        "phone_number_id": "12345678"
+                                    },
+                                    "contacts": [{
+                                        "profile": {
+                                            "name": "udit"
+                                        },
+                                        "wa_id": "wa-123456789"
+                                    }],
+                                    "messages": [{
+                                        "from": "910123456789",
+                                        "id": "wappmsg.ID",
+                                        "timestamp": "21-09-2022 12:05:00",
+                                        "text": {
+                                            "body": "hi"
+                                        },
+                                        "type": "text"
+                                    }]
                                 },
-                                "contacts": [{
-                                    "profile": {
-                                        "name": "udit"
-                                    },
-                                    "wa_id": "wa-123456789"
-                                }],
-                                "messages": [{
-                                    "from": "910123456789",
-                                    "id": "wappmsg.ID",
-                                    "timestamp": "21-09-2022 12:05:00",
-                                    "text": {
-                                        "body": "hi"
-                                    },
-                                    "type": "text"
-                                }]
-                            },
-                            "field": "messages"
+                                "field": "messages"
+                            }]
                         }]
-                    }]
-                }))
+                    }))
+            mock_action_execution.assert_awaited_once()
+
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
@@ -1340,26 +1345,36 @@ class TestChatServer(AsyncHTTPTestCase):
             f"/api/bot/whatsapp/{bot2}/{token}",
             method="POST",
             body=json.dumps({
-                "contacts": [
-                    {
-                        "profile": {
-                            "name": "kAIron"
-                        },
-                        "wa_id": "919999900000"
-                    }
-                ],
-                "messages": [
-                    {
-                        "from": "919657055022",
-                        "id": "ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK",
-                        "text": {
-                            "body": "hi Postman"
-                        },
-                        "timestamp": "1677604539",
-                        "type": "text"
-                    }
-                ]
-            }))
+                    "object": "whatsapp_business_account",
+                    "entry": [{
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [{
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "910123456789",
+                                    "phone_number_id": "12345678"
+                                },
+                                "contacts": [{
+                                    "profile": {
+                                        "name": "udit"
+                                    },
+                                    "wa_id": "wa-123456789"
+                                }],
+                                "messages": [{
+                                    "from": "910123456789",
+                                    "id": "wappmsg.ID",
+                                    "timestamp": "21-09-2022 12:05:00",
+                                    "text": {
+                                        "body": "hi"
+                                    },
+                                    "type": "text"
+                                }]
+                            },
+                            "field": "messages"
+                        }]
+                    }]
+                }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
@@ -1377,23 +1392,37 @@ class TestChatServer(AsyncHTTPTestCase):
             f"/api/bot/whatsapp/{bot2}/{token}",
             method="POST",
             body=json.dumps({
-                "contacts": [{
-                    "profile": {
-                        "name": "udit"
+            "object": "whatsapp_business_account",
+            "entry": [{
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [{
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": {
+                            "display_phone_number": "910123456789",
+                            "phone_number_id": "12345678"
+                        },
+                        "contacts": [{
+                            "profile": {
+                                "name": "udit"
+                            },
+                            "wa_id": "wa-123456789"
+                        }],
+                        "messages": [{
+                            "from": "910123456789",
+                            "id": "wappmsg.ID",
+                            "timestamp": "21-09-2022 12:05:00",
+                            "button": {
+                                "text": "buy now",
+                                "payload": "buy kairon for 1 billion"
+                            },
+                            "type": "button"
+                        }]
                     },
-                    "wa_id": "wa-123456789"
-                }],
-                "messages": [{
-                    "from": "910123456789",
-                    "id": "wappmsg.ID",
-                    "timestamp": "21-09-2022 12:05:00",
-                    "button": {
-                        "text": "buy now",
-                        "payload": "buy kairon for 1 billion"
-                    },
-                    "type": "button"
+                    "field": "messages"
                 }]
-            }))
+            }]
+        }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
@@ -1413,22 +1442,34 @@ class TestChatServer(AsyncHTTPTestCase):
             headers={"hub.verify_token": "valid"},
             method="POST",
             body=json.dumps({
-                "contacts": [{
-                    "profile": {
-                        "name": "udit"
+            "object": "whatsapp_business_account",
+            "entry": [{
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "changes": [{
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": {
+                            "display_phone_number": "910123456789",
+                            "phone_number_id": "12345678"
+                        },
+                        "contacts": [{
+                            "profile": {
+                                "name": "udit"
+                            },
+                            "wa_id": "wa-123456789"
+                        }],
+                        "messages": [{
+                            "from": "910123456789",
+                            "id": "wappmsg.ID",
+                            "timestamp": "21-09-2022 12:05:00",
+                            "document": {"id": "sdfghj567"},
+                            "type": "document"
+                        }]
                     },
-                    "wa_id": "wa-123456789"
-                }],
-                "messages": [{
-                    "from": "910123456789",
-                    "id": "wappmsg.ID",
-                    "timestamp": "21-09-2022 12:05:00",
-                    "text": {
-                        "id": "sdfghj567"
-                    },
-                    "type": "doument"
+                    "field": "messages"
                 }]
-            }))
+            }]
+        }))
         actual = response.body.decode("utf8")
         self.assertEqual(response.code, 200)
         assert actual == 'success'
