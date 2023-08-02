@@ -965,18 +965,22 @@ class MongoProcessor:
                 yield new_slot
 
     def __save_slots(self, slots, bot: Text, user: Text):
+        self.add_system_required_slots(bot, user)
         if slots:
             new_slots = list(self.__extract_slots(slots, bot, user))
             if new_slots:
                 Slots.objects.insert(new_slots)
-        self.add_system_required_slots(bot, user)
 
     def add_system_required_slots(self, bot: Text, user: Text):
-        self.add_slot({
-            "name": KaironSystemSlots.bot.value, "type": "any", "initial_value": bot, "auto_fill": False,
-            "influence_conversation": False}, bot, user, raise_exception_if_exists=False
-        )
-        for slot in [s for s in KaironSystemSlots if s.value != KaironSystemSlots.bot.value]:
+        for slot in [s for s in KaironSystemSlots if s.value in {KaironSystemSlots.bot.value,
+                                                                 KaironSystemSlots.kairon_action_response.value}]:
+            self.add_slot({
+                "name": slot, "type": "any", "initial_value": bot, "auto_fill": False,
+                "influence_conversation": False}, bot, user, raise_exception_if_exists=False
+            )
+
+        for slot in [s for s in KaironSystemSlots if s.value not in {KaironSystemSlots.bot.value,
+                                                                     KaironSystemSlots.kairon_action_response.value}]:
             self.add_slot({
                 "name": slot, "type": "text", "auto_fill": True,
                 "initial_value": None, "influence_conversation": True}, bot, user, raise_exception_if_exists=False

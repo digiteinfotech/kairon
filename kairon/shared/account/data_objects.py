@@ -64,6 +64,7 @@ class BotMetaData(EmbeddedDocument):
     source_language = StringField(default=None)
     language = StringField(default="en")
     source_bot_id = StringField(default=None)
+    from_template = DynamicField(default=None)
 
 
 @auditlogger.log

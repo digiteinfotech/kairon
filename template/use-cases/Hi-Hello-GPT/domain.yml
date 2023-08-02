@@ -46,10 +46,10 @@ slots:
     auto_fill: true
     influence_conversation: true
   kairon_action_response:
-    type: rasa.shared.core.slots.TextSlot
+    type: rasa.shared.core.slots.AnySlot
     initial_value: null
-    auto_fill: true
-    influence_conversation: true
+    auto_fill: false
+    influence_conversation: false
   bot:
     type: rasa.shared.core.slots.AnySlot
     initial_value: 64bdf3ff0a2ff4923faa83ee

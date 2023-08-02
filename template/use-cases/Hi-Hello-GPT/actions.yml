@@ -1,39 +1,60 @@
 email_action: []
 form_validation_action: []
-prompt_action:
-- name: kairon_faq_action
-  num_bot_responses: 5
-  top_results: 5
-  similarity_threshold: 0.5
-  enable_response_cache: True
-  llm_prompts:
-    - data: You are helpful, creative, clever and very friendly personal assistant.
-      instructions: ''
-      is_enabled: true
-      name: System Context
-      source: static
-      type: system
-    - name: Query Prompt
-      data: A programming language is a system of notation for writing computer programs.
-      instructions: Answer according to the context given above.
-      type: query
-      source: static
-      is_enabled: True
 google_search_action:
 - api_key:
     _cls: CustomActionRequestParameters
     encrypt: false
     key: api_key
     parameter_type: value
-    value: None
+    value: ''
   dispatch_response: false
-  failure_response: ''
+  failure_response: I have failed to process your request.
   name: google_search_action
-  num_results: 1
-  search_engine_id: 54051e9dae61947d2
+  num_results: 3
+  search_engine_id: ''
+  set_slot: google_search_result
 http_action: []
 jira_action: []
 pipedrive_leads_action: []
+prompt_action:
+- dispatch_response: true
+  enable_response_cache: false
+  failure_message: Kindly share more details so I can assist you effectively.
+  hyperparameters:
+    frequency_penalty: 0
+    logit_bias: {}
+    max_tokens: 300
+    model: gpt-3.5-turbo
+    n: 1
+    presence_penalty: 0
+    stop: null
+    stream: false
+    temperature: 0
+    top_p: 0
+  instructions: []
+  llm_prompts:
+  - data: 'You are a helpful personal assistant. Answer the question based on the
+      context below. '
+    instructions: ''
+    is_enabled: true
+    name: System Context
+    source: static
+    type: system
+  - data: google_search_result
+    instructions: Make sure that your answers are relevant to the question that the
+      user has asked. You can be creative with your answers and crack jokes too but
+      don't make things up. Your answer must be in the same language in which the
+      user asked the question.
+    is_enabled: true
+    name: Google search context
+    source: slot
+    type: user
+  name: kairon_faq_action
+  num_bot_responses: 5
+  set_slots: []
+  similarity_threshold: 0.7
+  status: true
+  top_results: 10
 slot_set_action: []
 two_stage_fallback: []
 zendesk_action: []

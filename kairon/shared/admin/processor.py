@@ -29,3 +29,10 @@ class Sysadmin:
             logger.exception(e)
             if raise_err:
                 raise AppException(f"Bot secret '{name}' not configured!")
+
+    @staticmethod
+    def add_bot_secret(bot: Text, name: Text, secret: Text):
+        Utility.is_exist(BotSecrets, bot=bot, secret_type=name, exp_message="Bot secret exists!")
+        secret_object = BotSecrets(bot=bot, secret_type=name, value=secret).save()
+        return secret_object.to_mongo().to_dict()['_id']
+
