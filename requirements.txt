@@ -77,3 +77,4 @@ tiktoken
 RestrictedPython
 AccessControl
 pykka
+sentry-sdk>=1.4.1 # not directly required, pinned by Snyk to avoid a vulnerability
