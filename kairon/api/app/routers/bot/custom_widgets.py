@@ -97,4 +97,4 @@ async def get_logs(
     Retrieve logs for widgets triggered in the past.
     """
     data = list(CustomWidgetsProcessor.get_logs(current_user.get_bot(), start_idx=start_idx, page_size=page_size))
-    return {"data": data}
+    return {"data": {"logs": data, "total": CustomWidgetsProcessor.get_row_cnt(current_user.get_bot())}}

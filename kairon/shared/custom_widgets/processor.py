@@ -67,6 +67,12 @@ class CustomWidgetsProcessor:
             yield log
 
     @staticmethod
+    def get_row_cnt(bot):
+        from kairon.shared.data.processor import MongoProcessor
+
+        return MongoProcessor().get_row_count(CustomWidgetsRequestLog, bot)
+
+    @staticmethod
     def trigger_widget(widget_id: Text, bot: Text, user: Text, filters=None, raise_err: bool = True):
         config = {}
         resp = None
