@@ -1708,7 +1708,8 @@ def test_add_prompt_action(monkeypatch):
                                    {'name': 'Query Prompt',
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True}], 'num_bot_responses': 5,
+                                    'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
@@ -1938,7 +1939,7 @@ def test_update_prompt_action():
                                    {'name': 'Query Prompt',
                                     'data': 'If there is no specific query, assume that user is aking about java programming language,',
                                     'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True}],
+                                    'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
               'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50}
     response = client.put(
@@ -1967,20 +1968,23 @@ def test_get_prompt_action():
     print(actual["data"])
     assert actual["data"] == [
         {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
-         'failure_message': 'updated_failure_message', 'enable_response_cache': False,
+         'enable_response_cache': False, 'failure_message': 'updated_failure_message',
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                              'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                             'logit_bias': {}},  'instructions': [],
-         "set_slots": [],
-         "dispatch_response": True,
+                             'logit_bias': {}},
          'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                           'source': 'static', 'is_enabled': True},
                          {'name': 'Similarity_analytical Prompt',
-                          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.', 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                         {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                          'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                          'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                         {'name': 'Query Prompt',
+                          'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                           'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
-                         {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming language,',
-                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}], 'status': True}]
+                         {'name': 'Query Prompt',
+                          'data': 'If there is no specific query, assume that user is aking about java programming language,',
+                          'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
+         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+         'set_slots': [], 'dispatch_response': True, 'status': True}]
 
 
 def test_delete_prompt_action_not_exists():
