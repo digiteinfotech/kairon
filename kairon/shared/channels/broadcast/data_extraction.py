@@ -1,14 +1,18 @@
 import ast
+import json
 from abc import ABC
 from typing import Text, Dict, Any
+
+import requests
 from loguru import logger
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.channels.broadcast.base import MessageBroadcastBase
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
 from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
+from kairon.shared.concurrency.orchestrator import ActorOrchestrator
+from kairon.shared.constants import ActorType
 from kairon.shared.data.constant import EVENT_STATUS
 
 
@@ -52,10 +56,16 @@ class MessageBroadcastUsingDataExtraction(MessageBroadcastBase, ABC):
     def _get_template_parameters(self, template_config: Dict, data: Any):
         eval_log = None
         template_params = template_config.get("data")
+        timeout = self.config.get('pyscript_timeout', Utility.environment["actors"]["default_timeout"])
+
         try:
             if template_params:
                 if template_config["template_type"] == "dynamic":
-                    template_params, eval_log = ActionUtility.evaluate_script(template_params, data)
+                    accessor = template_config["accessor"]
+                    template_params = ActorOrchestrator.run(ActorType.pyscript_runner.value, source_code=template_params,
+                                                            predefined_objects={"data": data, "requests": requests, "json": json},
+                                                            timeout=timeout)
+                    template_params = template_params[accessor]
                 else:
                     template_params = ast.literal_eval(template_params)
         except Exception as e:

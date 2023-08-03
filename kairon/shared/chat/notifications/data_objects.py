@@ -45,10 +45,14 @@ class RecipientsConfiguration(EmbeddedDocument):
     """
     recipient_type = StringField(required=True, choices=["static", "dynamic"])
     recipients = StringField(required=True)
+    accessor = StringField()
 
     def validate(self, clean=True):
         if clean:
             self.clean()
+
+        if self.recipient_type == "dynamic" and Utility.check_empty_string(self.accessor):
+            raise ValidationError("accessor is required when using dynamic evaluation")
 
     def clean(self):
         self.recipients = self.recipients.strip()
@@ -83,10 +87,14 @@ class TemplateConfiguration(EmbeddedDocument):
     namespace = StringField(required=True)
     language = StringField(default="en")
     data = StringField()
+    accessor = StringField()
 
     def validate(self, clean=True):
         if clean:
             self.clean()
+
+        if self.template_type == "dynamic" and Utility.check_empty_string(self.accessor):
+            raise ValidationError("accessor is required when using dynamic evaluation")
 
     def clean(self):
         if self.data:

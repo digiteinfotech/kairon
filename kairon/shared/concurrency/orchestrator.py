@@ -2,6 +2,7 @@ from typing import Text
 
 import pykka
 
+from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.concurrency.actors.factory import ActorFactory
 
@@ -11,7 +12,7 @@ class ActorOrchestrator:
     @staticmethod
     def run(actor_type: Text, **kwargs):
         actor = ActorFactory.get_instance(actor_type)
-        actor_timeout = kwargs.pop("timeout", None)
+        actor_timeout = kwargs.pop("timeout", Utility.environment["actors"]["default_timeout"])
         try:
             future = actor.execute(**kwargs)
             result = future.get(actor_timeout)

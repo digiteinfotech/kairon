@@ -6,11 +6,11 @@ import requests
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.exceptions import AppException
-from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.channels.broadcast.data_extraction import MessageBroadcastUsingDataExtraction
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
 from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor
@@ -22,6 +22,7 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
 
     def get_recipients(self, data: Any, **kwargs):
         eval_log = None
+        timeout = self.config.get('pyscript_timeout', Utility.environment["actors"]["default_timeout"])
 
         if not Utility.check_empty_string(self.config.get('pyscript')):
             logger.debug("Skipping get_recipients as pyscript exists!")
@@ -33,7 +34,11 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
             if expr_type == "static":
                 recipients = [number.strip() for number in expr.split(',')]
             else:
-                recipients, eval_log = ActionUtility.evaluate_script(expr, data)
+                accessor = self.config["recipients_config"]["accessor"]
+                recipients = ActorOrchestrator.run(ActorType.pyscript_runner.value, source_code=expr,
+                                                   predefined_objects={"data": data, "requests": requests, "json": json},
+                                                   timeout=timeout)
+                recipients = recipients[accessor]
         except Exception as e:
             raise AppException(f"Failed to evaluate {expr_type} recipients expression: {e}")
         if not isinstance(recipients, List):
@@ -54,7 +59,7 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
         from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 
         script = self.config['pyscript']
-        timeout = self.config.get('pyscript_timeout', 10)
+        timeout = self.config.get('pyscript_timeout', Utility.environment["actors"]["default_timeout"])
         channel_client = self.__get_client()
         failure_cnt = 0
         total = 0

@@ -186,4 +186,9 @@ verify:
     type: ${VERIFY_EMAIl_TYPE:quickemail}
     key: ${VERIFY_EMAIL_KEY}
 
+
+actors:
+  default_timeout: ${ACTORS_DEFAULT_TIMEOUT:10}
+
+
 support_mail: ${KAIRON_SUPPORT_MAIL:"kairon@digite.com"}

@@ -1145,7 +1145,6 @@ class TestEventExecution:
                     mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
                     event.execute(event_id)
-
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
         logs[0][1].pop("timestamp")
@@ -1184,12 +1183,21 @@ class TestEventExecution:
         params = [{"type": "header","parameters": [{"type": "document","document":
             {"link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
              "filename": "Brochure.pdf"}}]}]
+        recipient_script = """
+                resp = requests.get("http://localhost/contacts")
+                resp = resp.json()
+                contacts = resp["contacts"]
+                """
+        recipient_script = textwrap.dedent(recipient_script)
+        recipient_script = recipient_script.strip()
+
         config = {
             "name": "one_time_schedule",
             "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "recipients_config": {
                 "recipient_type": "dynamic",
-                "recipients": "${contacts}"
+                "recipients": recipient_script,
+                "accessor": "contacts"
             },
             "data_extraction_config": {
                 "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
@@ -1218,8 +1226,8 @@ class TestEventExecution:
             json={"contacts": ["9876543210", "876543212345"]}
         )
         responses.add(
-            "POST", "http://localhost:8080/format",
-            json={"data": [9876543210, 876543212345], "success": True}
+            "GET", "http://localhost/contacts",
+            json={"contacts": [9876543210, 876543212345], "success": True}
         )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
@@ -1251,10 +1259,6 @@ class TestEventExecution:
                                                   'method': 'GET',
                                                   'api_response': {'contacts': ['9876543210', '876543212345']}},
                               'recipients': [9876543210, 876543212345],
-                              'evaluation_log': ['evaluation_type: script', 'script: ${contacts}',
-                                                 "data: {'contacts': ['9876543210', '876543212345']}",
-                                                 'raise_err_on_failure: True',
-                                                 "Evaluator response: {'data': [9876543210, 876543212345], 'success': True}"],
                               'template_params': [[{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                                   'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
@@ -1300,12 +1304,20 @@ class TestEventExecution:
                                                            mock_get_bot_settings, mock_send):
         bot = 'test_execute_dynamic_message_broadcast_recipient_evaluation_failure'
         user = 'test_user'
+        recipient_script = """
+                        resp = requests.get("http://localhost/contacts")
+                        resp = resp.json()
+                        contacts = resp["contacts"]
+                        """
+        recipient_script = textwrap.dedent(recipient_script)
+        recipient_script = recipient_script.strip()
         config = {
             "name": "one_time_schedule",
             "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "recipients_config": {
                 "recipient_type": "dynamic",
-                "recipients": "${contacts}"
+                "recipients": recipient_script,
+                "accessor": "contacts"
             },
             "data_extraction_config": {
                 "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
@@ -1334,8 +1346,8 @@ class TestEventExecution:
             json={"contacts": ["9876543210", "876543212345"]}
         )
         responses.add(
-            "POST", "http://localhost:8080/format",
-            json={"data": "9876543210, 876543212345", "success": True}
+            "GET", "http://localhost/contacts",
+            json={"contacts": "9876543210, 876543212345", "success": True}
         )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
@@ -1381,12 +1393,20 @@ class TestEventExecution:
                                                            mock_get_bot_settings, mock_send):
         bot = 'test_execute_dynamic_message_broadcast_data_extraction_failure'
         user = 'test_user'
+        recipient_script = """
+                        resp = requests.get("http://localhost/contacts")
+                        resp = resp.json()
+                        contacts = resp["contacts"]
+                        """
+        recipient_script = textwrap.dedent(recipient_script)
+        recipient_script = recipient_script.strip()
         config = {
             "name": "one_time_schedule",
             "connector_type": "whatsapp", 'pyscript_timeout': 15,
             "recipients_config": {
                 "recipient_type": "dynamic",
-                "recipients": "${contacts}"
+                "recipients": recipient_script,
+                "accessor": "contacts"
             },
             "data_extraction_config": {
                 "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
@@ -1410,8 +1430,8 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
         responses.add(
-            "POST", "http://localhost:8080/format",
-            json={"data": "9876543210, 876543212345", "success": True}
+            "GET", "http://localhost/contacts",
+            json={"contacts": [9876543210, 876543212345], "success": True}
         )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
@@ -1445,16 +1465,25 @@ class TestEventExecution:
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_recipient_evaluation_failure(self, mock_is_exist, mock_get_bot_settings):
+    def test_execute_message_broadcast_recipient_evaluation_failure(self, mock_is_exist, mock_channel_config, mock_get_bot_settings):
         bot = 'test_execute_message_broadcast_recipient_evaluation_failure'
         user = 'test_user'
+        recipient_script = """
+                        resp = requests.get("http://localhost/contacts")
+                        resp = resp.json()
+                        contacts = resp["contacts"]
+                        """
+        recipient_script = textwrap.dedent(recipient_script)
+        recipient_script = recipient_script.strip()
         config = {
             "name": "one_time_schedule",
             "connector_type": "whatsapp",
             "recipients_config": {
                 "recipient_type": "dynamic",
-                "recipients": "${contacts}"
+                "recipients": recipient_script,
+                "accessor": "contacts"
             },
             "template_config": [
                 {
@@ -1473,11 +1502,13 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
         responses.add(
-            "POST", "http://localhost:8080/format",
-            json={"data": "9876543210, 876543212345", "success": False}
+            "GET", "http://localhost/contacts",
+            json={"data": [9876543210, 876543212345], "success": True}
         )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
         event = MessageBroadcastEvent(bot, user)
         event.validate()
@@ -1606,6 +1637,13 @@ class TestEventExecution:
     def test_execute_message_broadcast_evaluate_template_parameters(self):
         bot = 'test_execute_message_broadcast_evaluate_template_parameters'
         user = 'test_user'
+        template_script = """
+                        resp = requests.get("http://localhost/template")
+                        resp = resp.json()
+                        data = resp["data"]
+                        """
+        template_script = textwrap.dedent(template_script)
+        template_script = template_script.strip()
         config = {
             "name": "one_time_schedule",
             "connector_type": "whatsapp", 'pyscript_timeout': 10,
@@ -1619,7 +1657,8 @@ class TestEventExecution:
                     "template_type": "dynamic",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                    "data": "[{'body': '$responses.data'}]"
+                    "data": template_script,
+                    "accessor": "data"
                 }
             ]
         }
@@ -1630,9 +1669,10 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
         responses.add(
-            "POST", "http://localhost:8080/format",
+            "GET", "http://localhost/template",
             json={"data": [[{'body': 'Udit Pandey'}]], "success": True}
         )
+
         event = MessageBroadcastEvent(bot, user)
         event.validate()
         with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
@@ -1650,7 +1690,6 @@ class TestEventExecution:
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 2
         logs[0][1].pop("timestamp")
-        logs[0][1].pop("evaluation_log")
         reference_id = logs[0][1].pop("reference_id")
         logged_config = logs[0][1].pop("config")
         logged_config.pop("_id")

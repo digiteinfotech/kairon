@@ -13074,6 +13074,40 @@ def test_broadcast_config_error():
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'scheduler_config', '__root__'], 'msg': f"Invalid cron expression: ''", 'type': 'value_error'}]
 
+    config["scheduler_config"] = {
+            "expression_type": "cron",
+            "schedule": "30 5 * * *",
+            "timezone": "UTC"
+        }
+    config["recipients_config"]["recipient_type"] = "dynamic"
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'recipients_config', '__root__'], 'msg': "accessor is required when using dynamic evaluation",
+         'type': 'value_error'},
+    ]
+
+    config["recipients_config"]["recipient_type"] = "static"
+    config["template_config"][0]["template_type"] = "dynamic"
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'template_config', 0, '__root__'], 'msg': "accessor is required when using dynamic evaluation",
+         'type': 'value_error'}
+    ]
+
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_update_broadcast(mock_event_server):
@@ -13087,7 +13121,8 @@ def test_update_broadcast(mock_event_server):
         },
         "recipients_config": {
             "recipient_type": "dynamic",
-            "recipients": "918958030541, "
+            "recipients": "contacts = [9876543210, 8907654321]",
+            "accessor": "contacts"
         },
         "data_extraction_config": {
             "url": "http://kairon.remote",
@@ -13097,7 +13132,10 @@ def test_update_broadcast(mock_event_server):
                 "template_type": "dynamic",
                 "template_id": "brochure_pdf",
                 "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                "data": "${response.data}"
+                "data": "components = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
+                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
+                                  'filename': 'Brochure.pdf'}}]}]",
+                "accessor": "components"
             }
         ]
     }
@@ -13160,9 +13198,14 @@ def test_list_broadcast_config():
         {'name': 'first_scheduler', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
          'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *', "timezone": "Asia/Kolkata"},
          'data_extraction_config': {'method': 'GET', 'url': 'http://kairon.remote', 'headers': {}, 'request_body': {}},
-         'recipients_config': {'recipient_type': 'dynamic', 'recipients': '918958030541,'}, 'template_config': [
-            {'template_type': 'dynamic', 'template_id': 'brochure_pdf', "language": "en",
-             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': '${response.data}'}], 'status': True},
+         'recipients_config': {'recipient_type': 'dynamic', 'recipients': "contacts = [9876543210, 8907654321]",
+                               "accessor": "contacts"}, 'template_config': [{'template_type': 'dynamic',
+                                                                             'template_id': 'brochure_pdf', "language": "en",
+             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380',
+            'data': "components = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
+                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
+                                  'filename': 'Brochure.pdf'}}]}]",
+             "accessor": "components"}], 'status': True},
         {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
          'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
             {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",

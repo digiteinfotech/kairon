@@ -47,7 +47,7 @@ class SchedulerConfiguration(BaseModel):
             if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
                 raise ValueError(f"recurrence interval must be at least {min_trigger_interval} seconds!")
             if Utility.check_empty_string(values.get("timezone")):
-                raise ValueError(f"timezone is required for cron expressions!")
+                raise ValueError("timezone is required for cron expressions!")
 
         return values
 
@@ -60,6 +60,14 @@ class DataExtractionConfiguration(BaseModel):
 class RecipientsConfiguration(BaseModel):
     recipient_type: str
     recipients: str
+    accessor: str = None
+
+    @root_validator
+    def validate_config(cls, values):
+        if values.get("recipient_type") == "dynamic" and Utility.check_empty_string(values.get("accessor")):
+            raise ValueError("accessor is required when using dynamic evaluation")
+
+        return values
 
 
 class TemplateConfiguration(BaseModel):
@@ -68,6 +76,14 @@ class TemplateConfiguration(BaseModel):
     namespace: str
     language: str = "en"
     data: str = None
+    accessor: str = None
+
+    @root_validator
+    def validate_config(cls, values):
+        if values.get("template_type") == "dynamic" and Utility.check_empty_string(values.get("accessor")):
+            raise ValueError("accessor is required when using dynamic evaluation")
+
+        return values
 
 
 class MessageBroadcastRequest(BaseModel):
