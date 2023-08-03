@@ -1368,7 +1368,7 @@ class TestMongoProcessor:
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
-        assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is 'tests']
+        assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value == 'tests']
         assert domain.templates.keys().__len__() == 11
         assert domain.entities.__len__() == 7
         assert domain.form_names.__len__() == 0
