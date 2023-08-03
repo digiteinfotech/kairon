@@ -790,12 +790,12 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+             'status': True, 'instructions': [],
              "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                             {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
                    "dispatch_response": False}]
         request = {'name': 'test_edit_prompt_action_faq_action_again', 'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static'}]}
+                                    'source': 'static'}], 'instructions': ['Answer in a short manner.', 'Keep it simple.']}
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
@@ -856,7 +856,7 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': ['Answer in a short manner.', 'Keep it simple.'], "set_slots": [], "dispatch_response": True}]
+             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -883,7 +883,7 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': ['Answer in a short manner.', 'Keep it simple.'], "set_slots": [], "dispatch_response": True}]
+             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
 
     def test_delete_prompt_action(self):
         processor = MongoProcessor()
