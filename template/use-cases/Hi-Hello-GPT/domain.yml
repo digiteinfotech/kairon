@@ -50,6 +50,11 @@ slots:
     initial_value: null
     auto_fill: false
     influence_conversation: false
+  google_search_result:
+    type: rasa.shared.core.slots.TextSlot
+    initial_value: null
+    auto_fill: false
+    influence_conversation: false
   bot:
     type: rasa.shared.core.slots.AnySlot
     initial_value: 64bdf3ff0a2ff4923faa83ee

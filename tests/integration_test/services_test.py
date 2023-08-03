@@ -12692,11 +12692,13 @@ def test_add_channel_config_error():
 
 
 def test_add_bot_with_template_name(monkeypatch):
+    from kairon.shared.admin.data_objects import BotSecrets
 
     def mock_reload_model(*arge, **kwargs):
         return None
 
     monkeypatch.setattr(Utility, "reload_model", mock_reload_model)
+    monkeypatch.setitem(Utility.environment['llm'], 'key', 'secret_value')
 
     response = client.post(
         "/api/account/bot",
@@ -12708,6 +12710,12 @@ def test_add_bot_with_template_name(monkeypatch):
     assert response['error_code'] == 0
     assert response['success']
     assert response['data']['bot_id']
+    bot_id = response['data']['bot_id']
+    processor = MongoProcessor()
+    actions = processor.get_actions(bot_id)
+    action_names = [action['name'] for action in actions]
+    assert set(action_names) == {'kairon_faq_action', 'google_search_action'}
+    assert BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get()
 
 
 def test_add_channel_config(monkeypatch):

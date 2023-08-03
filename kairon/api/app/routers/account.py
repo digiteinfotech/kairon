@@ -140,7 +140,7 @@ async def add_bot(request: AddBotRequest, background_tasks: BackgroundTasks,
     """
     bot_id = await AccountProcessor.add_bot_with_template(request.name, current_user.account, current_user.get_user(),
                                                           template_name=request.from_template)
-    if request.from_template:
+    if not Utility.check_empty_string(request.from_template):
         background_tasks.add_task(Utility.reload_model, bot_id, current_user.email)
     return Response(data={"bot_id": bot_id}, message="Bot created")
 

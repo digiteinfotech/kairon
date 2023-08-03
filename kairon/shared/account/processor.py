@@ -98,13 +98,14 @@ class AccountProcessor:
         bot = AccountProcessor.add_bot(name, account, user, False, add_default_data, **metadata)
         bot_id = bot['_id'].__str__()
         if not Utility.check_empty_string(template_name):
-            input_path = Utility.get_latest_file(f"template/use-cases/{template_name}/models", "20230730-084056.tar.gz")
+            input_path = Utility.get_latest_file(f"template/use-cases/{template_name}/models")
             output_path = f"models/{bot_id}"
             processor = MongoProcessor()
             await processor.apply_template(template_name, bot_id, user)
             Utility.copy_file_to_dir(input_path, output_path)
         if not Utility.check_empty_string(Utility.environment['llm'].get('key')):
-            Sysadmin.add_bot_secret(bot_id, name=BotSecretType.gpt_key.value, secret=Utility.environment['llm']['key'])
+            Sysadmin.add_bot_secret(bot_id, user, name=BotSecretType.gpt_key.value,
+                                    secret=Utility.environment['llm']['key'])
         return bot_id
 
     @staticmethod
