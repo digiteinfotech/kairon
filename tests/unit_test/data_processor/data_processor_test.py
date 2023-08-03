@@ -1126,8 +1126,8 @@ class TestMongoProcessor:
                                  'document'] for slot in domain.slots)
         assert list(domain.templates.keys()) == ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                  'utter_default']
-        assert set(domain.entities) == {'user', 'location', 'email_id', 'application_name', 'bot',
-                                        'kairon_action_response', 'image', 'audio', 'video', 'document', 'doc_url'}
+        assert domain.entities == ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
+                                   'image', 'audio', 'video', 'document', 'doc_url']
         assert domain.forms == {'ask_user': {'required_slots': {'user': [{'type': 'from_entity', 'entity': 'user'}],
                                                                 'email_id': [
                                                                     {'type': 'from_entity', 'entity': 'email_id'}]}},
