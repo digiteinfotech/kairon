@@ -5139,6 +5139,7 @@ class MongoProcessor:
         action.num_bot_responses = request_data.get('num_bot_responses', 5)
         action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyperparameters())
         action.llm_prompts = [LlmPrompt(**prompt) for prompt in request_data.get('llm_prompts', [])]
+        action.instructions = request_data.get('instructions', [])
         action.set_slots = request_data.get('set_slots', [])
         action.dispatch_response = request_data.get('dispatch_response', True)
         action.timestamp = datetime.utcnow()
