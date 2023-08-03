@@ -972,10 +972,15 @@ class MongoProcessor:
                 Slots.objects.insert(new_slots)
 
     def add_system_required_slots(self, bot: Text, user: Text):
-        for slot in [s for s in KaironSystemSlots if s.value in {KaironSystemSlots.bot.value,
-                                                                 KaironSystemSlots.kairon_action_response.value}]:
+        for slot in [s for s in KaironSystemSlots if s.value == KaironSystemSlots.bot.value]:
             self.add_slot({
                 "name": slot, "type": "any", "initial_value": bot, "auto_fill": False,
+                "influence_conversation": False}, bot, user, raise_exception_if_exists=False
+            )
+
+        for slot in [s for s in KaironSystemSlots if s.value == KaironSystemSlots.kairon_action_response.value]:
+            self.add_slot({
+                "name": slot, "type": "any", "initial_value": None, "auto_fill": False,
                 "influence_conversation": False}, bot, user, raise_exception_if_exists=False
             )
 

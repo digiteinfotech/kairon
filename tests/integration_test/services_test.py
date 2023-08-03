@@ -12694,7 +12694,7 @@ def test_add_channel_config_error():
 def test_add_bot_with_template_name(monkeypatch):
     from kairon.shared.admin.data_objects import BotSecrets
 
-    def mock_reload_model(*arge, **kwargs):
+    def mock_reload_model(*args, **kwargs):
         return None
 
     monkeypatch.setattr(Utility, "reload_model", mock_reload_model)
@@ -12711,11 +12711,19 @@ def test_add_bot_with_template_name(monkeypatch):
     assert response['success']
     assert response['data']['bot_id']
     bot_id = response['data']['bot_id']
-    processor = MongoProcessor()
-    actions = processor.get_actions(bot_id)
-    action_names = [action['name'] for action in actions]
-    assert set(action_names) == {'kairon_faq_action', 'google_search_action'}
-    assert BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get()
+    response = client.get(
+        url=f"/api/bot/{bot_id}/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] == {'google_search_action': ['google_search_action'], 'prompt_action': ['kairon_faq_action'],
+                              'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
+                              'email_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+                              'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
+                              'razorpay_action': [], 'database_action': [], 'actions': []}
+    bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
+    assert bot_secret['secret_type'] == 'gpt_key'
+    assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
 
 
 def test_add_channel_config(monkeypatch):

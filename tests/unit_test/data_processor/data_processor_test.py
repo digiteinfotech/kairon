@@ -1368,7 +1368,7 @@ class TestMongoProcessor:
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 8
-        assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value == 'tests']
+        assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.templates.keys().__len__() == 11
         assert domain.entities.__len__() == 7
         assert domain.form_names.__len__() == 0
@@ -6254,9 +6254,9 @@ class TestMongoProcessor:
         slots = list(processor.get_existing_slots(bot))
         assert len(slots) == 17
         assert slots == [
-            {'name': 'kairon_action_response', 'type': 'any', 'initial_value': 'test', 'auto_fill': False,
-             'influence_conversation': False, '_has_been_set': False},
             {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'auto_fill': False, 'influence_conversation': False,
+             '_has_been_set': False},
+            {'name': 'kairon_action_response', 'type': 'any', 'auto_fill': False, 'influence_conversation': False,
              '_has_been_set': False},
             {'name': 'image', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
              '_has_been_set': False},
@@ -6277,9 +6277,9 @@ class TestMongoProcessor:
             {'name': 'file_text', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
              '_has_been_set': False},
             {'name': 'name', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
-             '_has_been_set': False}, {'name': 'priority', 'type': 'categorical', 'auto_fill': True,
-                                       'values': ['low', 'medium', 'high', '__other__'], 'influence_conversation': True,
-                                       '_has_been_set': False},
+             '_has_been_set': False},
+            {'name': 'priority', 'type': 'categorical', 'auto_fill': True,
+             'values': ['low', 'medium', 'high', '__other__'], 'influence_conversation': True, '_has_been_set': False},
             {'name': 'ticketid', 'type': 'float', 'initial_value': 1.0, 'auto_fill': True, 'max_value': 1.0,
              'min_value': 0.0, 'influence_conversation': True, '_has_been_set': False},
             {'name': 'date_time', 'type': 'any', 'auto_fill': True, 'influence_conversation': False,
