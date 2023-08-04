@@ -380,8 +380,9 @@ class ActionUtility:
         try:
             if ActionUtility.is_empty(api_key):
                 website = kwargs.get('website')
+                num_results = kwargs.pop('num')
                 search_term = f"{search_term} site: {website}" if website else search_term
-                search_results = search(search_term, advanced=True, **kwargs)
+                search_results = search(search_term, num_results=num_results, advanced=True, **kwargs)
                 for item in search_results or []:
                     results.append({'title': item.title, 'text': item.description, 'link': item.url})
             else:

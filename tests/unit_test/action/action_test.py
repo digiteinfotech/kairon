@@ -2502,7 +2502,7 @@ class TestActions:
 
         monkeypatch.setattr(googlesearch, 'search', _run_action)
         results = ActionUtility.perform_google_search(None, 'asdfg::567890', 'what is kanban?',
-                                                      num_results=1, website="https://nimblework.com")
+                                                      num=1, website="https://nimblework.com")
         assert results == [{
             'title': 'What Is Kanban? An Overview Of The Kanban Method',
             'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in ...',

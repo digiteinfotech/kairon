@@ -175,6 +175,7 @@ channels:
 
 llm:
   faq: ${LLM_FAQ_TYPE:GPT3_FAQ_EMBED}
+  key: ${TEMPLATE_LLM_KEY}
 
 vector:
   db: ${VECTOR_DB:http://localhost:6333}

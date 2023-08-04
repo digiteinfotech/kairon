@@ -45,3 +45,20 @@ class TestSysAdminProcessor:
         BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
         secret = Sysadmin.get_bot_secret(bot, BotSecretType.gpt_key.value)
         assert secret == value
+
+    def test_add_bot_secret(self):
+        bot = "test_bot"
+        user = "test_user"
+        secret = "test_secret"
+        bot_secret_id = Sysadmin.add_bot_secret(bot, user, BotSecretType.gpt_key.value, secret)
+        assert bot_secret_id
+        bot_secret = BotSecrets.objects(bot=bot, secret_type=BotSecretType.gpt_key.value).get().to_mongo().to_dict()
+        assert bot_secret['secret_type'] == 'gpt_key'
+        assert Utility.decrypt_message(bot_secret['value']) == 'test_secret'
+
+    def test_add_bot_secret_already_exists(self):
+        bot = "test_bot"
+        user = "test_user"
+        secret = "test_secret"
+        with pytest.raises(AppException, match="Bot secret exists!"):
+            Sysadmin.add_bot_secret(bot, user, BotSecretType.gpt_key.value, secret)

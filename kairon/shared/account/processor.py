@@ -16,6 +16,8 @@ from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
     MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
+from kairon.shared.admin.constants import BotSecretType
+from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
@@ -79,31 +81,31 @@ class AccountProcessor:
         return bot_exists
 
     @staticmethod
-    async def add_bot_with_template(name: str, account: int, user: str, is_new_account: bool = False,
-                                    add_default_data: bool = True, template_name: str = None, **metadata):
+    async def add_bot_with_template(name: str, account: int, user: str, template_name: str = None):
         """
         add a bot to account and apply template
 
-        :param metadata: metadata of new bot
         :param name: bot name
         :param account: account id
         :param user: user id
-        :param is_new_account: True if it is a new account
-        :param add_default_data: True if default data is to be added
         :param template_name: template name
         :return: bot id
         """
         from kairon.shared.data.processor import MongoProcessor
 
-        bot = AccountProcessor.add_bot(name, account, user, is_new_account=is_new_account,
-                                       add_default_data=add_default_data, **metadata)
+        metadata = {"metadata": {"from_template": template_name}}
+        add_default_data = True if Utility.check_empty_string(template_name) else False
+        bot = AccountProcessor.add_bot(name, account, user, False, add_default_data, **metadata)
         bot_id = bot['_id'].__str__()
         if not Utility.check_empty_string(template_name):
-            input_path = "./template/use-cases/Hi-Hello-GPT/models/20230730-084056.tar.gz"
+            input_path = Utility.get_latest_file(f"template/use-cases/{template_name}/models")
             output_path = f"models/{bot_id}"
             processor = MongoProcessor()
             await processor.apply_template(template_name, bot_id, user)
             Utility.copy_file_to_dir(input_path, output_path)
+        if not Utility.check_empty_string(Utility.environment['llm'].get('key')):
+            Sysadmin.add_bot_secret(bot_id, user, name=BotSecretType.gpt_key.value,
+                                    secret=Utility.environment['llm']['key'])
         return bot_id
 
     @staticmethod

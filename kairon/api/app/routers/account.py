@@ -133,12 +133,15 @@ async def send_confirm_link(email: RecaptchaVerifiedTextData, background_tasks: 
 
 
 @router.post("/bot", response_model=Response)
-async def add_bot(request: AddBotRequest, current_user: User = Depends(Authentication.get_current_user)):
+async def add_bot(request: AddBotRequest, background_tasks: BackgroundTasks,
+                  current_user: User = Depends(Authentication.get_current_user)):
     """
-    Add new bot in a account.
+    Add new bot in an account.
     """
     bot_id = await AccountProcessor.add_bot_with_template(request.name, current_user.account, current_user.get_user(),
                                                           template_name=request.from_template)
+    if not Utility.check_empty_string(request.from_template):
+        background_tasks.add_task(Utility.reload_model, bot_id, current_user.email)
     return Response(data={"bot_id": bot_id}, message="Bot created")
 
 
