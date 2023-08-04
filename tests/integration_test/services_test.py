@@ -12695,6 +12695,7 @@ def test_add_bot_with_template_name(monkeypatch):
     from kairon.shared.admin.data_objects import BotSecrets
 
     def mock_reload_model(*args, **kwargs):
+        mock_reload_model.called_with = (args, kwargs)
         return None
 
     monkeypatch.setattr(Utility, "reload_model", mock_reload_model)
@@ -12724,6 +12725,8 @@ def test_add_bot_with_template_name(monkeypatch):
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
+    assert mock_reload_model.called_with[0] == (bot_id, 'integration@demo.ai')
+    assert mock_reload_model.called_with[1] == {}
 
 
 def test_add_channel_config(monkeypatch):
