@@ -12695,7 +12695,16 @@ def test_add_channel_config_error():
     assert actual["message"] == 'Cannot edit secondary slack app. Please delete and install the app again using oAuth.'
 
 
-def test_add_bot_with_template_name():
+def test_add_bot_with_template_name(monkeypatch):
+    from kairon.shared.admin.data_objects import BotSecrets
+
+    def mock_reload_model(*args, **kwargs):
+        mock_reload_model.called_with = (args, kwargs)
+        return None
+
+    monkeypatch.setattr(Utility, "reload_model", mock_reload_model)
+    monkeypatch.setitem(Utility.environment['llm'], 'key', 'secret_value')
+
     response = client.post(
         "/api/account/bot",
         json={"name": "hi-hello-gpt-bot", "from_template": "Hi-Hello-GPT"},
@@ -12706,6 +12715,23 @@ def test_add_bot_with_template_name():
     assert response['error_code'] == 0
     assert response['success']
     assert response['data']['bot_id']
+    bot_id = response['data']['bot_id']
+    response = client.get(
+        url=f"/api/bot/{bot_id}/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual['data'] == {'google_search_action': ['google_search_action'], 'prompt_action': ['kairon_faq_action'],
+                              'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
+                              'email_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+                              'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
+                              'razorpay_action': [], 'database_action': [], 'actions': []}
+    bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
+    assert bot_secret['secret_type'] == 'gpt_key'
+    assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
+    assert len(mock_reload_model.called_with[0]) == 2
+    assert mock_reload_model.called_with[0][0] == bot_id
+    assert mock_reload_model.called_with[0][1] == 'integ1@gmail.com'
 
 
 def test_add_channel_config(monkeypatch):

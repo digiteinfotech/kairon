@@ -935,9 +935,9 @@ class TestMongoProcessor:
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 2
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 8
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 7
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 7
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
 
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
@@ -1224,8 +1224,8 @@ class TestMongoProcessor:
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 17
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -4144,8 +4144,8 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 17
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -4263,8 +4263,8 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 17
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
         assert domain.intent_properties.__len__() == 29
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -4326,8 +4326,8 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 17
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -4376,8 +4376,8 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 17
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -4433,8 +4433,8 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 17
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 8
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -6253,7 +6253,22 @@ class TestMongoProcessor:
         bot = 'test'
         processor = MongoProcessor()
         slots = list(processor.get_existing_slots(bot))
+        assert len(slots) == 17
         assert slots == [
+            {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'auto_fill': False, 'influence_conversation': False,
+             '_has_been_set': False},
+            {'name': 'kairon_action_response', 'type': 'any', 'auto_fill': False, 'influence_conversation': False,
+             '_has_been_set': False},
+            {'name': 'image', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'audio', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'video', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'document', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
+            {'name': 'doc_url', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
+             '_has_been_set': False},
             {'name': 'category', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
              '_has_been_set': False},
             {'name': 'file', 'type': 'unfeaturized', 'auto_fill': True, 'influence_conversation': False,
@@ -6268,20 +6283,6 @@ class TestMongoProcessor:
              'values': ['low', 'medium', 'high', '__other__'], 'influence_conversation': True, '_has_been_set': False},
             {'name': 'ticketid', 'type': 'float', 'initial_value': 1.0, 'auto_fill': True, 'max_value': 1.0,
              'min_value': 0.0, 'influence_conversation': True, '_has_been_set': False},
-            {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'auto_fill': False, 'influence_conversation': False,
-             '_has_been_set': False},
-            {'name': 'kairon_action_response', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'image', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'audio', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'video', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'document', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
-            {'name': 'doc_url', 'type': 'text', 'auto_fill': True, 'influence_conversation': True,
-             '_has_been_set': False},
             {'name': 'date_time', 'type': 'any', 'auto_fill': True, 'influence_conversation': False,
              '_has_been_set': False},
             {'name': 'age', 'type': 'float', 'auto_fill': True, 'max_value': 1.0, 'min_value': 0.0,
