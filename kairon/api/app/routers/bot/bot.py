@@ -1155,8 +1155,15 @@ async def get_training_data_count(
 
 @router.get("/chat/client/config/url", response_model=Response)
 async def get_chat_client_config_url(
+        request: Request,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
+    from kairon.shared.metering.metering_processor import MeteringProcessor
+    from kairon.shared.metering.constants import MetricType
+
     url = mongo_processor.get_chat_client_config_url(current_user.get_bot(), current_user.email)
+    ip_info = Utility.get_client_ip(request)
+    data = {"ip_info": ip_info}
+    id = MeteringProcessor.add_metrics(current_user.get_bot(), current_user.account, MetricType.user_metrics, **data)
     return Response(data=url)
 
 
