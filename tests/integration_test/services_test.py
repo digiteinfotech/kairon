@@ -12725,8 +12725,9 @@ def test_add_bot_with_template_name(monkeypatch):
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
-    assert mock_reload_model.called_with[0] == (bot_id, 'integration@demo.ai')
-    assert mock_reload_model.called_with[1] == {}
+    assert len(mock_reload_model.called_with[0]) == 2
+    assert mock_reload_model.called_with[0][0] == bot_id
+    assert mock_reload_model.called_with[0][1] == 'integ1@gmail.com'
 
 
 def test_add_channel_config(monkeypatch):
