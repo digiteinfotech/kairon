@@ -4867,7 +4867,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         def _run_action(*args, **kwargs):
             assert args == ('1234567890', 'asdfg::123456', 'my custom text')
-            assert kwargs == {'num_results': 1, 'website': None}
+            assert kwargs == {'num': 1, 'website': None}
             return [{
                 'title': 'Kanban',
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
@@ -4894,7 +4894,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         def _run_action(*args, **kwargs):
             assert args == ('1234567890', 'asdfg::123456', '/action_google_search')
-            assert kwargs == {'num_results': 1, 'website': None}
+            assert kwargs == {'num': 1, 'website': None}
             return [{
                 'title': 'Kanban',
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
@@ -4960,7 +4960,7 @@ class TestActionServer(AsyncHTTPTestCase):
 
         def _run_action(*args, **kwargs):
             assert args == (None, 'asdfg::123456', 'what is Kanban?',)
-            assert kwargs == {'num_results': 1, 'website': "https://nimblework.com"}
+            assert kwargs == {'num': 1, 'website': "https://nimblework.com"}
             return [{
                 'title': 'Kanban',
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.',
