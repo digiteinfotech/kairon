@@ -178,7 +178,10 @@ class TestMessageBroadcastProcessor:
                     "template_type": "dynamic",
                     "template_id": "brochure_pdf",
                     "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                    "data": ""
+                    "data": "data = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
+                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
+                                  'filename': 'Brochure.pdf'}}]}]",
+                    "accessor": "data"
                 },
                 {
                     "template_type": "static",
@@ -247,7 +250,12 @@ class TestMessageBroadcastProcessor:
                              'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
                              'template_config': [{'template_type': 'dynamic', 'template_id': 'brochure_pdf',
                                                   'language': "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': ''},
+                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380',
+                                                  'data': "data = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
+                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
+                                  'filename': 'Brochure.pdf'}}]}]",
+                                                  "accessor": "data"
+                                                  },
                                                  {'template_type': 'static', 'template_id': 'brochure_pdf',
                                                   "language": "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
@@ -310,7 +318,12 @@ class TestMessageBroadcastProcessor:
                              'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
                              'template_config': [{'template_type': 'dynamic', 'template_id': 'brochure_pdf',
                                                   "language": "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380', 'data': ''},
+                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380',
+                                                  'data': "data = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
+                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
+                                  'filename': 'Brochure.pdf'}}]}]",
+                                                  "accessor": "data"
+                                                  },
                                                  {'template_type': 'static', 'template_id': 'brochure_pdf',
                                                   "language": "en",
                                                   'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
