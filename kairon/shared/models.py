@@ -65,6 +65,7 @@ class User(BaseModel):
     active_bot: str = None
     bot_account: int = None
     account: int
+    is_onboarded: bool = False
     status: bool
     alias_user: str = None
     is_integration_user: bool = False

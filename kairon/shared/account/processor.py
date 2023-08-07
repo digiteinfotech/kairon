@@ -98,11 +98,11 @@ class AccountProcessor:
         bot = AccountProcessor.add_bot(name, account, user, False, add_default_data, **metadata)
         bot_id = bot['_id'].__str__()
         if not Utility.check_empty_string(template_name):
-            input_path = Utility.get_latest_file(f"template/use-cases/{template_name}/models")
-            output_path = f"models/{bot_id}"
             processor = MongoProcessor()
             await processor.apply_template(template_name, bot_id, user)
-            Utility.copy_file_to_dir(input_path, output_path)
+            Utility.copy_pretrained_model(bot_id, template_name)
+            processor.enable_llm_faq(bot_id, user)
+
         if not Utility.check_empty_string(Utility.environment['llm'].get('key')):
             Sysadmin.add_bot_secret(bot_id, user, name=BotSecretType.gpt_key.value,
                                     secret=Utility.environment['llm']['key'])
@@ -565,6 +565,16 @@ class AccountProcessor:
         user["_id"] = user["_id"].__str__()
         user.pop('password')
         return user
+
+    @staticmethod
+    def update_is_onboarded(email: Text):
+        try:
+            user = User.objects(email__iexact=email, status=True).get()
+            user.is_onboarded = True
+            user.save()
+        except DoesNotExist as e:
+            logging.error(e)
+            raise AppException("User does not exists!")
 
     @staticmethod
     def get_user_details_and_filter_bot_info_for_integration_user(email: Text, is_integration_user: bool, bot: Text = None):

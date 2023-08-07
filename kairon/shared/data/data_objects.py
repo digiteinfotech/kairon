@@ -860,7 +860,7 @@ class TrainingDataGenerator(Document):
 
 class LLMSettings(EmbeddedDocument):
     enable_faq = BooleanField(default=False)
-    provider = StringField(default=LLMResourceProvider.azure.value, choices=[LLMResourceProvider.azure.value,
+    provider = StringField(default=LLMResourceProvider.openai.value, choices=[LLMResourceProvider.azure.value,
                                                                              LLMResourceProvider.openai.value])
     embeddings_model_id = StringField()
     chat_completion_model_id = StringField()

@@ -42,6 +42,7 @@ class User(Auditlog):
     password = StringField(required=True)
     account = LongField(required=True)
     user = StringField(required=True)
+    is_onboarded = BooleanField(default=False)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
     meta = {"indexes": [{"fields": ["$email", "$first_name", "$last_name"]}]}

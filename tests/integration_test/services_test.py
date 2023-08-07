@@ -4691,6 +4691,18 @@ def test_get_user_details():
     assert Utility.check_empty_string(actual["message"])
 
 
+def test_update_user_details():
+    response = client.post(
+        "/api/user/details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Details updated!"
+
+
 def test_download_data():
     response = client.get(
         f"/api/bot/{pytest.bot}/download/data",

@@ -21,6 +21,7 @@ from starlette.responses import RedirectResponse
 
 from kairon.api.app.routers.idp import get_idp_config
 from kairon.idp.processor import IDPProcessor
+from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
@@ -28,6 +29,7 @@ from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     ORG_SETTINGS_MESSAGES, FeatureMappings
 from kairon.shared.data.data_objects import Configs, Rules, Responses
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
@@ -2703,3 +2705,47 @@ class TestAccountProcessor:
         OrgProcessor.delete_org(account=account, org_id=name)
         org = OrgProcessor.get_organization(org_name=name)
         assert org == {}
+
+    @pytest.mark.asyncio
+    async def test_add_bot_with_template(self, monkeypatch):
+        bot = "bot_from_hi_hello_template"
+        account = 2000
+        user = "bot_user"
+        template_name = "Hi-Hello-GPT"
+
+        monkeypatch.setitem(Utility.environment['llm'], 'key', 'secret_value')
+
+        bot_id = await AccountProcessor.add_bot_with_template(bot, account, user, template_name)
+        assert not Utility.check_empty_string(bot_id)
+
+        settings = MongoProcessor.get_bot_settings(bot_id, user)
+        assert settings["llm_settings"]["enable_faq"] is True
+
+        assert AccountProcessor.get_bot(bot_id)["metadata"] == {'from_template': 'Hi-Hello-GPT', 'language': 'en'}
+
+        assert Utility.is_model_file_exists(bot_id) is True
+        Utility.delete_directory(f"./models/{bot_id}")
+
+        bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
+        assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
+
+    @pytest.mark.asyncio
+    async def test_add_bot_with_template_llm_key_not_exists(self):
+        bot = "bot_from_hi_hello_template_2"
+        account = 2000
+        user = "bot_user"
+        template_name = "Hi-Hello-GPT"
+
+        bot_id = await AccountProcessor.add_bot_with_template(bot, account, user, template_name)
+        assert not Utility.check_empty_string(bot_id)
+
+        settings = MongoProcessor.get_bot_settings(bot_id, user)
+        assert settings["llm_settings"]["enable_faq"] is True
+
+        assert AccountProcessor.get_bot(bot_id)["metadata"] == {'from_template': 'Hi-Hello-GPT', 'language': 'en'}
+
+        assert Utility.is_model_file_exists(bot_id) is True
+        Utility.delete_directory(f"./models/{bot_id}")
+
+        with pytest.raises(DoesNotExist):
+            BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()

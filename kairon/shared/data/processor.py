@@ -3988,6 +3988,12 @@ class MongoProcessor:
             settings = BotSettings(bot=bot, user=user).save()
         return settings
 
+    @staticmethod
+    def enable_llm_faq(bot: Text, user: Text):
+        bot_settings = MongoProcessor.get_bot_settings(bot, user)
+        bot_settings.llm_settings.enable_faq = True
+        bot_settings.save()
+
     def save_chat_client_config(self, config: dict, bot: Text, user: Text):
         from kairon.shared.account.processor import AccountProcessor
 

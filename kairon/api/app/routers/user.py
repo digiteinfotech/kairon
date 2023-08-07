@@ -26,6 +26,15 @@ async def get_users_details(current_user: User = Depends(Authentication.get_curr
     return {"data": {"user": user_details}}
 
 
+@router.post("/details", response_model=Response)
+async def update_users_details(current_user: User = Depends(Authentication.get_current_user)):
+    """
+    Updates the details of the current logged-in user.
+    """
+    AccountProcessor.update_is_onboarded(current_user.email)
+    return {"message": "Details updated!"}
+
+
 @router.get("/roles/access", response_model=Response)
 async def list_access_for_roles(current_user: User = Security(Authentication.get_current_user)):
     """
