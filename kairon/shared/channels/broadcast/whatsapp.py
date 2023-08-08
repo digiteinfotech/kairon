@@ -58,7 +58,7 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
             for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-                    response = channel_client.send_template_message(namespace, template_id, recipient, lang, t_params)
+                    response = channel_client.send_template_message(template_id, recipient, lang, t_params, namespace)
                     status = "Failed" if response.get("errors") else "Success"
                     if status == "Failed":
                         failure_cnt = failure_cnt + 1

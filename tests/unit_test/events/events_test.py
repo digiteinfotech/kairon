@@ -1283,11 +1283,10 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
-        assert mock_send.call_args[0][1] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
-        assert mock_send.call_args[0][2] == 'brochure_pdf'
-        assert mock_send.call_args[0][3] == '876543212345'
-        assert mock_send.call_args[0][4] == 'hi'
-        assert mock_send.call_args[0][5] == [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+        assert mock_send.call_args[0][1] == 'brochure_pdf'
+        assert mock_send.call_args[0][2] == '876543212345'
+        assert mock_send.call_args[0][3] == 'hi'
+        assert mock_send.call_args[0][4] == [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
             'filename': 'Brochure.pdf'}}]}]
 

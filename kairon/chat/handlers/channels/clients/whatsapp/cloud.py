@@ -157,7 +157,7 @@ class WhatsappCloud(object):
 
         return hmac.new(app_secret, access_token, hashlib.sha256).hexdigest()
 
-    def send_template_message(self, namespace: Text, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None):
+    def send_template_message(self, name: Text, to_phone_number, language_code: Text = "en", components: Dict = None, namespace: Text = None):
         payload = {
             "language": {
                 "code": language_code
