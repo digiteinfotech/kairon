@@ -3254,10 +3254,21 @@ class MongoProcessor:
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)
             action_with_slot = GoogleSearchAction.objects(bot=bot, status=True, set_slot=slot_name)
+            stories = Stories.objects(bot=bot, status=True, events__name=slot_name, events__type__ = SlotSet.type_name)
+            training_examples = TrainingExamples.objects(bot=bot, status=True, entities__entity= slot_name)
+            multi_stories = MultiflowStories.objects(bot=bot, status=True, events__connections__type__=StoryStepType.slot, events__connections__name=slot_name)
+
             if len(forms_with_slot) > 0:
                 raise AppException(f'Slot is attached to form: {[form["name"] for form in forms_with_slot]}')
-            if len(action_with_slot) > 0:
+            elif len(action_with_slot) > 0:
                 raise AppException(f'Slot is attached to action: {[action["name"] for action in action_with_slot]}')
+            elif len(stories) > 0:
+                raise AppException(f'Slot is attached to story: {[story["block_name"] for story in stories]}')
+            elif len(training_examples) > 0:
+                raise AppException(f'Slot is attached to Example: {[example["intent"] for example in training_examples]}')
+            elif len(multi_stories) > 0:
+                raise AppException(f'Slot is attached to multi-flow story: {[story["block_name"] for story in multi_stories]}')
+
             slot.status = False
             slot.user = user
             slot.save()
