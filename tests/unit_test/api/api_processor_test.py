@@ -757,7 +757,7 @@ class TestAccountProcessor:
     def test_get_user(self):
         user = AccountProcessor.get_user("fshaikh@digite.com")
         assert all(
-            user[key] is False if key == "is_integration_user" else user[key]
+            user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
 
@@ -768,7 +768,7 @@ class TestAccountProcessor:
     def test_get_user_details(self):
         user = AccountProcessor.get_user_details("fshaikh@digite.com")
         assert all(
-            user[key] is False if key == "is_integration_user" else user[key]
+            user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
 
@@ -1874,7 +1874,7 @@ class TestAccountProcessor:
         assert not existing_user
         user = AccountProcessor.get_user_details('monisha.ks@digite.com')
         assert all(
-            user[key] is False if key == "is_integration_user" else user[key]
+            user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1
@@ -1956,7 +1956,7 @@ class TestAccountProcessor:
         assert not existing_user
         user = AccountProcessor.get_user_details('monishaks@digite.com')
         assert all(
-            user[key] is False if key == "is_integration_user" else user[key]
+            user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1
@@ -2139,12 +2139,12 @@ class TestAccountProcessor:
         assert not existing_user
         user = AccountProcessor.get_user_details('monisha.ks@digite.com')
         assert all(
-            user[key] is False if key == "is_integration_user" else user[key]
+            user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
         user = AccountProcessor.get_user_details('monishaks@digite.com')
         assert all(
-            user[key] is False if key == "is_integration_user" else user[key]
+            user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1

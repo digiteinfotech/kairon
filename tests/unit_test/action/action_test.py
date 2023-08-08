@@ -2144,7 +2144,7 @@ class TestActions:
                                 'data_importer_limit_per_day': 5,
                                 'force_import': False,
                                 'ignore_utterances': False,
-                                'llm_settings': {'enable_faq': True, 'provider': 'azure'},
+                                'llm_settings': {'enable_faq': True, 'provider': 'openai'},
                                 'multilingual_limit_per_day': 2,
                                 'notification_scheduling_limit': 4,
                                 'refresh_token_expiry': 60,
@@ -2491,7 +2491,7 @@ class TestActions:
 
         def _run_action(*args, **kwargs):
             assert args == ('what is kanban? site: https://nimblework.com',)
-            assert kwargs == {'advanced': True, 'num_results': 1, 'website': 'https://nimblework.com'}
+            assert kwargs == {'advanced': True, 'num_results': 1}
             search_results = [
                 MockSearchResult(
                     url="https://www.digite.com/kanban/what-is-kanban/",
@@ -3113,7 +3113,7 @@ class TestActions:
                           'data_importer_limit_per_day': 5,
                           'force_import': False,
                           'ignore_utterances': False,
-                          'llm_settings': {'enable_faq': False, 'provider': 'azure'},
+                          'llm_settings': {'enable_faq': False, 'provider': 'openai'},
                           'multilingual_limit_per_day': 2,
                           'notification_scheduling_limit': 4,
                           'refresh_token_expiry': 60,

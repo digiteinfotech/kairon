@@ -735,11 +735,9 @@ class Utility:
             return updated_model
 
     @staticmethod
-    def build_tar(source_dir: Text, output_filename: Text = None):
-        if Utility.check_empty_string(output_filename):
-            output_filename = f"{source_dir}.tar.gz"
+    def build_tar(source_dir: Text, output_filename: Text):
         with tarfile.open(output_filename, "w:gz") as tar:
-            tar.add(source_dir)
+            tar.add(source_dir, arcname=".")
 
     @staticmethod
     def initiate_apm_client_config():

@@ -13361,7 +13361,7 @@ def test_get_bot_settings():
                               'data_importer_limit_per_day': 5,
                               'force_import': False,
                               'ignore_utterances': False,
-                              'llm_settings': {'enable_faq': False, 'provider': 'azure'},
+                              'llm_settings': {'enable_faq': False, 'provider': 'openai'},
                               'multilingual_limit_per_day': 2,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,

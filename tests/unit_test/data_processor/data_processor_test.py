@@ -5687,7 +5687,7 @@ class TestMongoProcessor:
         assert settings.timestamp
         assert settings.user
         assert settings.bot
-        assert settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'azure'}
+        assert settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
 
     def test_get_bot_settings(self):
         processor = MongoProcessor()
@@ -5702,7 +5702,7 @@ class TestMongoProcessor:
         assert fresh_settings.timestamp
         assert fresh_settings.user
         assert fresh_settings.bot
-        assert settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'azure'}
+        assert settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
 
     def test_save_bot_settings_error(self):
         with pytest.raises(ValidationError, match="refresh_token_expiry must be greater than chat_token_expiry!"):
