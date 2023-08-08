@@ -74,15 +74,20 @@ class WhatsappResponseConverter(ElementTransformerOps):
                 temp_header_value = None
                 header_row_data = None
                 if data_type == ElementTypes.DROPDOWN.value:
+                    intent = item.get("rule")
+                    slot = item.get("slot")
                     option_list = ElementTransformerOps.json_generator(item.get("options"))
                     for option in option_list:
                         label = option.get("label")
                         value = option.get("value")
+                        description = option.get("desc")
                         header_value = option.get("optionHeader")
                         row_data = {}
+                        value = f"{intent}{{{slot}:{value}}}" if intent and slot else value
                         row_data.update({"id": value})
                         row_data.update({"title": label})
-                        row_data.update({"description": label})
+                        if description is not None:
+                            row_data.update({"description": description})
                         if header_value is None:
                             rows_list["rows"].append(row_data)
                         elif header_value is not None:
