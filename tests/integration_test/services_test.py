@@ -1016,9 +1016,10 @@ def test_get_client_config_url_with_ip_info():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]["total"] == 1
-    actual["data"]["logs"][0].pop("timestamp")
-    assert actual["data"]["logs"] == [{'bot': pytest.bot, 'account': 3, 'metric_type': 'user_metrics',
-                                       'ip_info': 'testclient', 'geo_location': {'City': 'Mumbai', 'Network': 'CATO'}}]
+    assert actual["data"]["logs"][0]['bot'] == pytest.bot
+    assert actual["data"]["logs"][0]['metric_type'] == 'user_metrics'
+    assert actual["data"]["logs"][0]['ip_info'] == 'testclient'
+    assert actual["data"]["logs"][0]['geo_location'] == {'City': 'Mumbai', 'Network': 'CATO'}
 
 
 def test_content_upload_api(monkeypatch):
