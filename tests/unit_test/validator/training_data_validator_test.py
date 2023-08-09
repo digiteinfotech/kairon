@@ -681,3 +681,343 @@ class TestTrainingDataValidator:
         assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
                                    'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8}
+
+    def test_validate_multiflow_stories(self):
+        steps_mf_one = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"}]
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"},
+             "connections": None
+             },
+        ]
+        steps_mf_two = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+             }
+        ]
+        steps_mf_three = [
+            {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
+             },
+            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
+             }
+        ]
+        steps_mf_four = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ppooakak"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
+             "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+                             {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"},
+             "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+             "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"},
+             "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"},
+             "connections": None
+             }
+        ]
+        steps_mf_five = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_time", "type": "INTENT", "node_id": "2", "component_id": "NKUPKJ"}]
+             },
+            {"step": {"name": "utter_time", "type": "INTENT", "node_id": "2", "component_id": "NKUPKJ"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
+             },
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "4", "component_id": "NKUPKJ"}]
+             }
+        ]
+        steps_mf_six = [
+            {"step": {"name": "heyyy", "type": "INTENT", "node_id": "1", "component_id": "ppooakak"},
+             "connections": [{"name": "utter_heyyy", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
+                             {"name": "utter_greet", "type": "BOT", "node_id": "3", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+             "connections": [{"name": "more_queriesss", "type": "INTENT", "node_id": "4", "component_id": "ppooakak"},
+                             {"name": "goodbyeee", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "goodbyeee", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"},
+             "connections": [{"name": "utter_goodbyeee", "type": "BOT", "node_id": "6", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "utter_goodbyeee", "type": "BOT", "node_id": "6", "component_id": "ppooakak"},
+             "connections": None
+             },
+            {"step": {"name": "utter_more_queriesss", "type": "BOT", "node_id": "7", "component_id": "ppooakak"},
+             "connections": None
+             },
+            {"step": {"name": "more_queriesss", "type": "INTENT", "node_id": "4", "component_id": "ppooakak"},
+             "connections": [
+                 {"name": "utter_more_queriesss", "type": "BOT", "node_id": "7", "component_id": "ppooakak"}]
+             },
+            {"step": {"name": "utter_heyyy", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
+             "connections": None
+             }
+        ]
+        steps_mf_seven = [
+            {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_games", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        steps_mf_eight = [
+            {"step": {"name": "hello", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_games", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        steps_mf_nine = [
+            {"step": {"name": "weathery", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_weathery", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_weathery", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "sunny", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "rainy", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "sunny", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_sunny", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_sunny", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "umbrella", "type": "SLOT", "value": 'Yes', "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "rainy", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "umbrella", "type": "SLOT", "value": 'Yes', "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        steps_mf_ten = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "MNbcg"},
+             "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"},
+             "connections": [{"name": "queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"}]
+             },
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
+             "connections": None
+             },
+            {"step": {"name": "queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+             "connections": None
+             },
+        ]
+        steps_mf_eleven = [
+            {"step": {"name": "wish", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foody_act", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foody_act", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata_eleven = [{"node_id": '6', "flow_type": 'RULE'}, {"node_id": "5", "flow_type": 'STORY'}]
+        steps_mf_twelve = [
+            {"step": {"name": "weather", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_weather", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_weather", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "sunny", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "rainy", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "sunny", "type": "INTENT", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_sunny", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_sunny", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_rainy", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "rainy", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_rainy", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata_twelve = [{"node_id": '2', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
+        steps_mf_fourteen = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63ue2YkCdcVmnU0L7Q8wCjnc"},
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"},
+             "connections": [
+                 {"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
+                 {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"}]
+             },
+            {"step": {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"},
+             "connections": [
+                 {"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"}]
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"},
+             "connections": [
+                 {"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
+             },
+            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "6",
+                      "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"},
+             "connections": None
+             },
+            {"step": {"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
+             "connections": [
+                 {"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
+             }
+        ]
+        test_dict = {"multiflow_story": [{"block_name": "mf_one", "events": steps_mf_one},
+                                         {"block_name": "mf_two", "events": steps_mf_two},
+                                         {"block_name": "mf_three", "events": steps_mf_three},
+                                         {"block_name": "mf_four", "events": steps_mf_four},
+                                         {"block_name": "mf_five", "events": steps_mf_five},
+                                         {"block_name": "mf_six", "events": steps_mf_six},
+                                         {"block_name": "mf_seven", "events": steps_mf_seven},
+                                         {"block_name": "mf_eight", "events": steps_mf_eight},
+                                         {"block_name": "mf_nine", "events": steps_mf_nine},
+                                         {"block_name": "mf_ten", "events": steps_mf_ten},
+                                         {"block_name": "mf_eleven", "events": steps_mf_eleven, "metadata": metadata_eleven},
+                                         {"block_name": "mf_twelve", "events": steps_mf_twelve, "metadata": metadata_twelve},
+                                         {"block_name": "mf_thirteen"},
+                                         {"block_name": "mf_fourteen", "events": steps_mf_fourteen},
+                                         {"block_name": "mf_fourteen", "events": steps_mf_fourteen},
+                                         [{"block_name": "mf_thirteen"}]]}
+        errors, count = TrainingDataValidator.validate_multiflow_stories(test_dict)
+        assert len(errors) == 21
+        assert count['multiflow_stories'] == 16
+
+    def test_validate_multiflow_stories_empty_content(self):
+        test_dict = {'multiflow_story': []}
+        assert TrainingDataValidator.validate_multiflow_stories(test_dict)
+        assert TrainingDataValidator.validate_multiflow_stories([{}])
