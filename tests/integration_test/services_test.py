@@ -2366,6 +2366,7 @@ def test_get_data_importer_logs():
                                              {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                              {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                              {'type': 'prompt_actions', 'count': 0, 'data': []}],
+                                         'multiflow_stories': {'count': 0, 'data': []},
                                  'exception': '',
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
@@ -2377,26 +2378,26 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][2]['is_data_uploaded']
     assert actual['data']["logs"][2]['start_timestamp']
     assert actual['data']["logs"][2]['end_timestamp']
-
+    print(actual['data']["logs"][3])
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
-                                                                'actions', 'chat_client_config'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
-    assert actual['data']["logs"][3]['intents']['count'] == 16
-    assert len(actual['data']["logs"][3]['intents']['data']) == 21
-    assert actual['data']["logs"][3]['utterances']['count'] == 25
-    assert len(actual['data']["logs"][3]['utterances']['data']) == 13
+    assert actual['data']["logs"][3]['intents']['count'] == 19
+    assert len(actual['data']["logs"][3]['intents']['data']) == 24
+    assert actual['data']["logs"][3]['utterances']['count'] == 27
+    assert len(actual['data']["logs"][3]['utterances']['data']) == 15
     assert actual['data']["logs"][3]['stories']['count'] == 16
     assert len(actual['data']["logs"][3]['stories']['data']) == 1
     assert actual['data']["logs"][3]['rules']['count'] == 3
     assert len(actual['data']["logs"][3]['rules']['data']) == 0
-    assert actual['data']["logs"][3]['training_examples']['count'] == 292
+    assert actual['data']["logs"][3]['training_examples']['count'] == 305
     assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
-    assert actual['data']["logs"][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
-                                           'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 40, 'slots_count': 10,
+                                           'utterances_count': 27 , 'forms_count': 2, 'entities_count': 8, 'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
     assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
@@ -2408,8 +2409,9 @@ def test_get_data_importer_logs():
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                             {'type': 'prompt_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
-    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
-                                                                'actions', 'chat_client_config'}
+    print(set(actual['data']["logs"][3]['files_received']))
+    assert set(actual['data']["logs"][3]['files_received']) == {'chat_client_config', 'stories', 'nlu', 'rules',
+                                                                'actions', 'config', 'domain', 'multiflow_stories'}
 
 
 @responses.activate
@@ -2516,11 +2518,12 @@ def test_download_data_with_chat_client_config():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__() == 8
+    assert zip_file.filelist.__len__() == 9
     assert zip_file.getinfo('chat_client_config.yml')
     assert zip_file.getinfo('config.yml')
     assert zip_file.getinfo('domain.yml')
     assert zip_file.getinfo('actions.yml')
+    assert zip_file.getinfo('multiflow_stories.yml')
     assert zip_file.getinfo('data/stories.yml')
     assert zip_file.getinfo('data/rules.yml')
     assert zip_file.getinfo('data/nlu.yml')
@@ -2890,6 +2893,7 @@ def test_get_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["data"])
     assert len(actual["data"]) == 1
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -4710,7 +4714,7 @@ def test_download_data():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__() == 8
+    assert zip_file.filelist.__len__() == 9
     zip_file.close()
     file_bytes.close()
 
@@ -8647,6 +8651,49 @@ def test_upload_actions_and_config():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 5
 
+
+@patch("kairon.shared.importer.processor.DataImporterLogProcessor.is_limit_exceeded", autospec=True)
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_upload_multiflow_stories(mock_is_limit_exceeded, mock_event_server):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+    files = (('training_files', ("domain.yml", open("tests/testing_data/yml_training_files/domain.yml", "rb"))),
+             ('training_files',
+              ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))),
+             ('training_files',
+              ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
+             ('training_files',
+              ("rules.yml", open("tests/testing_data/yml_training_files/data/rules.yml", "rb"))),
+             ('training_files',
+              ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb"))),
+             ('training_files',
+              ("chat_client_config.yml", open("tests/testing_data/yml_training_files/chat_client_config.yml", "rb"))),
+             ('training_files',
+              ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
+             ('training_files',
+              ("multiflow_stories.yml", open("tests/testing_data/yml_training_files/multiflow_stories.yml", "rb"))))
+    mock_is_limit_exceeded.return_value = False
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "test_user", EventClass.data_importer)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 def test_get_editable_config():
     response = client.get(f"/api/bot/{pytest.bot}/config/properties",

@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import networkx as nx
 import yaml
 from fastapi import File
-from loguru import logger as logging
+from loguru import logger as logging, logger
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
@@ -87,7 +87,7 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, CognitionData, MultiFlowStoryMetadata,
-    Synonyms, Lookup, CognitionMetadata
+    Synonyms, Lookup, CognitionMetadata, StepFlowEvent
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots
@@ -107,6 +107,7 @@ class MongoProcessor:
             config: File,
             rules: File,
             http_action: File,
+            multiflow_stories: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -120,12 +121,13 @@ class MongoProcessor:
         :param rules: rules data
         :param http_action: http_actions data
         :param config: config data
+        :param multiflow_stories: multiflow_stories data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action, multiflow_stories)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
@@ -144,10 +146,8 @@ class MongoProcessor:
         chat_client_config = self.load_chat_client_config(bot, user)
         rules = self.get_rules_for_training(bot)
         multiflow_stories = self.load_multiflow_stories(bot)
-        stories = stories.merge(multiflow_stories[0])
-        rules = rules.merge(multiflow_stories[1])
         actions = self.load_action_configurations(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, chat_client_config)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, multiflow_stories, chat_client_config)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -184,6 +184,7 @@ class MongoProcessor:
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             actions_yml = os.path.join(path, 'actions.yml')
+            multiflow_stories_yml = os.path.join(path, 'multiflow_stories.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -192,9 +193,10 @@ class MongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             actions = Utility.read_yaml(actions_yml)
+            multiflow_stories = Utility.read_yaml(multiflow_stories_yml) if multiflow_stories_yml else None
             TrainingDataValidator.validate_custom_actions(actions)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite=overwrite,
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, multiflow_stories, overwrite=overwrite,
                                     what=REQUIREMENTS.copy()-{"chat_client_config"})
         except Exception as e:
             logging.exception(e)
@@ -202,7 +204,7 @@ class MongoProcessor:
 
     def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
                            story_graph: StoryGraph = None, nlu: TrainingData = None, actions: dict = None,
-                           chat_client_config: dict = None,
+                           multiflow_stories: dict = None, chat_client_config: dict = None,
                            overwrite: bool = False, what: set = REQUIREMENTS.copy()):
         if overwrite:
             self.delete_bot_data(bot, user, what)
@@ -221,6 +223,8 @@ class MongoProcessor:
             self.add_or_overwrite_config(config, bot, user)
         if 'chat_client_config' in what:
             self.save_chat_client_config(chat_client_config, bot, user)
+        if 'multiflow_stories' in what:
+            self.save_multiflow_stories(multiflow_stories, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -398,6 +402,18 @@ class MongoProcessor:
         :return: StoryGraph
         """
         return self.__prepare_training_story(bot)
+
+    def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
+        """
+        saves multiflow stories data
+
+        :param multiflow_stories: multiflow stories data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if multiflow_stories and multiflow_stories['multiflow_story']:
+            self.__save_multiflow_stories(multiflow_stories['multiflow_story'], bot, user)
 
     def load_multiflow_stories(self, bot: Text) -> (StoryGraph, StoryGraph):
         """
@@ -1128,6 +1144,114 @@ class MongoProcessor:
                 yield ActiveLoop(name=event.name, timestamp=timestamp)
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
+
+    def __extract_multiflow_story_events_steps(self, step_data, bot, user):
+        step_event = {}
+        try:
+            if step_data:
+                if step_data.get('type') == StoryStepType.intent.value:
+                    intent = Intents.objects(bot=bot).get(name=step_data.get('name'))
+                    component_id = intent.id.__str__()
+                    step_event['type'] = step_data.get('type')
+                    step_event['name'] = step_data.get('name')
+                    step_event['component_id'] = component_id
+                elif step_data.get('type') == StoryStepType.slot.value:
+                    slot = Slots.objects(bot=bot).get(name=step_data.get('name'))
+                    component_id = slot.id.__str__()
+                    step_event['type'] = step_data.get('type')
+                    step_event['name'] = step_data.get('name')
+                    step_event['value'] = step_data.get('value')
+                    step_event['component_id'] = component_id
+                else:
+                    if step_data.get('name').startswith('utter_'):
+                        utterance = Utterances.objects(bot=bot).get(name=step_data.get('name'))
+                        component_id = utterance.id.__str__()
+                        step_event['type'] = step_data.get('type')
+                        step_event['name'] = step_data.get('name')
+                        step_event['component_id'] = component_id
+                    elif step_data.get('type') in StoryStepType:
+                        action = Actions.objects(bot=bot).get(name=step_data.get('name'), type=step_data.get('type').lower())
+                        component_id = action.id.__str__()
+                        step_event['type'] = step_data.get('type')
+                        step_event['name'] = step_data.get('name')
+                        step_event['component_id'] = component_id
+            return step_event
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(e)
+
+    def __extract_multiflow_story_events_connections(self, connection_data, bot, user):
+        connection_event = []
+        try:
+            if connection_data:
+                for connection in connection_data:
+                    if connection.get('type') == StoryStepType.intent.value:
+
+                        intent = Intents.objects(bot=bot).get(name=connection.get('name'))
+                        component_id = intent.id.__str__()
+                        connection_event.append({'type': connection.get('type'), 'name': connection.get('name'), 'component_id': component_id})
+                    elif connection.get('type') == StoryStepType.slot.value:
+                        slot = Slots.objects(bot=bot).get(name=connection.get('name'))
+                        component_id = slot.id.__str__()
+                        connection_event.append({'type': connection.get('type'), 'name': connection.get('name'), 'value': connection.get('value'),
+                                                 'component_id': component_id})
+                    else:
+                        if connection.get('name').startswith('utter_'):
+                            utterance = Utterances.objects(bot=bot).get(name=connection.get('name'))
+                            component_id = utterance.id.__str__()
+                            connection_event.append({'type': connection.get('type'), 'name': connection.get('name'), 'component_id': component_id})
+                        elif connection.get('type') in StoryStepType:
+                            action = Actions.objects(bot=bot).get(name=connection.get('name'),
+                                                                  type=connection.get('type').lower())
+                            component_id = action.id.__str__()
+                            connection_event.append({'type': connection.get('type'), 'name': connection.get('name'),
+                                                     'component_id': component_id})
+            return connection_event
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(e)
+
+    def __extract_multiflow_story_events(self, bot, user, events):
+        for event in events:
+            step_data = event['step']
+            connection_data = event['connections']
+            step_event = self.__extract_multiflow_story_events_steps(step_data, bot, user)
+            connection_event = self.__extract_multiflow_story_events_connections(connection_data, bot, user)
+            step = StepFlowEvent(**step_event)
+            connections = [StepFlowEvent(**connection) for connection in connection_event]
+            story_event = MultiflowStoryEvents(step=step, connections=connections)
+            story_event.clean()
+            yield story_event
+
+    def __fetch_multiflow_story_block_names(self, bot: Text):
+        multiflow_stories = list(
+            MultiflowStories.objects(bot=bot, status=True).values_list('block_name')
+        )
+        return multiflow_stories
+
+    def __extract_multiflow_story_step(self, multiflow_stories, bot: Text, user: Text):
+        saved_multiflow_stories = self.__fetch_multiflow_story_block_names(bot)
+        for multiflow_story_items in multiflow_stories:
+            if multiflow_story_items['block_name'].strip().lower() not in saved_multiflow_stories:
+                multiflow_story_events = list(
+                    self.__extract_multiflow_story_events(bot, user, multiflow_story_items['events']))
+                metadata = multiflow_story_items.get('metadata', [])
+                multiflow_story = MultiflowStories(
+                    block_name=multiflow_story_items['block_name'],
+                    events=multiflow_story_events,
+                    metadata=metadata,
+                    template_type=TemplateType.CUSTOM.value
+                )
+                multiflow_story.bot = bot
+                multiflow_story.user = user
+                multiflow_story.clean()
+                yield multiflow_story
+
+    def __save_multiflow_stories(self, multiflow_stories, bot: Text, user: Text):
+        if multiflow_stories:
+            new_multiflow_stories = list(self.__extract_multiflow_story_step(multiflow_stories, bot, user))
+            if new_multiflow_stories:
+                MultiflowStories.objects.insert(new_multiflow_stories)
 
     def __prepare_training_multiflow_story_events(self, events, metadata, timestamp):
         roots = []
@@ -3574,6 +3698,26 @@ class MongoProcessor:
             slot.pop("status")
             yield slot
 
+    async def validate_and_prepare_data(self, bot: Text, user: Text, training_files: List, overwrite: bool):
+        """
+        Saves training data (zip, file or files) and validates whether at least one
+        training file exists in the received set of files. If some training files are
+        missing then, it prepares the rest of the data from database.
+        In case only http actions are received, then it is validated and saved.
+        Finally, a list of files received are returned.
+        """
+        non_event_validation_summary = None
+        bot_data_home_dir = await DataUtility.save_uploaded_data(bot, training_files)
+        files_to_prepare = DataUtility.validate_and_get_requirements(bot_data_home_dir, True)
+        files_received = REQUIREMENTS - files_to_prepare
+        is_event_data = False
+
+        if files_received.difference({'config', 'actions', 'chat_client_config', 'multiflow_stories'}):
+            is_event_data = True
+        else:
+            non_event_validation_summary = self.save_data_without_event(bot_data_home_dir, bot, user, overwrite)
+        return files_received, is_event_data, non_event_validation_summary
+
     async def validate_and_log(self, bot: Text, user: Text, training_files, overwrite):
         files_received, is_event_data, non_event_validation_summary = await self.validate_and_prepare_data(bot,
                                                                                                            user,
@@ -3591,26 +3735,6 @@ class MongoProcessor:
 
         return is_event_data
 
-    async def validate_and_prepare_data(self, bot: Text, user: Text, training_files: List, overwrite: bool):
-        """
-        Saves training data (zip, file or files) and validates whether at least one
-        training file exists in the received set of files. If some training files are
-        missing then, it prepares the rest of the data from database.
-        In case only http actions are received, then it is validated and saved.
-        Finally, a list of files received are returned.
-        """
-        non_event_validation_summary = None
-        bot_data_home_dir = await DataUtility.save_uploaded_data(bot, training_files)
-        files_to_prepare = DataUtility.validate_and_get_requirements(bot_data_home_dir, True)
-        files_received = REQUIREMENTS - files_to_prepare
-        is_event_data = False
-
-        if files_received.difference({'config', 'actions', 'chat_client_config'}):
-            is_event_data = True
-        else:
-            non_event_validation_summary = self.save_data_without_event(bot_data_home_dir, bot, user, overwrite)
-        return files_received, is_event_data, non_event_validation_summary
-
     def save_data_without_event(self, data_home_dir: Text, bot: Text, user: Text, overwrite: bool):
         """
         Saves http actions and config file.
@@ -3619,6 +3743,7 @@ class MongoProcessor:
 
         actions = None
         config = None
+        multiflow_story = None
         chat_client_config = None
         validation_failed = False
         error_summary = {}
@@ -3626,6 +3751,7 @@ class MongoProcessor:
         actions_path = os.path.join(data_home_dir, 'actions.yml')
         config_path = os.path.join(data_home_dir, 'config.yml')
         chat_client_config_path = os.path.join(data_home_dir, 'chat_client_config.yml')
+        multiflow_story_path = os.path.join(data_home_dir, 'multiflow_stories.yml')
         if os.path.exists(actions_path):
             actions = Utility.read_yaml(actions_path)
             validation_failed, error_summary, actions_count = TrainingDataValidator.validate_custom_actions(actions)
@@ -3637,7 +3763,11 @@ class MongoProcessor:
         if os.path.exists(chat_client_config_path):
             chat_client_config = Utility.read_yaml(chat_client_config_path)
             chat_client_config = chat_client_config["config"]
-
+        if os.path.exists(multiflow_story_path):
+            multiflow_story = Utility.read_yaml(multiflow_story_path)
+            multiflow_story_errors, count = TrainingDataValidator.validate_multiflow_stories(multiflow_story)
+            error_summary['multiflow_story_errors'] = multiflow_story_errors
+            component_count.update(count)
         if not validation_failed and not error_summary.get('config'):
             files_to_save = set()
             if actions and set(actions.keys()).intersection({a_type.value for a_type in ActionType}):
@@ -3646,7 +3776,9 @@ class MongoProcessor:
                 files_to_save.add('config')
             if chat_client_config:
                 files_to_save.add('chat_client_config')
-            self.save_training_data(bot, user, actions=actions, config=config, overwrite=overwrite, what=files_to_save,
+            if multiflow_story:
+                files_to_save.add('multiflow_stories')
+            self.save_training_data(bot, user, actions=actions, multiflow_stories=multiflow_story, config=config, overwrite=overwrite, what=files_to_save,
                                     chat_client_config=chat_client_config)
         else:
             validation_failed = True
