@@ -997,6 +997,30 @@ def test_content_upload_api_with_gpt_feature_disabled():
     assert actual["error_code"] == 422
 
 
+def test_get_client_config_url_with_ip_info():
+    with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo_location:
+        mock_geo_location.return_value = {"City": "Mumbai", "Network": "CATO"}
+        response = client.get(f"/api/bot/{pytest.bot}/chat/client/config/url",
+                              headers={"Authorization": pytest.token_type + " " + pytest.access_token})
+        actual = response.json()
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["data"]
+        pytest.url = actual["data"]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["total"] == 1
+    actual["data"]["logs"][0].pop("timestamp")
+    assert actual["data"]["logs"] == [{'bot': pytest.bot, 'account': 3, 'metric_type': 'user_metrics',
+                                       'ip_info': 'testclient', 'geo_location': {'City': 'Mumbai', 'Network': 'CATO'}}]
+
+
 def test_content_upload_api(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
