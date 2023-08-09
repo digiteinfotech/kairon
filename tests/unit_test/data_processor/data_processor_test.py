@@ -942,6 +942,16 @@ class TestMongoProcessor:
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
 
     @pytest.mark.asyncio
+    async def test_save_from_path_yml_without_multiflow_events(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            result = await (
+                processor.save_from_path(
+                    "./tests/testing_data/yml_training_files_exception", bot="test_load_yml_multiflow", user="testUser"
+                )
+            )
+
+    @pytest.mark.asyncio
     async def test_save_from_path_yml_multiflow_events_steps(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
