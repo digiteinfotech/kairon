@@ -249,7 +249,8 @@
 		"dropdownLabel": "Select the fertilizer",
 		"options": [{
 				"label": "fertilizer1",
-				"value": "/fertilizer1"
+				"value": "/fertilizer1",
+                "desc": "Fuel your plants' vitality with Fertilizer1's nutrient-rich formula."
 			},
 			{
 				"label": "fertilizer2",
@@ -257,7 +258,8 @@
 			},
 			{
 				"label": "fertilizer3",
-				"value": "/fertilizer3"
+				"value": "/fertilizer3",
+                "desc": "Nourish your garden to perfection with Fertilizer3's balanced blend."
 			}
 		],
 		"children": [{
@@ -275,19 +277,74 @@
 
         "rows": [
           {
+            "id":"/dropdown{defect:/fertilizer1}",
+            "title": "fertilizer1",
+            "description": "Fuel your plants' vitality with Fertilizer1's nutrient-rich formula."
+          },
+          {
+            "id":"/dropdown{defect:/fertilizer2}",
+            "title": "fertilizer2"
+          },
+          {
+            "id":"/dropdown{defect:/fertilizer3}",
+            "title": "fertilizer3",
+            "description": "Nourish your garden to perfection with Fertilizer3's balanced blend."
+          }
+        ]
+      }
+    ],
+    "button": "Submit Option"
+  }
+    },
+
+  "whatsapp_drop_down_blank_input": [{
+		"rule": "",
+		"slot": "",
+		"type": "dropdown",
+		"dropdownLabel": "Select the fertilizer",
+		"options": [{
+				"label": "fertilizer1",
+				"value": "/fertilizer1",
+                "desc": "Fuel your plants' vitality with Fertilizer1's nutrient-rich formula."
+			},
+			{
+				"label": "fertilizer2",
+				"value": "/fertilizer2"
+			},
+			{
+				"label": "fertilizer3",
+				"value": "/fertilizer3",
+                "desc": "Nourish your garden to perfection with Fertilizer3's balanced blend."
+			}
+		],
+		"children": [{
+			"text": ""
+		}]
+	}],
+
+  "whatsapp_drop_down_blank_output":{
+        "type": "list",
+  "body": {
+    "text": "Select the fertilizer"
+  },
+  "action": {
+    "sections":[
+      {
+
+        "rows": [
+          {
             "id":"/fertilizer1",
             "title": "fertilizer1",
-            "description": "fertilizer1"
+            "description": "Fuel your plants' vitality with Fertilizer1's nutrient-rich formula."
           },
           {
             "id":"/fertilizer2",
-            "title": "fertilizer2",
-            "description": "fertilizer2"
+            "title": "fertilizer2"
           },
           {
             "id":"/fertilizer3",
             "title": "fertilizer3",
-            "description": "fertilizer3"
+            "description": "Nourish your garden to perfection with Fertilizer3's balanced blend."
           }
         ]
       }
@@ -327,6 +384,7 @@
 		"options": [{
 				"label": "fertilizer1",
 				"value": "/fertilizer1",
+                "desc": "Fuel your plants' vitality with Fertilizer1's nutrient-rich formula.",
                 "optionHeader": "Fertilizer"
 			},
 			{
@@ -337,11 +395,13 @@
 			{
 				"label": "fertilizer3",
 				"value": "/fertilizer3",
+                "desc": "Nourish your garden to perfection with Fertilizer3's balanced blend.",
               "optionHeader": "Fertilizer"
 			},
             {
 				"label": "crop1",
 				"value": "/crop1",
+                "desc": "Crop1 is a versatile and high-yielding option adaptable to diverse environments.",
               "optionHeader": "Crop"
 			},
            {
@@ -365,19 +425,18 @@
         "title": "Fertilizer",
         "rows": [
           {
-            "id":"/fertilizer1",
+            "id":"/dropdown{defect:/fertilizer1}",
             "title": "fertilizer1",
-            "description": "fertilizer1"
+            "description": "Fuel your plants' vitality with Fertilizer1's nutrient-rich formula."
           },
           {
-            "id":"/fertilizer2",
-            "title": "fertilizer2",
-            "description": "fertilizer2"
+            "id":"/dropdown{defect:/fertilizer2}",
+            "title": "fertilizer2"
           },
           {
-            "id":"/fertilizer3",
+            "id":"/dropdown{defect:/fertilizer3}",
             "title": "fertilizer3",
-            "description": "fertilizer3"
+            "description": "Nourish your garden to perfection with Fertilizer3's balanced blend."
           }
         ]
       },
@@ -385,14 +444,13 @@
         "title": "Crop",
         "rows": [
           {
-            "id":"/crop1",
+            "id":"/dropdown{defect:/crop1}",
             "title": "crop1",
-            "description": "crop1"
+            "description": "Crop1 is a versatile and high-yielding option adaptable to diverse environments."
           },
           {
-            "id":"/crop2",
-            "title": "crop2",
-            "description": "crop2"
+            "id":"/dropdown{defect:/crop2}",
+            "title": "crop2"
           }
         ]
       }

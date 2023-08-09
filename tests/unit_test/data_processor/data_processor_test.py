@@ -3679,6 +3679,87 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match='Default kAIron slot deletion not allowed'):
             processor.delete_slot(slot_name='doc_url', bot=bot, user=user)
 
+    def test_delete_slot_having_story_attached(self):
+        processor = MongoProcessor()
+        story_name = "delete story with slot"
+        bot = "test_slot_delete"
+        user = "test_user"
+        slot_name = "is_new_user"
+        slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": False}
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": slot_name, "type": "SLOT", "value": None},
+            {"name": "utter_welcome_user", "type": "BOT"},
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        processor.add_slot(slot_value=slot, bot=bot, user=user)
+        pytest.story_id = processor.add_complex_story(story_dict, bot, user)
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
+            assert str(e) == "Slot is attached to story: ['delete story with slot']"
+
+    def test_delete_slot_having_training_attached(self):
+        processor = MongoProcessor()
+        bot = "test_slot_delete_training"
+        user = "test_user"
+        slot_name = "time"
+        intent = "greet"
+        slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": True}
+        processor.add_slot(slot_value=slot, bot=bot, user=user)
+        processor.add_intent(intent, bot=bot, user=user, is_integration=False)
+        response = list(processor.add_training_example(["hi [Good Morning](time)"], intent, bot=bot, user=user,
+                                                       is_integration=False))
+        assert len(response) == 1
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
+            assert str(e) == f"Slot is attached to training example: ['{intent}']"
+
+    def test_delete_slot_having_multi_story_attached(self):
+        processor = MongoProcessor()
+        bot = "test_slot_delete_multi_story"
+        user = "test_user"
+        slot_name = "mood"
+        story_name = "mood multi flow"
+        slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": True}
+        processor.add_slot(slot_value=slot, bot=bot, user=user)
+        steps = [
+            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "food", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "food", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_food", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_food", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "mood", "type": "SLOT", "value": "Happy", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        story_dict = {'name': story_name, 'steps': steps, 'type': 'MULTIFLOW', 'template_type': 'CUSTOM'}
+        pytest.story_id = processor.add_multiflow_story(story_dict, bot, user)
+        multiflow_story = MultiflowStories.objects(block_name=story_name, bot=bot).get()
+        assert len(multiflow_story.events) == 6
+
+        with pytest.raises(AppException) as e:
+            processor.delete_slot(slot_name=slot_name, bot=bot, user=user)
+            assert str(e) == f"Slot is attached to multiflow story: : ['{story_name}']"
 
     def test_delete_slot_having_slot_mapping_attached(self):
         processor = MongoProcessor()
