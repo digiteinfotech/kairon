@@ -530,7 +530,7 @@ class TrainingDataValidator(Validator):
                     data_error.append(f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
                 if action.get('top_results') and (action['top_results'] > 30 or not isinstance(action['top_results'], int)):
                     data_error.append(f'top_results should not be greater than 30 and of type int: {action.get("name")}')
-                if action.get('similarity_threshold') and (not(0.3 <= action['similarity_threshold'] <= 1) or not isinstance(action['similarity_threshold'], int)):
+                if action.get('similarity_threshold') and not(0.3 <= action['similarity_threshold'] <= 1) or isinstance(action['similarity_threshold'], int)):
                     data_error.append(f'similarity_threshold should be within 0.3 and 1 and of type int: {action.get("name")}')
                 llm_prompts_errors = TrainingDataValidator.__validate_llm_prompts(action['llm_prompts'])
                 if action.get('hyperparameters') is not None:
