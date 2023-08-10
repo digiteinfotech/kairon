@@ -197,6 +197,22 @@ class TestChatServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response.body.decode("utf8"), 'Kairon Server Running')
 
+    def test_get_chat_client_config(self):
+        response = self.fetch(
+            f"/api/bot/{bot}/chat/client/config/{token}",
+            method="GET",
+            headers={"Authorization": token_type + " " + token},
+        )
+        print(response)
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert actual["success"]
+        assert actual["error_code"] == 0
+        assert actual["data"]
+        assert Utility.check_empty_string(actual["message"])
+        assert 0
+
+
     def test_chat(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store

@@ -4036,10 +4036,12 @@ class MongoProcessor:
 
         request = kwargs.get('request')
         account = kwargs.get('account')
+        bot_account = kwargs.get('bot_account')
         ip_info = Utility.get_client_ip(request)
         geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip_info) or {}
         data = {"ip_info": ip_info, "geo_location": geo_location}
         MeteringProcessor.add_metrics(bot, account, MetricType.user_metrics, **data)
+        MeteringProcessor.add_metrics(bot, bot_account, MetricType.user_metrics, **data)
         access_token, _ = Authentication.generate_integration_token(
             bot, user, ACCESS_ROLES.TESTER.value,
             access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
@@ -4047,11 +4049,6 @@ class MongoProcessor:
         url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{bot}/chat/client/config/')
         url = urljoin(url, access_token)
         return url
-
-    def get_client_config_using_uid(self, bot: str, uid: str):
-        decoded_uid = Utility.validate_bot_specific_token(bot, uid)
-        config = self.get_chat_client_config(bot, decoded_uid["sub"], is_client_live=True)
-        return config.to_mongo().to_dict()
 
     def get_chat_client_config(self, bot: Text, user: Text, is_client_live: bool = False):
         from kairon.shared.auth import Authentication
