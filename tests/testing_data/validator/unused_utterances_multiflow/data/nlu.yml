@@ -135,69 +135,56 @@ nlu:
     - ya sounds good
     - yes looks ok to me
     - good suggestion
-- intent: log_ticket_with_attributes
+- intent: greet_again
   examples: |
-    - My laptop is not working, log a [critical priority](priority) [hardware issue](category) ticket
-    - My laptop is not working, log a [critical](priority) [hardware issue](category) ticket
-- intent: get_priority
+    - welcome back
+    - good to see you back
+- intent: goodbye
   examples: |
-    - [Critical Priority](priority)
-    - [Critical](priority)
-    - [High](priority)
-    - [Medium](priority)
-    - [Low](priority)
-    - [critical priority](priority)
-    - [critical](priority)
-    - [high](priority)
-    - [medium](priority)
-    - [low](priority)
-    - Log a [critical issue](priority)
-    - Log a [high issue](priority)
-    - Log a [medium issue](priority)
-    - Log a [low issue](priority)
-    - [High Priority](priority)
-    - [Medium Priority](priority)
-    - [Low Priority](priority)
-    - no, this issue is a [showstopper](priority) for me, my work is stuck
-    - no, this issue is a [showstopper](priority)
-    - log a [critical issue](priority)
-    - I need this to be logged as a [critical issue](priority)
-    - change priority to [critical](priority)
-    - I need it [asap](priority)
-    - this is [urgent](priority)
-    - this is [showstopper](priority)
-    - log it as [medium](priority)
-    - make it [medium](priority)
-    - change priority to [medium](priority)
-    - this can be considered as [medium](priority)
-- intent: file_upload
+    - good afternoon
+    - cu
+    - good by
+    - cee you later
+    - good night
+    - bye
+    - goodbye
+    - have a nice day
+    - see you around
+    - bye bye
+    - see you later
+- intent: affirm_attachment
   examples: |
-    - Test File
-    - Attachment
-- intent: get_ticketID
-  examples: |
-    - [TKT456](ticketID)
-    - [TKT234](ticketID)
-    - [TKT123](ticketID)
-    - [TKT789](ticketID)
-    - [TKT677](ticketID)
-    - [TKT777](ticketID)
-    - [TKT546](ticketID)
-    - [TKT4566](ticketID)
-    - I want to upload a document against my ticket [TKT456]
-    - can you upload a file for [TKT456](ticketID)
-    - i need to upload a doc against [TKT123](ticketID)
-    - hey, attach a document against [TKT789](ticketID)
-    - can you attach a doc on [TKT677](ticketID)
-    - can you load a doc on [TKT234](ticketID)
-    - i need to load a doc against [TKT546](ticketID)
-    - please upload a doc file against [TKT789](ticketID)
-- intent: valid_ticketID
-  examples: |
-    - my bad, the id is [TKT456](ticketID)
-    - my mistake, use [TKT456](ticketID)
-    - ohh, its [TKT456](ticketID)
-    - ok try [TKT456](ticketID)
+    - Please attach.
+    - Yes, I confirm.
+    - Please attach a photo.
+    - Attach
+    - Please attach it.
+    - Please attach a picture.
+    - Yes, I affirm.
+    - Please send it to us
+    - Please make a video
+    - Yes, I confirm
+    - I confirm that.
+    - Please send it to me.
+    - Please post it.
+    - Attach.
+    - Please send it to us.
+    - Please post.
+    - Please let us know if you want to upload.
+    - Yes, I confirm it.
+    - Attached is a request to attach.
+    - Yes I confirm.
+    - yes, I confirm
+    - Please make a video.
+    - Yes, I agree.
+    - Please attach the document.
+    - Yes, I confirm that.
+    - Please let us know about it.
+    - Please share.
+    - I confirm.
+    - please attach
+    - please upload
+    - yes i confirm
 - intent: get_ticket_status
   examples: |
     - What is the current status of my ticket [TKT456](ticketID)
@@ -213,64 +200,6 @@ nlu:
     - what is the progress on [TKT345](ticketID)
     - report the progress of [TKT789](ticketID)
     - gimme status of [TKT4566](ticketID)
-- intent: file_upload_json
-  examples: |
-    - [FPC96EY3V](file):[''](file_text)
-    - [FPC96EY3V](file):[Attachment](file_text)
-    - [FPC96EY3V](file):[Sample File](file_text)
-    - [FPC96EY3V](file):[Screenshot](file_text)
-    - [FPC96EY3V](file):[""](file_text)
-    - [FPC96EY3V](file):[file for analysis](file_text)
-    - [FPC96EY3V](file):[test upload](file_text)
-    - [FPC96EY3V](file):[testing](file_text)
-    - [FPC96EY3V](file):[uploading for analysis](file_text)
-    - [FPC96EY3V](file):[PFA](file_text)
-    - [FPC96EY3V](file):[for debugging](file_text)
-    - [FPC96EY3V](file):[FYI](file_text)
-    - [FPC96EY3V](file):[for your reference](file_text)
-    - [FPC96EY3V](file):[check this](file_text)
-    - [FPC96EY3V](file):[error](file_text)
-    - [FPC96EY3V](file):[log file](file_text)
-    - [FPC96EY3V](file):[error log](file_text)
-    - [FPC96EY3V](file):[screenshots attached](file_text)
-    - [FPC96EY3V](file):[screenshot attached](file_text)
-    - [FPC96EY3V](file):[files attached](file_text)
-    - [FPC96EY3V](file):[file attached](file_text)
-    - [FPC96EY3V](file):[attached](file_text)
-    - [FPC96EY3V](file):[file uploaded](file_text)
-    - [FPC96EY3V](file):[view this](file_text)
-    - [FPC96EY3V](file):[have a look](file_text)
-    - [FPC96EY3V](file):[error files attached](file_text)
-    - [FPC96EY3V](file):[error file attached](file_text)
-    - [FPC96EY3V](file):[watever](file_text)
-    - [FPC96EY3V](file):[adding attachment](file_text)
-    - [FPC96EY3V](file):[testing attachment](file_text)
-    - [FPC96EY3V](file):[testing file upload](file_text)
-    - [FPC96EY3V](file):[attaching error loags](file_text)
-    - [FPC96EY3V](file):[attaching screenshots](file_text)
-    - [FPC96EY3V](file):[attaching document](file_text)
-    - [FPC96EY3V](file):[adding document](file_text)
-    - [FPC96EY3V](file):[adding doc](file_text)
-    - [FPC96EY3V](file):[uploading document](file_text)
-    - [FPC96EY3V](file):[uploding doc](file_text)
-    - [FPC96EY3V](file):[document added](file_text)
-    - [FPC96EY3V](file):[document attached](file_text)
-    - [FPC96EY3V](file):[doc file added](file_text)
-    - [FPC96EY3V](file):[docs](file_text)
-    - [FPC96EY3V](file):[doc](file_text)
-    - [FPC96EY3V](file):[doc attached](file_text)
-    - [FPC96EY3V](file):[file added](file_text)
-    - [FPC96EY3V](file):[have a look at the attached file](file_text)
-    - [FPC96EY3V](file):[file](file_text)
-    - [FPC96EY3V](file):[document](file_text)
-    - [FPC96EY3V](file):[log](file_text)
-    - [FPC96EY3V](file):[VPN](file_text)
-    - [FPC96EY3V](file):[VPN solution](file_text)
-    - [FPC96EY3V](file):[VPN log](file_text)
-    - [FPC96EY3V](file):[network connection log](file_text)
-    - [FPC96EY3V](file):[network connection error](file_text)
-    - [FPC96EY3V](file):[document for analysis](file_text)
-    - [FPC96EY3V](file):[attaching document for analysis](file_text)
 - intent: small_talk
   examples: |
     - What language are you written in
@@ -327,13 +256,6 @@ nlu:
     - i want to give feedback for bot
     - can i give some feedback?
     - can i say something regarding the bot performance?
-- intent: user_feedback
-  examples: |
-    - i [like](fdResponse) the performance of this bot
-    - i [like](fdResponse) the answers given by this bot
-    - i [like](fdResponse) this bot
-    - i [hate](fdResponse) this bot
-    - i [hate](fdResponse) this bot's performance
 - synonym: critical
   examples: |
     - urgent

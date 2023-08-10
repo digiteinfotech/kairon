@@ -2,10 +2,10 @@ multiflow_story:
 - block_name: mf_one_1
   events:
     - step:
-        name:
-        type:
-        node_id:
-        component_id:
+        name: query
+        type: INTENT
+        node_id: "1"
+        component_id: "61m96mPGu2VexybDeVg1dLyH"
       connections:
         - name: utter_query
           type: BOT
@@ -40,13 +40,21 @@ multiflow_story:
         type: BOT
         node_id: "5"
         component_id: "62uzXd9Pj5a9tEbVBkMuVn3o"
-      connections: null
+      connections:
+        - name: utter_feedback
+          type: BOT
+          node_id: "6"
+          component_id: "62ib6tlbgIGth8vBSwSYFvbS"
     - step:
         name: utter_feedback
         type: BOT
         node_id: "6"
         component_id: "62ib6tlbgIGth8vBSwSYFvbS"
-      connections: null
+      connections:
+        - name: utter_more_info
+          type: BOT
+          node_id: "5"
+          component_id: "62uzXd9Pj5a9tEbVBkMuVn3o"
     - step:
         name: performance_feedback
         type: INTENT

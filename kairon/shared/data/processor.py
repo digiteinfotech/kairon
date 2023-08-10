@@ -1147,6 +1147,7 @@ class MongoProcessor:
 
     def __extract_multiflow_story_events_steps(self, step_data, bot, user):
         step_event = {}
+        component_id = None
         try:
             if step_data:
                 if step_data.get('type') == StoryStepType.intent.value:
@@ -1156,7 +1157,7 @@ class MongoProcessor:
                     step_event['name'] = step_data.get('name')
                     step_event['component_id'] = component_id
                 elif step_data.get('type') == StoryStepType.slot.value:
-                    slot = Slots.objects(bot=bot).get(name=step_data.get('name'))
+                    slot = Slots.objects(name=step_data.get('name'), bot=bot).get()
                     component_id = slot.id.__str__()
                     step_event['type'] = step_data.get('type')
                     step_event['name'] = step_data.get('name')
@@ -1169,9 +1170,11 @@ class MongoProcessor:
                         step_event['type'] = step_data.get('type')
                         step_event['name'] = step_data.get('name')
                         step_event['component_id'] = component_id
-                    elif step_data.get('type') in StoryStepType:
-                        action = Actions.objects(bot=bot).get(name=step_data.get('name'), type=step_data.get('type').lower())
-                        component_id = action.id.__str__()
+                    elif step_data.get('type') in StoryStepType.__members__.values():
+                        actions = list(Actions.objects(bot=bot, status=True))
+                        for action in actions:
+                            if action.name == step_data.get('name').lower():
+                                component_id = action.id.__str__()
                         step_event['type'] = step_data.get('type')
                         step_event['name'] = step_data.get('name')
                         step_event['component_id'] = component_id
@@ -1186,12 +1189,11 @@ class MongoProcessor:
             if connection_data:
                 for connection in connection_data:
                     if connection.get('type') == StoryStepType.intent.value:
-
                         intent = Intents.objects(bot=bot).get(name=connection.get('name'))
                         component_id = intent.id.__str__()
                         connection_event.append({'type': connection.get('type'), 'name': connection.get('name'), 'component_id': component_id})
                     elif connection.get('type') == StoryStepType.slot.value:
-                        slot = Slots.objects(bot=bot).get(name=connection.get('name'))
+                        slot = Slots.objects(name=connection.get('name'), bot=bot).get()
                         component_id = slot.id.__str__()
                         connection_event.append({'type': connection.get('type'), 'name': connection.get('name'), 'value': connection.get('value'),
                                                  'component_id': component_id})
@@ -1200,11 +1202,12 @@ class MongoProcessor:
                             utterance = Utterances.objects(bot=bot).get(name=connection.get('name'))
                             component_id = utterance.id.__str__()
                             connection_event.append({'type': connection.get('type'), 'name': connection.get('name'), 'component_id': component_id})
-                        elif connection.get('type') in StoryStepType:
-                            action = Actions.objects(bot=bot).get(name=connection.get('name'),
-                                                                  type=connection.get('type').lower())
-                            component_id = action.id.__str__()
-                            connection_event.append({'type': connection.get('type'), 'name': connection.get('name'),
+                        elif connection.get('type') in StoryStepType.__members__.values():
+                            actions = list(Actions.objects(bot=bot, status=True))
+                            for action in actions:
+                                if action.name == connection.get('name').lower():
+                                    component_id = action.id.__str__()
+                                    connection_event.append({'type': connection.get('type'), 'name': connection.get('name'),
                                                      'component_id': component_id})
             return connection_event
         except Exception as e:
