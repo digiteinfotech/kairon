@@ -12987,7 +12987,7 @@ def test_get_channels_config():
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_scheduled_broadcast(mock_event_server):
     config = {
-        "name": "first_scheduler",
+        "name": "first_scheduler", "broadcast_type": "static",
         "connector_type": "whatsapp",
         "scheduler_config": {
             "expression_type": "cron",
@@ -12995,18 +12995,11 @@ def test_add_scheduled_broadcast(mock_event_server):
             "timezone": "UTC"
         },
         "recipients_config": {
-            "recipient_type": "static",
             "recipients": "918958030541, "
-        },
-        "data_extraction_config": {
-            "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
-            "url": "http://kairon.local",
         },
         "template_config": [
             {
-                "template_type": "static",
                 "template_id": "brochure_pdf",
-                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
             }
         ]
     }
@@ -13026,17 +13019,14 @@ def test_add_scheduled_broadcast(mock_event_server):
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_one_time_broadcast(mock_event_server):
     config = {
-        "name": "one_time_schedule",
+        "name": "one_time_schedule", "broadcast_type": "static",
         "connector_type": "whatsapp",
         "recipients_config": {
-            "recipient_type": "static",
             "recipients": "918958030541,"
         },
         "template_config": [
             {
-                "template_type": "static",
                 "template_id": "brochure_pdf",
-                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
             }
         ]
     }
@@ -13055,7 +13045,7 @@ def test_add_one_time_broadcast(mock_event_server):
 
 def test_broadcast_config_error():
     config = {
-        "name": "one_time_schedule",
+        "name": "one_time_schedule", "broadcast_type": "static",
         "connector_type": "whatsapp",
         "scheduler_config": {
             "expression_type": "cron",
@@ -13063,14 +13053,11 @@ def test_broadcast_config_error():
             "timezone": "UTC"
         },
         "recipients_config": {
-            "recipient_type": "static",
             "recipients": "918958030541,"
         },
         "template_config": [
             {
-                "template_type": "static",
                 "template_id": "brochure_pdf",
-                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
             }
         ]
     }
@@ -13102,6 +13089,7 @@ def test_broadcast_config_error():
         {'loc': ['body', 'scheduler_config', '__root__'], 'msg': 'timezone is required for cron expressions!', 'type': 'value_error'}]
 
     config["scheduler_config"]["schedule"] = ""
+    config["scheduler_config"]["timezone"] = "UTC"
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/broadcast/message",
         json=config,
@@ -13117,7 +13105,7 @@ def test_broadcast_config_error():
             "schedule": "30 5 * * *",
             "timezone": "UTC"
         }
-    config["recipients_config"]["recipient_type"] = "dynamic"
+    config["broadcast_type"] = "dynamic"
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/broadcast/message",
         json=config,
@@ -13127,12 +13115,11 @@ def test_broadcast_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'recipients_config', '__root__'], 'msg': "accessor is required when using dynamic evaluation",
-         'type': 'value_error'},
+        {'loc': ['body', '__root__'], 'msg': "pyscript is required for dynamic broadcasts!", 'type': 'value_error'},
     ]
 
-    config["recipients_config"]["recipient_type"] = "static"
-    config["template_config"][0]["template_type"] = "dynamic"
+    config["broadcast_type"] = "static"
+    config.pop("template_config")
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/broadcast/message",
         json=config,
@@ -13142,7 +13129,7 @@ def test_broadcast_config_error():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'template_config', 0, '__root__'], 'msg': "accessor is required when using dynamic evaluation",
+        {'loc': ['body', '__root__'], 'msg': "recipients_config and template_config is required for static broadcasts!",
          'type': 'value_error'}
     ]
 
@@ -13150,32 +13137,14 @@ def test_broadcast_config_error():
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_update_broadcast(mock_event_server):
     config = {
-        "name": "first_scheduler",
+        "name": "first_scheduler_dynamic", "broadcast_type": "dynamic",
         "connector_type": "whatsapp",
         "scheduler_config": {
             "expression_type": "cron",
             "schedule": "21 11 * * *",
             "timezone": "Asia/Kolkata"
         },
-        "recipients_config": {
-            "recipient_type": "dynamic",
-            "recipients": "contacts = [9876543210, 8907654321]",
-            "accessor": "contacts"
-        },
-        "data_extraction_config": {
-            "url": "http://kairon.remote",
-        },
-        "template_config": [
-            {
-                "template_type": "dynamic",
-                "template_id": "brochure_pdf",
-                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                "data": "components = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
-                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
-                                  'filename': 'Brochure.pdf'}}]}]",
-                "accessor": "components"
-            }
-        ]
+        "pyscript": "send_msg('template_name', '9876543210')"
     }
     response = client.put(
         f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
@@ -13190,17 +13159,14 @@ def test_update_broadcast(mock_event_server):
 
 def test_update_one_time_broadcast():
     config = {
-        "name": "one_time_schedule",
+        "name": "one_time_schedule", "broadcast_type": "static",
         "connector_type": "whatsapp",
         "recipients_config": {
-            "recipient_type": "static",
             "recipients": "918958030541,"
         },
         "template_config": [
             {
-                "template_type": "static",
                 "template_id": "brochure_pdf",
-                "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
             }
         ]
     }
@@ -13233,21 +13199,12 @@ def test_list_broadcast_config():
     actual["data"]['schedules'][1].pop("bot")
     actual["data"]['schedules'][1].pop("user")
     assert actual["data"] == {'schedules': [
-        {'name': 'first_scheduler', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
+        {'name': 'first_scheduler_dynamic', 'connector_type': 'whatsapp', "pyscript_timeout": 10, "broadcast_type": "dynamic",
          'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *', "timezone": "Asia/Kolkata"},
-         'data_extraction_config': {'method': 'GET', 'url': 'http://kairon.remote', 'headers': {}, 'request_body': {}},
-         'recipients_config': {'recipient_type': 'dynamic', 'recipients': "contacts = [9876543210, 8907654321]",
-                               "accessor": "contacts"}, 'template_config': [{'template_type': 'dynamic',
-                                                                             'template_id': 'brochure_pdf', "language": "en",
-             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380',
-            'data': "components = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
-                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
-                                  'filename': 'Brochure.pdf'}}]}]",
-             "accessor": "components"}], 'status': True},
-        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
-         'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
-            {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
-             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'status': True}]}
+         "pyscript": "send_msg('template_name', '9876543210')", 'status': True, "template_config": []},
+        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10, "broadcast_type": "static",
+         'recipients_config': {'recipients': '918958030541,'}, 'template_config': [
+            {'template_id': 'brochure_pdf', "language": "en"}], 'status': True, "template_config": [{'template_id': 'brochure_pdf', "language": "en"}]}]}
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
@@ -13286,9 +13243,8 @@ def test_list_broadcast_():
     actual["data"]["schedules"][0].pop("user")
     assert actual["data"] == {'schedules': [
         {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
-         'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'}, 'template_config': [
-            {'template_type': 'static', 'template_id': 'brochure_pdf', "language": "en",
-             'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}], 'bot': pytest.bot, 'status': True, }]}
+         'broadcast_type': 'static', 'recipients_config': {'recipients': '918958030541,'}, 'template_config': [
+            {'template_id': 'brochure_pdf', "language": "en"}], 'bot': pytest.bot, 'status': True, }]}
 
 
 def test_list_broadcast_logs():

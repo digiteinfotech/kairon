@@ -6,3 +6,8 @@ class MessageBroadcastLogType(str, Enum):
     send = "send"
     self = "self"
     script_variables = "script_variables"
+
+
+class MessageBroadcastType(str, Enum):
+    static = "static"
+    dynamic = "dynamic"

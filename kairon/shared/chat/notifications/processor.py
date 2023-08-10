@@ -11,7 +11,7 @@ from kairon.exceptions import AppException
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
 from kairon.shared.chat.notifications.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
-    DataExtractionConfiguration, RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
+    RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 
 
 class MessageBroadcastProcessor:
@@ -51,12 +51,12 @@ class MessageBroadcastProcessor:
             raise AppException("scheduler_config is required!")
         try:
             settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=True).get()
-            settings.channel_id = config["connector_type"]
+            settings.name = config["name"]
+            settings.connector_type = config["connector_type"]
+            settings.broadcast_type = config["broadcast_type"]
             settings.scheduler_config = SchedulerConfiguration(**config["scheduler_config"])
-            settings.data_extraction_config = DataExtractionConfiguration(**config["data_extraction_config"]) \
-                if config.get("data_extraction_config") else None
-            settings.recipients_config = RecipientsConfiguration(**config["recipients_config"])
-            settings.template_config = [TemplateConfiguration(**template) for template in config["template_config"]]
+            settings.recipients_config = RecipientsConfiguration(**config["recipients_config"]) if config.get("recipients_config") else None
+            settings.template_config = [TemplateConfiguration(**template) for template in config.get("template_config") or []]
             settings.pyscript = config.get("pyscript")
             settings.user = user
             settings.timestamp = datetime.utcnow()

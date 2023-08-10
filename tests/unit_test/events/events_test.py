@@ -1111,18 +1111,15 @@ class TestEventExecution:
         bot = 'test_execute_message_broadcast'
         user = 'test_user'
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule", "broadcast_type": "static",
             "connector_type": "whatsapp", 'pyscript_timeout': 10,
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541,"
             },
             "template_config": [
                 {
                     'language': 'hi',
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -1183,32 +1180,17 @@ class TestEventExecution:
         params = [{"type": "header","parameters": [{"type": "document","document":
             {"link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
              "filename": "Brochure.pdf"}}]}]
-        recipient_script = """
-                resp = requests.get("http://localhost/contacts")
-                resp = resp.json()
-                contacts = resp["contacts"]
-                """
-        recipient_script = textwrap.dedent(recipient_script)
-        recipient_script = recipient_script.strip()
 
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule","broadcast_type": "static",
             "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "recipients_config": {
-                "recipient_type": "dynamic",
-                "recipients": recipient_script,
-                "accessor": "contacts"
-            },
-            "data_extraction_config": {
-                "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
-                "url": "http://kairon.local",
+                "recipients": "9876543210, 876543212345",
             },
             "template_config": [
                 {
                     'language': 'hi',
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                     "data": str([params, params])
                 }
             ]
@@ -1219,15 +1201,6 @@ class TestEventExecution:
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
-        )
-        responses.add(
-            "GET", "http://kairon.local",
-            match=[matchers.header_matcher({"api_key": "asdfghjkl", "access_key": "dsfghjkl"})],
-            json={"contacts": ["9876543210", "876543212345"]}
-        )
-        responses.add(
-            "GET", "http://localhost/contacts",
-            json={"contacts": [9876543210, 876543212345], "success": True}
         )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
@@ -1249,16 +1222,10 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
-        config['data_extraction_config']["method"] = "GET"
-        config['data_extraction_config']["request_body"] = {}
         assert logged_config == config
         assert logs[0][2] == {'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
                               'status': 'Completed', 'user': 'test_user', 'broadcast_id': event_id,
-                              'data_extraction': {'url': 'http://kairon.local',
-                                                  'headers': {'api_key': 'asdfghjkl', 'access_key': 'dsfghjkl'},
-                                                  'method': 'GET',
-                                                  'api_response': {'contacts': ['9876543210', '876543212345']}},
-                              'recipients': [9876543210, 876543212345],
+                              'recipients': ['9876543210', '876543212345'],
                               'template_params': [[{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                                   'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
@@ -1294,7 +1261,6 @@ class TestEventExecution:
         assert mock_send.call_args[0][4] == [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
             'filename': 'Brochure.pdf'}}]}]
-        assert mock_send.call_args.kwargs["namespace"] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
 
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
@@ -1304,31 +1270,16 @@ class TestEventExecution:
                                                            mock_get_bot_settings, mock_send):
         bot = 'test_execute_dynamic_message_broadcast_recipient_evaluation_failure'
         user = 'test_user'
-        recipient_script = """
-                        resp = requests.get("http://localhost/contacts")
-                        resp = resp.json()
-                        contacts = resp["contacts"]
-                        """
-        recipient_script = textwrap.dedent(recipient_script)
-        recipient_script = recipient_script.strip()
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule", "broadcast_type": "static",
             "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "recipients_config": {
-                "recipient_type": "dynamic",
-                "recipients": recipient_script,
-                "accessor": "contacts"
-            },
-            "data_extraction_config": {
-                "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
-                "url": "http://kairon.local",
+                "recipients": None,
             },
             "template_config": [
                 {
                     'language': 'hi',
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                     "data": "[\n                {\n                    \"type\": \"header\",\n                    \"parameters\": [\n                        {\n                            \"type\": \"document\",\n                            \"document\": {\n                                \"link\": \"https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\",\n                                \"filename\": \"Brochure.pdf\"\n                            }\n                        }\n                    ]\n                }\n            ]"
                 }
             ]
@@ -1339,15 +1290,6 @@ class TestEventExecution:
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
-        )
-        responses.add(
-            "GET", "http://kairon.local",
-            match=[matchers.header_matcher({"api_key": "asdfghjkl", "access_key": "dsfghjkl"})],
-            json={"contacts": ["9876543210", "876543212345"]}
-        )
-        responses.add(
-            "GET", "http://localhost/contacts",
-            json={"contacts": "9876543210, 876543212345", "success": True}
         )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
@@ -1370,156 +1312,15 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
-        config['data_extraction_config']["method"] = "GET"
-        config['data_extraction_config']["request_body"] = {}
+        assert not logged_config.pop("recipients_config")
+        config.pop("recipients_config")
         assert logged_config == config
         assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user,
-                              'broadcast_id': event_id,
-                              'data_extraction': {'url': 'http://kairon.local',
-                                                  'headers': {'api_key': 'asdfghjkl', 'access_key': 'dsfghjkl'},
-                                                  'method': 'GET',
-                                                  'api_response': {'contacts': ['9876543210', '876543212345']}},
-                              "exception": 'recipients evaluated to unexpected data type: 9876543210, 876543212345'
+                              'broadcast_id': event_id, 'exception': "Failed to evaluate recipients: 'recipients'"
                               }
 
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
-
-    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
-    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
-    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_with_data_extraction_failure(self, mock_is_exist, mock_channel_config,
-                                                           mock_get_bot_settings, mock_send):
-        bot = 'test_execute_dynamic_message_broadcast_data_extraction_failure'
-        user = 'test_user'
-        recipient_script = """
-                        resp = requests.get("http://localhost/contacts")
-                        resp = resp.json()
-                        contacts = resp["contacts"]
-                        """
-        recipient_script = textwrap.dedent(recipient_script)
-        recipient_script = recipient_script.strip()
-        config = {
-            "name": "one_time_schedule",
-            "connector_type": "whatsapp", 'pyscript_timeout': 15,
-            "recipients_config": {
-                "recipient_type": "dynamic",
-                "recipients": recipient_script,
-                "accessor": "contacts"
-            },
-            "data_extraction_config": {
-                "headers": {"api_key": "asdfghjkl", "access_key": "dsfghjkl"},
-                "url": "http://kairon.local",
-            },
-            "template_config": [
-                {
-                    'language': 'hi',
-                    "template_type": "static",
-                    "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                    "data": "[\n                {\n                    \"type\": \"header\",\n                    \"parameters\": [\n                        {\n                            \"type\": \"document\",\n                            \"document\": {\n                                \"link\": \"https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\",\n                                \"filename\": \"Brochure.pdf\"\n                            }\n                        }\n                    ]\n                }\n            ]"
-                }
-            ]
-        }
-
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
-        responses.add(
-            "POST", url,
-            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
-        )
-        responses.add(
-            "GET", "http://localhost/contacts",
-            json={"contacts": [9876543210, 876543212345], "success": True}
-        )
-
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
-        mock_channel_config.return_value = {
-            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
-        mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
-
-        event = MessageBroadcastEvent(bot, user)
-        event.validate()
-        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
-        responses.reset()
-
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
-        assert len(logs[0]) == logs[1] == 1
-        logs[0][0].pop("timestamp")
-        reference_id = logs[0][0].pop("reference_id")
-        assert reference_id
-        logged_config = logs[0][0].pop("config")
-        logged_config.pop("_id")
-        logged_config.pop("status")
-        logged_config.pop("timestamp")
-        config['data_extraction_config']["method"] = "GET"
-        config['data_extraction_config']["request_body"] = {}
-        assert logged_config == config
-        exception = logs[0][0].pop("exception")
-        assert exception.startswith("Failed to connect to service: kairon.local")
-        assert logs[0][0] == {'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'broadcast_id': event_id}
-
-        with pytest.raises(AppException, match="Notification settings not found!"):
-            MessageBroadcastProcessor.get_settings(event_id, bot)
-
-    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
-    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
-    def test_execute_message_broadcast_recipient_evaluation_failure(self, mock_is_exist, mock_channel_config, mock_get_bot_settings):
-        bot = 'test_execute_message_broadcast_recipient_evaluation_failure'
-        user = 'test_user'
-        recipient_script = """
-                        resp = requests.get("http://localhost/contacts")
-                        resp = resp.json()
-                        contacts = resp["contacts"]
-                        """
-        recipient_script = textwrap.dedent(recipient_script)
-        recipient_script = recipient_script.strip()
-        config = {
-            "name": "one_time_schedule",
-            "connector_type": "whatsapp",
-            "recipients_config": {
-                "recipient_type": "dynamic",
-                "recipients": recipient_script,
-                "accessor": "contacts"
-            },
-            "template_config": [
-                {
-                    "template_type": "static",
-                    "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                    "data": "[\n                {\n                    \"type\": \"header\",\n                    \"parameters\": [\n                        {\n                            \"type\": \"document\",\n                            \"document\": {\n                                \"link\": \"https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\",\n                                \"filename\": \"Brochure.pdf\"\n                            }\n                        }\n                    ]\n                }\n            ]"
-                }
-            ]
-        }
-
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
-        responses.add(
-            "POST", url,
-            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
-        )
-        responses.add(
-            "GET", "http://localhost/contacts",
-            json={"data": [9876543210, 876543212345], "success": True}
-        )
-
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
-        mock_channel_config.return_value = {
-            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
-
-        event = MessageBroadcastEvent(bot, user)
-        event.validate()
-        event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
-        event.execute(event_id)
-
-        logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
-        assert len(logs[0]) == logs[1] == 1
-        exception = logs[0][0].pop("exception")
-        assert exception.startswith('Failed to evaluate dynamic recipients expression: ')
-        responses.reset()
 
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
@@ -1528,17 +1329,14 @@ class TestEventExecution:
         bot = 'test_execute_message_broadcast_expression_evaluation_failure'
         user = 'test_user'
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule", "broadcast_type": "static",
             "connector_type": "whatsapp",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541"
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                     "data": "[{type: body, parameters: [{type: text, text: Udit}]}]"
                 }
             ]
@@ -1550,10 +1348,6 @@ class TestEventExecution:
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
-        responses.add(
-            "POST", "http://localhost:8080/format",
-            json={"data": "9876543210, 876543212345", "success": False}
-        )
 
         mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
         mock_channel_config.return_value = {
@@ -1567,7 +1361,7 @@ class TestEventExecution:
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
         exception = logs[0][0].pop("exception")
-        assert exception.startswith('Failed to evaluate static template expression: ')
+        assert exception.startswith('Failed to evaluate template: ')
         responses.reset()
 
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
@@ -1577,18 +1371,15 @@ class TestEventExecution:
         bot = 'test_execute_message_broadcast_with_channel_deleted'
         user = 'test_user'
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule", "broadcast_type": "static",
             "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541"
             },
             "template_config": [
                 {
                     'language': 'hi',
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                     "data": "[\n                {\n                    \"type\": \"header\",\n                    \"parameters\": [\n                        {\n                            \"type\": \"document\",\n                            \"document\": {\n                                \"link\": \"https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\",\n                                \"filename\": \"Brochure.pdf\"\n                            }\n                        }\n                    ]\n                }\n            ]"
                 }
             ]
@@ -1637,28 +1428,19 @@ class TestEventExecution:
     def test_execute_message_broadcast_evaluate_template_parameters(self):
         bot = 'test_execute_message_broadcast_evaluate_template_parameters'
         user = 'test_user'
-        template_script = """
-                        resp = requests.get("http://localhost/template")
-                        resp = resp.json()
-                        data = resp["data"]
-                        """
-        template_script = textwrap.dedent(template_script)
-        template_script = template_script.strip()
+        template_script = str([[{'body': 'Udit Pandey'}]])
+
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule", "broadcast_type": "static",
             "connector_type": "whatsapp", 'pyscript_timeout': 10,
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541,"
             },
             "template_config": [
                 {
                     'language': 'hi',
-                    "template_type": "dynamic",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                     "data": template_script,
-                    "accessor": "data"
                 }
             ]
         }
@@ -1667,10 +1449,6 @@ class TestEventExecution:
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
-        )
-        responses.add(
-            "GET", "http://localhost/template",
-            json={"data": [[{'body': 'Udit Pandey'}]], "success": True}
         )
 
         event = MessageBroadcastEvent(bot, user)
@@ -1746,7 +1524,7 @@ class TestEventExecution:
             """
         script = textwrap.dedent(script)
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule", "broadcast_type": "dynamic",
             "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "pyscript": script
         }
@@ -1802,15 +1580,17 @@ class TestEventExecution:
              'reference_id': reference_id},
             {'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
              'user': 'test_user', 'broadcast_id': event_id, 'failure_cnt': 0, 'total': 2,
-             'api_response': {'contacts': ['9876543210', '876543212345']},
              'components': [{'type': 'header', 'parameters': [{'type': 'document', 'document': {
                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                  'filename': 'Brochure.pdf'}}]}], 'i': 0, 'contact': '876543212345',
+             'api_response': {'contacts': ['9876543210', '876543212345']},
              'resp': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]}}
         ]
         for log in logs[0]:
             if log.get("config"):
                 logged_config = log.pop("config")
+            print(log)
+            print()
             assert log in expected_logs
 
         logged_config.pop("status")
@@ -1841,7 +1621,7 @@ class TestEventExecution:
                 """
         script = textwrap.dedent(script)
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule", "broadcast_type": "dynamic",
             "connector_type": "whatsapp", 'pyscript_timeout': 30,
             "pyscript": script
         }
@@ -1896,7 +1676,7 @@ class TestEventExecution:
                 """
         script = textwrap.dedent(script)
         config = {
-            "name": "one_time_schedule",
+            "name": "one_time_schedule", "broadcast_type": "dynamic",
             "connector_type": "whatsapp", 'pyscript_timeout': 1,
             "pyscript": script
         }

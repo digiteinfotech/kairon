@@ -4,7 +4,7 @@ from mongoengine import Document, StringField, DateTimeField, DictField, Dynamic
 from kairon import Utility
 from kairon.shared.data.signals import push_notification
 from datetime import datetime
-from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
+from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType
 from croniter import croniter
 
 
@@ -43,32 +43,15 @@ class RecipientsConfiguration(EmbeddedDocument):
                 contains expression which will be evaluated using expression evaluator.
     recipients: a static value(eg: "XYZ") or expression(eg: ${data.list.number})
     """
-    recipient_type = StringField(required=True, choices=["static", "dynamic"])
     recipients = StringField(required=True)
-    accessor = StringField()
 
     def validate(self, clean=True):
         if clean:
             self.clean()
 
-        if self.recipient_type == "dynamic" and Utility.check_empty_string(self.accessor):
-            raise ValidationError("accessor is required when using dynamic evaluation")
-
     def clean(self):
-        self.recipients = self.recipients.strip()
-
-
-class DataExtractionConfiguration(EmbeddedDocument):
-    """
-    method: GET
-    url: request url
-    headers: request headers
-    request_body: if request method is GET, request_body will be passed as parameters.
-    """
-    method = StringField(required=True, default="GET")
-    url = StringField(required=True)
-    headers = DictField()
-    request_body = DictField()
+        if not Utility.check_empty_string(self.recipients):
+            self.recipients = self.recipients.strip()
 
 
 class TemplateConfiguration(EmbeddedDocument):
@@ -82,22 +65,16 @@ class TemplateConfiguration(EmbeddedDocument):
             1 : ${request.list.crop}
             2 : ${request.list.activity}
     """
-    template_type = StringField(required=True, choices=["static", "dynamic"])
     template_id = StringField(required=True)
-    namespace = StringField(required=True)
     language = StringField(default="en")
     data = StringField()
-    accessor = StringField()
 
     def validate(self, clean=True):
         if clean:
             self.clean()
 
-        if self.template_type == "dynamic" and Utility.check_empty_string(self.accessor):
-            raise ValidationError("accessor is required when using dynamic evaluation")
-
     def clean(self):
-        if self.data:
+        if not Utility.check_empty_string(self.data):
             self.data = self.data.strip()
 
 
@@ -105,8 +82,8 @@ class TemplateConfiguration(EmbeddedDocument):
 class MessageBroadcastSettings(Document):
     name = StringField(required=True)
     connector_type = StringField(required=True)
+    broadcast_type = StringField(required=True, choices=[MessageBroadcastType.static.value, MessageBroadcastType.dynamic.value])
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
-    data_extraction_config = EmbeddedDocumentField(DataExtractionConfiguration)
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
     template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
     pyscript = StringField()
@@ -119,9 +96,11 @@ class MessageBroadcastSettings(Document):
     meta = {"indexes": [{"fields": ["bot", ("id", "bot", "status")]}]}
 
     def validate(self, clean=True):
-        if Utility.check_empty_string(self.pyscript):
+        if self.broadcast_type == MessageBroadcastType.static.value:
             if not self.template_config or not self.recipients_config:
-                raise ValidationError("Either use pyscript or provide recipients_config and template_config!")
+                raise ValidationError("recipients_config and template_config is required for static broadcasts!")
+        if self.broadcast_type == MessageBroadcastType.dynamic.value and Utility.check_empty_string(self.pyscript):
+            raise ValidationError("pyscript is required for dynamic broadcasts!")
         if self.scheduler_config:
             self.scheduler_config.validate()
         if self.recipients_config:

@@ -3,6 +3,7 @@ from datetime import datetime
 from croniter import croniter
 from pydantic import BaseModel, root_validator
 
+from kairon.shared.chat.notifications.constants import MessageBroadcastType
 from kairon.shared.utils import Utility
 
 from typing import List
@@ -52,45 +53,33 @@ class SchedulerConfiguration(BaseModel):
         return values
 
 
-class DataExtractionConfiguration(BaseModel):
-    url: str
-    headers: dict = None
-
-
 class RecipientsConfiguration(BaseModel):
-    recipient_type: str
     recipients: str
-    accessor: str = None
-
-    @root_validator
-    def validate_config(cls, values):
-        if values.get("recipient_type") == "dynamic" and Utility.check_empty_string(values.get("accessor")):
-            raise ValueError("accessor is required when using dynamic evaluation")
-
-        return values
 
 
 class TemplateConfiguration(BaseModel):
-    template_type: str
     template_id: str
-    namespace: str
     language: str = "en"
     data: str = None
-    accessor: str = None
-
-    @root_validator
-    def validate_config(cls, values):
-        if values.get("template_type") == "dynamic" and Utility.check_empty_string(values.get("accessor")):
-            raise ValueError("accessor is required when using dynamic evaluation")
-
-        return values
 
 
 class MessageBroadcastRequest(BaseModel):
     name: str
     connector_type: str
+    broadcast_type: MessageBroadcastType
     scheduler_config: SchedulerConfiguration = None
-    data_extraction_config: DataExtractionConfiguration = None
     recipients_config: RecipientsConfiguration = None
     template_config: List[TemplateConfiguration] = None
     pyscript: str = None
+
+    @root_validator
+    def validate_request(cls, values):
+        if values.get("broadcast_type") == MessageBroadcastType.static:
+            if not values.get("recipients_config") or not values.get("template_config"):
+                raise ValueError("recipients_config and template_config is required for static broadcasts!")
+
+        pyscript = values.get("pyscript")
+        if values.get("broadcast_type") == MessageBroadcastType.dynamic and Utility.check_empty_string(pyscript):
+            raise ValueError("pyscript is required for dynamic broadcasts!")
+
+        return values

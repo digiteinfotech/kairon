@@ -5,13 +5,9 @@ from typing import Any, List
 class MessageBroadcastBase(ABC):
 
     @abstractmethod
-    def pull_data(self):
+    def get_recipients(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def get_recipients(self, data: Any, **kwargs):
-        raise NotImplementedError("Provider not implemented")
-
-    @abstractmethod
-    def send(self, recipients: List, data: Any, **kwargs):
+    def send(self, recipients: List, **kwargs):
         raise NotImplementedError("Provider not implemented")

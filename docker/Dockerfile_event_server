@@ -46,6 +46,9 @@ RUN python -m pip install uuid6
 RUN python -m pip install APScheduler
 RUN python -m pip install croniter
 RUN python -m pip install pydantic==1.10.11
+RUN python -m pip install RestrictedPython
+RUN python -m pip install AccessControl
+RUN python -m pip install pykka
 
 RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache

@@ -53,7 +53,7 @@ class TestMessageBroadcastProcessor:
         bot = "test_achedule"
         user = "test_user"
         config = {
-            "name": "first_scheduler",
+            "name": "first_scheduler", "broadcast_type": "static",
             "connector_type": "whatsapp",
             "scheduler_config": {
                 "expression_type": "cron",
@@ -61,14 +61,11 @@ class TestMessageBroadcastProcessor:
                 "timezone": "Asia/Kolkata"
             },
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -78,21 +75,18 @@ class TestMessageBroadcastProcessor:
         bot = "test_achedule"
         user = "test_user"
         config = {
-            "name": "first_scheduler",
+            "name": "first_scheduler", "broadcast_type": "static",
             "connector_type": "whatsapp",
             "scheduler_config": {
                 "expression_type": "cron",
                 "schedule": "57 22 * * *"
             },
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -104,49 +98,56 @@ class TestMessageBroadcastProcessor:
         bot = "test_achedule"
         user = "test_user"
         config = {
-            "name": "second_scheduler",
+            "name": "second_scheduler", "broadcast_type": "static",
             "connector_type": "slack",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
-            },
-            "data_extraction_config": {
-                "url": "https://demo.url",
-                "headers": {
-                    "authorization": "bearer token",
-                    "request": "from app"
-                }
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
         assert MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
 
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_scheduler_one_time_trigger_errors(self, mock_channel_config):
+        bot = "test_achedule"
+        user = "test_user"
+        config = {
+            "name": "test_add_scheduler_one_time_trigger_errors", "broadcast_type": "static",
+            "connector_type": "slack",
+        }
+        with pytest.raises(ValidationError, match="recipients_config and template_config is required for static broadcasts!"):
+            MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+
+        config = {
+            "name": "test_add_scheduler_one_time_trigger_errors", "broadcast_type": "dynamic",
+            "recipients_config": {
+                "recipients": "918958030541, "
+            }, "connector_type": "slack",
+        }
+        with pytest.raises(ValidationError, match="pyscript is required for dynamic broadcasts!"):
+            MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_add_scheduled_task_invalid_schedule(self, mock_channel_config):
         bot = "test_achedule"
         user = "test_user"
         config = {
-            "name": "third_scheduler",
+            "name": "third_scheduler", "broadcast_type": "static",
             "connector_type": "whatsapp",
             "scheduler_config": {
                 "expression_type": "cron",
                 "schedule": "* * * * *"
             },
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -162,33 +163,14 @@ class TestMessageBroadcastProcessor:
         bot = "test_achedule"
         user = "test_user"
         config = {
-            "name": "first_scheduler",
+            "name": "first_scheduler", "broadcast_type": "dynamic",
             "connector_type": "whatsapp",
             "scheduler_config": {
                 "expression_type": "cron",
                 "schedule": "30 22 5 * *",
                 "timezone": "Asia/Kolkata"
             },
-            "recipients_config": {
-                "recipient_type": "static",
-                "recipients": "918958030541, "
-            },
-            "template_config": [
-                {
-                    "template_type": "dynamic",
-                    "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                    "data": "data = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
-                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
-                                  'filename': 'Brochure.pdf'}}]}]",
-                    "accessor": "data"
-                },
-                {
-                    "template_type": "static",
-                    "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                }
-            ]
+            "pyscript": "send_msg('template_name', '9876543210')"
         }
         first_scheduler_config = list(MessageBroadcastProcessor.list_settings(bot, name="first_scheduler"))[0]
         assert first_scheduler_config
@@ -199,29 +181,13 @@ class TestMessageBroadcastProcessor:
         bot = "test_achedule"
         user = "test_user"
         config = {
-            "name": "first_scheduler",
+            "name": "first_scheduler", "broadcast_type": "dynamic",
             "connector_type": "whatsapp",
             "scheduler_config": {
                 "expression_type": "cron",
                 "schedule": "30 22 5 * *"
             },
-            "recipients_config": {
-                "recipient_type": "static",
-                "recipients": "918958030541, "
-            },
-            "template_config": [
-                {
-                    "template_type": "dynamic",
-                    "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                    "data": ""
-                },
-                {
-                    "template_type": "static",
-                    "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
-                }
-            ]
+            "pyscript": "send_msg('template_name', '9876543210')"
         }
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.update_scheduled_task(ObjectId().__str__(), bot, user, config)
@@ -245,42 +211,22 @@ class TestMessageBroadcastProcessor:
         settings[0].pop("timestamp")
         settings[1].pop("timestamp")
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
+                             "broadcast_type": "dynamic",
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *',
                                                   "timezone": "Asia/Kolkata"},
-                             'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
-                             'template_config': [{'template_type': 'dynamic', 'template_id': 'brochure_pdf',
-                                                  'language': "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380',
-                                                  'data': "data = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
-                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
-                                  'filename': 'Brochure.pdf'}}]}]",
-                                                  "accessor": "data"
-                                                  },
-                                                 {'template_type': 'static', 'template_id': 'brochure_pdf',
-                                                  "language": "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
+                             "pyscript": "send_msg('template_name', '9876543210')", "template_config": [],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True},
                             {'name': 'second_scheduler', 'connector_type': 'slack',  'pyscript_timeout': 10,
-                             'data_extraction_config': {'method': 'GET', 'url': 'https://demo.url',
-                                                        'headers': {'authorization': 'bearer token',
-                                                                    'request': 'from app'}, 'request_body': {}},
-                             'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
-                             'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
-                                                  "language": "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
+                            'recipients_config': {'recipients': '918958030541,'},
+                             "broadcast_type": "static", 'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
 
         setting = MessageBroadcastProcessor.get_settings(config_id, bot)
         assert isinstance(setting.pop("_id"), str)
         setting.pop("timestamp")
         assert setting == {'name': 'second_scheduler', 'connector_type': 'slack',  'pyscript_timeout': 10,
-                             'data_extraction_config': {'method': 'GET', 'url': 'https://demo.url',
-                                                        'headers': {'authorization': 'bearer token',
-                                                                    'request': 'from app'}, 'request_body': {}},
-                             'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
-                             'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
-                                                  "language": "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
+                             'recipients_config': {'recipients': '918958030541,'}, 'broadcast_type': 'static',
+                             'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}
 
     def test_get_settings_not_found(self):
@@ -300,13 +246,9 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         assert settings == [{'name': 'second_scheduler', 'connector_type': 'slack',  'pyscript_timeout': 10,
-                             'data_extraction_config': {'method': 'GET', 'url': 'https://demo.url',
-                                                        'headers': {'authorization': 'bearer token',
-                                                                    'request': 'from app'}, 'request_body': {}},
-                             'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
-                             'template_config': [{'template_type': 'static', 'template_id': 'brochure_pdf',
-                                                  "language": "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
+                             "broadcast_type": "static",
+                             'recipients_config': {'recipients': '918958030541,'},
+                             'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
 
         settings = list(MessageBroadcastProcessor.list_settings(bot, status=False))
@@ -314,19 +256,9 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',  'pyscript_timeout': 10,
+                             "broadcast_type": "dynamic", "template_config": [],
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *', "timezone": "Asia/Kolkata"},
-                             'recipients_config': {'recipient_type': 'static', 'recipients': '918958030541,'},
-                             'template_config': [{'template_type': 'dynamic', 'template_id': 'brochure_pdf',
-                                                  "language": "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380',
-                                                  'data': "data = [{'type': 'header', 'parameters': [{'type': 'document', 'document': {\
-                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',\
-                                  'filename': 'Brochure.pdf'}}]}]",
-                                                  "accessor": "data"
-                                                  },
-                                                 {'template_type': 'static', 'template_id': 'brochure_pdf',
-                                                  "language": "en",
-                                                  'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}],
+                             "pyscript": "send_msg('template_name', '9876543210')",
                              'bot': 'test_achedule', 'user': 'test_user', 'status': False}]
 
     def test_delete_schedule_not_exists(self):

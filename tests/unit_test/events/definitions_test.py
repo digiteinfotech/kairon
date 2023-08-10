@@ -850,15 +850,13 @@ class TestEventDefinitions:
         config = {
             "name": "first_scheduler",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -887,20 +885,18 @@ class TestEventDefinitions:
         config = {
             "name": "first_scheduler",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "scheduler_config": {
                 "expression_type": "cron",
                 "schedule": "57 22 * * *",
                 "timezone": "Asia/Kolkata"
             },
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -925,15 +921,13 @@ class TestEventDefinitions:
         config = {
             "name": "first_scheduler",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -955,15 +949,13 @@ class TestEventDefinitions:
         config = {
             "name": "first_scheduler",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -1001,20 +993,18 @@ class TestEventDefinitions:
         config = {
             "name": "failed_schedule",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "scheduler_config": {
                 "expression_type": "cron",
                 "schedule": "57 22 * * *",
                 "timezone": "UTC"
             },
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -1035,20 +1025,18 @@ class TestEventDefinitions:
         config = {
             "name": "failed_schedule",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "scheduler_config": {
                 "expression_type": "cron",
                 "schedule": "57 22 * * *",
                 "timezone": "Asia/Kolkata"
             },
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "918958030541, "
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -1075,8 +1063,8 @@ class TestEventDefinitions:
         config = {
             "name": "first_scheduler",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "919756653433,918958030541, "
             },
             "scheduler_config": {
@@ -1086,9 +1074,7 @@ class TestEventDefinitions:
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -1104,11 +1090,10 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
-                          'recipients_config': {'recipient_type': 'static', 'recipients': "918958030541,"},
-                          'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
-                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+                          'recipients_config': {'recipients': "918958030541,"},
+                          'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     @responses.activate
     def test_update_message_broadcast_event_server_failure(self):
@@ -1118,8 +1103,8 @@ class TestEventDefinitions:
         config = {
             "name": "first_scheduler",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "919756653433,918958030541, "
             },
             "scheduler_config": {
@@ -1129,9 +1114,7 @@ class TestEventDefinitions:
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -1153,11 +1136,10 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
-                          'recipients_config': {'recipient_type': 'static', 'recipients': "918958030541,"},
-                          'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
-                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+                          'recipients_config': {'recipients': "918958030541,"},
+                          'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     @responses.activate
     def test_update_message_broadcast(self):
@@ -1167,8 +1149,8 @@ class TestEventDefinitions:
         config = {
             "name": "first_scheduler",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": "919756653433,918958030541, "
             },
             "scheduler_config": {
@@ -1178,9 +1160,7 @@ class TestEventDefinitions:
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -1201,11 +1181,10 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
-                          'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
-                          'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
-                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+                          'recipients_config': {'recipients': "919756653433,918958030541,"},
+                          'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     def test_update_message_broadcast_invalid_config(self):
         bot = "test_add_schedule_event"
@@ -1214,15 +1193,13 @@ class TestEventDefinitions:
         config = {
             "name": "first_scheduler",
             "connector_type": "whatsapp",
+            "broadcast_type": "static",
             "recipients_config": {
-                "recipient_type": "static",
                 "recipients": '918958030541,'
             },
             "template_config": [
                 {
-                    "template_type": "static",
                     "template_id": "brochure_pdf",
-                    "namespace": "13b1e228_4a08_4d19_a0da_cdb80bc76380",
                 }
             ]
         }
@@ -1244,11 +1221,10 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
-                          'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
-                          'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
-                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+                          'recipients_config': {'recipients': "919756653433,918958030541,"},
+                          'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     def test_delete_message_broadcast_event_server_failure(self):
         bot = "test_add_schedule_event"
@@ -1266,11 +1242,10 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
-                          'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
-                          'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
-                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+                          'recipients_config': {'recipients': "919756653433,918958030541,"},
+                          'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     @responses.activate
     def test_delete_message_broadcast_failure(self):
@@ -1297,11 +1272,10 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10,
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
-                          'recipients_config': {'recipient_type': 'static', 'recipients': "919756653433,918958030541,"},
-                          'template_config': [{'language': 'en', 'template_type': 'static', 'template_id': 'brochure_pdf',
-                                               'namespace': '13b1e228_4a08_4d19_a0da_cdb80bc76380'}]}
+                          'recipients_config': {'recipients': "919756653433,918958030541,"},
+                          'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     @responses.activate
     def test_delete_message_broadcast(self):

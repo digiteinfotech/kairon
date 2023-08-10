@@ -51,9 +51,8 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         try:
             reference_id, config = self.__retrieve_config(event_id)
             broadcast = MessageBroadcastFactory.get_instance(config["connector_type"]).from_config(config, reference_id)
-            data = broadcast.pull_data()
-            recipients = broadcast.get_recipients(data)
-            broadcast.send(recipients, data)
+            recipients = broadcast.get_recipients()
+            broadcast.send(recipients)
             status = EVENT_STATUS.COMPLETED.value
         except Exception as e:
             logger.exception(e)

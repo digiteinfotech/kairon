@@ -6,11 +6,10 @@ import requests
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.exceptions import AppException
-from kairon.shared.channels.broadcast.data_extraction import MessageBroadcastUsingDataExtraction
-from kairon.shared.chat.notifications.constants import MessageBroadcastLogType
+from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
+from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType
 from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor
@@ -18,40 +17,30 @@ from loguru import logger
 from mongoengine import DoesNotExist
 
 
-class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
+class WhatsappBroadcast(MessageBroadcastFromConfig):
 
-    def get_recipients(self, data: Any, **kwargs):
+    def get_recipients(self, **kwargs):
         eval_log = None
-        timeout = self.config.get('pyscript_timeout', Utility.environment["actors"]["default_timeout"])
 
-        if not Utility.check_empty_string(self.config.get('pyscript')):
-            logger.debug("Skipping get_recipients as pyscript exists!")
+        if self.config["broadcast_type"] == MessageBroadcastType.dynamic.value:
+            logger.debug("Skipping get_recipients as broadcast_type is dynamic!")
             return
 
-        expr = self.config["recipients_config"]["recipients"]
-        expr_type = self.config["recipients_config"]["recipient_type"]
         try:
-            if expr_type == "static":
-                recipients = [number.strip() for number in expr.split(',')]
-            else:
-                accessor = self.config["recipients_config"]["accessor"]
-                recipients = ActorOrchestrator.run(ActorType.pyscript_runner.value, source_code=expr,
-                                                   predefined_objects={"data": data, "requests": requests, "json": json},
-                                                   timeout=timeout)
-                recipients = recipients[accessor]
+            expr = self.config["recipients_config"]["recipients"]
+            recipients = [number.strip() for number in expr.split(',')]
         except Exception as e:
-            raise AppException(f"Failed to evaluate {expr_type} recipients expression: {e}")
-        if not isinstance(recipients, List):
-            raise AppException(f"recipients evaluated to unexpected data type: {recipients}")
+            raise AppException(f"Failed to evaluate recipients: {e}")
+
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, recipients=recipients,
             status=EVENT_STATUS.EVALUATE_RECIPIENTS.value, evaluation_log=eval_log
         )
         return recipients
 
-    def send(self, recipients: List, data: Any, **kwargs):
-        if Utility.check_empty_string(self.config.get('pyscript')):
-            self.__send_using_configuration(recipients, data)
+    def send(self, recipients: List, **kwargs):
+        if self.config["broadcast_type"] == MessageBroadcastType.static.value:
+            self.__send_using_configuration(recipients)
         else:
             self.__send_using_pyscript()
 
@@ -94,7 +83,7 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
             **script_variables
         )
 
-    def __send_using_configuration(self, recipients: List, data: Any):
+    def __send_using_configuration(self, recipients: List):
         channel_client = self.__get_client()
         total = len(recipients)
 
@@ -103,7 +92,7 @@ class WhatsappBroadcast(MessageBroadcastUsingDataExtraction):
             template_id = template_config["template_id"]
             namespace = template_config.get("namespace")
             lang = template_config["language"]
-            template_params = self._get_template_parameters(template_config, data)
+            template_params = self._get_template_parameters(template_config)
 
             # if there's no template body, pass params as None for all recipients
             template_params = template_params if template_params else [template_params] * len(recipients)
