@@ -182,6 +182,7 @@ class TrainingDataValidator(Validator):
         """
         intents_mismatched = []
         self.verify_intents(raise_exception)
+        multiflow_stories_intent = {}
 
         stories_intents = {
             event.intent["name"]
@@ -189,6 +190,13 @@ class TrainingDataValidator(Validator):
             for event in story.events
             if isinstance(event, UserUttered)
         }
+        if self.multiflow_stories:
+            multiflow_stories_intent = {
+                intent['step']['name']
+                for item in self.multiflow_stories['multiflow_story']
+                for intent in item['events']
+                if intent['step']['type'] == StoryStepType.intent.value
+            }
 
         for story_intent in stories_intents:
             if story_intent not in self.domain.intents and story_intent not in DEFAULT_INTENTS:
@@ -198,12 +206,27 @@ class TrainingDataValidator(Validator):
                     raise AppException(msg)
                 intents_mismatched.append(msg)
 
+        if multiflow_stories_intent:
+            for intent in multiflow_stories_intent:
+                if intent not in self.domain.intents and intent not in DEFAULT_INTENTS:
+                    msg = f"The intent '{intent}' is used in your multiflow_stories, but it is not listed in " \
+                          f"the domain file. You should add it to your domain file!"
+                    if raise_exception:
+                        raise AppException(msg)
+                    intents_mismatched.append(msg)
+
         for intent in self.domain.intents:
-            if intent not in stories_intents and intent not in DEFAULT_INTENTS:
-                msg = f"The intent '{intent}' is not used in any story."
-                if raise_exception:
-                    raise AppException(msg)
-                intents_mismatched.append(msg)
+            msg = f"The intent '{intent}' is not used in any story."
+            if multiflow_stories_intent:
+                if intent not in stories_intents and intent not in multiflow_stories_intent and intent not in DEFAULT_INTENTS:
+                    if raise_exception:
+                        raise AppException(msg)
+                    intents_mismatched.append(msg)
+            else:
+                if intent not in stories_intents and intent not in DEFAULT_INTENTS:
+                    if raise_exception:
+                        raise AppException(msg)
+                    intents_mismatched.append(msg)
 
         if not self.summary.get('intents'):
             self.summary['intents'] = []
@@ -254,7 +277,14 @@ class TrainingDataValidator(Validator):
         fallback_action = DataUtility.parse_fallback_action(self.config)
         system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES).union(KAIRON_TWO_STAGE_FALLBACK)
         stories_utterances = set()
-
+        multiflow_stories_utterances = {}
+        if self.multiflow_stories:
+            multiflow_stories_utterances = {
+                utterance['step']['name']
+                for item in self.multiflow_stories['multiflow_story']
+                for utterance in item['events']
+                if utterance['step']['type'] != StoryStepType.intent.value
+            }
         for story in self.story_graph.story_steps:
             for event in story.events:
                 if not isinstance(event, ActionExecuted):
@@ -284,11 +314,17 @@ class TrainingDataValidator(Validator):
         utterance_actions = utterance_actions.difference(form_utterances)
 
         for utterance in utterance_actions:
-            if utterance not in stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
-                msg = f"The utterance '{utterance}' is not used in any story."
-                if raise_exception:
-                    raise AppException(msg)
-                utterance_mismatch_summary.append(msg)
+            msg = f"The utterance '{utterance}' is not used in any story."
+            if multiflow_stories_utterances:
+                if utterance not in stories_utterances and utterance not in multiflow_stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
+                    if raise_exception:
+                        raise AppException(msg)
+                    utterance_mismatch_summary.append(msg)
+            else:
+                if utterance not in stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
+                    if raise_exception:
+                        raise AppException(msg)
+                    utterance_mismatch_summary.append(msg)
 
         if not self.summary.get('utterances'):
             self.summary['utterances'] = []

@@ -272,6 +272,57 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('domain')
         assert not validator.summary['config'] == "Failed to load the component 'CountTokenizer'"
 
+    @pytest.mark.asyncio
+    async def test_validate_invalid_multiflow_stories(self):
+        root = 'tests/testing_data/invalid_yml_multiflow'
+        domain_path = 'tests/testing_data/invalid_yml_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/invalid_yml_multiflow/data'
+        config_path = 'tests/testing_data/invalid_yml_multiflow/config.yml'
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+        with pytest.raises(AppException):
+            validator.validate_training_data()
+
+    @pytest.mark.asyncio
+    async def test_validate_utterance_not_used_in_any_multiflow_story(self):
+        root = 'tests/testing_data/validator/unused_utterances_multiflow'
+        domain_path = 'tests/testing_data/validator/unused_utterances_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/validator/unused_utterances_multiflow/data'
+        config_path = 'tests/testing_data/validator/unused_utterances_multiflow/config.yml'
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+        with pytest.raises(AppException):
+            validator.validate_training_data()
+
+        validator.validate_training_data(False)
+        assert validator.summary['utterances'][0] == "The utterance 'utter_more_info' is not used in any story."
+
+    @pytest.mark.asyncio
+    async def test_validate_intent_in_multiflow_story_not_in_domain(self):
+        root = 'tests/testing_data/validator/unused_intents_multiflow'
+        domain_path = 'tests/testing_data/validator/unused_intents_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/validator/unused_intents_multiflow/data'
+        config_path = 'tests/testing_data/validator/unused_intents_multiflow/config.yml'
+        with pytest.raises(AppException):
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+            validator.validate_training_data()
+
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+        validator.validate_training_data(False)
+        assert validator.summary['intents'][0] == "The intent 'more_info' is used in your multiflow_stories, but it is not listed in the domain file. You should add it to your domain file!"
+
+    @pytest.mark.asyncio
+    async def test_validate_intent_not_used_in_any_multiflow_story(self):
+        root = 'tests/testing_data/validator/orphan_domain_intents_multiflow'
+        domain_path = 'tests/testing_data/validator/orphan_domain_intents_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/validator/orphan_domain_intents_multiflow/data'
+        config_path = 'tests/testing_data/validator/orphan_domain_intents_multiflow/config.yml'
+        with pytest.raises(AppException):
+            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+            validator.validate_training_data()
+
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+        validator.validate_training_data(False)
+        assert validator.summary['intents'][0] == "The intent 'more_info' is not used in any story."
+
     def test_validate_http_action_empty_content(self):
         test_dict = {'http_action': []}
         assert TrainingDataValidator.validate_custom_actions(test_dict)
