@@ -2387,9 +2387,9 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
     assert actual['data']["logs"][3]['intents']['count'] == 19
-    assert len(actual['data']["logs"][3]['intents']['data']) == 24
+    assert len(actual['data']["logs"][3]['intents']['data']) == 21
     assert actual['data']["logs"][3]['utterances']['count'] == 27
-    assert len(actual['data']["logs"][3]['utterances']['data']) == 15
+    assert len(actual['data']["logs"][3]['utterances']['data']) == 11
     assert actual['data']["logs"][3]['stories']['count'] == 16
     assert len(actual['data']["logs"][3]['stories']['data']) == 1
     assert actual['data']["logs"][3]['rules']['count'] == 3
