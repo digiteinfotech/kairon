@@ -546,7 +546,7 @@ class TestTrainingDataValidator:
                                'instructions': 'Answer according to the context', 'type': 'query',
                                'source': 'history', 'is_enabled': True}],
                           "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40,
-                          "similarity_threshold": 0.70,
+                          "similarity_threshold": 2,
                           "num_bot_responses": 5},
                          {'name': 'prompt_action_invalid_num_bot_responses',
                           'llm_prompts': [
