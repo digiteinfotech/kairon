@@ -1158,7 +1158,8 @@ async def get_chat_client_config_url(
         request: Request,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)):
     url = mongo_processor.get_chat_client_config_url(current_user.get_bot(), current_user.email,
-                                                     request=request, account=current_user.account)
+                                                     request=request, account=current_user.account,
+                                                     bot_account=current_user.bot_account)
     return Response(data=url)
 
 
