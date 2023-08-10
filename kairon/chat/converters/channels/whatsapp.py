@@ -83,7 +83,7 @@ class WhatsappResponseConverter(ElementTransformerOps):
                         description = option.get("desc")
                         header_value = option.get("optionHeader")
                         row_data = {}
-                        value = f"{intent}{{{slot}:{value}}}" if intent and slot else value
+                        value = f"{intent}{{\"{slot}\":\"{value}\"}}" if intent and slot else value
                         row_data.update({"id": value})
                         row_data.update({"title": label})
                         if description is not None:
