@@ -194,3 +194,7 @@ actors:
 
 
 support_mail: ${KAIRON_SUPPORT_MAIL:"kairon@digite.com"}
+
+properties:
+  bot:
+    enable_onboarding: ${ENABLE_ONBOARDING:true}

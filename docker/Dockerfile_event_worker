@@ -66,6 +66,7 @@ RUN python -m pip install tiktoken
 RUN python -m pip install RestrictedPython
 RUN python -m pip install AccessControl
 RUN python -m pip install pykka
+RUN python -m pip install timeout-decorator
 
 RUN mkdir data_generator
 RUN mkdir training_data

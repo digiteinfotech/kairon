@@ -956,7 +956,7 @@ async def edit_slots(
     """
     try:
         slot_value = request_data.dict()
-        mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_bot(),
+        mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_user(),
                                  raise_exception_if_exists=False)
     except Exception as e:
         raise AppException(e)

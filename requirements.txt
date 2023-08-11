@@ -77,3 +77,4 @@ tiktoken
 RestrictedPython
 AccessControl
 pykka
+timeout-decorator

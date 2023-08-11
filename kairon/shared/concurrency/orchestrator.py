@@ -12,7 +12,7 @@ class ActorOrchestrator:
     @staticmethod
     def run(actor_type: Text, **kwargs):
         actor = ActorFactory.get_instance(actor_type)
-        actor_timeout = kwargs.pop("timeout", Utility.environment["actors"]["default_timeout"])
+        actor_timeout = kwargs.get("timeout", Utility.environment["actors"]["default_timeout"])
         try:
             future = actor.execute(**kwargs)
             result = future.get(actor_timeout)

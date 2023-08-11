@@ -44,6 +44,7 @@ RUN python -m pip install openai==0.27.0
 RUN python -m pip install RestrictedPython
 RUN python -m pip install AccessControl
 RUN python -m pip install pykka
+RUN python -m pip install timeout-decorator
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp

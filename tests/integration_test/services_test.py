@@ -11433,7 +11433,8 @@ def test_list_sso_not_enabled(monkeypatch):
                 'linkedin': False,
                 'google': False
             }, 'enable_sso_only': True, 'validate_trusted_device': False, 'enable_apm': False,
-            'enable_notifications': False, 'validate_recaptcha': False, 'enable_multilingual': False
+            'enable_notifications': False, 'validate_recaptcha': False, 'enable_multilingual': False,
+            "properties": {"bot": {"enable_onboarding": True}}
         }
 
 
@@ -11511,7 +11512,8 @@ def test_list_sso_enabled():
                 'linkedin': True,
                 'google': True
             }, 'enable_apm': False, 'enable_notifications': False, 'validate_recaptcha': False,
-            'enable_sso_only': False, 'validate_trusted_device': False, 'enable_multilingual': False
+            'enable_sso_only': False, 'validate_trusted_device': False, 'enable_multilingual': False,
+            "properties": {"bot": {"enable_onboarding": True}}
         }
 
 

@@ -1233,6 +1233,7 @@ class Utility:
             'enable_multilingual': Utility.environment["multilingual"]["enable"],
             'validate_trusted_device': Utility.environment["user"]["validate_trusted_device"],
             'validate_recaptcha': Utility.environment["security"]["validate_recaptcha"],
+            "properties": Utility.environment["properties"]
         }
         return properties
 
