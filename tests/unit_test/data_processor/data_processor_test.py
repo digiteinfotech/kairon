@@ -13946,7 +13946,6 @@ class TestMongoProcessor:
         }
         pytest.content_id = processor.save_cognition_data(payload, user, bot)
         data = list(processor.list_cognition_data(bot))
-        print(data)
         assert data[0][
                    'content'] == 'Data science is an interdisciplinary field that involves extracting knowledge and insights from data using various scientific methods, algorithms, processes, and systems.'
         assert data[0]['_id']
