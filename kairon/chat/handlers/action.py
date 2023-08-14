@@ -53,7 +53,6 @@ class ChatClientConfigHandler(BaseHandler, ABC):
         error_code = 0
         try:
             user: User = super().authenticate(self.request, bot=bot)
-            print(user.account)
             config = ChatUtils.get_client_config_using_uid(bot, uid)
             if not Utility.validate_request(self.request, config):
                 message = "Domain not registered for kAIron client"

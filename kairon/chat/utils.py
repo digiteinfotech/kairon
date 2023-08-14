@@ -35,7 +35,7 @@ class ChatUtils:
     @staticmethod
     def get_client_config_using_uid(bot: str, uid: str):
         decoded_uid = Utility.validate_bot_specific_token(bot, uid)
-        config = MongoProcessor.get_chat_client_config(bot, decoded_uid["sub"], is_client_live=True)
+        config = MongoProcessor().get_chat_client_config(bot, decoded_uid["sub"], is_client_live=True)
         return config.to_mongo().to_dict()
 
     @staticmethod
