@@ -198,19 +198,20 @@ class TestChatServer(AsyncHTTPTestCase):
         self.assertEqual(response.body.decode("utf8"), 'Kairon Server Running')
 
     def test_get_chat_client_config(self):
-        response = self.fetch(
-            f"/api/bot/{bot}/chat/client/config/{token}",
-            method="GET",
-            headers={"Authorization": token_type + " " + token},
-        )
-        print(response)
-        actual = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 200)
-        assert actual["success"]
-        assert actual["error_code"] == 0
-        assert actual["data"]
-        assert Utility.check_empty_string(actual["message"])
-        assert 0
+        with patch.object(Utility, "validate_bot_specific_token") as mocked:
+            mocked.return_value = {'sub': 'test@chat.com', 'exp': 1692277518, 'iat': 1691672718, 'type': 'dynamic',
+                                   'account': 1, 'access-limit': ['/api/bot/.+/chat/client/config$']}
+            response = self.fetch(
+                f"/api/bot/{bot}/chat/client/config/{token}",
+                method="GET",
+                headers={"Authorization": token_type + " " + token},
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert actual["success"]
+            assert actual["error_code"] == 0
+            assert actual["data"]
+            assert Utility.check_empty_string(actual["message"])
 
 
     def test_chat(self):

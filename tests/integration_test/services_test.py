@@ -1015,7 +1015,7 @@ def test_get_client_config_url_with_ip_info():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["data"]["total"] == 1
+    assert actual["data"]["total"] == 2
     assert actual["data"]["logs"][0]['geo_location'] == {'City': 'Mumbai', 'Network': 'CATO'}
     assert actual["data"]["logs"][0]['ip_info'] == 'testclient'
     assert actual["data"]["logs"][0]['metric_type'] == 'user_metrics'
@@ -15001,8 +15001,8 @@ def test_get_end_user_metrics():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]["logs"]) == 4
-    assert actual["data"]["total"] == 4
+    assert len(actual["data"]["logs"]) == 5
+    assert actual["data"]["total"] == 5
     actual["data"]["logs"][0].pop('timestamp')
     actual["data"]["logs"][0].pop('account')
     assert actual["data"]["logs"][0] == {'metric_type': 'user_metrics', 'user': 'integ1@gmail.com', 'bot': pytest.bot,

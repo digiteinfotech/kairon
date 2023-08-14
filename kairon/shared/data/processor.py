@@ -4050,6 +4050,11 @@ class MongoProcessor:
         url = urljoin(url, access_token)
         return url
 
+    def get_client_config_using_uid(self, bot: str, uid: str):
+        decoded_uid = Utility.validate_bot_specific_token(bot, uid)
+        config = self.get_chat_client_config(bot, decoded_uid["sub"], is_client_live=True)
+        return config.to_mongo().to_dict()
+
     def get_chat_client_config(self, bot: Text, user: Text, is_client_live: bool = False):
         from kairon.shared.auth import Authentication
         from kairon.shared.account.processor import AccountProcessor
