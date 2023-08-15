@@ -1437,7 +1437,6 @@ def test_add_prompt_action_with_invalid_query_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
                                   'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
     assert not actual["data"]
