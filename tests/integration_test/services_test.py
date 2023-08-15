@@ -1201,7 +1201,6 @@ def test_payload_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     pytest.payload_id = actual["data"]["_id"]
     assert actual["message"] == "Record saved!"
     assert actual["data"]["_id"]
