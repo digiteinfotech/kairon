@@ -1244,7 +1244,6 @@ def test_payload_updated_api():
 
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["message"] == "Record updated!"
     assert actual["error_code"] == 0
