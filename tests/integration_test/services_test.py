@@ -1180,7 +1180,6 @@ def test_payload_upload_api_with_gpt_feature_disabled():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Faq feature is disabled for the bot! Please contact support."
     assert not actual["data"]
     assert actual["error_code"] == 422
