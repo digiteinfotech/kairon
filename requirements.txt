@@ -18,7 +18,7 @@ python-multipart==0.0.5
 py3dns==3.2.1
 black==21.12b0
 uvicorn>=0.18.2
-validators>=0.20.0
+validators==0.20.0
 secure
 password-strength==0.0.3.post2
 loguru
