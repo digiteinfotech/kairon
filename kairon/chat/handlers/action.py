@@ -58,8 +58,9 @@ class ChatClientConfigHandler(BaseHandler, ABC):
                 message = "Domain not registered for kAIron client"
                 error_code = 403
                 success = False
-            config['config'].pop("whitelist")
-            response = config['config']
+            else:
+                config['config'].pop("whitelist")
+                response = config['config']
         except HTTPError as ex:
             logger.exception(ex)
             message = str(ex.reason)

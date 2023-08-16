@@ -257,7 +257,7 @@ class TestChatServer(AsyncHTTPTestCase):
                 self.assertEqual(response.code, 200)
                 assert not actual["success"]
                 assert actual["error_code"] == 403
-                assert actual["data"]
+                assert actual["data"] is None
                 assert not Utility.check_empty_string(actual["message"])
                 assert actual["message"] == "Domain not registered for kAIron client"
 
