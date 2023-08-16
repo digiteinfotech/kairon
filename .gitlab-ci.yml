@@ -76,3 +76,7 @@ build-release:
     -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual:latest .
     -  docker build -f ./docker/Dockerfile_task_delete_logs -t kairon-delete-logs:latest .
     -  docker build -f ./docker/Dockerfile_task_message_broadcast -t kairon-broadcast:latest .
+cleanup:
+  stage: cleanup
+  script:
+    -  sudo docker rmi $(sudo docker images -f "dangling=true" -q)
