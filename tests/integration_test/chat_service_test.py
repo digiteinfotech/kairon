@@ -213,7 +213,6 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["data"]
             assert Utility.check_empty_string(actual["message"])
 
-
     def test_chat(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
