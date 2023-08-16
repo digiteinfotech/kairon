@@ -1180,7 +1180,6 @@ def test_payload_upload_api_with_gpt_feature_disabled():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Faq feature is disabled for the bot! Please contact support."
     assert not actual["data"]
     assert actual["error_code"] == 422
@@ -1202,7 +1201,6 @@ def test_payload_upload_api(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     pytest.payload_id = actual["data"]["_id"]
     assert actual["message"] == "Record saved!"
     assert actual["data"]["_id"]
@@ -1245,7 +1243,6 @@ def test_payload_updated_api():
 
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["message"] == "Record updated!"
     assert actual["error_code"] == 0
@@ -1440,7 +1437,6 @@ def test_add_prompt_action_with_invalid_query_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
                                   'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
     assert not actual["data"]
