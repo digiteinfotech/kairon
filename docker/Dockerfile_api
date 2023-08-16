@@ -15,7 +15,7 @@ RUN python -m pip install cython
 RUN python -m pip install pandas
 RUN python -m pip install passlib[bcrypt]
 RUN python -m pip install python-multipart
-RUN python -m pip install validators
+RUN python -m pip install validators==0.20.0
 RUN python -m pip install secure
 RUN python -m pip install password-strength
 RUN python -m pip install loguru
