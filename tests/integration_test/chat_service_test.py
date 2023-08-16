@@ -213,6 +213,54 @@ class TestChatServer(AsyncHTTPTestCase):
             assert actual["data"]
             assert Utility.check_empty_string(actual["message"])
 
+    def test_get_chat_client_config_exception(self):
+        response = self.fetch(
+            f"/api/bot/{bot}/chat/client/config/{token}",
+            method="GET"
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["data"] is None
+        assert actual["message"] == "Could not validate credentials"
+
+    def test_get_chat_client_after_reset_passwrd(self):
+        user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
+        bot = user['bots']['account_owned'][0]['_id']
+        access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
+        UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+        response = self.fetch(
+            f"/api/bot/{bot}/chat/client/config/{token}",
+            method="GET",
+            headers={"Authorization": token_type + " " + access_token},
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 401
+        assert actual["data"] is None
+        assert actual["message"] == "Session expired. Please login again."
+
+    def test_get_chat_client_config_with_invalid_domain(self):
+        with patch.object(Utility, "validate_bot_specific_token") as mocked:
+            mocked.return_value = {'sub': 'test@chat.com', 'exp': 1692277518, 'iat': 1691672718, 'type': 'dynamic',
+                                   'account': 1, 'access-limit': ['/api/bot/.+/chat/client/config$']}
+            with patch.object(Utility, "validate_request") as validate_request_mock:
+                validate_request_mock.return_value = False
+                response = self.fetch(
+                    f"/api/bot/{bot}/chat/client/config/{token}",
+                    method="GET",
+                    headers={"Authorization": token_type + " " + token},
+                )
+                actual = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                assert not actual["success"]
+                assert actual["error_code"] == 403
+                assert actual["data"]
+                assert not Utility.check_empty_string(actual["message"])
+                assert actual["message"] == "Domain not registered for kAIron client"
+
     def test_chat(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
