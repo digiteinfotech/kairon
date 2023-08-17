@@ -4046,7 +4046,7 @@ class MongoProcessor:
             bot, user, ACCESS_ROLES.TESTER.value,
             access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
         )
-        url = urljoin(Utility.environment['model']['agent']['url'], f'/api/bot/{bot}/chat/client/config/')
+        url = urljoin(Utility.environment['model']['agent'].get('url'), f'/api/bot/{bot}/chat/client/config/')
         url = urljoin(url, access_token)
         return url
 
