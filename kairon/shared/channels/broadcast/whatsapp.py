@@ -1,5 +1,5 @@
 import json
-from typing import List, Any, Text, Dict
+from typing import List, Text, Dict
 
 import requests
 
@@ -8,6 +8,7 @@ from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFacto
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType
+from kairon.shared.chat.notifications.data_objects import MessageBroadcastLogs
 from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, ActorType
@@ -50,18 +51,10 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         script = self.config['pyscript']
         timeout = self.config.get('pyscript_timeout', Utility.environment["actors"]["default_timeout"])
         channel_client = self.__get_client()
-        failure_cnt = 0
-        total = 0
 
         def send_msg(template_id: Text, recipient, language_code: Text = "en", components: Dict = None, namespace: Text = None):
-            nonlocal failure_cnt
-            nonlocal total
-
             response = channel_client.send_template_message(template_id, recipient, language_code, components, namespace)
-            status = "Failed" if response.get("errors") else "Success"
-            total += 1
-            if status == "Failed":
-                failure_cnt = failure_cnt + 1
+            status = "Failed" if response.get("error") else "Success"
 
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
@@ -78,6 +71,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             ActorType.pyscript_runner.value, source_code=script, timeout=timeout,
             predefined_objects={"requests": requests, "json": json, "send_msg": send_msg, "log": log}
         )
+        failure_cnt = MongoProcessor.get_row_count(MessageBroadcastLogs, self.bot, reference_id=self.reference_id, log_type=MessageBroadcastLogType.send, status="Failed")
+        total = MongoProcessor.get_row_count(MessageBroadcastLogs, self.bot, reference_id=self.reference_id, log_type=MessageBroadcastLogType.send)
+
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
             **script_variables
@@ -95,7 +91,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             template_params = self._get_template_parameters(template_config)
 
             # if there's no template body, pass params as None for all recipients
-            template_params = template_params if template_params else [template_params] * len(recipients)
+            template_params = template_params * len(recipients) if template_params else [template_params] * len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
             evaluation_log = {
                 f"Template {i + 1}": f"There are {total} recipients and {len(template_params)} template bodies. "

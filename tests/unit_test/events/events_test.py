@@ -1232,7 +1232,7 @@ class TestEventExecution:
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                       'filename': 'Brochure.pdf'}}]}]], 'failure_cnt': 0, 'total': 2,
-                              'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
+                              'Template 1': 'There are 2 recipients and 4 template bodies. Sending 2 messages to 2 recipients.'
                               }
         logs[0][1].pop("timestamp")
         logs[0][1].pop("recipient")
@@ -1477,7 +1477,7 @@ class TestEventExecution:
         assert logs[0][1] == {'log_type': 'common', 'bot': bot, 'status': 'Completed',
                               'user': 'test_user', 'broadcast_id': event_id, 'recipients': ['918958030541', ''],
                               'template_params': [[{'body': 'Udit Pandey'}]], 'failure_cnt': 0, 'total': 2,
-                              'Template 1': 'There are 2 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+                              'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {'reference_id': reference_id, 'log_type': 'send',

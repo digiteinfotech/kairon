@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from kairon.exceptions import AppException
@@ -646,6 +648,9 @@ class TestTrainingDataValidator:
         assert len(error_summary['zendesk_actions']) == 2
         assert len(error_summary['pipedrive_leads_actions']) == 3
         assert len(error_summary['prompt_actions']) == 46
+        required_fields_error = error_summary["prompt_actions"][18]
+        assert re.match(r"Required fields .* not found in action: prompt_action_with_no_llm_prompts", required_fields_error)
+        del error_summary["prompt_actions"][18]
         assert error_summary['prompt_actions'] == [
             'top_results should not be greater than 30 and of type int: prompt_action_invalid_query_prompt',
             'similarity_threshold should be within 0.3 and 1 and of type int or float: prompt_action_invalid_query_prompt',
@@ -658,7 +663,6 @@ class TestTrainingDataValidator:
             'presence_penality must be between -2.0 and 2.0!', 'frequency_penalty must be between -2.0 and 2.0!',
             'logit_bias must be a dictionary!', 'System prompt must have static source',
             'Only one bot_content source can be present',
-            "Required fields {'llm_prompts', 'name'} not found in action: prompt_action_with_no_llm_prompts",
             'Duplicate action found: test_add_prompt_action_one',
             'Invalid action configuration format. Dictionary expected.',
             'Temperature must be between 0.0 and 2.0!', 'max_tokens must be between 5 and 4096!',
