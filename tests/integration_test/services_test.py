@@ -997,7 +997,8 @@ def test_content_upload_api_with_gpt_feature_disabled():
     assert actual["error_code"] == 422
 
 
-def test_get_client_config_url_with_ip_info():
+def test_get_client_config_url_with_ip_info(monkeypatch):
+    monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo_location:
         mock_geo_location.return_value = {"City": "Mumbai", "Network": "CATO"}
         response = client.get(f"/api/bot/{pytest.bot}/chat/client/config/url",
