@@ -1,7 +1,6 @@
 import json
 from datetime import datetime
-from types import ModuleType
-from typing import Text, Dict, Callable
+from typing import Text, Dict
 
 from loguru import logger
 from bson import ObjectId
@@ -91,7 +90,7 @@ class MessageBroadcastProcessor:
         if status:
             log.status = status
         for key, value in kwargs.items():
-            if not getattr(log, key, None) and not isinstance(value, Callable) and not isinstance(value, ModuleType):
+            if not getattr(log, key, None) and Utility.is_picklable(value):
                 setattr(log, key, value)
         log.save()
         return reference_id

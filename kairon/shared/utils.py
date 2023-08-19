@@ -19,7 +19,8 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict, Union, Any
+from types import ModuleType
+from typing import Text, List, Dict, Union, Any, Callable
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
@@ -1821,6 +1822,19 @@ class Utility:
             client_ip = request.headers.get('X-Real-IP')
         return client_ip
 
+    @staticmethod
+    def is_picklable(obj):
+        """
+        Checks whether an object is picklable.
+        """
+        if isinstance(obj, Callable) or isinstance(obj, ModuleType):
+            return False
+        try:
+            json.dumps(obj)
+            return True
+        except (TypeError, OverflowError) as e:
+            logger.exception(e)
+            return False
 
 class StoryValidator:
 
