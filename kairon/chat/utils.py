@@ -15,6 +15,7 @@ from .. import Utility
 from ..exceptions import AppException
 from ..live_agent.factory import LiveAgentFactory
 from ..shared.actions.utils import ActionUtility
+from ..shared.data.processor import MongoProcessor
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
@@ -30,6 +31,27 @@ class ChatUtils:
         chat_response = await model.handle_message(msg)
         ChatUtils.__attach_agent_handoff_metadata(account, bot, user, chat_response, model.tracker_store)
         return chat_response
+
+    @staticmethod
+    def get_client_config_using_uid(bot: str, uid: str):
+        decoded_uid = Utility.validate_bot_specific_token(bot, uid)
+        config = MongoProcessor().get_chat_client_config(bot, decoded_uid["sub"], is_client_live=True)
+        return config.to_mongo().to_dict()
+
+    @staticmethod
+    def validate_request_and_config(request, config):
+        if not Utility.validate_request(request, config):
+            response = None
+            message = "Domain not registered for kAIron client"
+            error_code = 403
+            success = False
+        else:
+            message = None
+            error_code = 0
+            success = True
+            config['config'].pop("whitelist")
+            response = config['config']
+        return response, success, error_code, message
 
     @staticmethod
     def reload(bot: Text):
