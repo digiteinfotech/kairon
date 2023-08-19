@@ -19,16 +19,17 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from types import ModuleType
-from typing import Text, List, Dict, Union, Any, Callable
+from typing import Text, List, Dict, Union, Any
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
+import bson
 import pandas as pd
 import pytz
 import requests
 import yaml
 from botocore.exceptions import ClientError
+from bson import InvalidDocument
 from dateutil import tz
 from fastapi import File, UploadFile
 from jwt import encode, decode, PyJWTError
@@ -1823,16 +1824,14 @@ class Utility:
         return client_ip
 
     @staticmethod
-    def is_picklable(obj):
+    def is_picklable_for_mongo(obj):
         """
-        Checks whether an object is picklable.
+        Checks whether an object is picklable by mongodb.
         """
-        if isinstance(obj, Callable) or isinstance(obj, ModuleType):
-            return False
         try:
-            json.dumps(obj)
+            bson.encode(obj)
             return True
-        except (TypeError, OverflowError) as e:
+        except InvalidDocument as e:
             logger.exception(e)
             return False
 
