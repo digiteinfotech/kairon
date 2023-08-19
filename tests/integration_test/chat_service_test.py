@@ -204,7 +204,6 @@ class TestChatServer(AsyncHTTPTestCase):
             response = self.fetch(
                 f"/api/bot/{bot}/chat/client/config/{token}",
                 method="GET",
-                headers={"Authorization": token_type + " " + token},
             )
             actual = json.loads(response.body.decode("utf8"))
             self.assertEqual(response.code, 200)
@@ -215,7 +214,7 @@ class TestChatServer(AsyncHTTPTestCase):
 
     def test_get_chat_client_config_exception(self):
         response = self.fetch(
-            f"/api/bot/{bot}/chat/client/config/{token}",
+            f"/api/bot/{bot}/chat/client/config/invalid_token",
             method="GET"
         )
         actual = json.loads(response.body.decode("utf8"))
@@ -223,24 +222,23 @@ class TestChatServer(AsyncHTTPTestCase):
         assert not actual["success"]
         assert actual["error_code"] == 422
         assert actual["data"] is None
-        assert actual["message"] == "Could not validate credentials"
+        assert actual["message"] == "Invalid token"
 
-    def test_get_chat_client_after_reset_passwrd(self):
-        user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
-        bot = user['bots']['account_owned'][0]['_id']
-        access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
-        UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
-        response = self.fetch(
-            f"/api/bot/{bot}/chat/client/config/{token}",
-            method="GET",
-            headers={"Authorization": token_type + " " + access_token},
-        )
-        actual = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 200)
-        assert not actual["success"]
-        assert actual["error_code"] == 401
-        assert actual["data"] is None
-        assert actual["message"] == "Session expired. Please login again."
+    def test_get_chat_client_config_raise_error(self):
+        from tornado.web import HTTPError
+
+        with patch.object(ChatUtils, "get_client_config_using_uid") as mocked:
+            mocked.side_effect = HTTPError(status_code=404, reason="404 Not Found", response=None)
+            response = self.fetch(
+                f"/api/bot/{bot}/chat/client/config/{token}",
+                method="GET"
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 404
+            assert actual["data"] is None
+            assert actual["message"] == "404 Not Found"
 
     def test_get_chat_client_config_with_invalid_domain(self):
         with patch.object(Utility, "validate_bot_specific_token") as mocked:
@@ -251,7 +249,6 @@ class TestChatServer(AsyncHTTPTestCase):
                 response = self.fetch(
                     f"/api/bot/{bot}/chat/client/config/{token}",
                     method="GET",
-                    headers={"Authorization": token_type + " " + token},
                 )
                 actual = json.loads(response.body.decode("utf8"))
                 self.assertEqual(response.code, 200)

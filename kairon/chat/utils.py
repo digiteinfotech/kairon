@@ -39,6 +39,21 @@ class ChatUtils:
         return config.to_mongo().to_dict()
 
     @staticmethod
+    def validate_request_and_config(request, config):
+        if not Utility.validate_request(request, config):
+            response = None
+            message = "Domain not registered for kAIron client"
+            error_code = 403
+            success = False
+        else:
+            message = None
+            error_code = 0
+            success = True
+            config['config'].pop("whitelist")
+            response = config['config']
+        return response, success, error_code, message
+
+    @staticmethod
     def reload(bot: Text):
         AgentProcessor.reload(bot)
 

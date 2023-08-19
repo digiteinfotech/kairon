@@ -45,22 +45,13 @@ class ChatHandler(BaseHandler, ABC):
 class ChatClientConfigHandler(BaseHandler, ABC):
 
     async def get(self, bot: str, uid: str):
-        from kairon import Utility
-
         success = True
         message = None
         response = None
         error_code = 0
         try:
-            user: User = super().authenticate(self.request, bot=bot)
             config = ChatUtils.get_client_config_using_uid(bot, uid)
-            if not Utility.validate_request(self.request, config):
-                message = "Domain not registered for kAIron client"
-                error_code = 403
-                success = False
-            else:
-                config['config'].pop("whitelist")
-                response = config['config']
+            response, success, error_code, message = ChatUtils.validate_request_and_config(self.request, config)
         except HTTPError as ex:
             logger.exception(ex)
             message = str(ex.reason)
