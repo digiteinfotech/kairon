@@ -658,7 +658,7 @@ class TestTrainingDataValidator:
             'presence_penality must be between -2.0 and 2.0!', 'frequency_penalty must be between -2.0 and 2.0!',
             'logit_bias must be a dictionary!', 'System prompt must have static source',
             'Only one bot_content source can be present',
-            "Required fields {'llm_prompts', 'name'} not found in action: prompt_action_with_no_llm_prompts",
+            "Required fields {'llm_prompts', 'name'} not found in action: prompt_action_with_no_llm_prompts"",
             'Duplicate action found: test_add_prompt_action_one',
             'Invalid action configuration format. Dictionary expected.',
             'Temperature must be between 0.0 and 2.0!', 'max_tokens must be between 5 and 4096!',
