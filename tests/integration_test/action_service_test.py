@@ -47,7 +47,7 @@ def test_index():
     response = client.get("/")
     result = response.json()
     assert response.status_code == 200
-    assert (result["message"], "Kairon Action Server Up and Running")
+    assert result["message"] == "Kairon Action Server Up and Running"
 
 
 @responses.activate
@@ -333,15 +333,14 @@ def test_http_action_execution_custom_json_with_invalid_json_response():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": 'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'}])
-    assert (response_json['responses'][0]['text'],
-            'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}')
+         "value": 'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'}]
+    assert response_json['responses'][0]['text'] == 'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'
 
 
 @responses.activate
@@ -437,13 +436,12 @@ def test_http_action_execution_return_custom_json_with_script_evaluation():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}])
-    assert (response_json['responses'][0]['custom'],
-            {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}})
+         "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}]
+    assert response_json['responses'][0]['custom'] == {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
 
 
 @responses.activate
@@ -536,13 +534,12 @@ def test_http_action_execution_script_evaluation_with_json_response():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'][0]['text'],
-            "The value of 2 in red is ['red', 'buggy', 'bumpers']")
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
 
 
 @responses.activate
@@ -619,14 +616,14 @@ def test_http_action_execution_no_response_dispatch():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 0)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 0
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'], [])
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'] == []
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -775,14 +772,14 @@ def test_http_action_execution_script_evaluation():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 0)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 0
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'], [])
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'] == []
 
 
 @responses.activate
@@ -926,14 +923,14 @@ def test_http_action_execution_script_evaluation_with_dynamic_params():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'][0]['text'], "The value of 2 in red is ['red', 'buggy', 'bumpers']")
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -1111,15 +1108,14 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
     response_json = response.json()
     print(response_json)
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}])
-    assert (response_json['responses'][0]['custom'],
-            {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}})
+         "value": {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}}]
+    assert response_json['responses'][0]['custom'] == {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
 
 
 @responses.activate
@@ -1263,14 +1259,14 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 0)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 0
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'], [])
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'] == []
 
 
 @responses.activate
@@ -1414,14 +1410,14 @@ def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 0)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 0
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": 'red'},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'], [])
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'] == []
 
 
 @responses.activate
@@ -1497,12 +1493,12 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_failure():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "I have failed to process your request"}])
-    assert (response_json['responses'][0]['text'], "I have failed to process your request")
+         "value": "I have failed to process your request"}]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 
 @responses.activate
@@ -1652,14 +1648,14 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'][0]['text'], "The value of 2 in red is ['red', 'buggy', 'bumpers']")
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -1802,14 +1798,14 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 0)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 0
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": None},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": None},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'], [])
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'] == []
 
 
 @responses.activate
@@ -1919,14 +1915,14 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 3)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": None},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": None},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}])
-    assert (response_json['responses'][0]['text'], "The value of 2 in red is ['red', 'buggy', 'bumpers']")
+         "value": "The value of 2 in red is ['red', 'buggy', 'bumpers']"}]
+    assert response_json['responses'][0]['text'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
 
 
 @responses.activate
@@ -2024,12 +2020,12 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "I have failed to process your request"}])
-    assert (response_json['responses'][0]['text'], "I have failed to process your request")
+         "value": "I have failed to process your request"}]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
@@ -2086,12 +2082,12 @@ def test_http_action_failed_execution(mock_action_config, mock_action):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request"}])
-    assert (response_json['responses'][0]['text'], "I have failed to process your request")
+         'value': "I have failed to process your request"}]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 
 def test_http_action_missing_action_name():
@@ -2128,7 +2124,7 @@ def test_http_action_missing_action_name():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, None)
+    assert response_json == None
 
 
 def test_http_action_doesnotexist():
@@ -2165,7 +2161,7 @@ def test_http_action_doesnotexist():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
 
 
 @responses.activate
@@ -2241,12 +2237,12 @@ def test_vectordb_action_execution_embedding_search_from_value():
     assert response.status_code == 200
     print(response_json['events'])
     print(response_json['responses'])
-    assert (len(response_json['events']), 2)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}])
-    assert (response_json['responses'][0]['text'], "The value of 0 is [0]")
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}]
+    assert response_json['responses'][0]['text'] == "The value of 0 is [0]"
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56b698ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -2320,13 +2316,13 @@ def test_vectordb_action_execution_payload_search_from_value():
     assert response.status_code == 200
     print(response_json['events'])
     print(response_json['responses'])
-    assert (len(response_json['events']), 2)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'city_value', 'value': '2'},
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': 'The value of London with color red is 2'}])
-    assert (response_json['responses'][0]['text'], "The value of London with color red is 2")
+         'value': 'The value of London with color red is 2'}]
+    assert response_json['responses'][0]['text'] == "The value of London with color red is 2"
     log = ActionServerLogs.objects(action=action_name, bot='5f50md0a56b698ca10d35d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -2406,12 +2402,12 @@ def test_vectordb_action_execution_embedding_search_from_slot():
     assert response.status_code == 200
     print(response_json['events'])
     print(response_json['responses'])
-    assert (len(response_json['events']), 2)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[15]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 15 is [15]'}])
-    assert (response_json['responses'][0]['text'], "The value of 15 is [15]")
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 15 is [15]'}]
+    assert response_json['responses'][0]['text'] == "The value of 15 is [15]"
     log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56b698ca10d35d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -2479,13 +2475,13 @@ def test_vectordb_action_execution_payload_search_from_slot():
     assert response.status_code == 200
     print(response_json['events'])
     print(response_json['responses'])
-    assert (len(response_json['events']), 2)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'city_name', 'value': 'Berlin'},
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': 'The name of the city with id 5 is Berlin'}])
-    assert (response_json['responses'][0]['text'], "The name of the city with id 5 is Berlin")
+         'value': 'The name of the city with id 5 is Berlin'}]
+    assert response_json['responses'][0]['text'] == "The name of the city with id 5 is Berlin"
     log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56v698ca10d39c2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -2565,12 +2561,12 @@ def test_vectordb_action_execution_no_response_dispatch():
     assert response.status_code == 200
     print(response_json['events'])
     print(response_json['responses'])
-    assert (len(response_json['events']), 2)
-    assert (len(response_json['responses']), 0)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 2
+    assert len(response_json['responses']) == 0
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}])
-    assert (response_json['responses'], [])
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}]
+    assert response_json['responses'] == []
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56v098ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -2623,12 +2619,12 @@ def test_vectordb_action_execution_invalid_operation_type():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 0)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 0
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request."}])
-    assert (response_json['responses'], [])
+         'value': "I have failed to process your request."}]
+    assert response_json['responses'] == []
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56v908ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
@@ -2689,12 +2685,12 @@ def test_vectordb_action_failed_execution( mock_action_config, mock_action):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request."}])
-    assert (response_json['responses'][0]['text'], "I have failed to process your request.")
+         'value': "I have failed to process your request."}]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request."
 
 
 def test_vectordb_action_missing_action_name():
@@ -2731,7 +2727,7 @@ def test_vectordb_action_missing_action_name():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, None)
+    assert response_json == None
 
 
 def test_vectordb_action_does_not_exist():
@@ -2768,7 +2764,7 @@ def test_vectordb_action_does_not_exist():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     assert log['exception'] == 'No action found for given bot and name'
 
@@ -2826,11 +2822,10 @@ def test_slot_set_action_from_value():
             response = client.post("/webhook", json=request_object)
             response_json = response.json()
             assert response.status_code == 200
-            assert (len(response_json['events']), 1)
-            assert (len(response_json['responses']), 0)
-            assert (response_json['events'],
-                    [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}])
-            assert (response_json['responses'], [])
+            assert len(response_json['events']) == 1
+            assert len(response_json['responses']) == 0
+            assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}]
+            assert response_json['responses'] == []
 
 
 def test_slot_set_action_reset_slot():
@@ -2889,13 +2884,12 @@ def test_slot_set_action_reset_slot():
             response = client.post("/webhook", json=request_object)
             response_json = response.json()
             assert response.status_code == 200
-            assert (len(response_json['events']), 3)
-            assert (len(response_json['responses']), 0)
-            assert (response_json['events'],
-                    [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None},
+            assert len(response_json['events']) == 3
+            assert len(response_json['responses']) == 0
+            assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None},
                      {'event': 'slot', 'timestamp': None, 'name': 'name', 'value': "end_user"},
-                     {'event': 'slot', 'timestamp': None, 'name': 'age', 'value': None}])
-            assert (response_json['responses'], [])
+                     {'event': 'slot', 'timestamp': None, 'name': 'age', 'value': None}]
+            assert response_json['responses'] == []
 
 
 def test_slot_set_action_from_slot_not_present():
@@ -2951,11 +2945,10 @@ def test_slot_set_action_from_slot_not_present():
             response = client.post("/webhook", json=request_object)
             response_json = response.json()
             assert response.status_code == 200
-            assert (len(response_json['events']), 1)
-            assert (len(response_json['responses']), 0)
-            assert (response_json['events'],
-                    [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}])
-            assert (response_json['responses'], [])
+            assert len(response_json['events']) == 1
+            assert len(response_json['responses']) == 0
+            assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}]
+            assert response_json['responses'] == []
 
 
 def test_invalid_action():
@@ -2992,7 +2985,7 @@ def test_invalid_action():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
 
 
 @responses.activate
@@ -3054,9 +3047,7 @@ def test_form_validation_action_valid_slot_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
-             'responses': []})
+    assert response_json == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}], 'responses': []}
 
 
 @responses.activate
@@ -3119,9 +3110,8 @@ def test_form_validation_action_with_custom_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'}],
-             'responses': []})
+    assert response_json == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'}],
+             'responses': []}
 
 
 @responses.activate
@@ -3182,9 +3172,8 @@ def test_form_validation_action_with_custom_value_none():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
-             'responses': []})
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Mumbai'}],
+             'responses': []}
 
 
 @responses.activate
@@ -3246,9 +3235,8 @@ def test_form_validation_action_with_form_slot_type_slot():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location',
-                         'value': 'Delhi'}], 'responses': []})
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location',
+                         'value': 'Delhi'}], 'responses': []}
 
 
 def test_form_validation_action_no_requested_slot():
@@ -3289,7 +3277,7 @@ def test_form_validation_action_no_requested_slot():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
 
 
 def test_form_validation_action_no_validation_provided_for_slot_with_none_value():
@@ -3346,9 +3334,8 @@ def test_form_validation_action_no_validation_provided_for_slot_with_none_value(
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}],
-             'responses': []})
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': None}],
+             'responses': []}
 
 
 @responses.activate
@@ -3413,11 +3400,11 @@ def test_form_validation_action_valid_slot_value_with_utterance():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {
+    assert response_json == {
         'events': [{'event': 'slot', 'timestamp': None, 'name': 'user_id', 'value': 'pandey.udit867@gmail.com'}],
         'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
                        'response': None, 'image': None, 'attachment': None}]}
-            )
+
 
 
 @responses.activate
@@ -3484,9 +3471,8 @@ def test_form_validation_action_invalid_slot_value():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location', 'value': None}],
-             'responses': []})
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location', 'value': None}],
+             'responses': []}
 
 
 @responses.activate
@@ -3551,12 +3537,11 @@ def test_form_validation_action_invalid_slot_value_with_utterance():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'profession', 'value': None}],
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'profession', 'value': None}],
              'responses': [
                  {'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {},
                   'template': None, 'response': None, 'image': None, 'attachment': None}]}
-            )
+
 
 
 def test_form_validation_action_no_validation_configured():
@@ -3596,9 +3581,9 @@ def test_form_validation_action_no_validation_configured():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {
+    assert response_json == {
         'events': [{'event': 'slot', 'timestamp': None, 'name': 'age', 'value': 10}],
-        'responses': []})
+        'responses': []}
 
     semantic_expression = "if (age > 10 && age < 70) {return true;} else {return false;}"
     FormValidationAction(name=action_name, slot='name', validation_semantic=semantic_expression,
@@ -3608,9 +3593,9 @@ def test_form_validation_action_no_validation_configured():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {
+    assert response_json == {
         'events': [{'event': 'slot', 'timestamp': None, 'name': 'age', 'value': 10}],
-        'responses': []})
+        'responses': []}
 
 
 def test_form_validation_action_slot_type_not_found():
@@ -3653,10 +3638,10 @@ def test_form_validation_action_slot_type_not_found():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {
+    assert response_json == {
         'events': [{'event': 'slot', 'timestamp': None, 'name': 'reservation_id', 'value': "10974872t49"}],
         'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-                       'response': None, 'image': None, 'attachment': None}]})
+                       'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_form_validation_action_with_is_required_false():
@@ -3700,11 +3685,10 @@ def test_form_validation_action_with_is_required_false():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}],
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}],
              'responses': [
                  {'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-                  'response': None, 'image': None, 'attachment': None}]})
+                  'response': None, 'image': None, 'attachment': None}]}
 
 
 @responses.activate
@@ -3766,11 +3750,10 @@ def test_form_validation_action_with_is_required_false_and_semantics():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location', 'value': None}],
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'current_location', 'value': None}],
              'responses': [
                  {'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {},
-                  'template': None, 'response': None, 'image': None, 'attachment': None}]})
+                  'template': None, 'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_form_validation_action_with_is_required_true():
@@ -3814,10 +3797,10 @@ def test_form_validation_action_with_is_required_true():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json, {
+    assert response_json == {
         'events': [{'event': 'slot', 'timestamp': None, 'name': 'user_id', 'value': 'pandey.udit867@gmail.com'}],
         'responses': [{'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-                       'response': None, 'image': None, 'attachment': None}]})
+                       'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_form_validation_action_with_is_required_true_and_no_slot():
@@ -3861,11 +3844,10 @@ def test_form_validation_action_with_is_required_true_and_no_slot():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'reservation_id', 'value': None}],
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'reservation_id', 'value': None}],
              'responses': [
                  {'text': 'Invalid value. Please type again!', 'buttons': [], 'elements': [], 'custom': {},
-                  'template': None, 'response': None, 'image': None, 'attachment': None}]})
+                  'template': None, 'response': None, 'image': None, 'attachment': None}]}
 
 
 @responses.activate
@@ -3927,11 +3909,10 @@ def test_form_validation_action_with_is_required_true_and_semantics():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (response_json,
-            {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}],
+    assert response_json  == {'events': [{'event': 'slot', 'timestamp': None, 'name': 'location', 'value': "Mumbai"}],
              'responses': [
                  {'text': 'that is great!', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-                  'response': None, 'image': None, 'attachment': None}]})
+                  'response': None, 'image': None, 'attachment': None}]}
 
 
 @responses.activate
@@ -3989,13 +3970,12 @@ def test_email_action_execution_script_evaluation( mock_smtp, mock_action_config
     mock_env.stop()
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": "Email Triggered"}])
-    assert (response_json['responses'][0]['text'],
-            "Email Triggered")
+         "value": "Email Triggered"}]
+    assert response_json['responses'][0]['text'] == "Email Triggered"
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().connect'
@@ -4075,13 +4055,12 @@ def test_email_action_execution_script_evaluation_failure( mock_action_config, m
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request"}])
-    assert (response_json['responses'][0]['text'],
-            "I have failed to process your request")
+         'value': "I have failed to process your request"}]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")
@@ -4201,13 +4180,12 @@ def test_email_action_execution( mock_smtp, mock_action_config, mock_action):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "Email Triggered"}])
-    assert (response_json['responses'][0]['text'],
-            "Email Triggered")
+         'value': "Email Triggered"}]
+    assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
     assert logs.status == "SUCCESS"
 
@@ -4560,13 +4538,12 @@ def test_email_action_execution_varied_utterances( mock_smtp, mock_action_config
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "Email Triggered"}])
-    assert (response_json['responses'][0]['text'],
-            "Email Triggered")
+         'value': "Email Triggered"}]
+    assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
     assert logs.status == "SUCCESS"
 
@@ -4684,13 +4661,12 @@ def test_email_action_execution_varied_utterances( mock_smtp, mock_action_config
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "Email Triggered"}])
-    assert (response_json['responses'][0]['text'],
-            "Email Triggered")
+         'value': "Email Triggered"}]
+    assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
     assert logs.status == "SUCCESS"
 
@@ -4802,13 +4778,12 @@ def test_email_action_failed_execution( mock_action_config, mock_action):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 1)
-    assert (len(response_json['responses']), 1)
-    assert (response_json['events'], [
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request"}])
-    assert (response_json['responses'][0]['text'],
-            "I have failed to process your request")
+         'value': "I have failed to process your request"}]
+    assert response_json['responses'][0]['text'] == "I have failed to process your request"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
     assert logs.status == "FAILURE"
 
@@ -4897,8 +4872,8 @@ def test_email_action_execution_action_not_exist():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 0)
-    assert (len(response_json['responses']), 0)
+    assert len(response_json['events']) == 0
+    assert len(response_json['responses']) == 0
 
 
 def test_google_search_action_not_found():
@@ -4986,8 +4961,8 @@ def test_google_search_action_not_found():
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (len(response_json['events']), 0)
-    assert (len(response_json['responses']), 0)
+    assert len(response_json['events']) == 0
+    assert len(response_json['responses']) == 0
 
 
 def test_process_google_search_action():
@@ -5088,7 +5063,7 @@ def test_process_google_search_action():
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200
-        assert (response_json, {'events': [{
+        assert response_json == {'events': [{
             'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
             'value': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
         }],
@@ -5096,7 +5071,7 @@ def test_process_google_search_action():
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>',
                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
                 'attachment': None
-            }]})
+            }]}
 
     def _run_action(*args, **kwargs):
         assert args == ('1234567890', 'asdfg::123456', 'my custom text')
@@ -5117,7 +5092,7 @@ def test_process_google_search_action():
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200
-        assert (response_json, {'events': [{
+        assert response_json == {'events': [{
             'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
             'value': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
         }],
@@ -5125,7 +5100,7 @@ def test_process_google_search_action():
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>',
                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
                 'attachment': None
-            }]})
+            }]}
 
     def _run_action(*args, **kwargs):
         assert args == ('1234567890', 'asdfg::123456', '/action_google_search')
@@ -5144,7 +5119,7 @@ def test_process_google_search_action():
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200
-        assert (response_json, {'events': [{
+        assert response_json == {'events': [{
             'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
             'value': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>'
         }],
@@ -5152,7 +5127,7 @@ def test_process_google_search_action():
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>',
                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
                 'attachment': None
-            }]})
+            }]}
 
 
 def test_process_google_search_action_dispatch_false():
@@ -5183,10 +5158,10 @@ def test_process_google_search_action_dispatch_false():
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200
-        assert (response_json, {'events': [
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'google_response', 'value': expected_resp},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': expected_resp},
-        ], 'responses': []})
+        ], 'responses': []}
 
 
 def test_process_google_search_action_globally():
@@ -5218,14 +5193,14 @@ def test_process_google_search_action_globally():
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200
-        assert (response_json, {'events': [
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'google_response', 'value': expected_resp},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': expected_resp},
         ],
             'responses': [{
                 'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>',
                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
-                'image': None, 'attachment': None}]})
+                'image': None, 'attachment': None}]}
 
 
 def test_process_google_search_action_globally_dispatch_false():
@@ -5255,10 +5230,10 @@ def test_process_google_search_action_globally_dispatch_false():
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200
-        assert (response_json, {'events': [
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'google_response', 'value': expected_resp},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': expected_resp},
-        ], 'responses': []})
+        ], 'responses': []}
 
 
 def test_process_google_search_action_failure():
@@ -5355,13 +5330,13 @@ def test_process_google_search_action_failure():
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200
-        assert (response_json, {'events': [{'event': 'slot', 'timestamp': None,
+        assert response_json == {'events': [{'event': 'slot', 'timestamp': None,
                                             'name': 'kairon_action_response',
                                             'value': 'I have failed to process your request.'}],
                                 'responses': [{'text': 'I have failed to process your request.',
                                                'buttons': [], 'elements': [], 'custom': {},
                                                'template': None,
-                                               'response': None, 'image': None, 'attachment': None}]})
+                                               'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_process_google_search_action_no_results():
@@ -5457,14 +5432,14 @@ def test_process_google_search_action_no_results():
         mocked.side_effect = _run_action
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json, {'events': [{'event': 'slot', 'timestamp': None,
+        assert response_json == {'events': [{'event': 'slot', 'timestamp': None,
                                             'name': 'kairon_action_response',
                                             'value': 'I have failed to process your request.'}],
                                 'responses': [
                                     {'text': 'I have failed to process your request.', 'buttons': [],
                                      'elements': [],
                                      'custom': {}, 'template': None, 'response': None,
-                                     'image': None, 'attachment': None}]})
+                                     'image': None, 'attachment': None}]}
 
 
 def test_process_jira_action():
@@ -5566,11 +5541,11 @@ def test_process_jira_action():
         mocked.side_effect = _mock_response
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json, {'events': [
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': 'Successfully created'}], 'responses': [
             {'text': 'Successfully created', 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-             'response': None, 'image': None, 'attachment': None}]})
+             'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_process_jira_action_failure():
@@ -5675,12 +5650,12 @@ def test_process_jira_action_failure():
         mocked.side_effect = _mock_response
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json, {'events': [
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': 'I have failed to create issue for you'}], 'responses': [
             {'text': 'I have failed to create issue for you', 'buttons': [], 'elements': [], 'custom': {},
              'template': None,
-             'response': None, 'image': None, 'attachment': None}]})
+             'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_jira_action_not_found():
@@ -5769,7 +5744,7 @@ def test_jira_action_not_found():
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
 
 
 def test_process_zendesk_action_not_exists():
@@ -5858,7 +5833,7 @@ def test_process_zendesk_action_not_exists():
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
 
 
 def test_process_zendesk_action():
@@ -5955,12 +5930,12 @@ def test_process_zendesk_action():
     with patch('zenpy.Zenpy'):
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json, {'events': [
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': 'ticket created'}], 'responses': [
             {'text': 'ticket created', 'buttons': [], 'elements': [], 'custom': {},
              'template': None,
-             'response': None, 'image': None, 'attachment': None}]})
+             'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_process_zendesk_action_failure():
@@ -6062,12 +6037,12 @@ def test_process_zendesk_action_failure():
         mock.side_effect = __mock_zendesk_error
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json, {'events': [
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': 'I have failed to create issue for you'}], 'responses': [
             {'text': 'I have failed to create issue for you', 'buttons': [], 'elements': [], 'custom': {},
              'template': None,
-             'response': None, 'image': None, 'attachment': None}]})
+             'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_process_pipedrive_leads_action_not_exists():
@@ -6156,7 +6131,7 @@ def test_process_pipedrive_leads_action_not_exists():
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
 
 
 def test_process_pipedrive_leads_action():
@@ -6270,12 +6245,12 @@ def test_process_pipedrive_leads_action():
                 with patch('pipedrive.notes.Notes.create_note', __mock_create_note):
                     response = client.post("/webhook", json=request_object)
                     response_json = response.json()
-                    assert (response_json, {'events': [
+                    assert response_json == {'events': [
                         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                          'value': 'lead created'}], 'responses': [
                         {'text': 'lead created', 'buttons': [], 'elements': [], 'custom': {},
                          'template': None,
-                         'response': None, 'image': None, 'attachment': None}]})
+                         'response': None, 'image': None, 'attachment': None}]}
 
 
 @responses.activate
@@ -6317,13 +6292,13 @@ def test_process_razorpay_action_failure():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [{'event': 'slot', 'name': 'kairon_action_response',
+    assert response_json == {'events': [{'event': 'slot', 'name': 'kairon_action_response',
                                         'timestamp': None,
                                         'value': "I have failed to process your request"}],
                             'responses': [{'attachment': None, 'buttons': [], 'custom': {},
                                            'elements': [], 'image': None, 'response': None,
                                            'template': None,
-                                           'text': "I have failed to process your request"}]})
+                                           'text': "I have failed to process your request"}]}
 
 
 def test_process_razorpay_action_not_exists():
@@ -6337,7 +6312,7 @@ def test_process_razorpay_action_not_exists():
     request_object["next_action"] = action_name
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
 
 
 @responses.activate
@@ -6379,11 +6354,11 @@ def test_process_razorpay_action():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [{'event': 'slot', 'name': 'kairon_action_response',
+    assert response_json == {'events': [{'event': 'slot', 'name': 'kairon_action_response',
                                         'timestamp': None, 'value': 'https://rzp.io/i/nxrHnLJ'}],
                             'responses': [{'attachment': None, 'buttons': [], 'custom': {},
                                            'elements': [], 'image': None, 'response': None,
-                                           'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]})
+                                           'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]}
 
 
 def test_process_pipedrive_leads_action_failure():
@@ -6485,12 +6460,12 @@ def test_process_pipedrive_leads_action_failure():
     with patch('pipedrive.organizations.Organizations.create_organization', __mock_pipedrive_error):
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json, {'events': [
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': 'I have failed to create lead for you'}], 'responses': [
             {'text': 'I have failed to create lead for you', 'buttons': [], 'elements': [], 'custom': {},
              'template': None,
-             'response': None, 'image': None, 'attachment': None}]})
+             'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_process_hubspot_forms_action_not_exists():
@@ -6579,7 +6554,7 @@ def test_process_hubspot_forms_action_not_exists():
     }
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [], 'responses': []})
+    assert response_json == {'events': [], 'responses': []}
 
 
 @responses.activate
@@ -6690,12 +6665,12 @@ def test_process_hubspot_forms_action():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [
+    assert response_json == {'events': [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': 'Hubspot Form submitted'}], 'responses': [
         {'text': 'Hubspot Form submitted', 'buttons': [], 'elements': [], 'custom': {},
          'template': None,
-         'response': None, 'image': None, 'attachment': None}]})
+         'response': None, 'image': None, 'attachment': None}]}
 
 
 @responses.activate
@@ -6802,12 +6777,12 @@ def test_process_hubspot_forms_action_failure():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [
+    assert response_json == {'events': [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': "I have failed to process your request"}], 'responses': [
         {'text': "I have failed to process your request", 'buttons': [], 'elements': [], 'custom': {},
          'template': None,
-         'response': None, 'image': None, 'attachment': None}]})
+         'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_two_stage_fallback_action():
@@ -6915,10 +6890,10 @@ def test_two_stage_fallback_action():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [])
-    assert (len(response_json['responses'][0]['buttons']), 3)
-    assert (set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
-    assert (response_json['responses'][0]['text'], FALLBACK_MESSAGE)
+    assert response_json['events'] == []
+    assert len(response_json['responses'][0]['buttons']) == 3
+    assert set(response_json['responses'][0]['buttons'][0].keys()) == {"text", "payload"}
+    assert response_json['responses'][0]['text'] == FALLBACK_MESSAGE
     action.text_recommendations = TwoStageFallbackTextualRecommendations(**{"count": 3})
     action.save()
 
@@ -6931,9 +6906,9 @@ def test_two_stage_fallback_action():
         mock_action.side_effect = _mock_search
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json['events'], [])
-        assert (len(response_json['responses'][0]['buttons']), 3)
-        assert (set(response_json['responses'][0]['buttons'][0].keys()), {"text", "payload"})
+        assert response_json['events'] == []
+        assert len(response_json['responses'][0]['buttons']) == 3
+        assert set(response_json['responses'][0]['buttons'][0].keys()) == {"text", "payload"}
 
     def _mock_search(*args, **kwargs):
         for _ in []:
@@ -6943,10 +6918,10 @@ def test_two_stage_fallback_action():
         mock_action.side_effect = _mock_search
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json['events'], [])
-        assert (response_json['responses'], [
+        assert response_json['events'] == []
+        assert response_json['responses'] ==  [
             {"text": None, "buttons": [], "elements": [], "custom": {}, "template": "utter_default",
-             "response": "utter_default", "image": None, "attachment": None}])
+             "response": "utter_default", "image": None, "attachment": None}]
 
 
 def test_two_stage_fallback_action_no_intent_ranking():
@@ -7048,13 +7023,12 @@ def test_two_stage_fallback_action_no_intent_ranking():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [])
-    assert (response_json['responses'][0]['text'], FALLBACK_MESSAGE)
-    assert (len(response_json['responses'][0]['buttons']), 3)
-    assert (response_json['responses'][0]['buttons'], [
-        {'payload': '/set_context', 'text': 'Trigger'},
+    assert response_json['events'] == []
+    assert response_json['responses'][0]['text'] == FALLBACK_MESSAGE
+    assert len(response_json['responses'][0]['buttons']) == 3
+    assert response_json['responses'][0]['buttons'] == [{'payload': '/set_context', 'text': 'Trigger'},
         {'payload': '/send_mail{"kairon_user_msg": "welcome new user"}', 'text': 'Mail me'},
-        {'payload': '/send_mail{"kairon_user_msg": "get intents"}', 'text': 'Mail me'}])
+        {'payload': '/send_mail{"kairon_user_msg": "get intents"}', 'text': 'Mail me'}]
 
 
 def test_two_stage_fallback_intent_deleted():
@@ -7160,19 +7134,19 @@ def test_two_stage_fallback_intent_deleted():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [])
-    assert (len(response_json['responses'][0]['buttons']), 2)
-    assert (response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
-                                                       {"text": "Mail me", "payload": "/send_mail"}])
+    assert response_json['events'] == []
+    assert len(response_json['responses'][0]['buttons'])== 2
+    assert response_json['responses'][0]['buttons'], [{"text": "Trigger", "payload": "/set_context"},
+                                                       {"text": "Mail me", "payload": "/send_mail"}]
 
     config = KaironTwoStageFallbackAction.objects(bot=bot, user=user).get()
     config.trigger_rules = None
     config.save()
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json, {'events': [], 'responses': [
+    assert response_json == {'events': [], 'responses': [
         {'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': "utter_default",
-         'response': "utter_default", 'image': None, 'attachment': None}]})
+         'response': "utter_default", 'image': None, 'attachment': None}]}
 
 
 def test_bot_response_action():
@@ -7285,14 +7259,12 @@ def test_bot_response_action():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': {'response': 'utter_greet'}}])
-    assert (
-        response_json['responses'],
-        [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+         'value': {'response': 'utter_greet'}}]
+    assert response_json['responses'] == [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
           'response': 'utter_greet', 'image': None, 'attachment': None}
-         ])
+         ]
 
 
 def test_bot_response_action_empty_response_in_domain():
@@ -7405,13 +7377,12 @@ def test_bot_response_action_empty_response_in_domain():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': {'response': 'utter_greet'}}])
-    assert (response_json['responses'],
-            [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+         'value': {'response': 'utter_greet'}}]
+    assert response_json['responses'] ==     [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
               'response': 'utter_greet', 'image': None, 'attachment': None}
-             ])
+             ]
 
 
 @responses.activate
@@ -7544,25 +7515,23 @@ def test_bot_response_action_rephrase_enabled():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': {'text': "Greetings and welcome to kairon!!"}}])
-    assert (response_json['responses'],
-            [{'text': "Greetings and welcome to kairon!!", 'buttons': [], 'elements': [], 'custom': {},
+         'value': {'text': "Greetings and welcome to kairon!!"}}]
+    assert response_json['responses'] == [{'text': "Greetings and welcome to kairon!!", 'buttons': [], 'elements': [], 'custom': {},
               'template': None,
               'response': None, 'image': None, 'attachment': None}
-             ])
+             ]
 
     request_object["domain"]["responses"]["utter_greet"] = [{"custom": {"type": "button", "text": "Greet"}}]
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': {'response': 'utter_greet'}}])
-    assert (response_json['responses'],
-            [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+         'value': {'response': 'utter_greet'}}]
+    assert response_json['responses'] == [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
               'response': 'utter_greet', 'image': None, 'attachment': None}
-             ])
+             ]
 
 
 @responses.activate
@@ -7693,26 +7662,24 @@ def test_bot_response_action_rephrase_failure():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': {'response': 'utter_greet'}}])
-    assert (response_json['responses'],
-            [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+         'value': {'response': 'utter_greet'}}]
+    assert response_json['responses']  == [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
               'response': 'utter_greet', 'image': None, 'attachment': None}
-             ])
+             ]
     assert len(responses.calls._calls) == 1
 
     secret.value = ""
     secret.save()
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': {'response': 'utter_greet'}}])
-    assert (response_json['responses'],
-            [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+         'value': {'response': 'utter_greet'}}]
+    assert response_json['responses']  == [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
               'response': 'utter_greet', 'image': None, 'attachment': None}
-             ])
+             ]
     assert len(responses.calls._calls) == 1
 
 
@@ -7835,13 +7802,12 @@ def test_bot_response_action_failure():
         response = client.post("/webhook", json=request_object)
 
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': {'response': 'utter_greet'}}])
-    assert (response_json['responses'],
-            [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
+         'value': {'response': 'utter_greet'}}]
+    assert response_json['responses']  == [{'text': None, 'buttons': [], 'elements': [], 'custom': {}, 'template': 'utter_greet',
               'response': 'utter_greet', 'image': None, 'attachment': None}
-             ])
+             ]
 
 
 def test_action_handler_none():
@@ -8022,8 +7988,8 @@ def test_action_handler_exceptions():
     with patch('kairon.actions.handlers.action.ActionHandler.process_actions', mock_process_actions):
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json, {'error': "Custom action 'Action Execution Rejection' rejected execution.",
-                                'action_name': 'Action Execution Rejection'})
+        assert response_json == {'error': "Custom action 'Action Execution Rejection' rejected execution.",
+                                'action_name': 'Action Execution Rejection'}
 
     async def mock_process_actions(*args, **kwargs):
         from rasa_sdk.interfaces import ActionNotFoundException
@@ -8032,9 +7998,8 @@ def test_action_handler_exceptions():
     with patch('kairon.actions.handlers.action.ActionHandler.process_actions', mock_process_actions):
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
-        assert (response_json,
-                {'error': "No registered action found for name 'Action Not Found Exception'.",
-                 'action_name': 'Action Not Found Exception'})
+        assert response_json == {'error': "No registered action found for name 'Action Not Found Exception'.",
+                 'action_name': 'Action Not Found Exception'}
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -8088,13 +8053,11 @@ def test_prompt_action_response_action_with_bot_responses( mock_search, mock_emb
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
 
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[
@@ -8173,13 +8136,11 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions( moc
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
 
     assert mock_completion.call_args.args[1] == 'What kind of language is python?'
     assert mock_completion.call_args.args[
@@ -8266,13 +8227,11 @@ def test_prompt_action_response_action_with_query_prompt( mock_search, mock_embe
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
     print(mock_completion.call_args.kwargs['messages'])
     assert mock_completion.call_args.kwargs['messages'] == [
         {'role': 'system',
@@ -8319,13 +8278,11 @@ def test_prompt_response_action( mock_search, mock_embedding, mock_completion):
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -8367,13 +8324,11 @@ def test_prompt_response_action_with_instructions( mock_search, mock_embedding, 
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
 
 
 @mock.patch.object(GPT3Resources, "invoke", autospec=True)
@@ -8418,13 +8373,11 @@ def test_prompt_response_action_streaming_enabled( mock_search, mock_embedding, 
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
     assert mock_completion.call_args.kwargs == {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant.\n'},
         {'role': 'user',
@@ -8467,14 +8420,12 @@ def test_prompt_response_action_failure( mock_search, mock_embedding, mock_compl
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': DEFAULT_NLU_FALLBACK_RESPONSE}])
-    assert (
-        response_json['responses'],
-        [{'text': DEFAULT_NLU_FALLBACK_RESPONSE, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+         'value': DEFAULT_NLU_FALLBACK_RESPONSE}]
+    assert response_json['responses'] == [{'text': DEFAULT_NLU_FALLBACK_RESPONSE, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
@@ -8518,15 +8469,13 @@ def test_prompt_response_action_connection_error_response_cached( mock_search, m
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': failure_msg}])
-    assert (
-        response_json['responses'],
-        [{'text': failure_msg, 'buttons': [
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': failure_msg}]
+    assert response_json['responses'] == [{'text': failure_msg, 'buttons': [
             {'text': user_msg, 'payload': user_msg},
             {'text': 'python?', 'payload': 'python?'},
             {'text': 'what is python?', 'payload': 'what is python?'}],
-          'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
+          'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
     assert log.exception == 'Connection reset by peer!'
     assert log.is_from_cache
@@ -8572,12 +8521,10 @@ def test_prompt_response_action_exact_match_cached_query( mock_search, mock_embe
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': bot_content}])
-    assert (
-        response_json['responses'],
-        [{'text': bot_content, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
-          'image': None, 'attachment': None}])
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': bot_content}]
+    assert response_json['responses'] == [{'text': bot_content, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+          'image': None, 'attachment': None}]
 
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value).get()
     assert log.llm_logs == [{'message': 'Searching exact match in cache as `enable_response_cache` is enabled.'},
@@ -8621,13 +8568,11 @@ def test_prompt_response_action_connection_error_caching_not_present( mock_searc
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "Did you mean any of the following?"}])
-    assert (
-        response_json['responses'],
-        [{'text': "Did you mean any of the following?", 'buttons': [],
-          'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}])
+         'value': "Did you mean any of the following?"}]
+    assert response_json['responses'] == [{'text': "Did you mean any of the following?", 'buttons': [],
+          'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
 
     mock_embedding.side_effect = [error.APIConnectionError("Connection reset by peer!"), __mock_get_embedding()]
     mock_search.return_value = {'result': []}
@@ -8655,15 +8600,13 @@ def test_prompt_response_action_disabled():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': 'Faq feature is disabled for the bot! Please contact support.'}])
-    assert (
-        response_json['responses'],
-        [{'text': 'Faq feature is disabled for the bot! Please contact support.', 'buttons': [], 'elements': [],
+         'value': 'Faq feature is disabled for the bot! Please contact support.'}]
+    assert response_json['responses'] == [{'text': 'Faq feature is disabled for the bot! Please contact support.', 'buttons': [], 'elements': [],
           'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
     assert log['bot_response'] == 'Faq feature is disabled for the bot! Please contact support.'
     assert log['exception'] == 'Faq feature is disabled for the bot! Please contact support.'
@@ -8684,8 +8627,8 @@ def test_prompt_action_response_action_does_not_exists():
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert (len(response_json['events']), 0)
-    assert (len(response_json['responses']), 0)
+    assert len(response_json['events']) == 0
+    assert len(response_json['responses']) == 0
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -8759,13 +8702,11 @@ def test_prompt_action_response_action_with_static_user_prompt( mock_search, moc
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
 
 
 @responses.activate
@@ -8875,13 +8816,10 @@ def test_prompt_action_response_action_with_action_prompt( mock_search, mock_emb
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
           'image': None, 'attachment': None}]
-    )
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
     assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
                                {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
@@ -8958,14 +8896,11 @@ def test_kairon_faq_response_with_google_search_prompt( mock_google_search, mock
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text,
           'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
           'attachment': None}]
-    )
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
     assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
                                {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
@@ -8995,14 +8930,11 @@ def test_prompt_response_action_with_action_not_found():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
+    assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I'm sorry, I didn't quite understand that. Could you rephrase?"}])
-    assert (
-        response_json['responses'],
-        [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [], 'elements': [],
+         'value': "I'm sorry, I didn't quite understand that. Could you rephrase?"}]
+    assert response_json['responses'] ==        [{'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [], 'elements': [],
           'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
-    )
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
     log['exception'] = 'No action found for given bot and name'
 
@@ -9068,9 +9000,9 @@ def test_prompt_action_dispatch_response_disabled( mock_search, mock_embedding, 
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (response_json['responses'], [])
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == []
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
     assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
                                {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
@@ -9145,13 +9077,12 @@ def test_prompt_action_set_slots( mock_search, mock_slot_set, mock_mock_embeddin
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     print(response_json)
-    assert (response_json['events'],
-            [{'event': 'slot', 'timestamp': None, 'name': 'api_type', 'value': 'filter'},
+    assert response_json['events']  == [{'event': 'slot', 'timestamp': None, 'name': 'api_type', 'value': 'filter'},
              {'event': 'slot', 'timestamp': None, 'name': 'query',
               'value': '{"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}'},
              {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-              'value': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}])
-    assert (response_json['responses'], [])
+              'value': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}]
+    assert response_json['responses'] == []
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
     assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
                                {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
@@ -9220,13 +9151,11 @@ def test_prompt_action_response_action_slot_prompt( mock_search, mock_embedding,
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="SUCCESS").get()
     assert log['llm_logs'] == [{'message': 'Skipping cache lookup as `enable_response_cache` is disabled.'},
                                {'message': 'Skipping response caching as `enable_response_cache` is disabled.'}]
@@ -9291,13 +9220,11 @@ def test_prompt_action_user_message_in_slot( mock_search, mock_embedding, mock_c
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert (response_json['events'], [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}])
-    assert (
-        response_json['responses'],
-        [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+    assert response_json['responses'] == [{'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
           'response': None, 'image': None, 'attachment': None}
-         ])
+         ]
     assert mock_completion.call_args[0][1] == 'Kanban And Scrum Together?'
     assert mock_completion.call_args[0][2] == 'You are a personal assistant.\n'
     assert mock_completion.call_args[0][3] == """

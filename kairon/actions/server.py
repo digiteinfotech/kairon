@@ -3,7 +3,7 @@ from time import time
 
 from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI
-from fastapi import Request
+from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -31,7 +31,7 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.actions.handlers.action import ActionHandler
-from kairon.api.models import Response, ActionResponse
+from kairon.api.models import Response
 from kairon.exceptions import AppException
 from ..shared.account.processor import AccountProcessor
 from ..shared.utils import Utility
@@ -285,7 +285,7 @@ async def post():
     return {"message": "Kairon Action Server Up and Running"}
 
 
-@action.post("/webhook", response_model=ActionResponse)
+@action.post("/webhook")
 async def post(request_json: dict):
     logging.debug(request_json)
 
@@ -293,13 +293,13 @@ async def post(request_json: dict):
     try:
         result = await ActionHandler.process_actions(request_json)
         if result:
-            result = ActionResponse(**result)
+            result = JSONResponse(status_code=status.HTTP_200_OK,content=result)
         return result
     except ActionExecutionRejection as e:
         logger.debug(e)
         body = {"error": e.message, "action_name": e.action_name}
-        return ActionResponse(error_code=400, success=False, **body)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content=body)
     except ActionNotFoundException as e:
         logger.error(e)
         body = {"error": e.message, "action_name": e.action_name}
-        return ActionResponse(error_code=400, success=False, **body)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content=body)
