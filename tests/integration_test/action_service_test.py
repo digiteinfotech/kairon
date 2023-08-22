@@ -3011,7 +3011,10 @@ def test_form_validation_action_valid_slot_value():
             {'script': semantic_expression,
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
-                               'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                               'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {
+			'EMAIL': 'uditpandey@digite.com',
+			'FIRSTNAME': 'udit'
+		},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -3074,7 +3077,10 @@ def test_form_validation_action_with_custom_value():
             {'script': semantic_expression,
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
-                               'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                               'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [],
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
+                                    'FIRSTNAME': 'udit'
+                                    },
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -3137,7 +3143,10 @@ def test_form_validation_action_with_custom_value_none():
             {'script': semantic_expression,
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
-                               'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                               'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [],
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
+                                    'FIRSTNAME': 'udit'
+                                    },
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -3200,7 +3209,9 @@ def test_form_validation_action_with_form_slot_type_slot():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
                                'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {},
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
+                                    'FIRSTNAME': 'udit'
+                                    },
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -3364,7 +3375,8 @@ def test_form_validation_action_valid_slot_value_with_utterance():
             {'script': semantic_expression,
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'user_id': 'pandey.udit867@gmail.com',
-                               'requested_slot': 'user_id'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                               'requested_slot': 'user_id'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com',
+                                    'FIRSTNAME': 'udit'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -3435,7 +3447,8 @@ def test_form_validation_action_invalid_slot_value():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
                                'requested_slot': 'current_location'},
-                      'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                      'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com',
+                                    'FIRSTNAME': 'udit'},
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -3502,7 +3515,8 @@ def test_form_validation_action_invalid_slot_value_with_utterance():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'profession': 'computer programmer',
                                'requested_slot': 'profession'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}}
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
+                                    'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None}}
         )],
     )
 
@@ -3715,7 +3729,8 @@ def test_form_validation_action_with_is_required_false_and_semantics():
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'current_location': 'Delhi',
                                'requested_slot': 'current_location'}, 'intent': 'test_run', 'chat_log': [],
-                      'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}}
+                      'key_vault': {'EMAIL': 'uditpandey@digite.com',
+                                    'FIRSTNAME': 'udit'}, 'kairon_user_msg': None, 'session_started': None}}
         )],
     )
 
@@ -3873,7 +3888,9 @@ def test_form_validation_action_with_is_required_true_and_semantics():
             {'script': semantic_expression,
              'data': {'sender_id': 'default', 'user_message': 'get intents',
                       'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'location': 'Mumbai',
-                               'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {},
+                               'requested_slot': 'location'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com',
+                                    'FIRSTNAME': 'udit'
+                                    },
                       'kairon_user_msg': None, 'session_started': None}}
         )],
     )
@@ -6332,8 +6349,6 @@ def test_process_razorpay_action():
         contact=CustomActionRequestParameters(value="contact", parameter_type=ActionParameterType.slot),
         bot=bot, user="udit.pandey@digite.com"
     ).save()
-    KeyVault(key="API_KEY", value="asdfghjkertyuio", bot=bot, user="user").save()
-    KeyVault(key="API_SECRET", value="sdfghj345678dfghj", bot=bot, user="user").save()
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["tracker"]["slots"]["amount"] = 11000
