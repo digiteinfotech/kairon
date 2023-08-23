@@ -460,7 +460,8 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
             user_message = event.get("text", "")
             sender_id = event.get("user", "")
             metadata = self.get_metadata(self.request) or {}
-            metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "slack"})
+            metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "slack",
+                             "tabname": "default"})
             channel_id = metadata.get("out_channel")
             thread_id = metadata.get("thread_id")
             conversation_id = self._get_conversation_id(

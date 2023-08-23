@@ -121,12 +121,11 @@ class ChatUtils:
                                 "event.event": {"$in": ["session_started", "user", "bot"]}
                                 }},
                     {"$project": {"sender_id": 1, "event.event": 1, "event.timestamp": 1, "event.text": 1,
-                                  "event.data": 1}},
+                                  "event.data": 1, "tabname": "$event.metadata.tabname"}},
                     {"$sort": {"event.timestamp": 1}},
-                    {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
+                    {"$group": {"_id": {"tabname": "$tabname"}, "events": {"$push": "$event"}}},
+                    {"$project": {"_id": 0, "tabname": "$_id.tabname", "events": "$events"}}
                 ]))
-                if events:
-                    events = events[0]['events']
         except ServerSelectionTimeoutError as e:
             logger.error(e)
             message = f'Failed to retrieve conversation: {e}'
@@ -163,8 +162,10 @@ class ChatUtils:
     @staticmethod
     def __get_metadata(account: int, bot: Text, is_integration_user: bool = False, metadata: Dict = None):
         default_metadata = {"is_integration_user": is_integration_user, "bot": bot, "account": account,
-                    "channel_type": "chat_client"}
+                            "channel_type": "chat_client"}
         if not metadata:
-           metadata = {}
+            metadata = {}
+        if not metadata.get("tabname"):
+            metadata["tabname"] = "default"
         metadata.update(default_metadata)
         return metadata

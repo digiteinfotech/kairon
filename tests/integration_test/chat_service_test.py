@@ -379,7 +379,8 @@ class TestChatServer(AsyncHTTPTestCase):
                 request_body = {
                     "data": "Hi",
                     "metadata": {
-                        "name": "test_chat"
+                        "name": "test_chat",
+                        "tabname": "coaching"
                     }
                 }
 
@@ -395,6 +396,7 @@ class TestChatServer(AsyncHTTPTestCase):
                 assert actual['error_code'] == 0
                 metadata = mocked_handle_message.call_args
                 assert metadata.args[0].metadata['name'] == 'test_chat'
+                assert metadata.args[0].metadata['tabname'] == 'coaching'
 
     def test_chat_with_user_with_invalid_metadata(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -1215,7 +1217,7 @@ class TestChatServer(AsyncHTTPTestCase):
         metadata.pop("timestamp")
         assert metadata == {'from': '910123456789', 'id': 'wappmsg.ID',
                             'button': {'text': 'buy now', 'payload': 'buy kairon for 1 billion'}, 'type': 'button',
-                            'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                            'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp', 'tabname': 'default',
                             'bsp_type': 'meta', 'display_phone_number': '910123456789', 'phone_number_id': '12345678'}
         assert whatsapp_msg_handler.call_args[0][4] == bot
 
@@ -1281,7 +1283,10 @@ class TestChatServer(AsyncHTTPTestCase):
         assert whatsapp_msg_handler.call_args[0][2] == '910123456789'
         metadata = whatsapp_msg_handler.call_args[0][3]
         metadata.pop("timestamp")
-        assert metadata == {'from': '910123456789', 'id': 'wappmsg.ID', 'document': {'id': 'sdfghj567'}, 'type': 'document', 'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp', 'bsp_type': 'meta', 'display_phone_number': '910123456789', 'phone_number_id': '12345678'}
+        assert metadata == {'from': '910123456789', 'id': 'wappmsg.ID', 'document': {'id': 'sdfghj567'},
+                            'type': 'document', 'is_integration_user': True, 'bot': bot, 'account': 1,
+                            'channel_type': 'whatsapp', 'bsp_type': 'meta', 'display_phone_number': '910123456789',
+                            'phone_number_id': '12345678', 'tabname': 'default'}
         assert whatsapp_msg_handler.call_args[0][4] == bot
 
     @responses.activate

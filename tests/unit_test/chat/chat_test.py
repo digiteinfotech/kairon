@@ -455,10 +455,15 @@ class TestChat:
         items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
         for item in items:
             item['event']['timestamp'] = time.time()
+            if not item["event"].get("metadata"):
+                item["event"]["metadata"] = {}
+            item["event"]["metadata"] = {"tabname": "coaching"}
         collection.insert_many(items)
         mock_mongo.return_value = mongo_client
         history, message = ChatUtils.get_last_session_conversation(bot, "fshaikh@digite.com")
-        assert len(history) == 2
+        assert len(history) == 1
+        assert history[0]["tabname"] == "coaching"
+        assert len(history[0]["events"]) == 2
         assert message is None
 
     def test_save_channel_config_msteams(self, monkeypatch):

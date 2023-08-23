@@ -74,7 +74,7 @@ class Whatsapp:
         msg = "success"
         payload = json_decode(request.body)
         provider = self.config.get("bsp_type", "meta")
-        metadata.update({"channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": provider})
+        metadata.update({"channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": provider, "tabname": "default"})
         signature = request.headers.get("X-Hub-Signature") or ""
         if provider == "meta":
             if not MessengerHandler.validate_hub_signature(self.config["app_secret"], request.body, signature):
