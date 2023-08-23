@@ -301,6 +301,9 @@ class FormValidationAction(Auditlog):
     validation_semantic = StringField(default=None)
     valid_response = StringField(default=None)
     invalid_response = StringField(default=None)
+    dispatch_slot = BooleanField(default=False)
+    dispatch_type = StringField(default=DispatchType.text.value,
+                                choices=[d_type.value for d_type in DispatchType])
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

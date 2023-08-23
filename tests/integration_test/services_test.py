@@ -10366,6 +10366,24 @@ def test_add_form_slot_not_present():
     assert actual["message"].__contains__('slots not exists: {')
 
 
+def test_add_form_with_invalid_dispatch_type():
+    path = [{'ask_questions': ['please give us your name?'], 'slot': 'name',
+             'slot_set': {'type': 'custom', 'value': 'Mahesh'},
+             'dispatch_type': 'invalid_dispatch_type'}]
+    request = {'name': 'restaurant_form', 'settings': path}
+    response = client.post(
+        f"/api/bot/{pytest.bot}/forms",
+        json=request,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert str(actual['message']).__contains__("value is not a valid enumeration member")
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
 def test_add_form_with_validations():
     response = client.post(
         f"/api/bot/{pytest.bot}/slots",
@@ -10437,12 +10455,16 @@ def test_add_form_with_validations():
     path = [{'ask_questions': ['what is your name?', 'name?'], 'slot': 'name',
              'validation_semantic': name_validation,
              'is_required': True,
+             'dispatch_type': 'text',
+             'dispatch_slot': False,
              'slot_set': {'type': 'custom', 'value': 'Mahesh'},
              'valid_response': 'got it',
              'invalid_response': 'please rephrase'},
             {'ask_questions': ['what is your age?', 'age?'], 'slot': 'age',
              'validation_semantic': age_validation,
              'is_required': True,
+             'dispatch_type': 'json',
+             'dispatch_slot': True,
              'slot_set': {'type': 'current', 'value': 22},
              'valid_response': 'valid entry',
              'invalid_response': 'please enter again'
@@ -10451,7 +10473,7 @@ def test_add_form_with_validations():
              'slot_set': {'type': 'custom', 'value': 'Bangalore'}},
             {'ask_questions': ['what is your occupation?', 'occupation?'], 'slot': 'occupation',
              'slot_set': {'type': 'slot', 'value': 'occupation'},
-             'validation_semantic': occupation_validation, 'is_required': False}]
+             'validation_semantic': occupation_validation, 'is_required': False, 'dispatch_slot': False}]
     request = {'name': 'know_user_form', 'settings': path}
     response = client.post(
         f"/api/bot/{pytest.bot}/forms",
@@ -10497,18 +10519,26 @@ def test_get_form_with_validations():
     assert form['settings'][0]['validation_semantic'] == "if (&& name.contains('i') && name.length() > 4 || " \
                                                          "!name.contains(" ")) {return true;} else {return false;}"
     assert form['settings'][0]['is_required']
+    assert form['settings'][0]['dispatch_type'] == 'text'
+    assert not form['settings'][0]['dispatch_slot']
     assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
     assert form['settings'][1]['validation_semantic'] == "if (age > 10 && age < 70) {return true;} else {return false;}"
     assert form['settings'][1]['is_required']
+    assert form['settings'][1]['dispatch_type'] == 'json'
+    assert form['settings'][1]['dispatch_slot']
     assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': 22}
     assert not form['settings'][2]['validation_semantic']
     assert form['settings'][2]['is_required']
+    assert form['settings'][2]['dispatch_type'] == 'text'
+    assert not form['settings'][2]['dispatch_slot']
     assert form['settings'][2]['slot_set'] == {'type': 'custom', 'value': 'Bangalore'}
     assert form['settings'][3]['validation_semantic'] == \
            "if (occupation in ['teacher', 'programmer', 'student', 'manager'] " \
            "&& !occupation.contains(" ") && occupation.length() > 20) " \
            "{return true;} else {return false;}"
     assert not form['settings'][3]['is_required']
+    assert form['settings'][3]['dispatch_type'] == 'text'
+    assert not form['settings'][3]['dispatch_slot']
     assert form['settings'][3]['slot_set'] == {'type': 'slot', 'value': 'occupation'}
 
 
@@ -10520,11 +10550,13 @@ def test_edit_form_add_validations():
              'slot_set': {'type': 'custom', 'value': 'Mahesh'},
              'mapping': [{'type': 'from_text', 'value': 'user', 'entity': 'name'},
                          {'type': 'from_entity', 'entity': 'name'}],
-             'validation_semantic': name_validation, 'is_required': True},
+             'validation_semantic': name_validation, 'is_required': True, 'dispatch_slot': True},
             {'ask_questions': ['seats required?'], 'slot': 'num_people',
              'mapping': [{'type': 'from_entity', 'intent': ['inform', 'request_restaurant'], 'entity': 'number'}],
              'validation_semantic': num_people_validation,
              'is_required': False,
+             'dispatch_type': 'json',
+             'dispatch_slot': False,
              'valid_response': 'valid value',
              'invalid_response': 'invalid value. please enter again'},
             {'ask_questions': ['type of cuisine?'], 'slot': 'cuisine',
@@ -10539,7 +10571,7 @@ def test_edit_form_add_validations():
              'mapping': [{'type': 'from_text', 'not_intent': ['affirm']},
                          {'type': 'from_intent', 'intent': ['affirm'], 'value': 'no additional preferences'}]},
             {'ask_questions': ['Please give your feedback on your experience so far'], 'slot': 'feedback',
-             'slot_set': {'type': 'custom', 'value': 'Very Nice!'},
+             'slot_set': {'type': 'custom', 'value': 'Very Nice!'}, 'dispatch_type': 'json',
              'mapping': [{'type': 'from_text'},
                          {'type': 'from_entity', 'entity': 'feedback'}]},
             ]
@@ -10635,17 +10667,31 @@ def test_get_form_after_edit():
     assert form['settings'][0]['validation_semantic'] == "if (&& name.contains('i') && name.length() > 4 || " \
                                                          "!name.contains(" ")) {return true;} else {return false;}"
     assert form['settings'][0]['is_required']
+    assert form['settings'][0]['dispatch_type'] == 'text'
+    assert form['settings'][0]['dispatch_slot']
     assert form['settings'][0]['slot_set'] == {'type': 'custom', 'value': 'Mahesh'}
     assert form['settings'][1]['validation_semantic'] == \
            "if (num_people > 1 && num_people < 10) {return true;} else {return false;}"
     assert not form['settings'][1]['is_required']
+    assert form['settings'][1]['dispatch_type'] == 'json'
+    assert not form['settings'][1]['dispatch_slot']
     assert form['settings'][1]['slot_set'] == {'type': 'current', 'value': None}
     assert not form['settings'][2]['validation_semantic']
+    assert not form['settings'][2]['dispatch_slot']
+    assert form['settings'][2]['dispatch_type'] == 'text'
     assert form['settings'][2]['slot_set'] == {'type': 'custom', 'value': 'Indian Cuisine'}
     assert not form['settings'][3]['validation_semantic']
+    assert not form['settings'][3]['dispatch_slot']
+    assert form['settings'][3]['dispatch_type'] == 'text'
     assert form['settings'][3]['slot_set'] == {'type': 'current', 'value': None}
     assert not form['settings'][4]['validation_semantic']
+    assert not form['settings'][4]['dispatch_slot']
+    assert form['settings'][4]['dispatch_type'] == 'text'
     assert form['settings'][4]['slot_set'] == {'type': 'slot', 'value': 'preferences'}
+    assert not form['settings'][5]['validation_semantic']
+    assert not form['settings'][5]['dispatch_slot']
+    assert form['settings'][5]['dispatch_type'] == 'json'
+    assert form['settings'][5]['slot_set'] == {'type': 'custom', 'value': 'Very Nice!'}
 
     response = client.get(
         f"/api/bot/{pytest.bot}/response/all",

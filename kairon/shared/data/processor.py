@@ -4342,7 +4342,9 @@ class MongoProcessor:
                 validation.validation_semantic = validation_semantic
                 validation.valid_response = slots_to_fill.get('valid_response')
                 validation.invalid_response = slots_to_fill.get('invalid_response')
+                validation.dispatch_slot = slots_to_fill.get('dispatch_slot')
                 validation.is_required = slots_to_fill.get('is_required')
+                validation.dispatch_type = slots_to_fill.get('dispatch_type')
                 validation.slot_set.type = slot_set.get('type')
                 validation.slot_set.value = slot_set.get('value')
                 validation.user = user
@@ -4355,6 +4357,8 @@ class MongoProcessor:
                                      valid_response=slots_to_fill.get('valid_response'),
                                      invalid_response=slots_to_fill.get('invalid_response'),
                                      is_required=slots_to_fill.get('is_required'),
+                                     dispatch_type=slots_to_fill.get('dispatch_type'),
+                                     dispatch_slot=slots_to_fill.get('dispatch_slot'),
                                      slot_set=FormSlotSet(**slot_set)).save()
 
         slot_validations_to_delete = existing_validations.difference(slots_required_for_form)
@@ -4422,7 +4426,9 @@ class MongoProcessor:
                     mapping['validation_semantic'] = validations.get('validation_semantic')
                     mapping['valid_response'] = validations.get('valid_response')
                     mapping['invalid_response'] = validations.get('invalid_response')
+                    mapping['dispatch_slot'] = validations.get('dispatch_slot')
                     mapping['is_required'] = validations.get('is_required')
+                    mapping['dispatch_type'] = validations.get('dispatch_type')
                     mapping['slot_set']['type'] = validations["slot_set"].get("type")
                     mapping['slot_set']['value'] = validations["slot_set"].get("value")
                 slot_mapping.append(mapping)
