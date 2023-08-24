@@ -85,6 +85,19 @@ class HttpActionResponse(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
+class PyscriptActionConfig(Auditlog):
+    action_name = StringField(required=True)
+    source_code = StringField(required=True)
+    dispatch_response = BooleanField(default=True)
+    set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+
+@auditlogger.log
+@push_notification.apply
 class HttpActionConfig(Auditlog):
     action_name = StringField(required=True)
     http_url = StringField(required=True)
