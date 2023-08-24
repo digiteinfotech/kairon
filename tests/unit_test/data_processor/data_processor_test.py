@@ -10147,7 +10147,7 @@ class TestMongoProcessor:
             'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
-            'database_action': []
+            'database_action': [], 'pyscript_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -10169,7 +10169,8 @@ class TestMongoProcessor:
             'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
+            'pyscript_action': []
         }
 
     def test_add_complex_story(self):
@@ -10193,7 +10194,7 @@ class TestMongoProcessor:
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'kairon_bot_response': [],
                            'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
-                           'database_action': [],
+                           'database_action': [], 'pyscript_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -11936,6 +11937,7 @@ class TestMongoProcessor:
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
+            'pyscript_action': [],
             'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase']}
 
     def test_delete_non_existing_complex_story(self):
@@ -12043,7 +12045,7 @@ class TestMongoProcessor:
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
-            'database_action': [],
+            'database_action': [], 'pyscript_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',

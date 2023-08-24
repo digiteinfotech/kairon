@@ -128,6 +128,8 @@ events:
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}
+  scripts:
+    url: ${SCRIPT_EVALUATOR_ENDPOINT:"http://localhost:8080/evaluate"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}
