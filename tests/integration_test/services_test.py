@@ -7703,7 +7703,7 @@ def test_list_actions():
                               'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
                               'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [],
-                              'web_search_action': []}
+                              'pyscript_action': [], 'web_search_action': []}
 
     assert actual["success"]
 
@@ -12917,7 +12917,8 @@ def test_add_bot_with_template_name(monkeypatch):
                               'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
                               'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
                               'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-                              'kairon_bot_response': [], 'razorpay_action': [], 'database_action': [], 'actions': []}
+                              'kairon_bot_response': [], 'razorpay_action': [], 'database_action': [], 'actions': [],
+                              'pyscript_action': []}
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
@@ -15415,7 +15416,7 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         match=[
             responses.matchers.json_params_matcher(
                 {"data": {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'}, 
+                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'},
                  "cron_exp": None, "timezone": None})],
     )
 
