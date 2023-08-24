@@ -32,7 +32,7 @@ from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction
+    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -1007,6 +1007,168 @@ class TestActions:
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is None
+
+    @pytest.mark.asyncio
+    async def test_run_pyscript_action_without_action(self, monkeypatch):
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_exception"
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2e",
+                                       status="FAILURE").get()
+        assert log['exception'] == "No pyscript action found for given action and bot"
+
+    @responses.activate
+    @pytest.mark.asyncio
+    async def test_run_pyscript_action(self, monkeypatch):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            action_name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            "POST", Utility.environment['evaluator']['scripts']['url'],
+            json={"success": True, "data": {'data': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}, "message": None,
+                  "error_code": 0}
+        )
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2e",
+                                       status="SUCCESS").get()
+
+        assert actual[0]['value']['data'] == [1, 2, 3, 4, 5]
+        assert actual[0]['value']['total'] == 15
+
+    @responses.activate
+    @pytest.mark.asyncio
+    async def test_run_pyscript_action_with_invalid_response(self, monkeypatch):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_invalid_response"
+        script = """
+        import requests
+        response = requests.get('http://localhost')
+        value = response.json()
+        data = value['data']
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            action_name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.reset()
+        responses.add(
+            "POST", Utility.environment['evaluator']['scripts']['url'],
+            json={"success": False, "data": None,
+                  "message": "Script execution error: import of 'requests' is unauthorized", "error_code": 422}
+        )
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2e",
+                                       status="FAILURE").get()
+        assert log['bot_response'] == 'I have failed to process your request'
+        assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': "Script execution error: import of \'requests\' is unauthorized", \'error_code\': 422}'
+
+
+    @responses.activate
+    @pytest.mark.asyncio
+    async def test_run_pyscript_action_with_interpreter_error(self, monkeypatch):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_interpreter_error"
+        script = """
+        for i in 10
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            action_name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        def raise_custom_exception(request):
+            raise Exception(
+                'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')
+
+        responses.add_callback(
+            "POST", Utility.environment['evaluator']['scripts']['url'], callback=raise_custom_exception,
+        )
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2e",
+                                       status="FAILURE").get()
+        assert log['exception'].__contains__(
+            'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')
 
     @pytest.mark.asyncio
     async def test_run(self, monkeypatch):
