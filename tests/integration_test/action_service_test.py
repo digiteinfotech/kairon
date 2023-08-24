@@ -16,7 +16,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbOperation, DbQuery
+    DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
@@ -50,6 +50,166 @@ def test_index():
     assert result["message"] == "Kairon Action Server Up and Running"
 
 
+    @responses.activate
+    def test_pyscript_action_execution(self):
+        import textwrap
+
+        action_name = "test_pyscript_action_execution"
+        Actions(name=action_name, type=ActionType.pyscript_action.value,
+                bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            action_name=action_name,
+            source_code=script,
+            set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),
+                       SetSlotsFromResponse(name="total_val", value="${data.total}")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        responses.add(
+            "POST", Utility.environment['evaluator']['scripts']['url'],
+            json={"success": True, "data": {'data': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}, "message": None,
+                  "error_code": 0}
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 3)
+        self.assertEqual(len(response_json['responses']), 1)
+        self.assertEqual(response_json['events'], [
+            {"event": "slot", "timestamp": None, "name": "data_val", "value": "[1, 2, 3, 4, 5]"},
+            {"event": "slot", "timestamp": None, "name": "total_val", "value": "15"},
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": {'data': [1, 2, 3, 4, 5], 'i': 5, 'total': 15}}])
+        self.assertEqual(response_json['responses'][0]['text'], {'data': [1, 2, 3, 4, 5], 'i': 5, 'total': 15})
+
+    @responses.activate
+    def test_pyscript_action_execution_with_error(self):
+        import textwrap
+
+        action_name = "test_pyscript_action_execution_with_error"
+        Actions(name=action_name, type=ActionType.pyscript_action.value,
+                bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        script = """
+        for i in 10
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            action_name=action_name,
+            source_code=script,
+            dispatch_response=False,
+            set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),
+                       SetSlotsFromResponse(name="total_val", value="${data.total}")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        def raise_custom_exception(request):
+            raise Exception(
+                'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')
+
+        responses.add_callback(
+            "POST", Utility.environment['evaluator']['scripts']['url'], callback=raise_custom_exception,
+        )
+
+        request_object = {
+            "next_action": action_name,
+            "tracker": {
+                "sender_id": "default",
+                "conversation_id": "default",
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+                "latest_event_time": 1537645578.314389,
+                "followup_action": "action_listen",
+                "paused": False,
+                "events": [{"event1": "hello"}, {"event2": "how are you"}],
+                "latest_input_channel": "rest",
+                "active_loop": {},
+                "latest_action": {},
+            },
+            "domain": {
+                "config": {},
+                "session_config": {},
+                "intents": [],
+                "entities": [],
+                "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+                "responses": {},
+                "actions": [],
+                "forms": {},
+                "e2e_actions": []
+            },
+            "version": "version"
+        }
+        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
+        response_json = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        self.assertEqual(len(response_json['events']), 1)
+        self.assertEqual(response_json['events'], [
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+             'value': 'I have failed to process your request'}])
+
+    @responses.activate
+    def test_http_action_execution(self):
+        action_name = "test_http_action_execution"
+        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+        HttpActionConfig(
+            action_name=action_name,
+            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
+            http_url="http://localhost:8081/mock",
+            request_method="GET",
+            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
+                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
+                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                     HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
+            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
+                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
+                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
+                         HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=False),
+                         HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=False)],
+            set_slots=[SetSlotsFromResponse(name="val_d", value="${data.a.b.d}"),
+                       SetSlotsFromResponse(name="val_d_0", value="${data.a.b.d.0}")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
 @responses.activate
 def test_http_action_execution():
     action_name = "test_http_action_execution"
