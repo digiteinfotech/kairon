@@ -475,6 +475,16 @@ class ActionUtility:
         return parsed_output
 
     @staticmethod
+    def run_pyscript(source_code: Text, raise_err_on_failure: bool = True):
+        endpoint = Utility.environment['evaluator']['scripts']['url']
+        request_body = {"source_code": source_code}
+        resp = ActionUtility.execute_http_request(endpoint, "POST", request_body)
+        if not resp.get('success') and raise_err_on_failure:
+            raise ActionFailure(f'Pyscript evaluation failed: {resp}')
+        result = resp.get('data')
+        return result
+
+    @staticmethod
     def compose_response(response_config: dict, http_response: Any):
         log = []
         response = response_config.get('value')
