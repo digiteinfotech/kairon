@@ -3374,7 +3374,7 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([
             HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
-            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction
+            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction
         ], bot=bot)
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
