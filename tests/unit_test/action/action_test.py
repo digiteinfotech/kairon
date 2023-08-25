@@ -1128,7 +1128,6 @@ class TestActions:
         assert log['bot_response'] == 'I have failed to process your request'
         assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': "Script execution error: import of \'requests\' is unauthorized", \'error_code\': 422}'
 
-
     @responses.activate
     @pytest.mark.asyncio
     async def test_run_pyscript_action_with_interpreter_error(self, monkeypatch):
