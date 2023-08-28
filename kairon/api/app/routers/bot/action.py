@@ -6,7 +6,7 @@ from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
-    RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest
+    RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -63,6 +63,54 @@ async def update_http_action(
     response = {"http_config_id": http_config_id}
     message = "Http action updated!"
     return Response(data=response, message=message)
+
+
+@router.post("/pyscript", response_model=Response)
+async def add_pyscript_action(
+        request_data: PyscriptActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the Pyscript action config
+    """
+    pyscript_config_id = mongo_processor.add_pyscript_action(request_data.dict(), current_user.get_user(),
+                                                             current_user.get_bot())
+    return Response(data={"_id": pyscript_config_id}, message="Action added!")
+
+
+@router.get("/pyscript/{action}", response_model=Response)
+async def get_pyscript_action(
+        action: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns configuration set for the Pyscript action
+    """
+    action_config = mongo_processor.get_pyscript_config(bot=current_user.get_bot(), action=action)
+    return Response(data=action_config)
+
+
+@router.get("/pyscript", response_model=Response)
+async def list_pyscript_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of pyscript actions for bot.
+    """
+    actions = list(mongo_processor.list_pyscript_actions(bot=current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/pyscript", response_model=Response)
+async def update_pyscript_action(
+        request_data: PyscriptActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the pyscript action config
+    """
+    action_id = mongo_processor.update_pyscript_action(request_data=request_data.dict(), user=current_user.get_user(),
+                                                       bot=current_user.get_bot())
+    return Response(data={"_id": action_id}, message="Action updated!")
 
 
 @router.post("/db", response_model=Response)
