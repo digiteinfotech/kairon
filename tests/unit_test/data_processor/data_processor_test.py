@@ -36,14 +36,14 @@ from starlette.requests import Request
 
 from kairon.api import models
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
-    SetSlotsUsingActionResponse, PromptActionConfigRequest, DatabaseActionRequest
+    SetSlotsUsingActionResponse, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
-    DatabaseAction, SetSlotsFromResponse, WebSearchAction
+    DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -942,6 +942,188 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
+
+    def test_add_pyscript_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        pyscript_config_action = PyscriptActionConfig.objects(name=action, bot=bot, status=True).get()
+        assert str(pyscript_config_action.id) == action_id
+        assert pyscript_config_action.name == action
+        assert pyscript_config_action.source_code == script
+        assert not pyscript_config_action.dispatch_response
+
+    def test_add_pyscript_action_with_name_already_exist(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+            set_slots=[SetSlotsUsingActionResponse(name="total", value="${data.total}", evaluation_type="expression")]
+        )
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+
+    def test_add_pyscript_action_with_set_slots(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action_with_set_slots"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+            set_slots=[SetSlotsUsingActionResponse(name="total", value="${data.total}", evaluation_type="expression")]
+        )
+        action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        pyscript_config_action = PyscriptActionConfig.objects(name=action, bot=bot, status=True).get()
+        assert str(pyscript_config_action.id) == action_id
+        assert pyscript_config_action.name == action
+        assert pyscript_config_action.source_code == script
+        assert not pyscript_config_action.dispatch_response
+
+    def test_update_pyscript_action_doesnot_exist(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_update_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5, 6, 7]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+            set_slots=[SetSlotsUsingActionResponse(name="total", value="${data.total}", evaluation_type="expression")]
+        )
+        with pytest.raises(AppException, match='Action with name "test_update_pyscript_action" not found'):
+            processor.update_pyscript_action(pyscript_config.dict(), user, bot)
+
+    def test_update_pyscript_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5, 6, 7]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=True,
+            set_slots=[SetSlotsUsingActionResponse(name="total", value="${data.total}", evaluation_type="expression")]
+        )
+        action_id = processor.update_pyscript_action(pyscript_config.dict(), user, bot)
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        pyscript_config_action = PyscriptActionConfig.objects(name=action, bot=bot, status=True).get()
+        assert pyscript_config_action.name == action
+        assert pyscript_config_action.source_code == script
+        assert pyscript_config_action.dispatch_response
+
+    def test_get_pyscript_config(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5, 6, 7]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = processor.get_pyscript_config(bot, action)
+        assert pyscript_config is not None
+        assert pyscript_config['name'] == action
+        assert pyscript_config['source_code'] == script
+        assert pyscript_config['dispatch_response']
+        assert pyscript_config['set_slots'] == [{'name': 'total', 'value': '${data.total}',
+                                                 'evaluation_type': 'expression'}]
+
+    def test_get_pyscript_config_does_not_exist(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_get_pyscript_config_does_not_exist"
+        script = """
+        data = [1, 2, 3, 4, 5, 6, 7]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Action does not exists!'):
+            processor.get_pyscript_config(bot, action)
+
+    def test_list_pyscript_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        script1 = """
+        data = [1, 2, 3, 4, 5, 6, 7]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        script2 = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        actions = list(processor.list_pyscript_actions(bot, True))
+        assert len(actions) == 2
+        assert actions[0]['name'] == 'test_add_pyscript_action'
+        assert actions[0]['source_code'] == script1
+        assert actions[0]['dispatch_response']
+        assert actions[0]['set_slots'] == [{'name': 'total', 'value': '${data.total}', 'evaluation_type': 'expression'}]
+        assert actions[1]['name'] == 'test_add_pyscript_action_with_set_slots'
+        assert actions[1]['source_code'] == script2
+        assert not actions[1]['dispatch_response']
+        assert actions[1]['set_slots'] == [{'name': 'total', 'value': '${data.total}', 'evaluation_type': 'expression'}]
 
     def test_add_or_overwrite_config_no_existing_config(self):
         bot = 'test_config'
