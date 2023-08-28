@@ -4771,6 +4771,8 @@ class MongoProcessor:
                 Utility.delete_document([WebSearchAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.prompt_action.value:
                 PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
+            elif action.type == ActionType.pyscript_action.value:
+                Utility.delete_document([PyscriptActionConfig], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
