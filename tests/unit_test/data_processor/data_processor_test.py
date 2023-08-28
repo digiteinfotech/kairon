@@ -1125,6 +1125,23 @@ class TestMongoProcessor:
         assert not actions[1]['dispatch_response']
         assert actions[1]['set_slots'] == [{'name': 'total', 'value': '${data.total}', 'evaluation_type': 'expression'}]
 
+    def test_delete_pyscript_action(self):
+        name = 'test_add_pyscript_action'
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+        processor.delete_action(name, bot, user)
+        actions = list(processor.list_pyscript_actions(bot, True))
+        assert len(actions) == 1
+
+    def test_delete_pyscript_action_already_deleted(self):
+        name = 'test_add_pyscript_action'
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Action with name "test_add_pyscript_action" not found'):
+            processor.delete_action(name, bot, user)
+
     def test_add_or_overwrite_config_no_existing_config(self):
         bot = 'test_config'
         user = 'test_config'

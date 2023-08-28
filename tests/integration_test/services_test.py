@@ -1265,6 +1265,7 @@ def test_list_pyscript_actions():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
+    assert len(actual['data']) == 3
     assert actual['data'][0]['name'] == 'test_add_pyscript_action'
     assert actual['data'][0]['source_code'] == script1
     assert actual['data'][0]['dispatch_response']
@@ -1278,6 +1279,56 @@ def test_list_pyscript_actions():
     assert actual['data'][2]['source_code'] == script2
     assert actual['data'][2]['dispatch_response']
     assert actual['data'][2]['set_slots'] == [{'name': 'data', 'value': '${data.data}',
+                                               'evaluation_type': 'expression'}]
+
+
+def test_delete_pyscript_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/test_delete_pyscript_action_not_exists",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "test_delete_pyscript_action_not_exists" not found'
+
+
+def test_delete_pyscript_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/test_add_pyscript_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
+def test_list_pyscript_actions_after_action_deleted():
+    script2 = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert len(actual['data']) == 2
+    assert actual['data'][0]['name'] == 'test_add_pyscript_action_with_set_slots'
+    assert actual['data'][0]['source_code'] == script2
+    assert not actual['data'][0]['dispatch_response']
+    assert actual['data'][0]['set_slots'] == [{'name': 'total', 'value': '${data.total}',
+                                               'evaluation_type': 'expression'}]
+    assert actual['data'][1]['name'] == 'test_add_pyscript_action_case_insensitivity'
+    assert actual['data'][1]['source_code'] == script2
+    assert actual['data'][1]['dispatch_response']
+    assert actual['data'][1]['set_slots'] == [{'name': 'data', 'value': '${data.data}',
                                                'evaluation_type': 'expression'}]
 
 
