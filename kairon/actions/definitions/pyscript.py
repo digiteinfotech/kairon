@@ -34,7 +34,7 @@ class ActionPyscript(ActionsBase):
         :return: PyscriptActionConfig containing configuration for the action as a dict.
         """
         try:
-            pyscript_action_config_dict = PyscriptActionConfig.objects().get(bot=self.bot, action_name=self.name,
+            pyscript_action_config_dict = PyscriptActionConfig.objects().get(bot=self.bot, name=self.name,
                                                                              status=True).to_mongo().to_dict()
             logger.debug("pyscript_action_config: " + str(pyscript_action_config_dict))
             return pyscript_action_config_dict

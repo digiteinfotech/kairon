@@ -61,7 +61,7 @@ class TestActionServer(AsyncHTTPTestCase):
         """
         script = textwrap.dedent(script)
         PyscriptActionConfig(
-            action_name=action_name,
+            name=action_name,
             source_code=script,
             set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),
                        SetSlotsFromResponse(name="total_val", value="${data.total}")],
@@ -127,7 +127,7 @@ class TestActionServer(AsyncHTTPTestCase):
         """
         script = textwrap.dedent(script)
         PyscriptActionConfig(
-            action_name=action_name,
+            name=action_name,
             source_code=script,
             dispatch_response=False,
             set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),

@@ -389,6 +389,29 @@ class PayloadConfig(BaseModel):
         return values
 
 
+class PyscriptActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    source_code: str
+    dispatch_response: bool = True
+    set_slots: List[SetSlotsUsingActionResponse] = []
+
+    @validator("name")
+    def validate_action_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("name is required")
+        return v
+
+    @validator("source_code")
+    def validate_source_code(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("source_code is required")
+        return v
+
+
 class DatabaseActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     query: QueryConfig

@@ -997,6 +997,290 @@ def test_content_upload_api_with_gpt_feature_disabled():
     assert actual["error_code"] == 422
 
 
+def test_add_pyscript_action_empty_name():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": '',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_pyscript_action_empty_source_code():
+    request_body = {
+        "name": 'test_add_pyscript_action_empty_source_code',
+        "source_code": '',
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'source_code'],
+                                  'msg': 'source_code is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_pyscript_action():
+    script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_add_pyscript_action_name_already_exist():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action exists!"
+    assert not actual["success"]
+
+
+def test_add_pyscript_action_with_set_slots():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action_with_set_slots',
+        "source_code": script,
+        "dispatch_response": False,
+        "set_slots": [{"name": "total", "value": "${data.total}", "evaluation_type": "expression"}]
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_add_pyscript_action_case_insensitivity():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY',
+        "source_code": script,
+        "dispatch_response": True,
+        "set_slots": [{"name": "data", "value": "${data.data}", "evaluation_type": "expression"}]
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript/TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Action does not exists!'
+    assert not actual['data']
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript/test_add_pyscript_action_case_insensitivity",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual['data']
+    assert actual["success"]
+
+
+def test_update_pyscript_action_does_not_exist():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_update_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "test_update_pyscript_action" not found'
+    assert not actual["success"]
+
+
+def test_update_pyscript_action():
+    script = """
+    data = [1, 2, 3, 4, 5, 6, 7]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": True,
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated!'
+    assert actual["success"]
+
+
+def test_get_pyscript_action():
+    script = """
+    data = [1, 2, 3, 4, 5, 6, 7]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript/test_add_pyscript_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual['data']['name'] == 'test_add_pyscript_action'
+    assert actual['data']['source_code'] == script
+    assert actual['data']['dispatch_response']
+    assert actual['data']['set_slots'] == []
+
+
+def test_get_pyscript_action_does_not_exist():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript/test_get_pyscript_action_does_not_exist",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual['message'] == 'Action does not exists!'
+    assert not actual["success"]
+
+
+def test_list_pyscript_actions():
+    script1 = """
+    data = [1, 2, 3, 4, 5, 6, 7]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    script2 = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert actual['data'][0]['name'] == 'test_add_pyscript_action'
+    assert actual['data'][0]['source_code'] == script1
+    assert actual['data'][0]['dispatch_response']
+    assert actual['data'][0]['set_slots'] == []
+    assert actual['data'][1]['name'] == 'test_add_pyscript_action_with_set_slots'
+    assert actual['data'][1]['source_code'] == script2
+    assert not actual['data'][1]['dispatch_response']
+    assert actual['data'][1]['set_slots'] == [{'name': 'total', 'value': '${data.total}',
+                                               'evaluation_type': 'expression'}]
+    assert actual['data'][2]['name'] == 'test_add_pyscript_action_case_insensitivity'
+    assert actual['data'][2]['source_code'] == script2
+    assert actual['data'][2]['dispatch_response']
+    assert actual['data'][2]['set_slots'] == [{'name': 'data', 'value': '${data.data}',
+                                               'evaluation_type': 'expression'}]
+
+
 def test_get_client_config_url_with_ip_info(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo_location:

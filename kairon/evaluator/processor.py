@@ -10,9 +10,10 @@ class EvaluatorProcessor:
     @staticmethod
     def evaluate_pyscript(source_code: str):
         response = None
+        message = None
         try:
             response = ActorOrchestrator.run(ActorType.pyscript_runner.value, source_code=source_code)
         except AppException as e:
-            message = f"Failed to evaluate the script: {str(e)}"
+            message = str(e)
             logger.error(message)
-        return response
+        return response, message
