@@ -243,7 +243,7 @@ async def list_public_search_actions(
 
 
 @router.put("/publicsearch", response_model=Response)
-async def update_google_search_action(
+async def update_public_search_action(
         request_data: PublicSearchActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
