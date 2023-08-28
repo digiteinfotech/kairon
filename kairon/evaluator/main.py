@@ -9,7 +9,7 @@ app = FastAPI()
 
 @app.get("/", response_model=Response)
 def index():
-    return {"message": "Running Evaluator"}
+    return {"message": "Running Evaluator Server"}
 
 
 app.include_router(pyscript.router, tags=["Evaluator"])

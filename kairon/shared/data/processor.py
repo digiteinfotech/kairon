@@ -43,7 +43,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery
+    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
@@ -3006,6 +3006,83 @@ class MongoProcessor:
         """
         actions = HttpActionConfig.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
+
+    def add_pyscript_action(self, pyscript_config: Dict, user: str, bot: str):
+        """
+        Adds a new PyscriptActionConfig action.
+        :param pyscript_config: dict object containing configuration for the Http action
+        :param user: user id
+        :param bot: bot id
+        :return: Pyscript configuration id for saved Pyscript action config
+        """
+        Utility.is_valid_action_name(pyscript_config.get("name"), bot, PyscriptActionConfig)
+        set_slots = [SetSlotsFromResponse(**slot) for slot in pyscript_config.get('set_slots')]
+        action_id = PyscriptActionConfig(
+            name=pyscript_config['name'],
+            source_code=pyscript_config['source_code'],
+            dispatch_response=pyscript_config['dispatch_response'],
+            set_slots=set_slots,
+            bot=bot,
+            user=user,
+        ).save().id.__str__()
+        self.add_action(pyscript_config['name'], bot, user, action_type=ActionType.pyscript_action.value,
+                        raise_exception=False)
+        return action_id
+
+    def update_pyscript_action(self, request_data: Dict, user: str, bot: str):
+        """
+        Updates Pyscript configuration.
+        :param request_data: Dict containing configuration to be modified
+        :param user: user id
+        :param bot: bot id
+        :return: Pyscript configuration id for updated Pyscript action config
+        """
+
+        if not Utility.is_exist(PyscriptActionConfig, raise_error=False, name=request_data.get('name'),
+                                bot=bot, status=True):
+            raise AppException(f'Action with name "{request_data.get("name")}" not found')
+        action = PyscriptActionConfig.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in request_data.get('set_slots')]
+        action.update(
+            source_code=request_data['source_code'], set__dispatch_response=request_data['dispatch_response'],
+            set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
+        )
+        return action.id.__str__()
+
+    def get_pyscript_config(self, bot: str, action: str):
+        """
+        Fetches Pyscript action config from collection.
+        :param bot: bot id
+        :param action: action name
+        :return: PyscriptActionConfig object containing configuration for the Pyscript action.
+        """
+        try:
+            pyscript_config_dict = PyscriptActionConfig.objects(bot=bot, name=action, status=True).get()
+            pyscript_config = pyscript_config_dict.to_mongo().to_dict()
+            pyscript_config['_id'] = pyscript_config['_id'].__str__()
+            return pyscript_config
+        except DoesNotExist as ex:
+            logging.exception(ex)
+            raise AppException("Action does not exists!")
+
+    def list_pyscript_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all Pyscript actions from collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of Pyscript actions.
+        """
+        for action in PyscriptActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
+            yield action
 
     def update_db_action(self, request_data: Dict, user: str, bot: str):
         """
