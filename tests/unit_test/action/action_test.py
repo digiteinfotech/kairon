@@ -15,6 +15,7 @@ from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.prompt import ActionPrompt
+from kairon.actions.definitions.pyscript import ActionPyscript
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.web_search import ActionWebSearch
@@ -1012,6 +1013,61 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is None
 
+    def test_get_pyscript_action_config_bot_empty(self):
+        with pytest.raises(ActionFailure, match="No pyscript action found for given action and bot"):
+            ActionPyscript(' ', 'test_get_pyscript_action_config_bot_empty').retrieve_config()
+
+    def test_get_pyscript_action_config_action_empty(self):
+        with pytest.raises(ActionFailure, match="No pyscript action found for given action and bot"):
+            ActionPyscript('test_get_pyscript_action_config_action_empty', ' ').retrieve_config()
+
+    def test_get_pyscript_action_no_bot(self):
+        try:
+            ActionPyscript(bot=None, name="http_action").retrieve_config()
+            assert False
+        except ActionFailure as ex:
+            assert str(ex) == "No pyscript action found for given action and bot"
+
+    def test_get_pyscript_action_no_pyscript_action(self):
+        try:
+            ActionPyscript(bot="bot", name=None).retrieve_config()
+            assert False
+        except ActionFailure as ex:
+            assert str(ex) == "No pyscript action found for given action and bot"
+
+    def test_get_pyscript_action_config(self):
+        import textwrap
+
+        action_name = "test_get_pyscript_action_config"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        expected = PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),
+                       SetSlotsFromResponse(name="total_val", value="${data.total}")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save().to_mongo().to_dict()
+
+        actual = ActionPyscript("5f50fd0a56b698ca10d35d2e", action_name).retrieve_config()
+        assert actual is not None
+        assert expected['name'] == actual['name']
+        assert expected['source_code'] == actual['source_code']
+        assert expected['dispatch_response'] == actual['dispatch_response']
+        assert expected['set_slots'] is not None
+        assert expected['set_slots'][0] == {'name': 'data_val', 'value': '${data.data}',
+                                            'evaluation_type': 'expression'}
+        assert expected['set_slots'][1] == {'name': 'total_val', 'value': '${data.total}',
+                                            'evaluation_type': 'expression'}
+        assert actual['status']
+
     @pytest.mark.asyncio
     async def test_run_pyscript_action_without_action(self, monkeypatch):
         slots = {"bot": "5f50fd0a56b698ca10d35d2e",
@@ -1054,7 +1110,7 @@ class TestActions:
         """
         script = textwrap.dedent(script)
         PyscriptActionConfig(
-            action_name=action_name,
+            name=action_name,
             source_code=script,
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
@@ -1100,7 +1156,7 @@ class TestActions:
         """
         script = textwrap.dedent(script)
         PyscriptActionConfig(
-            action_name=action_name,
+            name=action_name,
             source_code=script,
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
@@ -1143,7 +1199,7 @@ class TestActions:
         """
         script = textwrap.dedent(script)
         PyscriptActionConfig(
-            action_name=action_name,
+            name=action_name,
             source_code=script,
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
