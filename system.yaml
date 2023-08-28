@@ -115,6 +115,7 @@ events:
     multilingual: ${MULTILINGUAL_TASK_DEFINITION}
     data_generator: ${DATA_GENERATION_TASK_DEFINITION}
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
+    public_search: ${PUBLIC_SEARCH_TASK_DEFINITION}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}

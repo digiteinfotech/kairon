@@ -15,7 +15,8 @@ from .exception import ActionFailure
 from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
-from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes
+from ..cloud.utils import CloudUtility
+from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
 from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
@@ -391,6 +392,21 @@ class ActionUtility:
                 search_results = service.cse().list(q=search_term, cx=search_engine_id, **kwargs).execute()
                 for item in search_results.get('items') or []:
                     results.append({'title': item['title'], 'text': item['snippet'], 'link': item['link']})
+        except Exception as e:
+            logger.exception(e)
+            raise ActionFailure(e)
+        return results
+
+    @staticmethod
+    def perform_public_search(search_term: str, **kwargs):
+        results = []
+        website = kwargs.pop("website", None)
+        try:
+            search_term = f"{search_term} site: {website}" if website else search_term
+            request_body = {"text": search_term, "top_n": kwargs.get("top_n")}
+            search_results = CloudUtility.trigger_lambda(EventClass.public_search, request_body)
+            for item in search_results or []:
+                results.append({'title': item.title, 'text': item.body, 'link': item.href})
         except Exception as e:
             logger.exception(e)
             raise ActionFailure(e)

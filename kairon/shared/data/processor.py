@@ -43,7 +43,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery
+    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PublicSearchAction
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
@@ -3195,6 +3195,70 @@ class MongoProcessor:
             action.pop('status')
             yield action
 
+    def add_public_search_action(self, action_config: dict, bot: Text, user: Text):
+        """
+        Add a new public search action
+
+        :param action_config: public search action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        Utility.is_valid_action_name(action_config.get("name"), bot, PublicSearchAction)
+        action = PublicSearchAction(
+            name=action_config['name'],
+            website=action_config.get('website', None),
+            failure_response=action_config.get('failure_response'),
+            top_n=action_config.get('top_n'),
+            dispatch_response=action_config.get('dispatch_response', True),
+            set_slot=action_config.get('set_slot'),
+            bot=bot,
+            user=user,
+        ).save().id.__str__()
+        self.add_action(
+            action_config['name'], bot, user, action_type=ActionType.public_search_action.value,
+            raise_exception=False
+        )
+        return action
+
+    def edit_public_search_action(self, action_config: dict, bot: Text, user: Text):
+        """
+        Update public search action with new values.
+        :param action_config: public search action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(PublicSearchAction, raise_error=False, name=action_config.get('name'), bot=bot, status=True):
+            raise AppException(f'Public search action with name "{action_config.get("name")}" not found')
+        action = PublicSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
+        action.website = action_config.get('website', None)
+        action.failure_response = action_config.get('failure_response')
+        action.top_n = action_config.get('top_n')
+        action.dispatch_response = action_config.get('dispatch_response', True)
+        action.set_slot = action_config.get('set_slot')
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        action.save()
+
+    def list_public_search_actions(self, bot: Text, with_doc_id: bool = True):
+        """
+        List public search actions
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        for action in PublicSearchAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('timestamp')
+            action.pop('status')
+            yield action
+
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
         """
         Adds slot if it doesn't exist, updates slot if it exists
@@ -3257,6 +3321,7 @@ class MongoProcessor:
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)
             action_with_slot = GoogleSearchAction.objects(bot=bot, status=True, set_slot=slot_name)
+            public_search_with_slot = PublicSearchAction.objects(bot=bot, status=True, set_slot=slot_name)
             stories = Stories.objects(bot=bot, status=True, events__name=slot_name, events__type__ = SlotSet.type_name)
             training_examples = TrainingExamples.objects(bot=bot, status=True, entities__entity= slot_name)
             multi_stories = MultiflowStories.objects(bot=bot, status=True, events__connections__type__=StoryStepType.slot, events__connections__name=slot_name)
@@ -3265,6 +3330,8 @@ class MongoProcessor:
                 raise AppException(f'Slot is attached to form: {[form["name"] for form in forms_with_slot]}')
             elif len(action_with_slot) > 0:
                 raise AppException(f'Slot is attached to action: {[action["name"] for action in action_with_slot]}')
+            elif len(public_search_with_slot) > 0:
+                raise AppException(f'Slot is attached to public search action: {[action["name"] for action in public_search_with_slot]}')
             elif len(stories) > 0:
                 raise AppException(f'Slot is attached to story: {[story["block_name"] for story in stories]}')
             elif len(training_examples) > 0:
@@ -4603,6 +4670,8 @@ class MongoProcessor:
                 Utility.delete_document([EmailActionConfig], action_name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.google_search_action.value:
                 Utility.delete_document([GoogleSearchAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.public_search_action.value:
+                Utility.delete_document([PublicSearchAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.jira_action.value:
                 Utility.delete_document([JiraAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.http_action.value:

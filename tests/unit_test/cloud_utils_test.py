@@ -221,6 +221,30 @@ class TestCloudUtils:
                 resp = CloudUtility.trigger_lambda(EventClass.data_importer, {"BOT": "test", "USER": "test_user"})
                 assert resp == response
 
+    def test_trigger_lambda_public_search(self):
+        mock_env = Utility.environment.copy()
+        mock_env['events']['executor']['type'] = 'aws_lambda'
+        mock_env['events']['task_definition'][EventClass.public_search] = 'public_search'
+        response_payload = json.dumps({'response': "Query submittes"}).encode("utf-8")
+        response = {'StatusCode': 200, 'FunctionError': 'Unhandled',
+                    'LogResult': 'U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=',
+                    'ExecutedVersion': '$LATEST',
+                    'Payload': StreamingBody(io.BytesIO(response_payload),
+                                             len(response_payload))}
+
+        def __mock_make_api_call(self, operation_name, kwargs):
+            assert kwargs == {'FunctionName': 'public_search', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
+                              'Payload': b'{"text": "demo", "website": "www.google.com", "top_n": 3}'}
+            if operation_name == 'Invoke':
+                return response
+
+            raise Exception("Invalid operation_name")
+
+        with patch.dict(Utility.environment, mock_env):
+            with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
+                resp = CloudUtility.trigger_lambda(EventClass.public_search, {"text": "demo", "website": "www.google.com", "top_n": 3})
+                assert resp == response
+
     def test_trigger_lambda_delete_history(self):
         mock_env = Utility.environment.copy()
         mock_env['events']['executor']['type'] = 'aws_lambda'

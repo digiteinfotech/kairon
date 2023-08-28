@@ -43,7 +43,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
-    DatabaseAction, SetSlotsFromResponse
+    DatabaseAction, SetSlotsFromResponse, PublicSearchAction, PromptAction
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -10147,7 +10147,7 @@ class TestMongoProcessor:
             'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
-            'database_action': []
+            'database_action': [], 'public_search_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -10169,7 +10169,7 @@ class TestMongoProcessor:
             'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [], 'public_search_action': []
         }
 
     def test_add_complex_story(self):
@@ -10193,7 +10193,7 @@ class TestMongoProcessor:
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'kairon_bot_response': [],
                            'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
-                           'database_action': [],
+                           'database_action': [], 'public_search_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -11936,6 +11936,7 @@ class TestMongoProcessor:
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
+            'public_search_action': [],
             'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase']}
 
     def test_delete_non_existing_complex_story(self):
@@ -12043,7 +12044,7 @@ class TestMongoProcessor:
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
-            'database_action': [],
+            'database_action': [], 'public_search_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
@@ -12708,6 +12709,115 @@ class TestMongoProcessor:
             Actions.objects(name='google_custom_search', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
             GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
+
+    def test_add_public_search_action(self, monkeypatch):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'public_custom_search',
+            "dispatch_response": False, "set_slot": "public_search_result",
+            'failure_response': 'I have failed to process your request',
+            'website': 'https://www.google.com',
+        }
+        assert processor.add_public_search_action(action, bot, user)
+        assert Actions.objects(name='public_custom_search', status=True, bot=bot).get()
+        assert PublicSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
+
+        def __mock_get_slots(*args, **kwargs):
+            return "some_mock_value"
+
+        monkeypatch.setattr(BaseQuerySet, "get", __mock_get_slots)
+        with pytest.raises(AppException, match=re.escape("Slot is attached to public search action: ['public_custom_search']")):
+            processor.delete_slot("public_search_result", bot, user)
+
+    def test_add_public_search_action_duplicate(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'public_custom_search',
+            "dispatch_response": False, "set_slot": "public_search_result",
+            'failure_response': 'I have failed to process your request',
+            'website': 'https://www.google.com',
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_public_search_action(action, bot, user)
+        assert Actions.objects(name='public_custom_search', status=True, bot=bot).get()
+        assert PublicSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
+
+    def test_add_public_search_action_existing_name(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        action = {
+            'name': 'test_action',
+            'failure_response': 'I have failed to process your request',
+        }
+        with pytest.raises(AppException, match='Action exists!'):
+            processor.add_public_search_action(action, bot, user)
+        assert Actions.objects(name='test_action', status=True, bot=bot).get()
+
+    def test_list_public_search_action_masked(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_public_search_actions(bot))
+        actions[0].pop('_id')
+        assert actions[0]['name'] == 'public_custom_search'
+        assert actions[0]['failure_response'] == 'I have failed to process your request'
+        assert actions[0]['website'] == 'https://www.google.com'
+        assert actions[0]['top_n'] == 1
+        assert not actions[0]['dispatch_response']
+        assert actions[0]['set_slot'] == "public_search_result"
+
+    def test_edit_public_search_action_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'custom_search',
+            'failure_response': 'I have failed to process your request',
+        }
+        with pytest.raises(AppException, match='Public search action with name "custom_search" not found'):
+            processor.edit_public_search_action(action, bot, user)
+        assert Actions.objects(name='public_custom_search', status=True, bot=bot).get()
+        assert PublicSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
+
+    def test_edit_public_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'public_custom_search',
+            "dispatch_response": False, "set_slot": "public_search_result",
+            'failure_response': 'Failed to perform public search',
+            'website': 'https://nimblework.com',
+        }
+        assert not processor.edit_public_search_action(action, bot, user)
+        assert Actions.objects(name='public_custom_search', status=True, bot=bot).get()
+        assert PublicSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
+
+    def test_list_public_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        actions = list(processor.list_public_search_actions(bot, False))
+        assert actions[0].get('_id') is None
+        assert actions[0]['name'] == 'public_custom_search'
+        assert actions[0]['failure_response'] == 'Failed to perform public search'
+        assert actions[0]['website'] == 'https://nimblework.com'
+        assert actions[0]['num_results'] == 1
+        assert actions[0]['dispatch_response']
+        assert not actions[0].get('set_slot')
+
+    def test_delete_public_search_action(self):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        processor.delete_action('public_custom_search', bot, user)
+        with pytest.raises(DoesNotExist):
+            Actions.objects(name='public_custom_search', status=True, bot=bot).get()
+        with pytest.raises(DoesNotExist):
+            PublicSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
 
     def test_add_hubspot_forms_action(self):
         processor = MongoProcessor()

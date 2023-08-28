@@ -1,5 +1,6 @@
 import json
 import os
+from unittest import mock
 
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
@@ -13,9 +14,11 @@ from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.prompt import ActionPrompt
+from kairon.actions.definitions.public_search import ActionPublicSearch
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
+from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
@@ -32,7 +35,7 @@ from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction
+    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PublicSearchAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -2176,6 +2179,22 @@ class TestActions:
         with pytest.raises(ActionFailure, match="No Google search action found for given action and bot"):
             ActionGoogleSearch(bot, 'custom_search_action').retrieve_config()
 
+    def test_get_public_search_action_config(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='public_search_action', type=ActionType.public_search_action.value, bot=bot, user=user).save()
+        PublicSearchAction(name='public_search_action', website="www.google.com", bot=bot, user=user).save()
+        actual = ActionUtility.get_action(bot, 'public_search_action')
+        assert actual['type'] == ActionType.public_search_action.value
+        actual = ActionPublicSearch(bot, 'public_search_action').retrieve_config()
+        assert actual['name'] == 'public_search_action'
+        assert actual['website'] == "www.google.com"
+
+    def test_get_public_search_action_config_not_exists(self):
+        bot = 'test_action_server'
+        with pytest.raises(ActionFailure, match="No Public search action found for given action and bot"):
+            ActionPublicSearch(bot, 'custom_search_action').retrieve_config()
+
     def test_get_jira_action_not_exists(self):
         bot = 'test_action_server'
         with pytest.raises(ActionFailure, match="No Jira action found for given action and bot"):
@@ -2508,6 +2527,69 @@ class TestActions:
             'text': 'Kanban visualizes both the process (the workflow) and the actual work passing through that process. The goal of Kanban is to identify potential bottlenecks in ...',
             'link': 'https://www.digite.com/kanban/what-is-kanban/'
         }]
+
+    def test_public_search_action(self, monkeypatch):
+        from collections import namedtuple
+
+        Utility.load_environment()
+        search_term = "What is data science?"
+        website = "https://www.w3schools.com/"
+        top_n = 1
+        MockSearchResult = namedtuple('MockSearchResult', ['href', 'title', 'body'])
+
+        def _trigger_lambda(*args, **kwargs):
+            assert args == ("public_search", {"text": "What is data science? site: https://www.w3schools.com/", "top_n": 1})
+            search_results = [
+                MockSearchResult(
+                    href="https://www.w3schools.com/datascience/ds_introduction.asp",
+                    title="Data Science Introduction - W3Schools",
+                    body="Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.")
+                ]
+            return search_results
+
+        monkeypatch.setattr(CloudUtility, 'trigger_lambda', _trigger_lambda)
+        result = ActionUtility.perform_public_search(search_term, top_n=top_n, website=website)
+        assert result == [{
+            'title': 'Data Science Introduction - W3Schools',
+            'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'link': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+        }]
+
+    def test_public_search_action_without_website(self, monkeypatch):
+        from collections import namedtuple
+
+        Utility.load_environment()
+        search_term = "What is AI?"
+        top_n = 2
+        MockSearchResult = namedtuple('MockSearchResult', ['href', 'title', 'body'])
+
+        def _trigger_lambda(*args, **kwargs):
+            assert args == ("public_search", {"text": search_term, "top_n": 2})
+            search_results = [
+                MockSearchResult(
+                    href="https://en.wikipedia.org/wiki/Artificial_intelligence",
+                    title="Artificial intelligence - Wikipedia",
+                    body="Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals."),
+                MockSearchResult(
+                    href="https://www.britannica.com/technology/artificial-intelligence",
+                    title="Artificial intelligence (AI) - Britannica",
+                    body="artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.")
+            ]
+            return search_results
+
+        monkeypatch.setattr(CloudUtility, 'trigger_lambda', _trigger_lambda)
+        result = ActionUtility.perform_public_search(search_term, top_n=top_n)
+        assert result == [
+            {'title': 'Artificial intelligence - Wikipedia', 'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence', 'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.'},
+            {'title': 'Artificial intelligence (AI) - Britannica', 'link': 'https://www.britannica.com/technology/artificial-intelligence', 'text': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.'}
+        ]
+
+    def test_public_search_action_error(self):
+        search_term = "What is science?"
+        website = "www.google.com"
+        top_n = 1
+        with pytest.raises(ActionFailure):
+            ActionUtility.perform_public_search(search_term, website=website, top_n=top_n)
 
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'

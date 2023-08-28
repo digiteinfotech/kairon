@@ -733,6 +733,21 @@ class GoogleSearchActionRequest(BaseModel):
         return v
 
 
+class PublicSearchActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    website: str = None
+    failure_response: str = 'I have failed to process your request.'
+    top_n: int = 1
+    dispatch_response: bool = True
+    set_slot: str = None
+
+    @validator("top_n")
+    def validate_top_n(cls, v, values, **kwargs):
+        if not v or v < 1:
+            raise ValueError("top_n must be greater than or equal to 1!")
+        return v
+
+
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
     smtp_url: str
