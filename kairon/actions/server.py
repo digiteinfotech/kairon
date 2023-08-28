@@ -280,13 +280,8 @@ async def get():
     return {"message": "Kairon Action Server Up and Running"}
 
 
-@action.get("/")
-async def post():
-    return {"message": "Kairon Action Server Up and Running"}
-
-
 @action.post("/webhook")
-async def post(request_json: dict):
+async def webhook(request_json: dict):
     logging.debug(request_json)
 
     utils.check_version_compatibility(request_json.get("version"))
