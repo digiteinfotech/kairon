@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from kairon.exceptions import AppException
@@ -646,29 +648,30 @@ class TestTrainingDataValidator:
         assert len(error_summary['zendesk_actions']) == 2
         assert len(error_summary['pipedrive_leads_actions']) == 3
         assert len(error_summary['prompt_actions']) == 46
+        required_fields_error = error_summary["prompt_actions"][18]
+        assert re.match(r"Required fields .* not found in action: prompt_action_with_no_llm_prompts",
+                        required_fields_error)
+        del error_summary["prompt_actions"][18]
         assert error_summary['prompt_actions'] == [
             'top_results should not be greater than 30 and of type int: prompt_action_invalid_query_prompt',
             'similarity_threshold should be within 0.3 and 1 and of type int or float: prompt_action_invalid_query_prompt',
-            'System prompt is required', 'Query prompt must have static source',
-            'Name cannot be empty', 'System prompt is required',
+            'System prompt is required', 'Query prompt must have static source', 'Name cannot be empty',
+            'System prompt is required',
             'num_bot_responses should not be greater than 5 and of type int: prompt_action_invalid_num_bot_responses',
             'data field in prompts should of type string.', 'data is required for static prompts',
             'Temperature must be between 0.0 and 2.0!', 'max_tokens must be between 5 and 4096!',
             'top_p must be between 0.0 and 1.0!', 'n must be between 1 and 5!',
             'presence_penality must be between -2.0 and 2.0!', 'frequency_penalty must be between -2.0 and 2.0!',
             'logit_bias must be a dictionary!', 'System prompt must have static source',
-            'Only one bot_content source can be present',
-            "Required fields {'llm_prompts', 'name'} not found in action: prompt_action_with_no_llm_prompts",
-            'Duplicate action found: test_add_prompt_action_one',
-            'Invalid action configuration format. Dictionary expected.',
-            'Temperature must be between 0.0 and 2.0!', 'max_tokens must be between 5 and 4096!',
-            'top_p must be between 0.0 and 1.0!', 'n must be between 1 and 5!',
+            'Only one bot_content source can be present', 'Duplicate action found: test_add_prompt_action_one',
+            'Invalid action configuration format. Dictionary expected.', 'Temperature must be between 0.0 and 2.0!',
+            'max_tokens must be between 5 and 4096!', 'top_p must be between 0.0 and 1.0!',
+            'n must be between 1 and 5!',
             'Stop must be None, a string, an integer, or an array of 4 or fewer strings or integers.',
-            'presence_penality must be between -2.0 and 2.0!',
-            'frequency_penalty must be between -2.0 and 2.0!',
-            'logit_bias must be a dictionary!', 'Only one system prompt can be present',
-            'Invalid prompt type', 'Invalid prompt source', 'Only one system prompt can be present',
-            'Invalid prompt type', 'Invalid prompt source', 'type in LLM Prompts should be of type string.',
+            'presence_penality must be between -2.0 and 2.0!', 'frequency_penalty must be between -2.0 and 2.0!',
+            'logit_bias must be a dictionary!', 'Only one system prompt can be present', 'Invalid prompt type',
+            'Invalid prompt source', 'Only one system prompt can be present', 'Invalid prompt type',
+            'Invalid prompt source', 'type in LLM Prompts should be of type string.',
             'source in LLM Prompts should be of type string.', 'Instructions in LLM Prompts should be of type string.',
             'Only one system prompt can be present', 'Data must contain action name',
             'Only one system prompt can be present', 'Data must contain slot name',
