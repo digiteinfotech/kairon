@@ -255,31 +255,7 @@ def test_index():
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': "Script execution error: import of \'requests\' is unauthorized", \'error_code\': 422}'
 
-    @responses.activate
-    def test_http_action_execution(self):
-        action_name = "test_http_action_execution"
-        Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        KeyVault(key="FIRSTNAME", value="udit", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-        HttpActionConfig(
-            action_name=action_name,
-            response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
-            http_url="http://localhost:8081/mock",
-            request_method="GET",
-            headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
-                     HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
-                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
-                     HttpActionRequestBody(key="email", parameter_type="key_vault", value="EMAIL", encrypt=False)],
-            params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
-                         HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
-                         HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
-                         HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=False),
-                         HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=False)],
-            set_slots=[SetSlotsFromResponse(name="val_d", value="${data.a.b.d}"),
-                       SetSlotsFromResponse(name="val_d_0", value="${data.a.b.d.0}")],
-            bot="5f50fd0a56b698ca10d35d2e",
-            user="user"
-        ).save()
+
 @responses.activate
 def test_http_action_execution():
     action_name = "test_http_action_execution"
