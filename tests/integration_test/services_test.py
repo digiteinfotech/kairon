@@ -1338,7 +1338,6 @@ def test_delete_payload_content():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["message"] == "Record deleted!"
     assert actual["data"] is None
@@ -12220,7 +12219,7 @@ def test_add_public_search_exists(monkeypatch):
     assert actual["message"] == 'Action exists!'
 
 
-def test_add_public_search_invalid_parameters(monkeypatch):
+def test_add_public_search_invalid_parameters_top_n(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
@@ -12242,6 +12241,30 @@ def test_add_public_search_invalid_parameters(monkeypatch):
     assert actual["error_code"] == 422
     assert actual["message"] == [
         {'loc': ['body', 'top_n'], 'msg': 'top_n must be greater than or equal to 1!', 'type': 'value_error'}]
+
+
+def test_add_public_search_invalid_parameters_name(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    action = {
+        'name': '',
+        "top_n": 1,
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/publicsearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
 
 
 def test_edit_public_search_action_not_exists():
@@ -12285,6 +12308,7 @@ def test_list_public_search_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 1
@@ -12293,9 +12317,9 @@ def test_list_public_search_action():
     assert actual["data"][0]['name'] == 'public_custom_search'
     assert actual["data"][0]['failure_response'] == 'Failed to perform public search'
     assert actual['data'][0]['website'] == 'https://nimblework.com'
-    assert actual["data"][0]['num_results'] == 1
-    assert actual["data"][0]['dispatch_response']
-    assert not actual["data"][0].get('set_slot')
+    assert actual["data"][0]['top_n'] == 1
+    assert not actual["data"][0]['dispatch_response']
+    assert actual["data"][0].get('set_slot')
 
 
 def test_delete_public_search_action():

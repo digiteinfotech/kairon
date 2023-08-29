@@ -2591,6 +2591,35 @@ class TestActions:
         with pytest.raises(ActionFailure):
             ActionUtility.perform_public_search(search_term, website=website, top_n=top_n)
 
+    @responses.activate
+    def test_public_search_with_url(self, monkeypatch):
+        from collections import namedtuple
+
+        Utility.load_environment()
+        search_term = "What is AI?"
+        top_n = 1
+        search_engine_url = "https://duckduckgo.com/"
+        MockSearchResult = namedtuple('MockSearchResult', ['href', 'title', 'body'])
+
+        def _execute_http_request(*args, **kwargs):
+            assert args == (search_engine_url, 'POST', {"text": search_term, "top_n": 1})
+            search_results = [
+                MockSearchResult(
+                    href="https://en.wikipedia.org/wiki/Artificial_intelligence",
+                    title="Artificial intelligence - Wikipedia",
+                    body="Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals."),
+                ]
+            return search_results
+
+        monkeypatch.setattr(ActionUtility, 'execute_http_request', _execute_http_request)
+        with mock.patch.dict(Utility.environment, {'public_search_action': {"search_action_url": search_engine_url}}):
+            result = ActionUtility.perform_public_search(search_term, top_n=top_n)
+            assert result == [
+                {'title': 'Artificial intelligence - Wikipedia',
+                 'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+            ]
+
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'
         with pytest.raises(ActionFailure, match='No Zendesk action found for given action and bot'):

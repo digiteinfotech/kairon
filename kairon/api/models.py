@@ -741,6 +741,14 @@ class PublicSearchActionRequest(BaseModel):
     dispatch_response: bool = True
     set_slot: str = None
 
+    @validator("name")
+    def validate_action_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("name is required")
+        return v
+
     @validator("top_n")
     def validate_top_n(cls, v, values, **kwargs):
         if not v or v < 1:

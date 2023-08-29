@@ -5459,7 +5459,7 @@ def test_process_google_search_action_no_results():
                                      'image': None, 'attachment': None}]}
 
 
-def test_public_search_action_not_found(self):
+def test_public_search_action_not_found():
     action_name = "public_search_action"
     bot = "5f51zd0a56b698ca10d35d2e"
     Actions(name=action_name, type=ActionType.public_search_action.value, bot=bot, user='test_user').save()
@@ -5542,13 +5542,13 @@ def test_public_search_action_not_found(self):
         },
         "version": "version"
     }
-    response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-    response_json = json.loads(response.body.decode("utf8"))
-    self.assertEqual(len(response_json['events']), 0)
-    self.assertEqual(len(response_json['responses']), 0)
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert len(response_json['events']) == 0
+    assert len(response_json['responses']) == 0
 
 
-def test_process_public_search_action(self):
+def test_process_public_search_action():
     action_name = "public_search_action_one"
     bot = "5f51zd0a56b698ca10d35d2e"
     user = 'test_user'
@@ -5643,10 +5643,10 @@ def test_process_public_search_action(self):
     }
     with patch.object(ActionUtility, "perform_public_search") as mocked:
         mocked.side_effect = _perform_public_search
-        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        response_json = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {'events': [
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
              'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
@@ -5655,13 +5655,124 @@ def test_process_public_search_action(self):
                 {
                     'text': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.',
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
-                    'attachment': None}]})
+                    'attachment': None}]}
     log = ActionServerLogs.objects(bot=bot, type=ActionType.public_search_action.value, status="SUCCESS").get()
-    assert log[
-               'bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'
+    assert log['bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'
 
 
-def test_process_public_search_action_with_kairon_user_msg_entity(self):
+@responses.activate
+def test_process_public_search_action_with_search_engine_url():
+    Utility.load_environment()
+    action_name = "public_search_action_with_search_engine_url"
+    bot = "5f51zd0a56b698ca10d35d2e"
+    user = 'test_user'
+    search_engine_url = "https://duckduckgo.com/"
+    Actions(name=action_name, type=ActionType.public_search_action.value, bot=bot, user='test_user').save()
+    PublicSearchAction(name=action_name, top_n=1,
+                       set_slot='public_search_response', bot=bot, user=user).save()
+
+    responses.add(
+        method=responses.POST,
+        url=search_engine_url,
+        json={"data": [{"title": "Data Science: Definition, Lifecycle, Skills and Tools | IBM", "href": "https://www.ibm.com/topics/data-science", "body": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning."}]},
+        status=200,
+        match=[
+            responses.matchers.json_params_matcher({
+            "text": 'What is data science?', "top_n": None
+        })],
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": bot, "to_email": "test@test.com"},
+            "latest_message": {'text': 'What is data science?', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [
+                {"event": "action", "timestamp": 1594907100.12764, "name": "action_session_start", "policy": None,
+                 "confidence": None}, {"event": "session_started", "timestamp": 1594907100.12765},
+                {"event": "action", "timestamp": 1594907100.12767, "name": "action_listen", "policy": None,
+                 "confidence": None}, {"event": "user", "timestamp": 1594907100.42744, "text": "can't",
+                                       "parse_data": {
+                                           "intent": {"name": "test intent", "confidence": 0.253578245639801},
+                                           "entities": [], "intent_ranking": [
+                                               {"name": "test intent", "confidence": 0.253578245639801},
+                                               {"name": "goodbye", "confidence": 0.1504897326231},
+                                               {"name": "greet", "confidence": 0.138640150427818},
+                                               {"name": "affirm", "confidence": 0.0857767835259438},
+                                               {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                               {"name": "deny", "confidence": 0.069614589214325},
+                                               {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                               {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                               {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                               {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                           "response_selector": {
+                                               "default": {"response": {"name": None, "confidence": 0},
+                                                           "ranking": [], "full_retrieval_intent": None}},
+                                           "text": "can't"}, "input_channel": None,
+                                       "message_id": "bbd413bf5c834bf3b98e0da2373553b2", "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.4308, "name": "utter_test intent",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "bot", "timestamp": 1594907100.4308, "text": "will not = won\"t",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}},
+                {"event": "action", "timestamp": 1594907100.43384, "name": "action_listen",
+                 "policy": "policy_0_MemoizationPolicy", "confidence": 1},
+                {"event": "user", "timestamp": 1594907117.04194, "text": "can\"t",
+                 "parse_data": {"intent": {"name": "test intent", "confidence": 0.253578245639801}, "entities": [],
+                                "intent_ranking": [{"name": "test intent", "confidence": 0.253578245639801},
+                                                   {"name": "goodbye", "confidence": 0.1504897326231},
+                                                   {"name": "greet", "confidence": 0.138640150427818},
+                                                   {"name": "affirm", "confidence": 0.0857767835259438},
+                                                   {"name": "smalltalk_human", "confidence": 0.0721133947372437},
+                                                   {"name": "deny", "confidence": 0.069614589214325},
+                                                   {"name": "bot_challenge", "confidence": 0.0664894133806229},
+                                                   {"name": "faq_vaccine", "confidence": 0.062177762389183},
+                                                   {"name": "faq_testing", "confidence": 0.0530692934989929},
+                                                   {"name": "out_of_scope", "confidence": 0.0480506233870983}],
+                                "response_selector": {
+                                    "default": {"response": {"name": None, "confidence": 0}, "ranking": [],
+                                                "full_retrieval_intent": None}}, "text": "can\"t"},
+                 "input_channel": None, "message_id": "e96e2a85de0748798748385503c65fb3", "metadata": {}},
+                {"event": "action", "timestamp": 1594907117.04547, "name": "utter_test intent",
+                 "policy": "policy_1_TEDPolicy", "confidence": 0.978452920913696},
+                {"event": "bot", "timestamp": 1594907117.04548, "text": "can not = can't",
+                 "data": {"elements": None, "quick_replies": None, "buttons": None, "attachment": None,
+                          "image": None, "custom": None}, "metadata": {}}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f51zd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    with mock.patch.dict(Utility.environment, {'public_search_action': {"search_action_url": search_engine_url}}):
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert response_json == {'events': [
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning."},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning."}],
+            'responses': [
+                {'text': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
+                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
+
+
+def test_process_public_search_action_with_kairon_user_msg_entity():
     action_name = "public_search_action_one_kairon_user_msg_entity"
     bot = "5f51zd0a56b698ca10d35d2e"
     user = 'test_user'
@@ -5763,10 +5874,10 @@ def test_process_public_search_action_with_kairon_user_msg_entity(self):
     }
     with patch.object(ActionUtility, "perform_public_search") as mocked:
         mocked.side_effect = _perform_public_search
-        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        response_json = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {'events': [
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
              'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
@@ -5775,10 +5886,10 @@ def test_process_public_search_action_with_kairon_user_msg_entity(self):
                 {
                     'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
-                    'attachment': None}]})
+                    'attachment': None}]}
 
 
-def test_process_public_search_action_without_kairon_user_msg_entity(self):
+def test_process_public_search_action_without_kairon_user_msg_entity():
     action_name = "public_search_action_one_without_kairon_user_msg_entity"
     bot = "5f51zd0a56b698ca10d35d2e"
     user = 'test_user'
@@ -5879,10 +5990,10 @@ def test_process_public_search_action_without_kairon_user_msg_entity(self):
     }
     with patch.object(ActionUtility, "perform_public_search") as mocked:
         mocked.side_effect = _perform_public_search
-        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        response_json = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {'events': [
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
              'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
@@ -5891,10 +6002,10 @@ def test_process_public_search_action_without_kairon_user_msg_entity(self):
                 {
                     'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
-                    'attachment': None}]})
+                    'attachment': None}]}
 
 
-def test_process_public_search_action_dispatch_false(self):
+def test_process_public_search_action_dispatch_false():
     action_name = "public_search_action_dispatch_false"
     bot = "5f50fd9x56b698asdfghjkiuytre"
     user = 'test_user'
@@ -5917,18 +6028,18 @@ def test_process_public_search_action_dispatch_false(self):
 
     with patch.object(ActionUtility, "perform_public_search") as mocked:
         mocked.side_effect = _perform_public_search
-        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        response_json = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {'events': [
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_response',
              'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.'},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
              'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.'}],
-            'responses': []})
+            'responses': []}
 
 
-def test_process_public_search_action_failure(self):
+def test_process_public_search_action_failure():
     action_name = "custom_public_search_failure"
     bot = "5f50fd0a89b698ca10d35d2e"
     user = 'test_user'
@@ -6018,19 +6129,19 @@ def test_process_public_search_action_failure(self):
     }
     with patch.object(ActionUtility, "perform_public_search") as mocked:
         mocked.side_effect = _perform_public_search
-        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        response_json = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response.code, 200)
-        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None,
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert response_json == {'events': [{'event': 'slot', 'timestamp': None,
                                                      'name': 'kairon_action_response',
                                                      'value': 'I have failed to process your request.'}],
                                          'responses': [{'text': 'I have failed to process your request.',
                                                         'buttons': [], 'elements': [], 'custom': {},
                                                         'template': None,
-                                                        'response': None, 'image': None, 'attachment': None}]})
+                                                        'response': None, 'image': None, 'attachment': None}]}
 
 
-def test_process_public_search_action_no_results(self):
+def test_process_public_search_action_no_results():
     action_name = "custom_public_search_action_no_results"
     bot = "5f50fd0a56b698ca10d35d2e"
     user = 'test_user'
@@ -6120,16 +6231,17 @@ def test_process_public_search_action_no_results(self):
     }
     with patch.object(ActionUtility, "perform_public_search") as mocked:
         mocked.side_effect = _perform_public_search
-        response = self.fetch("/webhook", method="POST", body=json.dumps(request_object).encode('utf-8'))
-        response_json = json.loads(response.body.decode("utf8"))
-        self.assertEqual(response_json, {'events': [{'event': 'slot', 'timestamp': None,
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert response_json == {'events': [{'event': 'slot', 'timestamp': None,
                                                      'name': 'kairon_action_response',
                                                      'value': 'I have failed to process your request.'}],
                                          'responses': [
                                              {'text': 'I have failed to process your request.', 'buttons': [],
                                               'elements': [],
                                               'custom': {}, 'template': None, 'response': None,
-                                              'image': None, 'attachment': None}]})
+                                              'image': None, 'attachment': None}]}
 
 
 def test_process_jira_action():

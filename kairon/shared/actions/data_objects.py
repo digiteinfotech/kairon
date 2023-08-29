@@ -426,15 +426,15 @@ class PublicSearchAction(Auditlog):
     def validate(self, clean=True):
         if clean:
             self.clean()
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if self.top_n < 1:
+            raise ValidationError("top_n must be greater than or equal to 1!")
 
     def clean(self):
         self.name = self.name.strip().lower()
         if Utility.check_empty_string(self.failure_response):
             self.failure_response = 'I have failed to process your request.'
-        try:
-            self.top_n = int(self.top_n)
-        except ValueError:
-            self.top_n = 1
 
 
 @auditlogger.log

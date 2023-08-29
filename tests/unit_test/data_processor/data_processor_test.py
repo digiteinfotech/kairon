@@ -12731,6 +12731,32 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=re.escape("Slot is attached to public search action: ['public_custom_search']")):
             processor.delete_slot("public_search_result", bot, user)
 
+    def test_add_public_search_action_with_empty_name(self, monkeypatch):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': ' ',
+            "dispatch_response": False, "set_slot": "",
+            'failure_response': 'I have failed to process your request',
+            'website': 'https://www.google.com',
+        }
+        with pytest.raises(ValidationError, match="Action name cannot be empty"):
+            processor.add_public_search_action(action, bot, user)
+
+    def test_add_public_search_action_with_invalid_top_n(self, monkeypatch):
+        processor = MongoProcessor()
+        bot = 'test'
+        user = 'test_user'
+        action = {
+            'name': 'public_search_action_with_invalid_top_n',
+            "dispatch_response": False, "set_slot": "", 'top_n': 0,
+            'failure_response': 'I have failed to process your request',
+            'website': 'https://www.google.com',
+        }
+        with pytest.raises(ValidationError, match="top_n must be greater than or equal to 1!"):
+            processor.add_public_search_action(action, bot, user)
+
     def test_add_public_search_action_duplicate(self):
         processor = MongoProcessor()
         bot = 'test'
@@ -12805,9 +12831,9 @@ class TestMongoProcessor:
         assert actions[0]['name'] == 'public_custom_search'
         assert actions[0]['failure_response'] == 'Failed to perform public search'
         assert actions[0]['website'] == 'https://nimblework.com'
-        assert actions[0]['num_results'] == 1
-        assert actions[0]['dispatch_response']
-        assert not actions[0].get('set_slot')
+        assert actions[0]['top_n'] == 1
+        assert not actions[0]['dispatch_response']
+        assert actions[0].get('set_slot')
 
     def test_delete_public_search_action(self):
         processor = MongoProcessor()

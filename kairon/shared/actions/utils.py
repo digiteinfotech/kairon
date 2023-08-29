@@ -399,14 +399,19 @@ class ActionUtility:
 
     @staticmethod
     def perform_public_search(search_term: str, **kwargs):
+        search_engine_url = Utility.environment['public_search_action']['search_action_url']
         results = []
         website = kwargs.pop("website", None)
         try:
             search_term = f"{search_term} site: {website}" if website else search_term
             request_body = {"text": search_term, "top_n": kwargs.get("top_n")}
-            search_results = CloudUtility.trigger_lambda(EventClass.public_search, request_body)
+            if search_engine_url:
+                response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body=request_body)
+                search_results = response.get('data')
+            else:
+                search_results = CloudUtility.trigger_lambda(EventClass.public_search, request_body)
             for item in search_results or []:
-                results.append({'title': item.title, 'text': item.body, 'link': item.href})
+                results.append({'title': item['title'], 'text': item['body'], 'link': item['href']})
         except Exception as e:
             logger.exception(e)
             raise ActionFailure(e)

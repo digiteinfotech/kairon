@@ -75,6 +75,9 @@ action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
   request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:1}
 
+public_search_action:
+  search_action_url: ${SEARCH_ACTION_URL}
+
 data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
   kairon_url: ${KAIRON_URL}
