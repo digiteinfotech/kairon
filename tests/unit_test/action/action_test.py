@@ -2529,22 +2529,18 @@ class TestActions:
         }]
 
     def test_public_search_action(self, monkeypatch):
-        from collections import namedtuple
-
         Utility.load_environment()
         search_term = "What is data science?"
         website = "https://www.w3schools.com/"
         top_n = 1
-        MockSearchResult = namedtuple('MockSearchResult', ['href', 'title', 'body'])
 
         def _trigger_lambda(*args, **kwargs):
             assert args == ("public_search", {"text": "What is data science? site: https://www.w3schools.com/", "top_n": 1})
-            search_results = [
-                MockSearchResult(
-                    href="https://www.w3schools.com/datascience/ds_introduction.asp",
-                    title="Data Science Introduction - W3Schools",
-                    body="Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.")
-                ]
+            search_results = [{
+                    "href": "https://www.w3schools.com/datascience/ds_introduction.asp",
+                    "title": "Data Science Introduction - W3Schools",
+                    "body": "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making."
+            }]
             return search_results
 
         monkeypatch.setattr(CloudUtility, 'trigger_lambda', _trigger_lambda)
@@ -2556,25 +2552,20 @@ class TestActions:
         }]
 
     def test_public_search_action_without_website(self, monkeypatch):
-        from collections import namedtuple
-
         Utility.load_environment()
         search_term = "What is AI?"
         top_n = 2
-        MockSearchResult = namedtuple('MockSearchResult', ['href', 'title', 'body'])
 
         def _trigger_lambda(*args, **kwargs):
             assert args == ("public_search", {"text": search_term, "top_n": 2})
-            search_results = [
-                MockSearchResult(
-                    href="https://en.wikipedia.org/wiki/Artificial_intelligence",
-                    title="Artificial intelligence - Wikipedia",
-                    body="Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals."),
-                MockSearchResult(
-                    href="https://www.britannica.com/technology/artificial-intelligence",
-                    title="Artificial intelligence (AI) - Britannica",
-                    body="artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.")
-            ]
+            search_results = [{
+                    "href": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+                    "title": "Artificial intelligence - Wikipedia",
+                    "body": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals."},
+                {"href": "https://www.britannica.com/technology/artificial-intelligence",
+                    "title": "Artificial intelligence (AI) - Britannica",
+                    "body": "artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings."
+            }]
             return search_results
 
         monkeypatch.setattr(CloudUtility, 'trigger_lambda', _trigger_lambda)
@@ -2593,22 +2584,18 @@ class TestActions:
 
     @responses.activate
     def test_public_search_with_url(self, monkeypatch):
-        from collections import namedtuple
-
         Utility.load_environment()
         search_term = "What is AI?"
         top_n = 1
         search_engine_url = "https://duckduckgo.com/"
-        MockSearchResult = namedtuple('MockSearchResult', ['href', 'title', 'body'])
-
+        request_body = {"text": search_term, "top_n": 1}
         def _execute_http_request(*args, **kwargs):
-            assert args == (search_engine_url, 'POST', {"text": search_term, "top_n": 1})
-            search_results = [
-                MockSearchResult(
-                    href="https://en.wikipedia.org/wiki/Artificial_intelligence",
-                    title="Artificial intelligence - Wikipedia",
-                    body="Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals."),
-                ]
+            assert args == (search_engine_url, 'POST', request_body)
+            search_results = {"success": True, "data": [{
+                    "href": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+                    "title": "Artificial intelligence - Wikipedia",
+                    "body": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals."
+            }]}
             return search_results
 
         monkeypatch.setattr(ActionUtility, 'execute_http_request', _execute_http_request)

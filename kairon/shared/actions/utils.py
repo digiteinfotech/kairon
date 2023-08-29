@@ -406,7 +406,7 @@ class ActionUtility:
             search_term = f"{search_term} site: {website}" if website else search_term
             request_body = {"text": search_term, "top_n": kwargs.get("top_n")}
             if search_engine_url:
-                response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body=request_body)
+                response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
                 search_results = response.get('data')
             else:
                 search_results = CloudUtility.trigger_lambda(EventClass.public_search, request_body)
