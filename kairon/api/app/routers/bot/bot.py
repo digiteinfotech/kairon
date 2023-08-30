@@ -1,6 +1,6 @@
 import os
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Text
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
 from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
@@ -1163,12 +1163,14 @@ async def get_chat_client_config_url(
     return Response(data=url)
 
 
-@router.get("/chat/client/config/{uid}", response_model=Response)
-async def get_client_config_using_uid(request: Request, bot: str, uid: str):
-    config = mongo_processor.get_client_config_using_uid(bot, uid)
-    if not Utility.validate_request(request, config):
-        return Response(message="Domain not registered for kAIron client", error_code=403, success=False)
-    config['config'].pop("whitelist")
+@router.get("/chat/client/config/{token}", response_model=Response)
+async def get_client_config_using_uid(
+        request: Request, bot: Text = Path(description="Bot id"),
+        token: Text = Path(description="Token generated from api server"),
+        token_claims: Dict = Security(Authentication.validate_bot_specific_token, scopes=TESTER_ACCESS)
+):
+    config = mongo_processor.get_client_config_using_uid(bot, token_claims)
+    config = Utility.validate_domain(request, config)
     return Response(data=config['config'])
 
 

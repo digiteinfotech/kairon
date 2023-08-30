@@ -1,10 +1,7 @@
 import hashlib
 import hmac
-import json
 import logging
-from http import HTTPStatus
 from typing import Text, List, Dict, Any, Iterable, Optional, Union
-import html
 import rasa.shared.utils.io
 from fbmessenger import MessengerClient
 from fbmessenger.attachments import Image
@@ -12,12 +9,13 @@ from fbmessenger.elements import Text as FBText
 from fbmessenger.quick_replies import QuickReplies, QuickReply
 from fbmessenger.sender_actions import SenderAction
 from rasa.core.channels.channel import UserMessage, OutputChannel, InputChannel
-from tornado.escape import json_decode
+from starlette.requests import Request
 
 from kairon.chat.agent_processor import AgentProcessor
+from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.tornado.handlers.base import BaseHandler
+from kairon.shared.models import User
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 
@@ -338,53 +336,51 @@ class MessengerBot(OutputChannel):
         return QuickReplies(quick_replies=fb_quick_replies)
 
 
-class MessengerHandler(InputChannel, BaseHandler):
+class MessengerHandler(InputChannel, ChannelHandlerBase):
     """Facebook input channel implementation. Based on the HTTPInputChannel."""
 
+    def __init__(self, bot: Text, user: User, request: Request):
+        self.bot = bot
+        self.user = user
+        self.request = request
+
     # noinspection PyUnusedLocal
-    async def get(self, bot: str, token: str):
-        super().authenticate_channel(token, bot, self.request)
-        self.set_status(HTTPStatus.OK)
-        messenger_conf = ChatDataProcessor.get_channel_config("messenger", bot, mask_characters=False)
+    async def validate(self):
+        messenger_conf = ChatDataProcessor.get_channel_config("messenger", self.bot, mask_characters=False)
 
         fb_verify = messenger_conf["config"]["verify_token"]
 
-        if (self.request.query_arguments.get("hub.verify_token")[0]).decode() == fb_verify:
-            hub_challenge = (self.request.query_arguments.get("hub.challenge")[0]).decode()
-            self.write(html.escape(hub_challenge))
-            return
+        if (self.request.query_params.get("hub.verify_token")[0]).decode() == fb_verify:
+            hub_challenge = (self.request.query_params.get("hub.challenge")[0]).decode()
+            return hub_challenge
         else:
             logger.warning(
                 "Invalid fb verify token! Make sure this matches "
                 "your webhook settings on the facebook app."
             )
-            self.write(json.dumps({"status": "failure, invalid verify_token"}))
-            return
+            return {"status": "failure, invalid verify_token"}
 
-    async def post(self, bot: str, token: str):
-        user = super().authenticate_channel(token, bot, self.request)
-        messenger_conf = ChatDataProcessor.get_channel_config("messenger", bot, mask_characters=False)
+    async def handle_message(self):
+        messenger_conf = ChatDataProcessor.get_channel_config("messenger", self.bot, mask_characters=False)
 
         fb_secret = messenger_conf["config"]["app_secret"]
         page_access_token = messenger_conf["config"]["page_access_token"]
 
         signature = self.request.headers.get("X-Hub-Signature") or ""
-        if not self.validate_hub_signature(fb_secret, self.request.body, signature):
+        if not self.validate_hub_signature(fb_secret, await self.request.json(), signature):
             logger.warning(
                 "Wrong fb secret! Make sure this matches the "
                 "secret in your facebook app settings"
             )
-            self.write("not validated")
-            return
+            return "not validated"
 
         messenger = Messenger(page_access_token)
 
         metadata = self.get_metadata(self.request)
-        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "messenger",
+        metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "messenger",
                          "tabname": "default"})
-        await messenger.handle(json_decode(self.request.body), metadata, bot)
-        self.write("success")
-        return
+        await messenger.handle(await self.request.json(), metadata, self.bot)
+        return "success"
 
     @staticmethod
     def validate_hub_signature(
@@ -422,46 +418,45 @@ class MessengerHandler(InputChannel, BaseHandler):
 class InstagramHandler(MessengerHandler):
     """Instagram input channel implementation. Based on the HTTPInputChannel."""
 
+    def __init__(self, bot: Text, user: User, request: Request):
+        super().__init__(bot, user, request)
+        self.bot = bot
+        self.user = user
+        self.request = request
+
     # noinspection PyUnusedLocal
-    async def get(self, bot: str, token: str):
-        super().authenticate_channel(token, bot, self.request)
-        self.set_status(HTTPStatus.OK)
-        messenger_conf = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+    async def validate(self):
+        messenger_conf = ChatDataProcessor.get_channel_config("instagram", self.bot, mask_characters=False)
 
         fb_verify = messenger_conf["config"]["verify_token"]
 
-        if (self.request.query_arguments.get("hub.verify_token")[0]).decode() == fb_verify:
-            hub_challenge = (self.request.query_arguments.get("hub.challenge")[0]).decode()
-            self.write(html.escape(hub_challenge))
-            return
+        if (self.request.query_params.get("hub.verify_token")[0]).decode() == fb_verify:
+            hub_challenge = (self.request.query_params.get("hub.challenge")[0]).decode()
+            return hub_challenge
         else:
             logger.warning(
                 "Invalid verify token! Make sure this matches "
                 "your webhook settings on the facebook app under instagram settings."
             )
-            self.write(json.dumps({"status": "failure, invalid verify_token"}))
-            return
+            return {"status": "failure, invalid verify_token"}
 
-    async def post(self, bot: str, token: str):
-        user = super().authenticate_channel(token, bot, self.request)
-        messenger_conf = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+    async def handle_message(self):
+        messenger_conf = ChatDataProcessor.get_channel_config("instagram", self.bot, mask_characters=False)
 
         fb_secret = messenger_conf["config"]["app_secret"]
         page_access_token = messenger_conf["config"]["page_access_token"]
 
         signature = self.request.headers.get("X-Hub-Signature") or ""
-        if not self.validate_hub_signature(fb_secret, self.request.body, signature):
+        if not self.validate_hub_signature(fb_secret, await self.request.body(), signature):
             logger.warning(
                 "Wrong fb secret! Make sure this matches the "
                 "secret in your facebook app settings under instagram settings"
             )
-            self.write("not validated")
-            return
+            return "not validated"
 
         messenger = Messenger(page_access_token)
 
         metadata = self.get_metadata(self.request) or {}
-        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "instagram", "tabname": "default"})
-        await messenger.handle(json_decode(self.request.body), metadata, bot)
-        self.write("success")
-        return
+        metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "instagram", "tabname": "default"})
+        await messenger.handle(await self.request.json(), metadata, self.bot)
+        return "success"

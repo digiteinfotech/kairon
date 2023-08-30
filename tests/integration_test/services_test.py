@@ -15068,7 +15068,7 @@ def test_generate_limited_access_temporary_token():
         f"/api/bot/{bot_2}/chat/client/config/{token}",
     )
     actual = response.json()
-    assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 422}
+    assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 401}
 
 
 def test_get_client_config_using_uid_invalid_domains(monkeypatch):

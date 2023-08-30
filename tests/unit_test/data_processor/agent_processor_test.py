@@ -1,7 +1,11 @@
 import os
 import shutil
+from unittest.mock import patch
 
+import bson
 import pytest
+from rasa.core.lock_store import InMemoryLockStore
+from redis.client import Redis
 
 from kairon.shared.utils import Utility
 from kairon.chat.agent_processor import AgentProcessor
@@ -18,7 +22,7 @@ class TestAgentProcessor:
 
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
-        bot = 'agent_testing_user'
+        bot = bson.ObjectId().__str__()
         pytest.bot = bot
         model_path = os.path.join('models', bot)
         if not os.path.exists(model_path):
@@ -50,7 +54,53 @@ class TestAgentProcessor:
         assert not AgentProcessor.cache_provider.get(pytest.bot)
 
         AgentProcessor.reload(pytest.bot)
-        assert AgentProcessor.cache_provider.get(pytest.bot)
+        model = AgentProcessor.cache_provider.get(pytest.bot)
+        assert model
+        assert isinstance(model.lock_store, InMemoryLockStore)
+
+    def test_reload_model_with_lock_store_config(self, mock_agent_properties):
+
+        with patch.dict(Utility.environment['lock_store'], {'url': 'rediscloud', "password": "password", "port": 6999, "db": 5}):
+            AgentProcessor.reload(pytest.bot)
+            model = AgentProcessor.cache_provider.get(pytest.bot)
+            assert model
+            assert isinstance(model.lock_store.red, Redis)
+            assert model.lock_store.key_prefix == f'{pytest.bot}:lock:'
+            assert model.lock_store.red.connection_pool.connection_kwargs == {'db': 5, 'username': None,
+                                                                                      'password': 'password',
+                                                                                      'socket_timeout': 10,
+                                                                                      'encoding': 'utf-8',
+                                                                                      'encoding_errors': 'strict',
+                                                                                      'decode_responses': False,
+                                                                                      'retry_on_timeout': False,
+                                                                                      'health_check_interval': 0,
+                                                                                      'client_name': None,
+                                                                                      'host': 'rediscloud',
+                                                                                      'port': 6999,
+                                                                                      'socket_connect_timeout': None,
+                                                                                      'socket_keepalive': None,
+                                                                                      'socket_keepalive_options': None}
+
+        with patch.dict(Utility.environment['lock_store'], {'url': 'rediscloud'}):
+            AgentProcessor.reload(pytest.bot)
+            model = AgentProcessor.cache_provider.get(pytest.bot)
+            assert model
+            assert isinstance(model.lock_store.red, Redis)
+            assert model.lock_store.key_prefix == f'{pytest.bot}:lock:'
+            assert model.lock_store.red.connection_pool.connection_kwargs == {'db': 1, 'username': None,
+                                                                                      'password': None,
+                                                                                      'socket_timeout': 10,
+                                                                                      'encoding': 'utf-8',
+                                                                                      'encoding_errors': 'strict',
+                                                                                      'decode_responses': False,
+                                                                                      'retry_on_timeout': False,
+                                                                                      'health_check_interval': 0,
+                                                                                      'client_name': None,
+                                                                                      'host': 'rediscloud',
+                                                                                      'port': 6379,
+                                                                                      'socket_connect_timeout': None,
+                                                                                      'socket_keepalive': None,
+                                                                                      'socket_keepalive_options': None}
 
     def test_reload_exception(self, mock_agent_properties):
         assert not AgentProcessor.cache_provider.get('test_user')

@@ -2,6 +2,7 @@ from typing import Text
 
 from loguru import logger as logging
 from rasa.core.agent import Agent
+from rasa.core.lock_store import LockStore
 
 from kairon.chat.cache import AgentCache
 from kairon.exceptions import AppException
@@ -45,10 +46,12 @@ class AgentProcessor:
                 bot, raise_exception=False
             )
             action_endpoint = Utility.get_action_url(endpoint)
+            lock_store_endpoint = LockStore.create(Utility.get_lock_store_url(bot))
             model_path = Utility.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)
-            agent = KaironAgent.load(model_path, action_endpoint=action_endpoint, tracker_store=mongo_store)
+            agent = KaironAgent.load(model_path, action_endpoint=action_endpoint, tracker_store=mongo_store,
+                                     lock_store=lock_store_endpoint)
             AgentProcessor.cache_provider.set(bot, agent)
         except Exception as e:
             logging.exception(e)

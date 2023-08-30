@@ -7,12 +7,14 @@ import google.auth.transport.requests
 import requests
 from google.oauth2 import id_token
 from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
-from tornado.escape import json_encode, json_decode
+from starlette.requests import Request
+from tornado.escape import json_encode
 
 from kairon.chat.agent_processor import AgentProcessor
+from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.tornado.handlers.base import BaseHandler
+from kairon.shared.models import User
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 
@@ -188,7 +190,7 @@ class HangoutsOutput(OutputChannel):
             message_type = json_message.get("type")
             type_list = Utility.system_metadata.get("type_list")
             if message_type is not None and message_type in type_list:
-                converter_instance = ConverterFactory.getConcreteInstance(message_type, ChannelTypes.HANGOUT.value)
+                converter_instance = ConverterFactory.getConcreteInstance(message_type, ChannelTypes.HANGOUTS.value)
                 response = await converter_instance.messageConverter(message)
                 await self._persist_message(response)
             else:
@@ -198,7 +200,7 @@ class HangoutsOutput(OutputChannel):
 
 
 # Google Hangouts input channel
-class HangoutHandler(InputChannel, BaseHandler):
+class HangoutsHandler(InputChannel, ChannelHandlerBase):
     """
     Channel that uses Google Hangouts Chat API to communicate.
     """
@@ -210,6 +212,11 @@ class HangoutHandler(InputChannel, BaseHandler):
     google_request = google.auth.transport.requests.Request(
         session=cached_session
     )
+
+    def __init__(self, bot: Text, user: User, request: Request):
+        self.bot = bot
+        self.user = user
+        self.request = request
 
     @staticmethod
     def _extract_sender(request_data: Dict) -> Text:
@@ -269,14 +276,13 @@ class HangoutHandler(InputChannel, BaseHandler):
         if decoded_token["iss"] != "chat@system.gserviceaccount.com":
             raise Exception(401)
 
-    async def get(self, bot: str, token: str):
-        self.write(json_encode({"status": "ok"}))
+    async def validate(self):
+        return {"status": "ok"}
 
-    async def post(self, bot: str, token: str):
-        user = super().authenticate_channel(token, bot, self.request)
-        hangout = ChatDataProcessor.get_channel_config("hangouts", bot=bot, mask_characters=False)
+    async def handle_message(self):
+        hangout = ChatDataProcessor.get_channel_config("hangouts", bot=self.bot, mask_characters=False)
         project_id = hangout['config']['project_id']
-        request_data = json_decode(self.request.body)
+        request_data = await self.request.json()
         if project_id:
             token = self.request.headers.get("Authorization").replace("Bearer ", "")
             self._check_token(token, project_id)
@@ -285,16 +291,16 @@ class HangoutHandler(InputChannel, BaseHandler):
         room_name = self._extract_room(request_data)
         text = self._extract_message(request_data)
         if text is None:
-            self.write("OK")
-            return
+            return {"status": "OK"}
+
         input_channel = self._extract_input_channel()
 
         collector = HangoutsOutput()
 
         try:
-            metadata = {"is_integration_user": True, "bot": bot, "account": user.account, "room": room_name,
+            metadata = {"is_integration_user": True, "bot": self.bot, "account": self.user.account, "room": room_name,
                         "out_channel": collector.name(), "channel_type": "hangouts", "tabname": "default"}
-            await AgentProcessor.get_agent(bot).handle_message(UserMessage(
+            await AgentProcessor.get_agent(self.bot).handle_message(UserMessage(
                     text,
                     collector,
                     sender_id,
@@ -311,5 +317,4 @@ class HangoutHandler(InputChannel, BaseHandler):
                 f"text: {text}"
             )
 
-        self.write(json_encode(collector.messages))
-        return
+        return json_encode(collector.messages)

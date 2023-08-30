@@ -54,6 +54,8 @@ from pymongo.uri_parser import (
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from requests.adapters import HTTPAdapter, Retry
 from smart_config import ConfigLoader
+from starlette import status
+from starlette.exceptions import HTTPException
 from urllib3.util import parse_url
 from validators import ValidationFailure
 from validators import email as mail_check
@@ -866,19 +868,6 @@ class Utility:
             raise PyJWTError("Invalid token")
 
     @staticmethod
-    def validate_bot_specific_token(bot: Text, token: Text):
-        from kairon.shared.account.processor import AccountProcessor
-
-        claims = Utility.decode_limited_access_token(token)
-        bot_config = AccountProcessor.get_bot(bot)
-        multilingual_bots = list(AccountProcessor.get_multilingual_bots(bot))
-        multilingual_bots = set(map(lambda bot_info: bot_info["id"], multilingual_bots))
-
-        if bot_config['account'] != claims['account'] or bot not in multilingual_bots:
-            raise AppException("Invalid token")
-        return claims
-
-    @staticmethod
     def load_json_file(path: Text, raise_exc: bool = True):
         if not os.path.exists(path) and raise_exc:
             raise AppException('file not found')
@@ -926,6 +915,22 @@ class Utility:
             return EndpointConfig(url=Utility.environment['action'].get('url'))
         else:
             return None
+
+    @staticmethod
+    def get_lock_store_url(bot: Text):
+        from rasa.utils.endpoints import EndpointConfig
+
+        config = None
+        if not Utility.check_empty_string(Utility.environment['lock_store'].get('url')):
+            lock_store_config = Utility.environment['lock_store'].copy()
+            lock_store_config["key_prefix"] = bot
+            for param in ["url", "port", "password", "db"]:
+                if not lock_store_config.get(param):
+                    lock_store_config.pop(param)
+
+            config = EndpointConfig(**lock_store_config)
+
+        return config
 
     @staticmethod
     def is_data_import_allowed(summary: dict, bot: Text, user: Text):
@@ -1492,6 +1497,18 @@ class Utility:
             if result > 0:
                 break
         return True if result == 0 else False
+
+    @staticmethod
+    def validate_domain(request, config):
+        if not Utility.validate_request(request, config):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Domain not registered for kAIron client",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        config['config'].pop("whitelist")
+        return config
 
     @staticmethod
     def validate_request(request, config):
