@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from jira import JIRAError
 from mock import patch
 from mongoengine import connect
+from starlette.responses import JSONResponse
 
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.server import action
@@ -48,6 +49,233 @@ def test_index():
     result = response.json()
     assert response.status_code == 200
     assert result["message"] == "Kairon Action Server Up and Running"
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_starlette_exception_handler(mock_logger_exception):
+    from kairon.actions.server import startlette_exception_handler
+    from starlette.exceptions import HTTPException
+
+    exc = HTTPException(status_code=404, detail="Not Found")
+    response = await startlette_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == b'{"success":false,"message":"Not Found","data":null,"error_code":404}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_http_exception_handler(mock_logger_exception):
+    from kairon.actions.server import http_exception_handler
+
+    exc = AssertionError("Test assertion error")
+    response = await http_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == b'{"success":false,"message":"Test assertion error","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('kairon.shared.account.processor.AccountProcessor.default_account_setup')
+async def test_startup(mock_default_account_setup):
+    from kairon.actions.server import startup
+
+    await startup()
+
+    mock_default_account_setup.assert_called_once()
+    mock_default_account_setup.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_shutdown():
+    from kairon.actions.server import shutdown
+
+    with patch('mongoengine.disconnect') as mock_disconnect:
+        await shutdown()
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_app_does_not_exist_exception_handler(mock_logger_exception):
+    from kairon.actions.server import app_does_not_exist_exception_handler
+    from mongoengine.errors import DoesNotExist
+
+    error_message = "App does not exist error"
+    exc = DoesNotExist(error_message)
+
+    response = await app_does_not_exist_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == b'{"success":false,"message":"App does not exist error","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_pymongo_exception_handler(mock_logger_exception):
+    from kairon.actions.server import pymongo_exception_handler
+    from pymongo.errors import PyMongoError
+
+    error_message = "PyMongo error message"
+    exc = PyMongoError(error_message)
+
+    response = await pymongo_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+    assert isinstance(response, JSONResponse)
+    assert response.body == b'{"success":false,"message":"PyMongo error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_app_validation_exception_handler(mock_logger_exception):
+    from kairon.actions.server import app_validation_exception_handler
+    from mongoengine.errors import ValidationError
+
+    error_message = "Validation error message"
+    exc = ValidationError(error_message)
+
+    response = await app_validation_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == b'{"success":false,"message":"Validation error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_mongoengine_operation_exception_handler(mock_logger_exception):
+    from kairon.actions.server import mongoengine_operation_exception_handler
+    from mongoengine.errors import OperationError
+
+    error_message = "MongoEngine Operation error message"
+    exc = OperationError(error_message)
+
+    response = await mongoengine_operation_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == \
+           b'{"success":false,"message":"MongoEngine Operation error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_mongoengine_notregistered_exception_handler(mock_logger_exception):
+    from kairon.actions.server import mongoengine_notregistered_exception_handler
+    from mongoengine.errors import NotRegistered
+
+    error_message = "MongoEngine NotRegistered error message"
+    exc = NotRegistered(error_message)
+
+    response = await mongoengine_notregistered_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == \
+           b'{"success":false,"message":"MongoEngine NotRegistered error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_mongoengine_invalid_document_exception_handler(mock_logger_exception):
+    from kairon.actions.server import mongoengine_invalid_document_exception_handler
+    from mongoengine.errors import InvalidDocumentError
+
+    error_message = "MongoEngine InvalidDocument error message"
+    exc = InvalidDocumentError(error_message)
+
+    response = await mongoengine_invalid_document_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == \
+           b'{"success":false,"message":"MongoEngine InvalidDocument error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_mongoengine_lookup_exception_handler(mock_logger_exception):
+    from kairon.actions.server import mongoengine_lookup_exception_handler
+    from mongoengine.errors import LookUpError
+
+    error_message = "MongoEngine LookUp error message"
+    exc = LookUpError(error_message)
+
+    response = await mongoengine_lookup_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == \
+           b'{"success":false,"message":"MongoEngine LookUp error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_mongoengine_multiple_objects_exception_handler(mock_logger_exception):
+    from kairon.actions.server import mongoengine_multiple_objects_exception_handler
+    from mongoengine.errors import MultipleObjectsReturned
+
+    error_message = "MongoEngine MultipleObjectsReturned error message"
+    exc = MultipleObjectsReturned(error_message)
+
+    response = await mongoengine_multiple_objects_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == \
+           b'{"success":false,"message":"MongoEngine MultipleObjectsReturned error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_mongoengine_invalid_query_exception_handler(mock_logger_exception):
+    from kairon.actions.server import mongoengine_invalid_query_exception_handler
+    from mongoengine.errors import InvalidQueryError
+
+    error_message = "MongoEngine InvalidQuery error message"
+    exc = InvalidQueryError(error_message)
+
+    response = await mongoengine_invalid_query_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == \
+           b'{"success":false,"message":"MongoEngine InvalidQuery error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_pyjwt_exception_handler(mock_logger_exception):
+    from kairon.actions.server import pyjwt_exception_handler
+    from jwt import PyJWTError
+
+    error_message = "PyJWT error message"
+    exc = PyJWTError(error_message)
+
+    response = await pyjwt_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == b'{"success":false,"message":"PyJWT error message","data":null,"error_code":422}'
+
+
+@pytest.mark.asyncio
+@patch('loguru.logger.exception')
+async def test_app_exception_handler(mock_logger_exception):
+    from kairon.actions.server import app_exception_handler
+    from kairon.exceptions import AppException
+
+    error_message = "AppException error message"
+    exc = AppException(error_message)
+
+    response = await app_exception_handler('request', exc)
+    mock_logger_exception.assert_called_once_with(exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.body == b'{"success":false,"message":"AppException error message","data":null,"error_code":422}'
 
 
 @responses.activate
