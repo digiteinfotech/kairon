@@ -4,8 +4,6 @@ from http import HTTPStatus
 
 from tornado.escape import json_encode
 from tornado.web import RequestHandler
-from tornado.httputil import HTTPServerRequest
-from ..auth import TornadoAuthenticate
 from typing import Text, Any, Union
 from loguru import logger
 
@@ -31,12 +29,6 @@ class BaseHandler(RequestHandler, ABC):
     def options(self, *args):
         self.set_status(200)
         self.finish()
-
-    def authenticate(self, request: HTTPServerRequest, **kwargs):
-        return TornadoAuthenticate.get_current_user_and_bot(request, **kwargs)
-
-    def authenticate_channel(self, token: Text, bot: Text, request: HTTPServerRequest):
-        return TornadoAuthenticate.get_current_user_and_bot_for_channel(token, bot, request)
 
     def write_error(self, status_code: int = 422, **kwargs: Any) -> None:
         headers = {}

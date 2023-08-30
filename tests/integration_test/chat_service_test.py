@@ -618,7 +618,9 @@ def test_chat_limited_access_prevent_chat():
     assert actual["message"] == "Access denied for this endpoint"
 
 
-def test_reload():
+@patch('kairon.shared.utils.Utility.get_local_mongo_store')
+def test_reload(mock_store):
+    mock_store.return_value = None
     response = client.get(
         f"/api/bot/{bot}/reload",
         headers={
