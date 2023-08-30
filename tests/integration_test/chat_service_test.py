@@ -1523,9 +1523,10 @@ def add_live_agent_config(bot_id, email):
     responses.stop()
 
 
+@patch("rasa.core.tracker_store.TrackerStore.serialise_tracker")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
-def test_chat_with_chatwoot_agent_fallback(mock_validatebusinesshours, mock_getbusinesshrs):
+def test_chat_with_chatwoot_agent_fallback(mock_validatebusinesshours, mock_getbusinesshrs, mock_tracker):
     add_live_agent_config(bot, user["email"])
     responses.reset()
     responses.start()
@@ -1592,6 +1593,10 @@ def test_chat_with_chatwoot_agent_fallback(mock_validatebusinesshours, mock_getb
             }
         }
     )
+
+    mock_events_data = '{"events": [{"event": "session_started"}, {"event": "user", "text": "hi"}, {"event": "bot", "text": "welcome to kairon!", "data": {}}]}'
+    mock_tracker.return_value = mock_events_data
+
     with patch.object(Utility, "get_local_mongo_store") as mocked:
         mocked.side_effect = empty_store
         patch.dict(Utility.environment['action'], {"url": None})
@@ -1633,8 +1638,9 @@ def test_chat_with_chatwoot_agent_fallback(mock_validatebusinesshours, mock_getb
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.agent_handoff) > 0
 
 
+@patch("rasa.core.tracker_store.TrackerStore.serialise_tracker")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
-def test_chat_with_chatwoot_agent_fallback_existing_contact(mock_businesshours):
+def test_chat_with_chatwoot_agent_fallback_existing_contact(mock_businesshours, mock_tracker):
     with patch.object(Utility, "get_local_mongo_store") as mocked:
         mocked.side_effect = empty_store
         patch.dict(Utility.environment['action'], {"url": None})
@@ -1706,6 +1712,9 @@ def test_chat_with_chatwoot_agent_fallback_existing_contact(mock_businesshours):
                     }
                 }
             )
+
+            mock_events_data = '{"events": [{"event": "session_started"}, {"event": "user", "text": "hi"}, {"event": "bot", "text": "welcome to kairon!", "data": {}}]}'
+            mock_tracker.return_value = mock_events_data
 
             response = client.post(
                 f"/api/bot/{bot}/chat",

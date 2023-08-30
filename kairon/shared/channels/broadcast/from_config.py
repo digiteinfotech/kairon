@@ -1,6 +1,6 @@
 import ast
 from abc import ABC
-from typing import Text, Dict, Any
+from typing import Text, Dict
 
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.base import MessageBroadcastBase

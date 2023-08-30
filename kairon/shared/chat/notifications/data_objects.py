@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, DictField, DynamicDocument, EmbeddedDocument, \
+from mongoengine import Document, StringField, DateTimeField, DynamicDocument, EmbeddedDocument, \
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField
 
 from kairon import Utility

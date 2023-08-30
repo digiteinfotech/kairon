@@ -15,7 +15,6 @@ from .. import Utility
 from ..exceptions import AppException
 from ..live_agent.factory import LiveAgentFactory
 from ..shared.actions.utils import ActionUtility
-from ..shared.data.processor import MongoProcessor
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor

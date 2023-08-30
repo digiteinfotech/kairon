@@ -139,6 +139,7 @@ class SlackBot(OutputChannel):
 
 
 class SlackHandler(InputChannel, ChannelHandlerBase):
+
     """Slack input channel implementation. Based on the HTTPInputChannel."""
     
     def __init__(self, bot: Text, user: User, request: Request):

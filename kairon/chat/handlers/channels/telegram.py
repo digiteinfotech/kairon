@@ -166,6 +166,7 @@ class TelegramOutput(TeleBot, OutputChannel):
 
 
 class TelegramHandler(InputChannel, ChannelHandlerBase):
+
     """Telegram input channel"""
     
     def __init__(self, bot: Text, user: User, request: Request):
