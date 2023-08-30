@@ -81,14 +81,19 @@ class KMongoTrackerStore(TrackerStore):
         actions_predicted = []
         bot_responses = []
         data = []
+        metadata = {}
         for event in additional_events:
             event = event.as_dict()
+            if not event.get("metadata"):
+                event["metadata"] = {}
+            event["metadata"].update(metadata)
             data.append({"sender_id": sender_id, "conversation_id": conversation_id, "event": event})
             if event['event'] == 'user':
                 flattened_conversation['timestamp'] = event.get('timestamp')
                 flattened_conversation["data"]['user_input'] = event.get('text')
                 flattened_conversation["data"]['intent'] = event['parse_data']['intent']['name']
                 flattened_conversation["data"]['confidence'] = event['parse_data']['intent']['confidence']
+                metadata = event.get("metadata")
             elif event['event'] == 'action':
                 actions_predicted.append(event.get('name'))
             elif event['event'] == 'bot':

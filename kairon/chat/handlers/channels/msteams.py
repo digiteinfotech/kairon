@@ -299,7 +299,7 @@ class MSTeamsHandler(InputChannel, BaseHandler):
             user_auth_token = Utility.decrypt_message(encrypted_token)
             app_id = messenger_conf["config"]["app_id"]
             app_password = messenger_conf["config"]["app_secret"]
-            super().authenticate_channel(user_auth_token, bot, self.request)
+            user = super().authenticate_channel(user_auth_token, bot, self.request)
             self._update_cached_jwk_keys()
             validation_response = self._validate_auth(
                 self.request.headers.get("Authorization"), app_id
@@ -309,6 +309,8 @@ class MSTeamsHandler(InputChannel, BaseHandler):
 
             postdata = json.loads(self.request.body)
             metadata = self.get_metadata(self.request)
+            metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "msteams",
+                             "tabname": "default"})
             metadata_with_attachments = self.add_attachments_to_metadata(
                 postdata, metadata
             )

@@ -197,6 +197,67 @@ class TestChatServer(AsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertEqual(response.body.decode("utf8"), 'Kairon Server Running')
 
+    def test_get_chat_client_config(self):
+        with patch.object(Utility, "validate_bot_specific_token") as mocked:
+            mocked.return_value = {'sub': 'test@chat.com', 'exp': 1692277518, 'iat': 1691672718, 'type': 'dynamic',
+                                   'account': 1, 'access-limit': ['/api/bot/.+/chat/client/config$']}
+            response = self.fetch(
+                f"/api/bot/{bot}/chat/client/config/{token}",
+                method="GET",
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert actual["success"]
+            assert actual["error_code"] == 0
+            assert actual["data"]
+            assert Utility.check_empty_string(actual["message"])
+
+    def test_get_chat_client_config_exception(self):
+        response = self.fetch(
+            f"/api/bot/{bot}/chat/client/config/invalid_token",
+            method="GET"
+        )
+        actual = json.loads(response.body.decode("utf8"))
+        self.assertEqual(response.code, 200)
+        assert not actual["success"]
+        assert actual["error_code"] == 422
+        assert actual["data"] is None
+        assert actual["message"] == "Invalid token"
+
+    def test_get_chat_client_config_raise_error(self):
+        from tornado.web import HTTPError
+
+        with patch.object(ChatUtils, "get_client_config_using_uid") as mocked:
+            mocked.side_effect = HTTPError(status_code=404, reason="404 Not Found", response=None)
+            response = self.fetch(
+                f"/api/bot/{bot}/chat/client/config/{token}",
+                method="GET"
+            )
+            actual = json.loads(response.body.decode("utf8"))
+            self.assertEqual(response.code, 200)
+            assert not actual["success"]
+            assert actual["error_code"] == 404
+            assert actual["data"] is None
+            assert actual["message"] == "404 Not Found"
+
+    def test_get_chat_client_config_with_invalid_domain(self):
+        with patch.object(Utility, "validate_bot_specific_token") as mocked:
+            mocked.return_value = {'sub': 'test@chat.com', 'exp': 1692277518, 'iat': 1691672718, 'type': 'dynamic',
+                                   'account': 1, 'access-limit': ['/api/bot/.+/chat/client/config$']}
+            with patch.object(Utility, "validate_request") as validate_request_mock:
+                validate_request_mock.return_value = False
+                response = self.fetch(
+                    f"/api/bot/{bot}/chat/client/config/{token}",
+                    method="GET",
+                )
+                actual = json.loads(response.body.decode("utf8"))
+                self.assertEqual(response.code, 200)
+                assert not actual["success"]
+                assert actual["error_code"] == 403
+                assert actual["data"] is None
+                assert not Utility.check_empty_string(actual["message"])
+                assert actual["message"] == "Domain not registered for kAIron client"
+
     def test_chat(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
             mocked.side_effect = self.empty_store
@@ -379,7 +440,8 @@ class TestChatServer(AsyncHTTPTestCase):
                 request_body = {
                     "data": "Hi",
                     "metadata": {
-                        "name": "test_chat"
+                        "name": "test_chat",
+                        "tabname": "coaching"
                     }
                 }
 
@@ -395,6 +457,7 @@ class TestChatServer(AsyncHTTPTestCase):
                 assert actual['error_code'] == 0
                 metadata = mocked_handle_message.call_args
                 assert metadata.args[0].metadata['name'] == 'test_chat'
+                assert metadata.args[0].metadata['tabname'] == 'coaching'
 
     def test_chat_with_user_with_invalid_metadata(self):
         with patch.object(Utility, "get_local_mongo_store") as mocked:
@@ -1215,7 +1278,7 @@ class TestChatServer(AsyncHTTPTestCase):
         metadata.pop("timestamp")
         assert metadata == {'from': '910123456789', 'id': 'wappmsg.ID',
                             'button': {'text': 'buy now', 'payload': 'buy kairon for 1 billion'}, 'type': 'button',
-                            'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                            'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp', 'tabname': 'default',
                             'bsp_type': 'meta', 'display_phone_number': '910123456789', 'phone_number_id': '12345678'}
         assert whatsapp_msg_handler.call_args[0][4] == bot
 
@@ -1281,7 +1344,10 @@ class TestChatServer(AsyncHTTPTestCase):
         assert whatsapp_msg_handler.call_args[0][2] == '910123456789'
         metadata = whatsapp_msg_handler.call_args[0][3]
         metadata.pop("timestamp")
-        assert metadata == {'from': '910123456789', 'id': 'wappmsg.ID', 'document': {'id': 'sdfghj567'}, 'type': 'document', 'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp', 'bsp_type': 'meta', 'display_phone_number': '910123456789', 'phone_number_id': '12345678'}
+        assert metadata == {'from': '910123456789', 'id': 'wappmsg.ID', 'document': {'id': 'sdfghj567'},
+                            'type': 'document', 'is_integration_user': True, 'bot': bot, 'account': 1,
+                            'channel_type': 'whatsapp', 'bsp_type': 'meta', 'display_phone_number': '910123456789',
+                            'phone_number_id': '12345678', 'tabname': 'default'}
         assert whatsapp_msg_handler.call_args[0][4] == bot
 
     @responses.activate

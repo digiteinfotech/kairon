@@ -90,8 +90,11 @@ from .data_objects import (
     Synonyms, Lookup, CognitionMetadata
 )
 from .utils import DataUtility
-from ..constants import KaironSystemSlots
+from ..constants import KaironSystemSlots, PluginTypes
 from ..custom_widgets.data_objects import CustomWidgets
+from kairon.shared.metering.metering_processor import MeteringProcessor
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.plugins.factory import PluginFactory
 
 
 class MongoProcessor:
@@ -3371,7 +3374,7 @@ class MongoProcessor:
         """
         Utility.hard_delete_document([
             HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
-            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction
+            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction
         ], bot=bot)
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None)
 
@@ -4028,14 +4031,22 @@ class MongoProcessor:
         client_config.white_listed_domain = white_listed_domain
         client_config.save()
 
-    def get_chat_client_config_url(self, bot: Text, user: Text):
+    def get_chat_client_config_url(self, bot: Text, user: Text, **kwargs):
         from kairon.shared.auth import Authentication
 
+        request = kwargs.get('request')
+        account = kwargs.get('account')
+        bot_account = kwargs.get('bot_account')
+        ip_info = Utility.get_client_ip(request)
+        geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip_info) or {}
+        data = {"ip_info": ip_info, "geo_location": geo_location}
+        MeteringProcessor.add_metrics(bot, account, MetricType.user_metrics, **data)
+        MeteringProcessor.add_metrics(bot, bot_account, MetricType.user_metrics, **data)
         access_token, _ = Authentication.generate_integration_token(
             bot, user, ACCESS_ROLES.TESTER.value,
             access_limit=['/api/bot/.+/chat/client/config$'], token_type=TOKEN_TYPE.DYNAMIC.value
         )
-        url = urljoin(Utility.environment['app']['server_url'], f'/api/bot/{bot}/chat/client/config/')
+        url = urljoin(Utility.environment['model']['agent'].get('url'), f'/api/bot/{bot}/chat/client/config/')
         url = urljoin(url, access_token)
         return url
 
