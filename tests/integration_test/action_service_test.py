@@ -72,6 +72,7 @@ async def test_http_exception_handler(mock_logger_exception):
 
     exc = AssertionError("Test assertion error")
     response = await http_exception_handler('request', exc)
+    print(response)
     mock_logger_exception.assert_called_once_with(exc)
 
     assert isinstance(response, JSONResponse)
