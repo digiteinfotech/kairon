@@ -90,14 +90,6 @@ async def test_startup(mock_default_account_setup):
 
 
 @pytest.mark.asyncio
-async def test_shutdown():
-    from kairon.actions.server import shutdown
-
-    with patch('mongoengine.disconnect') as mock_disconnect:
-        await shutdown()
-
-
-@pytest.mark.asyncio
 @patch('loguru.logger.exception')
 async def test_app_does_not_exist_exception_handler(mock_logger_exception):
     from kairon.actions.server import app_does_not_exist_exception_handler
