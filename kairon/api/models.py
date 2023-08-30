@@ -1,4 +1,4 @@
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Text
 
 import validators
 from fastapi.param_functions import Form
@@ -91,6 +91,14 @@ class Response(BaseModel):
     message: Any = None
     data: Any
     error_code: int = 0
+
+class ActionResponse(BaseModel):
+    success: bool = True
+    error: str = None
+    action_name: str = None
+    events: List[Dict[Text, Any]] = None
+    responses: List[Dict[Text, Any]] = None
+    error_code: int = 200
 
 
 class RequestData(BaseModel):
