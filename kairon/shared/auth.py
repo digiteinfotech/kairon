@@ -119,6 +119,28 @@ class Authentication:
         return user
 
     @staticmethod
+    async def authenticate_token_in_path_param(security_scopes: SecurityScopes, request: Request):
+        token = request.path_params.get("token")
+        user = await Authentication.get_current_user_and_bot(security_scopes, request, token)
+        return user
+
+    @staticmethod
+    def validate_bot_specific_token(request: Request):
+        bot = request.path_params.get("bot")
+        token = request.path_params.get("token")
+        claims = Utility.decode_limited_access_token(token)
+        bot_config = AccountProcessor.get_bot(bot)
+        multilingual_bots = list(AccountProcessor.get_multilingual_bots(bot))
+        multilingual_bots = set(map(lambda bot_info: bot_info["id"], multilingual_bots))
+
+        if bot_config['account'] != claims['account'] or bot not in multilingual_bots:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid token',
+            )
+        return claims
+
+    @staticmethod
     def create_access_token(*, data: dict, token_type: TOKEN_TYPE = TOKEN_TYPE.LOGIN.value, token_expire: int = 0):
         access_token_expire_minutes = Utility.environment['security']["token_expire"]
         secret_key = Utility.environment['security']["secret_key"]
@@ -172,7 +194,8 @@ class Authentication:
     @staticmethod
     def generate_login_tokens(user: dict, is_login: bool):
         username = user["email"]
-        access_token = Authentication.create_access_token(data={"sub": username})
+        account = user["account"]
+        access_token = Authentication.create_access_token(data={"sub": username, "account": account})
         claims = Utility.decode_limited_access_token(access_token)
         access_token_iat = datetime.fromtimestamp(claims['iat'])
         access_token_expiry = datetime.fromtimestamp(claims['exp'])

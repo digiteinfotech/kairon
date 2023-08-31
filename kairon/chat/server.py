@@ -1,46 +1,260 @@
-from tornado.ioloop import IOLoop
-from tornado.web import Application
-from tornado.options import parse_command_line
+import logging
 
-from kairon.chat.handlers.channels.whatsapp import WhatsappHandler
-from kairon.chat.handlers.channels.msteams import MSTeamsHandler
-from kairon.shared.tornado.handlers.index import IndexHandler
-from .handlers.action import ChatHandler, ReloadHandler, LiveAgentHandler, SessionConversationHandler, \
-    ChatClientConfigHandler
-from .handlers.channels.slack import SlackHandler
-from .handlers.channels.telegram import TelegramHandler
-from .handlers.channels.hangouts import HangoutHandler
-from .handlers.channels.messenger import MessengerHandler, InstagramHandler
-from ..shared.utils import Utility
+from elasticapm.contrib.starlette import ElasticAPM
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from jwt import PyJWTError
 from loguru import logger
-from mongoengine import connect
-Utility.load_environment()
-Utility.load_system_metadata()
+from mongoengine import connect, disconnect
+from mongoengine.errors import (
+    DoesNotExist,
+    ValidationError,
+    OperationError,
+    NotRegistered,
+    InvalidDocumentError,
+    LookUpError,
+    MultipleObjectsReturned,
+    InvalidQueryError,
+)
+from pymongo.errors import PyMongoError
+from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolicy, XContentTypeOptions, Server, \
+    CacheControl, Secure, PermissionsPolicy
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from kairon.api.models import Response
+from kairon.chat.routers import web_client, channels
+from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.utils import Utility
+
+logging.basicConfig(level="DEBUG")
+hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
+referrer = ReferrerPolicy().no_referrer()
+csp = (
+    ContentSecurityPolicy()
+    .default_src("'self'")
+    .frame_ancestors("'self'")
+    .form_action("'self'")
+    .base_uri("'self'")
+    .connect_src("'self'")
+    .frame_src("'self'")
+    .style_src("'self'", "https:", "'unsafe-inline'")
+    .img_src("'self'", "https:")
+    .script_src("'self'", "https:", "'unsafe-inline'")
+)
+cache_value = CacheControl().must_revalidate()
+content = XContentTypeOptions()
+server = Server().set("Secure")
+permissions_value = (
+    PermissionsPolicy().accelerometer().autoplay().camera().document_domain().encrypted_media().fullscreen().vibrate()
+    .geolocation().gyroscope().magnetometer().microphone().midi().payment().picture_in_picture().sync_xhr().usb()
+)
+secure_headers = Secure(
+    server=server,
+    csp=csp,
+    hsts=hsts,
+    referrer=referrer,
+    permissions=permissions_value,
+    cache=cache_value,
+    content=content
+)
+
+app = FastAPI()
+allowed_origins = Utility.environment['cors']['origin']
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["content-disposition"],
+)
+app.add_middleware(GZipMiddleware)
+apm_client = Utility.initiate_fastapi_apm_client()
+if apm_client:
+    app.add_middleware(ElasticAPM, client=apm_client)
 
 
-def make_app():
-    return Application([
-        (r"/", IndexHandler),
-        (r"/api/bot/([^/]+)/chat", ChatHandler),
-        (r"/api/bot/([^/]+)/chat/client/config/([^/]+)", ChatClientConfigHandler),
-        (r"/api/bot/([^/]+)/conversation", SessionConversationHandler),
-        (r"/api/bot/([^/]+)/agent/live/([^/]+)", LiveAgentHandler),
-        (r"/api/bot/slack/([^/]+)/([^/]+)", SlackHandler),
-        (r"/api/bot/telegram/([^/]+)/([^/]+)", TelegramHandler),
-        (r"/api/bot/hangouts/([^/]+)/([^/]+)", HangoutHandler),
-        (r"/api/bot/messenger/([^/]+)/([^/]+)", MessengerHandler),
-        (r"/api/bot/([^/]+)/reload", ReloadHandler),
-        (r"/api/bot/instagram/([^/]+)/([^/]+)", InstagramHandler),
-        (r"/api/bot/whatsapp/([^/]+)/([^/]+)", WhatsappHandler),
-        (r"/api/bot/msteams/([^/]+)/([^/]+)", MSTeamsHandler),
-    ], compress_response=True, debug=False)
+@app.middleware("http")
+async def add_secure_headers(request: Request, call_next):
+    """add security headers"""
+    response = await call_next(request)
+    secure_headers.framework.fastapi(response)
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    requested_origin = request.headers.get("origin")
+    response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin else allowed_origins[0]
+    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    response.headers['Content-Type'] = 'application/json'
+    return response
 
 
-if __name__ == "__main__":
-    connect(**Utility.mongoengine_connection())
-    app = make_app()
-    Utility.initiate_tornado_apm_client(app)
-    app.listen(5000)
-    parse_command_line()
-    logger.info("Server Started")
-    IOLoop.current().start()
+@app.on_event("startup")
+async def startup():
+    """ MongoDB is connected on the bot trainer startup """
+    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
+    connect(**config)
+    await AccountProcessor.default_account_setup()
+    AccountProcessor.load_system_properties()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """ MongoDB is disconnected when bot trainer is shut down """
+    disconnect()
+
+
+@app.exception_handler(StarletteHTTPException)
+async def startlette_exception_handler(request, exc):
+    """ This function logs the Starlette HTTP error detected and returns the
+        appropriate message and details of the error """
+    logger.exception(exc)
+
+    return JSONResponse(
+        Response(
+            success=False, error_code=exc.status_code, message=str(exc.detail)
+        ).dict()
+    )
+
+
+@app.exception_handler(AssertionError)
+async def http_exception_handler(request, exc):
+    """ This function logs the Assertion error detected and returns the
+        appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    """ logs the RequestValidationError detected and returns the
+        appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=exc.errors()).dict()
+    )
+
+
+@app.exception_handler(DoesNotExist)
+async def app_does_not_exist_exception_handler(request, exc):
+    """ logs the DoesNotExist error detected and returns the
+        appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(PyMongoError)
+async def pymongo_exception_handler(request, exc):
+    """ logs the PyMongoError detected and returns the
+        appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(ValidationError)
+async def app_validation_exception_handler(request, exc):
+    """ logs the ValidationError detected and returns the
+        appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(OperationError)
+async def mongoengine_operation_exception_handler(request, exc):
+    """ logs the OperationError detected and returns the
+            appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(NotRegistered)
+async def mongoengine_notregistered_exception_handler(request, exc):
+    """ logs the NotRegistered error detected and returns the
+            appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(InvalidDocumentError)
+async def mongoengine_invalid_document_exception_handler(request, exc):
+    """ logs the InvalidDocumentError detected and returns the
+            appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(LookUpError)
+async def mongoengine_lookup_exception_handler(request, exc):
+    """ logs the LookUpError detected and returns the
+            appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(MultipleObjectsReturned)
+async def mongoengine_multiple_objects_exception_handler(request, exc):
+    """ logs the MultipleObjectsReturned error detected and returns the
+            appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(InvalidQueryError)
+async def mongoengine_invalid_query_exception_handler(request, exc):
+    """ logs the InvalidQueryError detected and returns the
+            appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(PyJWTError)
+async def pyjwt_exception_handler(request, exc):
+    """ logs the PyJWTError error detected and returns the
+            appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.exception_handler(AppException)
+async def app_exception_handler(request, exc):
+    """ logs the AppException error detected and returns the
+            appropriate message and details of the error """
+    logger.exception(exc)
+    return JSONResponse(
+        Response(success=False, error_code=422, message=str(exc)).dict()
+    )
+
+
+@app.get("/", response_model=Response)
+def index():
+    return {"message": "Chat server running!"}
+
+
+app.include_router(web_client.router, prefix="/api/bot/{bot}", tags=["Web client"])
+app.include_router(channels.router, prefix="/api/bot", tags=["Channels"])

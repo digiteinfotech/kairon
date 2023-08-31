@@ -60,11 +60,15 @@ class ActionRazorpay(ActionsBase):
         username = action_config.get('username')
         email = action_config.get('email')
         contact = action_config.get('contact')
+        body = {}
         try:
             tracker_data = ActionUtility.build_context(tracker)
             api_key = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_key, self.bot)
             api_secret = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_secret, self.bot)
             amount = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, amount, self.bot)
+            if not amount:
+                raise ActionFailure(f"amount must be a whole number! Got {amount}.")
+            amount = int(amount)
             currency = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, currency, self.bot)
             username = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, username, self.bot)
             email = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, email, self.bot)
@@ -78,6 +82,12 @@ class ActionRazorpay(ActionsBase):
                 headers=headers, http_url=ActionRazorpay.__URL, request_method="POST", request_body=body
             )
             bot_response = http_response["short_url"]
+        except ValueError as e:
+            logger.exception(e)
+            logger.debug(e)
+            exception = f"amount must be a whole number! Got {amount}."
+            status = "FAILURE"
+            bot_response = "I have failed to process your request"
         except Exception as e:
             logger.exception(e)
             logger.debug(e)
@@ -95,7 +105,8 @@ class ActionRazorpay(ActionsBase):
                 api_response=str(http_response),
                 bot_response=bot_response,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                request=body
             ).save()
         dispatcher.utter_message(bot_response)
         return {KaironSystemSlots.kairon_action_response.value: bot_response}

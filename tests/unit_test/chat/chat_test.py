@@ -11,6 +11,7 @@ from mongoengine import connect, ValidationError
 from pymongo.collection import Collection
 from slack.web.slack_response import SlackResponse
 
+from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.chat.utils import ChatUtils
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -455,10 +456,15 @@ class TestChat:
         items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
         for item in items:
             item['event']['timestamp'] = time.time()
+            if not item["event"].get("metadata"):
+                item["event"]["metadata"] = {}
+            item["event"]["metadata"] = {"tabname": "coaching"}
         collection.insert_many(items)
         mock_mongo.return_value = mongo_client
         history, message = ChatUtils.get_last_session_conversation(bot, "fshaikh@digite.com")
-        assert len(history) == 2
+        assert len(history) == 1
+        assert history[0]["tabname"] == "coaching"
+        assert len(history[0]["events"]) == 2
         assert message is None
 
     def test_save_channel_config_msteams(self, monkeypatch):
@@ -536,3 +542,11 @@ class TestChat:
             response = DataUtility.get_channel_endpoint(channel)
             last_urlpart = response.split("/", -1)[-1]
             assert last_urlpart == "testtoken"
+
+    @pytest.mark.asyncio
+    async def test_base_channel(self):
+        with pytest.raises(NotImplementedError):
+            await ChannelHandlerBase().validate()
+
+        with pytest.raises(NotImplementedError):
+            await ChannelHandlerBase().handle_message()

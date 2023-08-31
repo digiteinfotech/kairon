@@ -12,15 +12,16 @@ from loguru import logger
 from rasa.core.channels.channel import UserMessage, OutputChannel, InputChannel
 from sanic import response
 from sanic.response import HTTPResponse
-from tornado.escape import json_encode
+from starlette.requests import Request
 
 from kairon import Utility
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
+from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.tornado.handlers.base import BaseHandler
+from kairon.shared.models import User
 
 
 class MSTeamBot(OutputChannel):
@@ -189,19 +190,17 @@ class MSTeamBot(OutputChannel):
             raise Exception(f"Error in msteams send_custom_json {str(ap)}")
 
 
-class MSTeamsHandler(InputChannel, BaseHandler):
+class MSTeamsHandler(InputChannel, ChannelHandlerBase):
     """Bot Framework input channel implementation."""
+
+    def __init__(self, bot: Text, user: User, request: Request):
+        self.bot = bot
+        self.user = user
+        self.request = request
 
     @classmethod
     def name(cls) -> Text:
         return "botframework"
-
-    @classmethod
-    def from_credentials(cls, credentials: Optional[Dict[Text, Any]]) -> InputChannel:
-        if not credentials:
-            cls.raise_missing_credentials_exception()
-
-        return cls(credentials.get("app_id"), credentials.get("app_password"))
 
     def _update_cached_jwk_keys(self) -> None:
         try:
@@ -251,7 +250,7 @@ class MSTeamsHandler(InputChannel, BaseHandler):
                 logger.warning(
                     f"Could not update JWT keys {error} "
                 )
-                logger.exception(error, exc_info=True)
+                logger.exception(f'{error}', exc_info=True)
 
         auth_match = MSTeamBot.BEARER_REGEX.match(auth_header)
         if not auth_match:
@@ -284,22 +283,18 @@ class MSTeamsHandler(InputChannel, BaseHandler):
                 metadata = attachments
         return metadata
 
-    async def get(self, bot: str, test: int) :
-        return self.write(json_encode({"status": "ok"}))
+    async def validate(self) :
+        return {"status": "ok"}
 
-    async def post(self, bot:str, token:str):
+    async def handle_message(self):
         try:
-            logger.info(f"MSTeams chat initiation for bot {bot}")
-            messenger_conf = ChatDataProcessor.get_channel_config("msteams", bot, mask_characters=False)
+            logger.info(f"MSTeams chat initiation for bot {self.bot}")
+            messenger_conf = ChatDataProcessor.get_channel_config("msteams", self.bot, mask_characters=False)
             hashed_token = messenger_conf["meta_config"]["secrethash"]
-            if hashed_token == token:
-                encrypted_token = messenger_conf["meta_config"]["secrettoken"]
-            else:
+            if hashed_token != self.request.path_params.get("token"):
                 raise Exception("Webhook url is not updated, please check. Url on msteams still refer old hashtoken")
-            user_auth_token = Utility.decrypt_message(encrypted_token)
             app_id = messenger_conf["config"]["app_id"]
             app_password = messenger_conf["config"]["app_secret"]
-            super().authenticate_channel(user_auth_token, bot, self.request)
             self._update_cached_jwk_keys()
             validation_response = self._validate_auth(
                 self.request.headers.get("Authorization"), app_id
@@ -307,8 +302,10 @@ class MSTeamsHandler(InputChannel, BaseHandler):
             if validation_response:
                 return validation_response
 
-            postdata = json.loads(self.request.body)
+            postdata = await self.request.json()
             metadata = self.get_metadata(self.request)
+            metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "msteams",
+                             "tabname": "default"})
             metadata_with_attachments = self.add_attachments_to_metadata(
                 postdata, metadata
             )
@@ -319,7 +316,7 @@ class MSTeamsHandler(InputChannel, BaseHandler):
 
                 user_msg = UserMessage(text=postdata.get("text", ""), output_channel=out_channel, sender_id=postdata["from"]["id"],
                     input_channel=self.name(), metadata=metadata_with_attachments,)
-                await AgentProcessor.get_agent(bot).handle_message(user_msg)
+                await AgentProcessor.get_agent(self.bot).handle_message(user_msg)
             else:
                 logger.info("Not received message type")
         except Exception as ex:

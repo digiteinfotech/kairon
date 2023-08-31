@@ -75,6 +75,13 @@ action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
   request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:1}
 
+lock_store:
+  type: ${LOCK_STORE_TYPE:"redis"}
+  url: ${LOCK_STORE_HOST}
+  port: ${LOCK_STORE_PORT}
+  password: ${LOCK_STORE_PASSWORD}
+  db: ${LOCK_STORE_DB}
+
 data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
   kairon_url: ${KAIRON_URL}
