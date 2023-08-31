@@ -861,6 +861,25 @@ def test_hangout_auth_hangout_verify(mock_verify_token):
     actual = response.json()
     assert actual == {"status": "OK"}
 
+    response = client.get(
+        f"/api/bot/hangouts/{bot}/{token}",
+        headers={"Authorization": "Bearer Test"},
+        json={
+            "type": "MESSAGE",
+            "message": {
+                "sender": {
+                    "displayName": "Test"
+                },
+                "text": None
+            },
+            "space": {
+                "type": "ROOM",
+                "displayName": "bot"
+            }
+        })
+    actual = response.json()
+    assert actual == {"status": "ok"}
+
 
 def test_messenger_invalid_auth():
     patch.dict(Utility.environment['action'], {"url": None})

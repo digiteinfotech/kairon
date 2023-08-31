@@ -11,6 +11,7 @@ from mongoengine import connect, ValidationError
 from pymongo.collection import Collection
 from slack.web.slack_response import SlackResponse
 
+from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.chat.utils import ChatUtils
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -541,3 +542,11 @@ class TestChat:
             response = DataUtility.get_channel_endpoint(channel)
             last_urlpart = response.split("/", -1)[-1]
             assert last_urlpart == "testtoken"
+
+    @pytest.mark.asyncio
+    async def test_base_channel(self):
+        with pytest.raises(NotImplementedError):
+            await ChannelHandlerBase().validate()
+
+        with pytest.raises(NotImplementedError):
+            await ChannelHandlerBase().handle_message()

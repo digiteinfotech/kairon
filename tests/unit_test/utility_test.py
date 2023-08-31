@@ -2693,3 +2693,11 @@ data: [DONE]\n\n"""
         response = whatsapp.dropdown_transformer(input_json)
         expected_output = json_data.get("whatsapp_drop_down_header_output")
         assert expected_output == response
+
+    def test_is_picklable_for_mongo(self):
+        assert Utility.is_picklable_for_mongo({"bot": "test_bot"})
+
+    def test_is_picklable_for_mongo_failure(self):
+        assert not Utility.is_picklable_for_mongo({"requests": requests})
+        assert not Utility.is_picklable_for_mongo({"utility": Utility})
+        assert not Utility.is_picklable_for_mongo({"is_picklable_for_mongo": Utility.is_picklable_for_mongo})
