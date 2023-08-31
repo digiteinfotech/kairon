@@ -4,7 +4,7 @@ from http import HTTPStatus
 
 from tornado.escape import json_encode
 from tornado.web import RequestHandler
-from typing import Text, Any, Union
+from typing import Any, Union
 from loguru import logger
 
 from ..exception import ServiceHandlerException
