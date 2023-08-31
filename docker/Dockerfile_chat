@@ -48,6 +48,7 @@ COPY email.yaml /app/
 
 ENV HF_HOME="/home/cache"
 
+ENV APP_MODULE=kairon.api.server:app
 EXPOSE 5000
-CMD ["python","-m", "kairon.chat.server","--logging=debug"]
+CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5000 --no-server-header
 

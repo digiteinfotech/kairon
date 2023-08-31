@@ -97,10 +97,11 @@ class PluginTypes(str, Enum):
 class ChannelTypes(str, Enum):
     MSTEAMS = "msteams"
     WHATSAPP = "whatsapp"
-    HANGOUT = "hangout"
+    HANGOUTS = "hangouts"
     MESSENGER = "messenger"
     SLACK = "slack"
     TELEGRAM = "telegram"
+    INSTAGRAM = "instagram"
 
 
 class ElementTypes(str, Enum):

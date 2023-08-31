@@ -78,3 +78,4 @@ RestrictedPython
 AccessControl
 pykka
 timeout-decorator
+anyio==3.7.1

@@ -112,7 +112,8 @@ class KaironMessageProcessor(MessageProcessor):
         self, message: UserMessage
     ):
         """Handle a single message with this processor."""
-        response = {"nlu": None, "action": None, "response": None, "slots": None, "events": None}
+        tabname = message.metadata.get("tabname", "default")
+        response = {"nlu": None, "action": None, "response": None, "slots": None, "events": None, "tabname": tabname}
 
         # preprocess message if necessary
         tracker, intent_predictions = await self.log_message(message, should_save_tracker=False)

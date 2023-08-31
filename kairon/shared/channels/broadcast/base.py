@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import List
 
 
 class MessageBroadcastBase(ABC):
