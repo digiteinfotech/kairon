@@ -1061,41 +1061,6 @@ class TestMongoProcessor:
         assert pyscript_config_action.source_code == script
         assert pyscript_config_action.dispatch_response
 
-    def test_get_pyscript_config(self):
-        bot = 'test_bot'
-        user = 'test_user'
-        action = "test_add_pyscript_action"
-        script = """
-        data = [1, 2, 3, 4, 5, 6, 7]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
-        processor = MongoProcessor()
-        pyscript_config = processor.get_pyscript_config(bot, action)
-        assert pyscript_config is not None
-        assert pyscript_config['name'] == action
-        assert pyscript_config['source_code'] == script
-        assert pyscript_config['dispatch_response']
-        assert pyscript_config['set_slots'] == [{'name': 'total', 'value': '${data.total}',
-                                                 'evaluation_type': 'expression'}]
-    
-    def test_get_pyscript_config_does_not_exist(self):
-        bot = 'test_bot'
-        user = 'test_user'
-        action = "test_get_pyscript_config_does_not_exist"
-        script = """
-        data = [1, 2, 3, 4, 5, 6, 7]
-        total = 0
-        for i in data:
-            total += i
-        print(total)
-        """
-        processor = MongoProcessor()
-        with pytest.raises(AppException, match='Action does not exists!'):
-            processor.get_pyscript_config(bot, action)
-
     def test_list_pyscript_actions(self):
         bot = 'test_bot'
         user = 'test_user'
@@ -1141,6 +1106,27 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         with pytest.raises(AppException, match='Action with name "test_add_pyscript_action" not found'):
             processor.delete_action(name, bot, user)
+
+    def test_add_pyscript_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "test_add_pyscript_action_with_set_slots", "type": "PYSCRIPT_ACTION"},
+        ]
+        story_dict = {'name': "story with pyscript action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_id = processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with pyscript action", bot=bot,
+                                events__name='test_add_pyscript_action_with_set_slots', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "story with pyscript action"]
+        assert story_with_form[0]['steps'] == [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "test_add_pyscript_action_with_set_slots", "type": "PYSCRIPT_ACTION"},
+        ]
+        processor.delete_complex_story(story_id, 'STORY', bot, user)
 
     def test_add_or_overwrite_config_no_existing_config(self):
         bot = 'test_config'

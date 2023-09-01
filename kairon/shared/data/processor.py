@@ -2466,6 +2466,7 @@ class MongoProcessor:
         zendesk_actions = set(ZendeskAction.objects(bot=bot, status=True).values_list('name'))
         pipedrive_leads_actions = set(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name'))
         hubspot_forms_actions = set(HubspotFormsAction.objects(bot=bot, status=True).values_list('name'))
+        pyscript_actions = set(PyscriptActionConfig.objects(bot=bot, status=True).values_list('name'))
         razorpay_actions = set(RazorpayAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         prompt_actions = set(PromptAction.objects(bot=bot, status=True).values_list('name'))
@@ -2519,6 +2520,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.hubspot_forms_action.value
                     elif event["name"] in razorpay_actions:
                         step['type'] = StoryStepType.razorpay_action.value
+                    elif event["name"] in pyscript_actions:
+                        step['type'] = StoryStepType.pyscript_action.value
                     elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
                     elif event['name'] in prompt_actions:
@@ -3048,22 +3051,6 @@ class MongoProcessor:
             set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
         )
         return action.id.__str__()
-
-    def get_pyscript_config(self, bot: str, action: str):
-        """
-        Fetches Pyscript action config from collection.
-        :param bot: bot id
-        :param action: action name
-        :return: PyscriptActionConfig object containing configuration for the Pyscript action.
-        """
-        try:
-            pyscript_config_dict = PyscriptActionConfig.objects(bot=bot, name=action, status=True).get()
-            pyscript_config = pyscript_config_dict.to_mongo().to_dict()
-            pyscript_config['_id'] = pyscript_config['_id'].__str__()
-            return pyscript_config
-        except DoesNotExist as ex:
-            logging.exception(ex)
-            raise AppException("Action does not exists!")
 
     def list_pyscript_actions(self, bot: str, with_doc_id: bool = True):
         """
