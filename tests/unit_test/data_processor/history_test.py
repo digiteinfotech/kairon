@@ -13,11 +13,12 @@ from kairon.shared.utils import Utility
 from mongoengine import connect
 import time
 from pymongo.errors import ServerSelectionTimeoutError
+from mongomock import MongoClient
 
 
 def load_history_data():
     db_url = "mongodb://test_kairon:27016/conversation"
-    client = mongomock.MongoClient(db_url)
+    client = MongoClient(db_url)
     collection = client.get_database().get_collection("tests")
     items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
     for item in items:
@@ -28,7 +29,7 @@ def load_history_data():
 
 def load_jumbled_events_data():
     db_url = "mongodb://test_kairon:27016/conversation"
-    client = mongomock.MongoClient(db_url)
+    client = MongoClient(db_url)
     collection = client.get_database().get_collection("tests")
     items = json.load(open("./tests/testing_data/history/jumbled_events.json", "r"))
     for item in items:
@@ -39,7 +40,7 @@ def load_jumbled_events_data():
 
 def load_flattened_history_data():
     db_url = "mongodb://test_kairon:27016/conversation"
-    client = mongomock.MongoClient(db_url)
+    client = MongoClient(db_url)
     collection = client.get_database().get_collection("tests_flattened")
     items = json.load(open("./tests/testing_data/history/flattened_conversations.json", "r"))
     for item in items:

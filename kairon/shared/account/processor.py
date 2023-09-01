@@ -9,13 +9,29 @@ from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
 from starlette.requests import Request
-from validators import ValidationFailure
+from validators.utils import ValidationError as ValidationFailure
 from validators import email as mail_check
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
-from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
-    MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice
-from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
+from kairon.shared.account.data_objects import (
+    Account,
+    User,
+    Bot,
+    UserEmailConfirmation,
+    Feedback,
+    UiConfig,
+    MailTemplates,
+    SystemProperties,
+    BotAccess,
+    UserActivityLog,
+    BotMetaData,
+    TrustedDevice,
+)
+from kairon.shared.actions.data_objects import (
+    FormValidationAction,
+    SlotSetAction,
+    EmailActionConfig,
+)
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
@@ -31,7 +47,6 @@ Utility.load_email_configuration()
 
 
 class AccountProcessor:
-
     @staticmethod
     def add_account(name: str, user: str):
         """
@@ -49,8 +64,19 @@ class AccountProcessor:
             name__iexact=name,
             status=True,
         )
-        license = {"bots": 2, "intents": 3, "examples": 20, "training": 3, "augmentation": 5}
-        return Account(name=name.strip(), user=user, license=license).save().to_mongo().to_dict()
+        license = {
+            "bots": 2,
+            "intents": 3,
+            "examples": 20,
+            "training": 3,
+            "augmentation": 5,
+        }
+        return (
+            Account(name=name.strip(), user=user, license=license)
+            .save()
+            .to_mongo()
+            .to_dict()
+        )
 
     @staticmethod
     def get_account(account: int):
@@ -81,7 +107,9 @@ class AccountProcessor:
         return bot_exists
 
     @staticmethod
-    async def add_bot_with_template(name: str, account: int, user: str, template_name: str = None):
+    async def add_bot_with_template(
+        name: str, account: int, user: str, template_name: str = None
+    ):
         """
         add a bot to account and apply template
 
@@ -95,21 +123,34 @@ class AccountProcessor:
 
         metadata = {"metadata": {"from_template": template_name}}
         add_default_data = True if Utility.check_empty_string(template_name) else False
-        bot = AccountProcessor.add_bot(name, account, user, False, add_default_data, **metadata)
-        bot_id = bot['_id'].__str__()
+        bot = AccountProcessor.add_bot(
+            name, account, user, False, add_default_data, **metadata
+        )
+        bot_id = bot["_id"].__str__()
         if not Utility.check_empty_string(template_name):
             processor = MongoProcessor()
             await processor.apply_template(template_name, bot_id, user)
             Utility.copy_pretrained_model(bot_id, template_name)
             processor.enable_llm_faq(bot_id, user)
 
-        if not Utility.check_empty_string(Utility.environment['llm'].get('key')):
-            Sysadmin.add_bot_secret(bot_id, user, name=BotSecretType.gpt_key.value,
-                                    secret=Utility.environment['llm']['key'])
+        if not Utility.check_empty_string(Utility.environment["llm"].get("key")):
+            Sysadmin.add_bot_secret(
+                bot_id,
+                user,
+                name=BotSecretType.gpt_key.value,
+                secret=Utility.environment["llm"]["key"],
+            )
         return bot_id
 
     @staticmethod
-    def add_bot(name: str, account: int, user: str, is_new_account: bool = False, add_default_data: bool = True, **metadata):
+    def add_bot(
+        name: str,
+        account: int,
+        user: str,
+        is_new_account: bool = False,
+        add_default_data: bool = True,
+        **metadata,
+    ):
         """
         add a bot to account
 
@@ -133,14 +174,26 @@ class AccountProcessor:
         AccountProcessor.check_bot_exists(name, account)
 
         if metadata:
-            bot_metadata = BotMetaData(**metadata['metadata'])
+            bot_metadata = BotMetaData(**metadata["metadata"])
         else:
             bot_metadata = BotMetaData()
 
-        bot = Bot(name=name, account=account, user=user, metadata=bot_metadata).save().to_mongo().to_dict()
-        bot_id = bot['_id'].__str__()
+        bot = (
+            Bot(name=name, account=account, user=user, metadata=bot_metadata)
+            .save()
+            .to_mongo()
+            .to_dict()
+        )
+        bot_id = bot["_id"].__str__()
         if not is_new_account:
-            AccountProcessor.__allow_access_to_bot(bot_id, user, user, account, ACCESS_ROLES.OWNER.value, ACTIVITY_STATUS.ACTIVE.value)
+            AccountProcessor.__allow_access_to_bot(
+                bot_id,
+                user,
+                user,
+                account,
+                ACCESS_ROLES.OWNER.value,
+                ACTIVITY_STATUS.ACTIVE.value,
+            )
         BotSettings(bot=bot_id, user=user).save()
         processor = MongoProcessor()
         config = processor.load_config(bot_id)
@@ -155,87 +208,155 @@ class AccountProcessor:
     def list_bots(account_id: int):
         for bot in Bot.objects(account=account_id, status=True):
             bot = bot.to_mongo().to_dict()
-            bot.pop('status')
-            bot['role'] = ACCESS_ROLES.OWNER.value
-            bot['_id'] = bot['_id'].__str__()
+            bot.pop("status")
+            bot["role"] = ACCESS_ROLES.OWNER.value
+            bot["_id"] = bot["_id"].__str__()
             yield bot
 
     @staticmethod
     def update_bot(name: Text, bot: Text):
         if Utility.check_empty_string(name):
-            raise AppException('Name cannot be empty')
+            raise AppException("Name cannot be empty")
         try:
             bot_info = Bot.objects(id=bot, status=True).get()
             bot_info.name = name
             bot_info.save()
         except DoesNotExist:
-            raise AppException('Bot not found')
+            raise AppException("Bot not found")
 
     @staticmethod
     def delete_bot(bot: Text):
-        from kairon.shared.data.data_objects import Intents, Responses, Stories, Configs, Endpoints, Entities, \
-            EntitySynonyms, Forms, LookupTables, ModelDeployment, ModelTraining, RegexFeatures, Rules, SessionConfigs, \
-            Slots, TrainingDataGenerator, TrainingExamples
+        from kairon.shared.data.data_objects import (
+            Intents,
+            Responses,
+            Stories,
+            Configs,
+            Endpoints,
+            Entities,
+            EntitySynonyms,
+            Forms,
+            LookupTables,
+            ModelDeployment,
+            ModelTraining,
+            RegexFeatures,
+            Rules,
+            SessionConfigs,
+            Slots,
+            TrainingDataGenerator,
+            TrainingExamples,
+        )
         from kairon.shared.test.data_objects import ModelTestingLogs
         from kairon.shared.importer.data_objects import ValidationLogs
-        from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions
+        from kairon.shared.actions.data_objects import (
+            HttpActionConfig,
+            ActionServerLogs,
+            Actions,
+        )
 
         try:
             bot_info = Bot.objects(id=bot, status=True).get()
             bot_info.status = False
             bot_info.save()
-            Utility.hard_delete_document([
-                Actions, BotAccess, BotSettings, Configs, ChatClientConfig, Endpoints, Entities, EmailActionConfig,
-                EntitySynonyms, Forms, FormValidationAction, HttpActionConfig, Intents, LookupTables, RegexFeatures,
-                Responses, Rules, SlotMapping, SlotSetAction, SessionConfigs, Slots, Stories, TrainingDataGenerator,
-                TrainingExamples, ActionServerLogs, ModelTraining, ModelTestingLogs, ModelDeployment, ValidationLogs
-            ], bot)
+            Utility.hard_delete_document(
+                [
+                    Actions,
+                    BotAccess,
+                    BotSettings,
+                    Configs,
+                    ChatClientConfig,
+                    Endpoints,
+                    Entities,
+                    EmailActionConfig,
+                    EntitySynonyms,
+                    Forms,
+                    FormValidationAction,
+                    HttpActionConfig,
+                    Intents,
+                    LookupTables,
+                    RegexFeatures,
+                    Responses,
+                    Rules,
+                    SlotMapping,
+                    SlotSetAction,
+                    SessionConfigs,
+                    Slots,
+                    Stories,
+                    TrainingDataGenerator,
+                    TrainingExamples,
+                    ActionServerLogs,
+                    ModelTraining,
+                    ModelTestingLogs,
+                    ModelDeployment,
+                    ValidationLogs,
+                ],
+                bot,
+            )
             AccountProcessor.remove_bot_access(bot)
         except DoesNotExist:
-            raise AppException('Bot not found')
+            raise AppException("Bot not found")
 
     @staticmethod
     def fetch_role_for_user(email: Text, bot: Text):
         try:
-            return BotAccess.objects(accessor_email__iexact=email, bot=bot,
-                                     status=ACTIVITY_STATUS.ACTIVE.value).get().to_mongo().to_dict()
+            return (
+                BotAccess.objects(
+                    accessor_email__iexact=email,
+                    bot=bot,
+                    status=ACTIVITY_STATUS.ACTIVE.value,
+                )
+                .get()
+                .to_mongo()
+                .to_dict()
+            )
         except DoesNotExist as e:
             logging.error(e)
-            raise AppException('Access to bot is denied')
+            raise AppException("Access to bot is denied")
 
     @staticmethod
     def get_accessible_bot_details(account_id: int, email: Text):
         shared_bots = []
         account_bots = list(AccountProcessor.list_bots(account_id))
-        for bot in BotAccess.objects(accessor_email__iexact=email, bot_account__ne=account_id,
-                                     status=ACTIVITY_STATUS.ACTIVE.value):
-            bot_details = AccountProcessor.get_bot(bot['bot'])
-            bot_details['_id'] = bot_details['_id'].__str__()
-            bot_details['role'] = bot['role']
+        for bot in BotAccess.objects(
+            accessor_email__iexact=email,
+            bot_account__ne=account_id,
+            status=ACTIVITY_STATUS.ACTIVE.value,
+        ):
+            bot_details = AccountProcessor.get_bot(bot["bot"])
+            bot_details["_id"] = bot_details["_id"].__str__()
+            bot_details["role"] = bot["role"]
             shared_bots.append(bot_details)
-        return {
-            'account_owned': account_bots,
-            'shared': shared_bots
-        }
+        return {"account_owned": account_bots, "shared": shared_bots}
 
     @staticmethod
-    def allow_bot_and_generate_invite_url(bot: Text, email: Text, user: Text, bot_account: int,
-                                          role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value):
+    def allow_bot_and_generate_invite_url(
+        bot: Text,
+        email: Text,
+        user: Text,
+        bot_account: int,
+        role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
+    ):
         token = Utility.generate_token(email)
         link = f'{Utility.email_conf["app"]["url"]}/{bot}/invite/accept/{token}'
         if role == ACCESS_ROLES.OWNER.value:
-            raise AppException('There can be only 1 owner per bot')
+            raise AppException("There can be only 1 owner per bot")
         if Utility.email_conf["email"]["enable"]:
             activity_status = ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value
         else:
             activity_status = ACTIVITY_STATUS.ACTIVE.value
-        bot_details = AccountProcessor.__allow_access_to_bot(bot, email, user, bot_account, role, activity_status)
-        return bot_details['name'], link
+        bot_details = AccountProcessor.__allow_access_to_bot(
+            bot, email, user, bot_account, role, activity_status
+        )
+        return bot_details["name"], link
 
     @staticmethod
-    def __allow_access_to_bot(bot: Text, accessor_email: Text, user: Text,
-                              bot_account: int, role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
-                              activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value):
+    def __allow_access_to_bot(
+        bot: Text,
+        accessor_email: Text,
+        user: Text,
+        bot_account: int,
+        role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
+        activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value,
+    ):
         """
         Adds bot to a user account.
 
@@ -247,23 +368,32 @@ class AccountProcessor:
         :param role: can be one of admin, designer or tester.
         """
         bot_details = AccountProcessor.get_bot_and_validate_status(bot)
-        Utility.is_exist(BotAccess, 'User is already a collaborator', accessor_email__iexact=accessor_email, bot=bot,
-                         status__ne=ACTIVITY_STATUS.DELETED.value)
+        Utility.is_exist(
+            BotAccess,
+            "User is already a collaborator",
+            accessor_email__iexact=accessor_email,
+            bot=bot,
+            status__ne=ACTIVITY_STATUS.DELETED.value,
+        )
         BotAccess(
             accessor_email=accessor_email,
             bot=bot,
             role=role,
             user=user,
             bot_account=bot_account,
-            status=activity_status
+            status=activity_status,
         ).save()
         return bot_details
 
     @staticmethod
-    def update_bot_access(bot: Text, accessor_email: Text, user: Text,
-                          role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
-                          status: ACTIVITY_STATUS = ACTIVITY_STATUS.ACTIVE.value,
-                          validate_ownership_modification: bool = True):
+    def update_bot_access(
+        bot: Text,
+        accessor_email: Text,
+        user: Text,
+        role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
+        status: ACTIVITY_STATUS = ACTIVITY_STATUS.ACTIVE.value,
+        validate_ownership_modification: bool = True,
+    ):
         """
         Adds bot to a user account.
 
@@ -278,23 +408,42 @@ class AccountProcessor:
         owner_info = AccountProcessor.get_bot_owner(bot)
         owner = AccountProcessor.get_user(owner_info["accessor_email"])
         member = AccountProcessor.get_user(accessor_email)
-        AccountProcessor.__update_role(bot, accessor_email, user, role, status, validate_ownership_modification)
-        return bot_info["name"], owner_info["accessor_email"], owner['first_name'], member['first_name']
+        AccountProcessor.__update_role(
+            bot, accessor_email, user, role, status, validate_ownership_modification
+        )
+        return (
+            bot_info["name"],
+            owner_info["accessor_email"],
+            owner["first_name"],
+            member["first_name"],
+        )
 
     @staticmethod
-    def __update_role(bot: Text, accessor_email: Text, user: Text,
-                      role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
-                      status: ACTIVITY_STATUS = ACTIVITY_STATUS.ACTIVE.value,
-                      validate_ownership_modification: bool = True):
+    def __update_role(
+        bot: Text,
+        accessor_email: Text,
+        user: Text,
+        role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value,
+        status: ACTIVITY_STATUS = ACTIVITY_STATUS.ACTIVE.value,
+        validate_ownership_modification: bool = True,
+    ):
         AccountProcessor.get_user(accessor_email)
         try:
             bot_access = BotAccess.objects(
-                accessor_email__iexact=accessor_email, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
+                accessor_email__iexact=accessor_email,
+                bot=bot,
+                status__ne=ACTIVITY_STATUS.DELETED.value,
             ).get()
-            if Utility.email_conf["email"]["enable"] and bot_access.status == ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value:
-                raise AppException('User is yet to accept the invite')
-            if validate_ownership_modification and ACCESS_ROLES.OWNER.value in {role, bot_access.role}:
-                raise AppException('Ownership modification denied')
+            if (
+                Utility.email_conf["email"]["enable"]
+                and bot_access.status == ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value
+            ):
+                raise AppException("User is yet to accept the invite")
+            if validate_ownership_modification and ACCESS_ROLES.OWNER.value in {
+                role,
+                bot_access.role,
+            }:
+                raise AppException("Ownership modification denied")
             if bot_access.role == role:
                 raise AppException(f"User is already {role} of the bot")
             bot_access.role = role
@@ -303,33 +452,55 @@ class AccountProcessor:
             bot_access.timestamp = datetime.utcnow()
             bot_access.save()
         except DoesNotExist:
-            raise AppException('User not yet invited to collaborate')
+            raise AppException("User not yet invited to collaborate")
 
     @staticmethod
     def get_bot_owner(bot: Text):
-        return BotAccess.objects(
-            bot=bot, role=ACCESS_ROLES.OWNER.value, status__ne=ACTIVITY_STATUS.DELETED.value
-        ).get().to_mongo().to_dict()
+        return (
+            BotAccess.objects(
+                bot=bot,
+                role=ACCESS_ROLES.OWNER.value,
+                status__ne=ACTIVITY_STATUS.DELETED.value,
+            )
+            .get()
+            .to_mongo()
+            .to_dict()
+        )
 
     @staticmethod
     def transfer_ownership(account: int, bot: Text, current_owner: Text, to_user: Text):
         bot_info = AccountProcessor.get_bot_and_validate_status(bot)
-        AccountProcessor.__update_role(bot, to_user, current_owner, ACCESS_ROLES.OWNER.value, validate_ownership_modification=False)
-        AccountProcessor.__update_role(bot, current_owner, current_owner, ACCESS_ROLES.ADMIN.value, validate_ownership_modification=False)
+        AccountProcessor.__update_role(
+            bot,
+            to_user,
+            current_owner,
+            ACCESS_ROLES.OWNER.value,
+            validate_ownership_modification=False,
+        )
+        AccountProcessor.__update_role(
+            bot,
+            current_owner,
+            current_owner,
+            ACCESS_ROLES.ADMIN.value,
+            validate_ownership_modification=False,
+        )
         AccountProcessor.__change_bot_account(bot, to_user)
         UserActivityLogger.add_log(
             account,
             UserActivityType.transfer_ownership.value,
-            current_owner, bot,
-            [f'Ownership transferred to {to_user}']
+            current_owner,
+            bot,
+            [f"Ownership transferred to {to_user}"],
         )
         return bot_info["name"]
 
     @staticmethod
     def __change_bot_account(bot_id: Text, to_owner: Text):
         user = AccountProcessor.get_user(to_owner)
-        Bot.objects(id=bot_id, status=True).update(set__account=user['account'])
-        BotAccess.objects(bot=bot_id, status__ne=ACTIVITY_STATUS.DELETED.value).update(set__bot_account=user['account'])
+        Bot.objects(id=bot_id, status=True).update(set__account=user["account"])
+        BotAccess.objects(bot=bot_id, status__ne=ACTIVITY_STATUS.DELETED.value).update(
+            set__bot_account=user["account"]
+        )
 
     @staticmethod
     def validate_request_and_accept_bot_access_invite(token: Text, bot: Text):
@@ -353,14 +524,22 @@ class AccountProcessor:
         """
         bot_details = AccountProcessor.get_bot_and_validate_status(bot)
         try:
-            bot_access = BotAccess.objects(accessor_email__iexact=accessor_email, bot=bot,
-                                           status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value).get()
+            bot_access = BotAccess.objects(
+                accessor_email__iexact=accessor_email,
+                bot=bot,
+                status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value,
+            ).get()
             bot_access.status = ACTIVITY_STATUS.ACTIVE.value
             bot_access.accept_timestamp = datetime.utcnow()
             bot_access.save()
-            return bot_access.user, bot_details['name'], bot_access.accessor_email, bot_access.role
+            return (
+                bot_access.user,
+                bot_details["name"],
+                bot_access.accessor_email,
+                bot_access.role,
+            )
         except DoesNotExist:
-            raise AppException('No pending invite found for this bot and user')
+            raise AppException("No pending invite found for this bot and user")
 
     @staticmethod
     def list_active_invites(user: Text):
@@ -369,13 +548,16 @@ class AccountProcessor:
 
         :param user: account username
         """
-        for invite in BotAccess.objects(accessor_email__iexact=user, status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value):
+        for invite in BotAccess.objects(
+            accessor_email__iexact=user,
+            status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value,
+        ):
             invite = invite.to_mongo().to_dict()
-            bot_details = AccountProcessor.get_bot(invite['bot'])
-            invite['bot_name'] = bot_details['name']
-            invite.pop('_id')
-            invite.pop('bot_account')
-            invite.pop('status')
+            bot_details = AccountProcessor.get_bot(invite["bot"])
+            invite["bot_name"] = bot_details["name"]
+            invite.pop("_id")
+            invite.pop("bot_account")
+            invite.pop("status")
             yield invite
 
     @staticmethod
@@ -397,11 +579,22 @@ class AccountProcessor:
         :param kwargs: can be either account or email.
         """
         if kwargs:
-            if not Utility.is_exist(BotAccess, None, False, **kwargs, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value):
-                raise AppException('User not a collaborator to this bot')
-            active_bot_access = BotAccess.objects(**kwargs, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value)
+            if not Utility.is_exist(
+                BotAccess,
+                None,
+                False,
+                **kwargs,
+                bot=bot,
+                status__ne=ACTIVITY_STATUS.DELETED.value,
+            ):
+                raise AppException("User not a collaborator to this bot")
+            active_bot_access = BotAccess.objects(
+                **kwargs, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
+            )
         else:
-            active_bot_access = BotAccess.objects(bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value)
+            active_bot_access = BotAccess.objects(
+                bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
+            )
         active_bot_access.update(set__status=ACTIVITY_STATUS.DELETED.value)
 
     @staticmethod
@@ -410,9 +603,11 @@ class AccountProcessor:
             raise AppException("User cannot remove himself")
         Utility.is_exist(
             BotAccess,
-            'Bot owner cannot be removed',
-            accessor_email__iexact=accessor_email, bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value,
-            role=ACCESS_ROLES.OWNER.value
+            "Bot owner cannot be removed",
+            accessor_email__iexact=accessor_email,
+            bot=bot,
+            status__ne=ACTIVITY_STATUS.DELETED.value,
+            role=ACCESS_ROLES.OWNER.value,
         )
         AccountProcessor.remove_bot_access(bot, accessor_email=accessor_email)
 
@@ -423,9 +618,11 @@ class AccountProcessor:
 
         :param bot: bot id
         """
-        for accessor in BotAccess.objects(bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value):
+        for accessor in BotAccess.objects(
+            bot=bot, status__ne=ACTIVITY_STATUS.DELETED.value
+        ):
             accessor = accessor.to_mongo().to_dict()
-            accessor['_id'] = accessor['_id'].__str__()
+            accessor["_id"] = accessor["_id"].__str__()
             yield accessor
 
     @staticmethod
@@ -498,7 +695,7 @@ class AccountProcessor:
                 first_name=first_name.strip(),
                 last_name=last_name.strip(),
                 account=account,
-                user=user.strip()
+                user=user.strip(),
             )
             .save()
             .to_mongo()
@@ -515,11 +712,18 @@ class AccountProcessor:
         :return: user details
         """
         try:
-            return User.objects(email__iexact=email, status=True).get().to_mongo().to_dict()
+            return (
+                User.objects(email__iexact=email, status=True)
+                .get()
+                .to_mongo()
+                .to_dict()
+            )
         except Exception as e:
             logging.error(e)
             if is_login_request:
-                MeteringProcessor.add_log(metric_type=MetricType.invalid_login.value, **{"username": email})
+                MeteringProcessor.add_log(
+                    metric_type=MetricType.invalid_login.value, **{"username": email}
+                )
             raise DoesNotExist("User does not exist!")
 
     @staticmethod
@@ -537,15 +741,25 @@ class AccountProcessor:
         if not user["status"]:
             if is_login_request:
                 kwargs.update({"error": "Inactive User please contact admin!"})
-                MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
-                                              account=user["account"], **kwargs)
+                MeteringProcessor.add_metrics(
+                    bot=None,
+                    metric_type=MetricType.invalid_login.value,
+                    account=user["account"],
+                    **kwargs,
+                )
             raise ValidationError("Inactive User please contact admin!")
         account = AccountProcessor.get_account(user["account"])
         if not account["status"]:
             if is_login_request:
-                kwargs.update({"error": "Inactive Account Please contact system admin!"})
-                MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
-                                              account=user["account"], **kwargs)
+                kwargs.update(
+                    {"error": "Inactive Account Please contact system admin!"}
+                )
+                MeteringProcessor.add_metrics(
+                    bot=None,
+                    metric_type=MetricType.invalid_login.value,
+                    account=user["account"],
+                    **kwargs,
+                )
             raise ValidationError("Inactive Account Please contact system admin!")
         return user
 
@@ -561,9 +775,9 @@ class AccountProcessor:
         account = AccountProcessor.get_account(user["account"])
         bots = AccountProcessor.get_accessible_bot_details(user["account"], email)
         user["account_name"] = account["name"]
-        user['bots'] = bots
+        user["bots"] = bots
         user["_id"] = user["_id"].__str__()
-        user.pop('password')
+        user.pop("password")
         return user
 
     @staticmethod
@@ -577,10 +791,14 @@ class AccountProcessor:
             raise AppException("User does not exists!")
 
     @staticmethod
-    def get_user_details_and_filter_bot_info_for_integration_user(email: Text, is_integration_user: bool, bot: Text = None):
+    def get_user_details_and_filter_bot_info_for_integration_user(
+        email: Text, is_integration_user: bool, bot: Text = None
+    ):
         user_details = AccountProcessor.get_complete_user_details(email)
         if is_integration_user:
-            user_details['bots'] = Utility.filter_bot_details_for_integration_user(bot, user_details['bots'])
+            user_details["bots"] = Utility.filter_bot_details_for_integration_user(
+                bot, user_details["bots"]
+            )
         return user_details
 
     @staticmethod
@@ -601,24 +819,29 @@ class AccountProcessor:
         user = account_setup.get("email")
         try:
             account = AccountProcessor.add_account(account_setup.get("account"), user)
-            bot = AccountProcessor.add_bot('Hi-Hello', account["_id"], user, True)
+            bot = AccountProcessor.add_bot("Hi-Hello", account["_id"], user, True)
             user_details = AccountProcessor.add_user(
                 email=account_setup.get("email"),
                 first_name=account_setup.get("first_name"),
                 last_name=account_setup.get("last_name"),
                 password=account_setup.get("password").get_secret_value(),
                 account=account["_id"].__str__(),
-                user=user
+                user=user,
             )
-            AccountProcessor.__allow_access_to_bot(bot["_id"].__str__(), account_setup.get("email"),
-                                                   account_setup.get("email"), account['_id'],
-                                                   ACCESS_ROLES.OWNER.value, ACTIVITY_STATUS.ACTIVE.value)
+            AccountProcessor.__allow_access_to_bot(
+                bot["_id"].__str__(),
+                account_setup.get("email"),
+                account_setup.get("email"),
+                account["_id"],
+                ACCESS_ROLES.OWNER.value,
+                ACTIVITY_STATUS.ACTIVE.value,
+            )
             await MongoProcessor().save_from_path(
                 "template/use-cases/Hi-Hello", bot["_id"].__str__(), user="sysadmin"
             )
             if email_enabled:
                 token = Utility.generate_token(account_setup.get("email"))
-                link = Utility.email_conf["app"]["url"] + '/verify/' + token
+                link = Utility.email_conf["app"]["url"] + "/verify/" + token
                 mail_to = account_setup.get("email")
 
         except Exception as e:
@@ -658,38 +881,91 @@ class AccountProcessor:
             system_properties = SystemProperties.objects().get().to_mongo().to_dict()
         except DoesNotExist:
             mail_templates = MailTemplates(
-                password_reset=open('template/emails/passwordReset.html', 'r').read(),
-                password_reset_confirmation=open('template/emails/passwordResetConfirmation.html', 'r').read(),
-                verification=open('template/emails/verification.html', 'r').read(),
-                verification_confirmation=open('template/emails/verificationConfirmation.html', 'r').read(),
-                add_member_invitation=open('template/emails/memberAddAccept.html', 'r').read(),
-                add_member_confirmation=open('template/emails/memberAddConfirmation.html', 'r').read(),
-                password_generated=open('template/emails/passwordGenerated.html', 'r').read(),
-                conversation=open('template/emails/conversation.html', 'r').read(),
-                custom_text_mail=open('template/emails/custom_text_mail.html', 'r').read(),
-                bot_msg_conversation=open('template/emails/bot_msg_conversation.html', 'r').read(),
-                user_msg_conversation=open('template/emails/user_msg_conversation.html', 'r').read(),
-                update_role=open('template/emails/memberUpdateRole.html', 'r').read(),
-                untrusted_login=open('template/emails/untrustedLogin.html', 'r').read(),
-                add_trusted_device=open('template/emails/addTrustedDevice.html', 'r').read(),
-                button_template=open('template/emails/button.html', 'r').read(),
+                password_reset=open("template/emails/passwordReset.html", "r").read(),
+                password_reset_confirmation=open(
+                    "template/emails/passwordResetConfirmation.html", "r"
+                ).read(),
+                verification=open("template/emails/verification.html", "r").read(),
+                verification_confirmation=open(
+                    "template/emails/verificationConfirmation.html", "r"
+                ).read(),
+                add_member_invitation=open(
+                    "template/emails/memberAddAccept.html", "r"
+                ).read(),
+                add_member_confirmation=open(
+                    "template/emails/memberAddConfirmation.html", "r"
+                ).read(),
+                password_generated=open(
+                    "template/emails/passwordGenerated.html", "r"
+                ).read(),
+                conversation=open("template/emails/conversation.html", "r").read(),
+                custom_text_mail=open(
+                    "template/emails/custom_text_mail.html", "r"
+                ).read(),
+                bot_msg_conversation=open(
+                    "template/emails/bot_msg_conversation.html", "r"
+                ).read(),
+                user_msg_conversation=open(
+                    "template/emails/user_msg_conversation.html", "r"
+                ).read(),
+                update_role=open("template/emails/memberUpdateRole.html", "r").read(),
+                untrusted_login=open("template/emails/untrustedLogin.html", "r").read(),
+                add_trusted_device=open(
+                    "template/emails/addTrustedDevice.html", "r"
+                ).read(),
+                button_template=open("template/emails/button.html", "r").read(),
             )
-            system_properties = SystemProperties(mail_templates=mail_templates).save().to_mongo().to_dict()
-        Utility.email_conf['email']['templates']['verification'] = system_properties['mail_templates']['verification']
-        Utility.email_conf['email']['templates']['verification_confirmation'] = system_properties['mail_templates']['verification_confirmation']
-        Utility.email_conf['email']['templates']['password_reset'] = system_properties['mail_templates']['password_reset']
-        Utility.email_conf['email']['templates']['password_reset_confirmation'] = system_properties['mail_templates']['password_reset_confirmation']
-        Utility.email_conf['email']['templates']['add_member_invitation'] = system_properties['mail_templates']['add_member_invitation']
-        Utility.email_conf['email']['templates']['add_member_confirmation'] = system_properties['mail_templates']['add_member_confirmation']
-        Utility.email_conf['email']['templates']['password_generated'] = system_properties['mail_templates']['password_generated']
-        Utility.email_conf['email']['templates']['conversation'] = system_properties['mail_templates']['conversation']
-        Utility.email_conf['email']['templates']['custom_text_mail'] = system_properties['mail_templates']['custom_text_mail']
-        Utility.email_conf['email']['templates']['bot_msg_conversation'] = system_properties['mail_templates']['bot_msg_conversation']
-        Utility.email_conf['email']['templates']['user_msg_conversation'] = system_properties['mail_templates']['user_msg_conversation']
-        Utility.email_conf['email']['templates']['update_role'] = system_properties['mail_templates']['update_role']
-        Utility.email_conf['email']['templates']['untrusted_login'] = system_properties['mail_templates']['untrusted_login']
-        Utility.email_conf['email']['templates']['add_trusted_device'] = system_properties['mail_templates']['add_trusted_device']
-        Utility.email_conf['email']['templates']['button_template'] = system_properties['mail_templates']['button_template']
+            system_properties = (
+                SystemProperties(mail_templates=mail_templates)
+                .save()
+                .to_mongo()
+                .to_dict()
+            )
+        Utility.email_conf["email"]["templates"]["verification"] = system_properties[
+            "mail_templates"
+        ]["verification"]
+        Utility.email_conf["email"]["templates"][
+            "verification_confirmation"
+        ] = system_properties["mail_templates"]["verification_confirmation"]
+        Utility.email_conf["email"]["templates"]["password_reset"] = system_properties[
+            "mail_templates"
+        ]["password_reset"]
+        Utility.email_conf["email"]["templates"][
+            "password_reset_confirmation"
+        ] = system_properties["mail_templates"]["password_reset_confirmation"]
+        Utility.email_conf["email"]["templates"][
+            "add_member_invitation"
+        ] = system_properties["mail_templates"]["add_member_invitation"]
+        Utility.email_conf["email"]["templates"][
+            "add_member_confirmation"
+        ] = system_properties["mail_templates"]["add_member_confirmation"]
+        Utility.email_conf["email"]["templates"][
+            "password_generated"
+        ] = system_properties["mail_templates"]["password_generated"]
+        Utility.email_conf["email"]["templates"]["conversation"] = system_properties[
+            "mail_templates"
+        ]["conversation"]
+        Utility.email_conf["email"]["templates"][
+            "custom_text_mail"
+        ] = system_properties["mail_templates"]["custom_text_mail"]
+        Utility.email_conf["email"]["templates"][
+            "bot_msg_conversation"
+        ] = system_properties["mail_templates"]["bot_msg_conversation"]
+        Utility.email_conf["email"]["templates"][
+            "user_msg_conversation"
+        ] = system_properties["mail_templates"]["user_msg_conversation"]
+        Utility.email_conf["email"]["templates"]["update_role"] = system_properties[
+            "mail_templates"
+        ]["update_role"]
+        Utility.email_conf["email"]["templates"]["untrusted_login"] = system_properties[
+            "mail_templates"
+        ]["untrusted_login"]
+        Utility.email_conf["email"]["templates"][
+            "add_trusted_device"
+        ] = system_properties["mail_templates"]["add_trusted_device"]
+        Utility.email_conf["email"]["templates"]["button_template"] = system_properties[
+            "mail_templates"
+        ]["button_template"]
 
     @staticmethod
     async def confirm_email(token: str):
@@ -710,7 +986,7 @@ class AccountProcessor:
         confirm.email = email_confirm
         confirm.save()
         user = AccountProcessor.get_user(email_confirm)
-        return email_confirm, user['first_name']
+        return email_confirm, user["first_name"]
 
     @staticmethod
     def is_user_confirmed(email: str):
@@ -720,7 +996,9 @@ class AccountProcessor:
         :param email: mail id of user
         :return: None
         """
-        if not Utility.is_exist(UserEmailConfirmation, email__iexact=email.strip(), raise_error=False):
+        if not Utility.is_exist(
+            UserEmailConfirmation, email__iexact=email.strip(), raise_error=False
+        ):
             raise AppException("Please verify your mail")
 
     @staticmethod
@@ -739,9 +1017,16 @@ class AccountProcessor:
                 AccountProcessor.is_user_confirmed(user_info["email"])
             except Exception as e:
                 if is_login_request:
-                    kwargs = {"username": user_info["email"], "error": "Please verify your mail"}
-                    MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
-                                                  account=user_info["account"], **kwargs)
+                    kwargs = {
+                        "username": user_info["email"],
+                        "error": "Please verify your mail",
+                    }
+                    MeteringProcessor.add_metrics(
+                        bot=None,
+                        metric_type=MetricType.invalid_login.value,
+                        account=user_info["account"],
+                        **kwargs,
+                    )
                 raise e
 
     @staticmethod
@@ -758,24 +1043,43 @@ class AccountProcessor:
             mail = mail.strip()
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
-            if not Utility.is_exist(User, email__iexact=mail, status=True, raise_error=False, check_base_fields=False):
+            if not Utility.is_exist(
+                User,
+                email__iexact=mail,
+                status=True,
+                raise_error=False,
+                check_base_fields=False,
+            ):
                 raise AppException("Error! There is no user with the following mail id")
-            if not Utility.is_exist(UserEmailConfirmation, email__iexact=mail, raise_error=False):
+            if not Utility.is_exist(
+                UserEmailConfirmation, email__iexact=mail, raise_error=False
+            ):
                 raise AppException("Error! The following user's mail is not verified")
             UserActivityLogger.is_password_reset_within_cooldown_period(mail)
             UserActivityLogger.is_password_reset_request_limit_exceeded(mail)
-            token_expiry = Utility.environment['user']['reset_password_cooldown_period'] or 120
+            token_expiry = (
+                Utility.environment["user"]["reset_password_cooldown_period"] or 120
+            )
             uuid_value = str(uuid.uuid1())
-            token = Utility.generate_token_payload({"mail_id": mail, "uuid": uuid_value}, token_expiry * 60)
+            token = Utility.generate_token_payload(
+                {"mail_id": mail, "uuid": uuid_value}, token_expiry * 60
+            )
             user = AccountProcessor.get_user(mail)
-            link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
-            UserActivityLogger.add_log(account=user['account'], email=mail, a_type=UserActivityType.reset_password_request.value)
+            link = Utility.email_conf["app"]["url"] + "/reset_password/" + token
+            UserActivityLogger.add_log(
+                account=user["account"],
+                email=mail,
+                a_type=UserActivityType.reset_password_request.value,
+            )
             data = {"status": "pending", "uuid": uuid_value}
             UserActivityLogger.add_log(
-                account=user['account'], email=mail, a_type=UserActivityType.link_usage.value,
-                message=["Send Reset Link"], data=data
+                account=user["account"],
+                email=mail,
+                a_type=UserActivityType.link_usage.value,
+                message=["Send Reset Link"],
+                data=data,
             )
-            return mail, user['first_name'], link
+            return mail, user["first_name"], link
         else:
             raise AppException("Error! Email verification is not enabled")
 
@@ -794,8 +1098,12 @@ class AccountProcessor:
         email = decoded_jwt.get("mail_id")
         uuid_value = decoded_jwt.get("uuid")
         if uuid_value is not None and Utility.is_exist(
-                UserActivityLog, raise_error=False, user=email, type=UserActivityType.link_usage.value,
-                data={"status": "done", "uuid": uuid_value}, check_base_fields=False
+            UserActivityLog,
+            raise_error=False,
+            user=email,
+            type=UserActivityType.link_usage.value,
+            data={"status": "done", "uuid": uuid_value},
+            check_base_fields=False,
         ):
             raise AppException("Link is already being used, Please raise new request")
         user = User.objects(email__iexact=email, status=True).get()
@@ -803,21 +1111,32 @@ class AccountProcessor:
         previous_passwrd = user.password
         if Utility.verify_password(password.strip(), previous_passwrd):
             raise AppException("You have already used that password, try another")
-        user_act_log = UserActivityLog.objects(user=email, type=UserActivityType.reset_password.value)
-        if any(act_log.data is not None and act_log.data.get("password") is not None and
-               Utility.verify_password(password.strip(), act_log.data.get("password"))
-               for act_log in user_act_log):
+        user_act_log = UserActivityLog.objects(
+            user=email, type=UserActivityType.reset_password.value
+        )
+        if any(
+            act_log.data is not None
+            and act_log.data.get("password") is not None
+            and Utility.verify_password(password.strip(), act_log.data.get("password"))
+            for act_log in user_act_log
+        ):
             raise AppException("You have already used that password, try another")
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
         user.save()
         data = {"password": previous_passwrd}
-        UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
-                                   data=data)
+        UserActivityLogger.add_log(
+            account=user["account"],
+            email=email,
+            a_type=UserActivityType.reset_password.value,
+            data=data,
+        )
         if uuid_value is not None:
-            UserActivityLog.objects(user=email, type=UserActivityType.link_usage.value,
-                                      data={"status": "pending", "uuid":uuid_value})\
-                .update_one(set__data__status="done")
+            UserActivityLog.objects(
+                user=email,
+                type=UserActivityType.link_usage.value,
+                data={"status": "pending", "uuid": uuid_value},
+            ).update_one(set__data__status="done")
         return email, user.first_name
 
     @staticmethod
@@ -833,18 +1152,31 @@ class AccountProcessor:
         if email_enabled:
             if isinstance(mail_check(mail), ValidationFailure):
                 raise AppException("Please enter valid email id")
-            Utility.is_exist(UserEmailConfirmation, exp_message="Email already confirmed!", email__iexact=mail.strip(), check_base_fields=False)
-            if not Utility.is_exist(User, email__iexact=mail.strip(), status=True, raise_error=False, check_base_fields=False):
+            Utility.is_exist(
+                UserEmailConfirmation,
+                exp_message="Email already confirmed!",
+                email__iexact=mail.strip(),
+                check_base_fields=False,
+            )
+            if not Utility.is_exist(
+                User,
+                email__iexact=mail.strip(),
+                status=True,
+                raise_error=False,
+                check_base_fields=False,
+            ):
                 raise AppException("Error! There is no user with the following mail id")
             user = AccountProcessor.get_user(mail)
             token = Utility.generate_token(mail)
-            link = Utility.email_conf["app"]["url"] + '/verify/' + token
-            return mail, user['first_name'], link
+            link = Utility.email_conf["app"]["url"] + "/verify/" + token
+            return mail, user["first_name"], link
         else:
             raise AppException("Error! Email verification is not enabled")
 
     @staticmethod
-    def add_feedback(rating: float, user: str, scale: float = 5.0, feedback: str = None):
+    def add_feedback(
+        rating: float, user: str, scale: float = 5.0, feedback: str = None
+    ):
         """
         Add user feedback.
         @param rating: user given rating.
@@ -888,11 +1220,11 @@ class AccountProcessor:
     @staticmethod
     def delete_account(account_id: int):
         """
-                Delete User Account
+        Delete User Account
 
-                :param account_id: user account id
-                :param email: user email
-                :return: None
+        :param account_id: user account id
+        :param email: user email
+        :return: None
         """
         try:
             account_obj = Account.objects(id=account_id, status=True).get()
@@ -903,29 +1235,49 @@ class AccountProcessor:
         account_bots = list(AccountProcessor.list_bots(account_id))
         # Delete all account_owned bots
         for bot in account_bots:
-            AccountProcessor.delete_bot(bot['_id'])
-            UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_bot.value, bot=bot["_id"])
+            AccountProcessor.delete_bot(bot["_id"])
+            UserActivityLogger.add_log(
+                account=account_id,
+                a_type=UserActivityType.delete_bot.value,
+                bot=bot["_id"],
+            )
 
         # Delete all Users for Account
         for user in User.objects(account=account_id, status=True):
-            BotAccess.objects(accessor_email=user.email, status__ne=ACTIVITY_STATUS.DELETED.value).update(
-                set__status=ACTIVITY_STATUS.DELETED.value)
+            BotAccess.objects(
+                accessor_email=user.email, status__ne=ACTIVITY_STATUS.DELETED.value
+            ).update(set__status=ACTIVITY_STATUS.DELETED.value)
             user.status = False
             user.save()
-            UserActivityLogger.add_log(account=account_id, email=user.email, a_type=UserActivityType.delete_user.value)
+            UserActivityLogger.add_log(
+                account=account_id,
+                email=user.email,
+                a_type=UserActivityType.delete_user.value,
+            )
 
         account_obj.status = False
         account_obj.save()
-        UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_account.value)
+        UserActivityLogger.add_log(
+            account=account_id, a_type=UserActivityType.delete_account.value
+        )
 
     @staticmethod
     def get_location_and_add_trusted_device(
-            user: Text, fingerprint: Text, request: Request, send_confirmation: bool = True, raise_err: bool = False
+        user: Text,
+        fingerprint: Text,
+        request: Request,
+        send_confirmation: bool = True,
+        raise_err: bool = False,
     ):
-        if Utility.environment['user']['validate_trusted_device']:
+        if Utility.environment["user"]["validate_trusted_device"]:
             ip = Utility.get_client_ip(request)
-            geo_location = PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip) or {}
-            link = AccountProcessor.add_trusted_device(user, fingerprint, send_confirmation, **geo_location)
+            geo_location = (
+                PluginFactory.get_instance(PluginTypes.ip_info.value).execute(ip=ip)
+                or {}
+            )
+            link = AccountProcessor.add_trusted_device(
+                user, fingerprint, send_confirmation, **geo_location
+            )
             return link, geo_location
         else:
             if raise_err:
@@ -933,14 +1285,28 @@ class AccountProcessor:
             return None, None
 
     @staticmethod
-    def add_trusted_device(user: Text, fingerprint: Text, send_confirmation: bool = True, **geo_location):
+    def add_trusted_device(
+        user: Text, fingerprint: Text, send_confirmation: bool = True, **geo_location
+    ):
         link = None
-        if not Utility.is_exist(TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint, status=True):
-            device = TrustedDevice(user=user, fingerprint=fingerprint, geo_location=geo_location)
+        if not Utility.is_exist(
+            TrustedDevice,
+            raise_error=False,
+            user=user,
+            fingerprint=fingerprint,
+            status=True,
+        ):
+            device = TrustedDevice(
+                user=user, fingerprint=fingerprint, geo_location=geo_location
+            )
             if Utility.email_conf["email"]["enable"] and send_confirmation:
                 payload = {"mail_id": user, "fingerprint": fingerprint}
                 token = Utility.generate_token_payload(payload, minutes_to_expire=120)
-                link = Utility.email_conf["app"]["url"] + '/device/trusted/confirm/' + token
+                link = (
+                    Utility.email_conf["app"]["url"]
+                    + "/device/trusted/confirm/"
+                    + token
+                )
             else:
                 device.is_confirmed = True
                 device.confirmation_timestamp = datetime.utcnow()
@@ -950,11 +1316,17 @@ class AccountProcessor:
     @staticmethod
     def confirm_add_trusted_device(user: Text, fingerprint: Text):
         if not Utility.is_exist(
-            TrustedDevice, raise_error=False, user=user, fingerprint=fingerprint, is_confirmed=False,
-            status=True
+            TrustedDevice,
+            raise_error=False,
+            user=user,
+            fingerprint=fingerprint,
+            is_confirmed=False,
+            status=True,
         ):
             raise AppException("Device not found!")
-        device = TrustedDevice.objects(user=user, fingerprint=fingerprint, is_confirmed=False, status=True).get()
+        device = TrustedDevice.objects(
+            user=user, fingerprint=fingerprint, is_confirmed=False, status=True
+        ).get()
         device.is_confirmed = True
         device.confirmation_timestamp = datetime.utcnow()
         device.save()
@@ -962,7 +1334,9 @@ class AccountProcessor:
     @staticmethod
     def remove_trusted_device(user: Text, fingerprint: Text):
         try:
-            trusted_device = TrustedDevice.objects(user=user, fingerprint=fingerprint, status=True).get()
+            trusted_device = TrustedDevice.objects(
+                user=user, fingerprint=fingerprint, status=True
+            ).get()
             trusted_device.status = False
             trusted_device.save()
         except DoesNotExist as e:
@@ -970,7 +1344,11 @@ class AccountProcessor:
 
     @staticmethod
     def list_trusted_device_fingerprints(user: Text):
-        return list(TrustedDevice.objects(user=user, is_confirmed=True, status=True).values_list("fingerprint"))
+        return list(
+            TrustedDevice.objects(
+                user=user, is_confirmed=True, status=True
+            ).values_list("fingerprint")
+        )
 
     @staticmethod
     def list_trusted_devices(user: Text):
@@ -982,25 +1360,39 @@ class AccountProcessor:
 
     @staticmethod
     def get_auditlog_for_user(user, start_idx: int = 0, page_size: int = 10):
-        auditlog_data = AuditLogData.objects(user=user).skip(start_idx).limit(page_size).exclude('id').to_json()
+        auditlog_data = (
+            AuditLogData.objects(user=user)
+            .skip(start_idx)
+            .limit(page_size)
+            .exclude("id")
+            .to_json()
+        )
         return json.loads(auditlog_data)
 
     @staticmethod
     def get_accessible_multilingual_bots(bot: Text, email: Text):
-        accessible_bots = BotAccess.objects(accessor_email=email, status=ACTIVITY_STATUS.ACTIVE.value).values_list("bot")
+        accessible_bots = BotAccess.objects(
+            accessor_email=email, status=ACTIVITY_STATUS.ACTIVE.value
+        ).values_list("bot")
         multilingual_bots = list(AccountProcessor.get_multilingual_bots(bot))
-        accessible_multilingual_bots = filter(lambda bot_info: bot_info['id'] in accessible_bots, multilingual_bots)
+        accessible_multilingual_bots = filter(
+            lambda bot_info: bot_info["id"] in accessible_bots, multilingual_bots
+        )
         return list(accessible_multilingual_bots)
 
     @staticmethod
     def get_multilingual_bots(bot: Text):
-        source_bot = AccountProcessor.get_bot(bot)['metadata'].get('source_bot_id')
+        source_bot = AccountProcessor.get_bot(bot)["metadata"].get("source_bot_id")
         if Utility.check_empty_string(source_bot):
             source_bot = bot
-        for bot_info in Bot.objects(Q(metadata__source_bot_id=source_bot) | Q(id=bot), status=True):
+        for bot_info in Bot.objects(
+            Q(metadata__source_bot_id=source_bot) | Q(id=bot), status=True
+        ):
             bot_id = bot_info["id"].__str__()
             yield {
-                "id": bot_id, "name": bot_info["name"], "language": bot_info['metadata']['language']
+                "id": bot_id,
+                "name": bot_info["name"],
+                "language": bot_info["metadata"]["language"],
             }
 
     def get_model_testing_accuracy_of_all_accessible_bots(account_id: int, email: Text):
@@ -1009,9 +1401,15 @@ class AccountProcessor:
         bot_accuracies = {}
         bots = AccountProcessor.get_accessible_bot_details(account_id, email)
         for bot in bots["account_owned"] + bots["shared"]:
-            accuracy_list = list(ModelTestingLogs.objects(bot=bot["_id"]).aggregate([{'$match': {'type': 'nlu'}},
-                                    {'$match': {'data.intent_evaluation.accuracy': {'$ne': None}}},
-                                    {'$project': {'accuracy': '$data.intent_evaluation.accuracy'}}]))
+            accuracy_list = list(
+                ModelTestingLogs.objects(bot=bot["_id"]).aggregate(
+                    [
+                        {"$match": {"type": "nlu"}},
+                        {"$match": {"data.intent_evaluation.accuracy": {"$ne": None}}},
+                        {"$project": {"accuracy": "$data.intent_evaluation.accuracy"}},
+                    ]
+                )
+            )
 
             if accuracy_list:
                 accuracy = accuracy_list[-1]["accuracy"]

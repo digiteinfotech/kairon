@@ -9,6 +9,7 @@ from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_CO
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.exceptions import AppException
+from mongomock import MongoClient
 
 
 class TestDataImporterLogProcessor:

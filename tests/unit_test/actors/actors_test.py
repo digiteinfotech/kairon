@@ -84,7 +84,7 @@ class TestActors:
             """
         script = textwrap.dedent(script)
 
-        with pytest.raises(AppException, match=re.escape('Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')):
+        with pytest.raises(AppException, match=re.escape('Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)')):
             ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script, timeout=10)
 
     def test_invalid_actor(self):

@@ -39,7 +39,6 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
 from unittest.mock import patch
 
-
 class TestActions:
 
     @pytest.fixture(autouse=True, scope='class')

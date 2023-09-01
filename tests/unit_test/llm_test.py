@@ -16,6 +16,7 @@ from kairon.shared.data.data_objects import CognitionData, LLMSettings
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding, LLMBase
 from kairon.shared.utils import Utility
+from mongomock import MongoClient
 
 
 class TestLLM:

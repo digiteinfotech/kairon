@@ -1,35 +1,8 @@
-FROM amazonlinux:2.0.20230307.0
+ARG BASE_IMAGE=kairon-base:latest
+FROM $BASE_IMAGE
 
-ENV RASA_NLU_DOCKER="YES" \
-    RASA_NLU_HOME=/app
-
-RUN yum update -y
-RUN yum -y install wget make gcc openssl-devel bzip2-devel
-RUN amazon-linux-extras install python3.8
-RUN rm /usr/bin/python
-RUN ln -s /usr/bin/python3.8 /usr/bin/python
-RUN python -m pip install --upgrade pip
-RUN python -m pip install fastapi>=0.68.1
-RUN python -m pip install nltk==3.6.6
-RUN python -m pip install transformers==4.23.0
-RUN python -m pip install sentencepiece
-RUN python -m pip install loguru
-RUN python -m pip install numpy
-RUN python -m pip install matplotlib
-RUN python -m pip install requests
-RUN python -m pip install torch==1.6.0
 RUN python -m nltk.downloader wordnet
 RUN python -m nltk.downloader averaged_perceptron_tagger
-RUN python -m pip install openai
-RUN python -m pip install elastic-apm
-RUN python -m pip install uvicorn>=0.18.2
-RUN python -m pip install cryptography~=3.4.8
-RUN python -m pip install websockets==10.1
-RUN python -m pip install numpy==1.22.0
-RUN python -m pip install pyjwt==2.6.0
-RUN python -m pip install urllib3==1.26.15
 
-WORKDIR ${RASA_NLU_HOME}
-COPY augmentation ${RASA_NLU_HOME}/augmentation
 EXPOSE 8000
-CMD ["uvicorn", "augmentation.paraphrase.server:app","--host","0.0.0.0", "--no-server-header"]
+CMD ["uvicorn", "augmentation.paraphrase.server:app","--host","0.0.0.0", "--no-server-header", "--no-access-log"]

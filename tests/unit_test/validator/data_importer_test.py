@@ -10,6 +10,7 @@ from kairon.shared.data.constant import REQUIREMENTS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.exceptions import AppException
 from kairon.importer.data_importer import DataImporter
+from mongomock import MongoClient
 
 
 def pytest_namespace():

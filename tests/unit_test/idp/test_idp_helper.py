@@ -14,6 +14,7 @@ from kairon.idp.processor import IDPProcessor
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.utils import Utility
 from stress_test.data_objects import User
+from mongomock import MongoClient
 
 
 def get_user():
@@ -114,9 +115,6 @@ class TestIDP:
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection())
-        Utility.environment['elasticsearch']['enable'] = False
-        yield None
-        Utility.environment['notifications']['enable'] = False
 
     def test_get_admin_access_token_disabled(self, monkeypatch, set_idp_props):
         monkeypatch.setitem(Utility.environment['idp'], 'enable', False)
@@ -128,7 +126,7 @@ class TestIDP:
         monkeypatch.setitem(Utility.environment['idp'], 'server_url', 'http:localhost:8080/auth')
 
         token = IDPHelper.get_admin_access_token()
-        assert token == None
+        assert not token
 
     def test_get_admin_access_token_wrong_username_or_password(self, monkeypatch, set_idp_props):
         monkeypatch.setitem(Utility.environment['idp'], 'admin_username', 'wrongusername')

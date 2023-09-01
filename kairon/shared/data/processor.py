@@ -3,6 +3,7 @@ import json
 import os
 import uuid
 from collections import ChainMap
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Text, Dict, List
@@ -19,8 +20,7 @@ from mongoengine.queryset.visitor import Q
 from pandas import DataFrame
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
-from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, REQUESTED_SLOT, \
-    DEFAULT_KNOWLEDGE_BASE_ACTION, SESSION_START_METADATA_SLOT
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, DEFAULT_SLOT_NAMES
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.events import SlotSet
@@ -46,8 +46,11 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource, CognitionDataType
+from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
 from .base_data import AuditLogData
 from .constant import (
@@ -92,9 +95,6 @@ from .data_objects import (
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
 from ..custom_widgets.data_objects import CustomWidgets
-from kairon.shared.metering.metering_processor import MeteringProcessor
-from kairon.shared.metering.constants import MetricType
-from kairon.shared.plugins.factory import PluginFactory
 
 
 class MongoProcessor:
@@ -190,17 +190,17 @@ class MongoProcessor:
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
-            domain = await importer.get_domain()
-            story_graph = await importer.get_stories()
-            config = await importer.get_config()
-            nlu = await importer.get_nlu_data(config.get('language'))
+            domain = importer.get_domain()
+            story_graph = importer.get_stories()
+            config = importer.get_config()
+            nlu = importer.get_nlu_data(config.get('language'))
             actions = Utility.read_yaml(actions_yml)
             TrainingDataValidator.validate_custom_actions(actions)
 
             self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite=overwrite,
                                     what=REQUIREMENTS.copy()-{"chat_client_config"})
         except Exception as e:
-            logging.exception(e)
+            logging.info(e)
             raise AppException(e)
 
     def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
@@ -332,11 +332,12 @@ class MongoProcessor:
         self.__save_domain_entities(domain.entities, bot, user)
         actions = list(filter(lambda actions: not actions.startswith('utter_'), domain.user_actions))
         self.__save_actions(actions, bot, user)
-        self.__save_responses(domain.templates, bot, user)
-        self.save_utterances(domain.templates.keys(), bot, user)
+        self.__save_responses(domain.responses, bot, user)
+        self.save_utterances(domain.responses.keys(), bot, user)
         self.__save_slots(domain.slots, bot, user)
         self.__save_forms(domain.forms, bot, user)
         self.__save_session_config(domain.session_config, bot, user)
+        self.__save_slot_mapping(domain.slots, bot, user)
 
     def delete_domain(self, bot: Text, user: Text):
         """
@@ -722,25 +723,29 @@ class MongoProcessor:
             if form not in saved_form_names:
                 yield self.__save_form_logic(form, mappings.get('required_slots') or {}, bot, user)
 
-    def __save_form_logic(self, name, mapping, bot, user):
-        required_slots = []
-        existing_slot_mappings = SlotMapping.objects(bot=bot, status=True).values_list('slot')
-        existing_slots = Slots.objects(bot=bot, status=True).values_list('name')
-        for slot_name, slot_mapping in mapping.items():
-            if slot_name not in existing_slots:
-                self.add_slot({"name": slot_name, "type": "any", 'auto_fill': True, 'mapping': slot_mapping},
-                              bot, user,
-                              raise_exception_if_exists=False)
-            if slot_name not in existing_slot_mappings:
-                SlotMapping(slot=slot_name, mapping=slot_mapping, bot=bot, user=user).save()
-            required_slots.append(slot_name)
-        if Utility.is_exist(Actions, raise_error=False, name=f'validate_{name}', bot=bot, status=True):
-            form_validation_action = Actions.objects(name=f'validate_{name}', bot=bot, status=True).get()
+    def __save_form_logic(self, name, slots, bot, user):
+        if Utility.is_exist(
+            Actions, raise_error=False, name=f"validate_{name}", bot=bot, status=True
+        ):
+            form_validation_action = Actions.objects(
+                name=f"validate_{name}", bot=bot, status=True
+            ).get()
             form_validation_action.type = ActionType.form_validation_action.value
             form_validation_action.save()
-        form = Forms(name=name, required_slots=required_slots, bot=bot, user=user)
+        form = Forms(name=name, required_slots=slots, bot=bot, user=user)
         form.clean()
         return form
+
+    def __save_slot_mapping(self, slots, bot, user):
+        slots_name_list = self.__fetch_slot_names(bot)
+        existing_slot_mappings = SlotMapping.objects(bot=bot, status=True).values_list('slot')
+        for slot in slots:
+            items = vars(slot)
+            slot_name = items['name']
+            slot_mapping = items['mappings']
+            if slot_mapping and slot_name in slots_name_list:
+                if slot_name not in existing_slot_mappings:
+                    SlotMapping(slot=slot_name, mapping=slot_mapping, bot=bot, user=user).save()
 
     def __save_forms(self, forms, bot: Text, user: Text):
         if forms:
@@ -758,19 +763,11 @@ class MongoProcessor:
         """
         forms = Forms.objects(bot=bot, status=status)
         for form in forms:
-            slot_mapping = {}
-            for slot in form.required_slots:
-                saved_slot_mapping = SlotMapping.objects(slot=slot, bot=bot, status=True).get()
-                slot_mapping.update({slot: saved_slot_mapping.mapping})
-            yield {form.name: slot_mapping}
+            yield {form.name: {"required_slots": form.required_slots}}
 
     def __prepare_training_forms(self, bot: Text):
         forms = list(self.fetch_forms(bot))
-        form_dict = {}
-        for form in forms:
-            for name, mapping in form.items():
-                form_dict[name] = mapping
-        return form_dict
+        return dict(ChainMap(*forms))
 
     def __extract_actions(self, actions, bot: Text, user: Text):
         saved_actions = self.__prepare_training_actions(bot)
@@ -828,10 +825,10 @@ class MongoProcessor:
                 session.save()
 
         except NotUniqueError as e:
-            logging.exception(e)
+            logging.info(e)
             raise AppException("Session Config already exists for the bot")
         except Exception as e:
-            logging.exception(e)
+            logging.info(e)
             raise AppException("Internal Server Error")
 
     def fetch_session_config(self, bot: Text):
@@ -951,18 +948,20 @@ class MongoProcessor:
         set to false by rasa.
         """
         slots_name_list = self.__fetch_slot_names(bot)
-        slots_name_list.extend([REQUESTED_SLOT.lower(),
-                                DEFAULT_KNOWLEDGE_BASE_ACTION.lower(),
-                                SESSION_START_METADATA_SLOT.lower()])
+        slots_name_list.extend(list(DEFAULT_SLOT_NAMES))
+        entities = self.__prepare_training_domain_entities(bot=bot)
         for slot in slots:
-            items = vars(slot)
+            items = vars(deepcopy(slot))
             if items["name"].strip().lower() not in slots_name_list:
+                if items["name"].strip().lower() not in entities:
+                    self.add_entity(items["name"], bot, user, False)
                 items["type"] = slot.type_name
                 items["value_reset_delay"] = items["_value_reset_delay"]
                 items.pop("_value_reset_delay")
                 items["bot"] = bot
                 items["user"] = user
                 items.pop("_value")
+                items.pop("mappings")
                 new_slot = Slots._from_son(items)
                 new_slot.clean()
                 yield new_slot
@@ -1007,6 +1006,7 @@ class MongoProcessor:
 
     def __prepare_training_slots(self, bot: Text):
         slots = self.fetch_slots(bot)
+        slots_mapping = dict(ChainMap(*list(self.__prepare_slot_mappings(bot))))
         results = []
         for slot in slots:
             key = slot.name
@@ -1014,7 +1014,6 @@ class MongoProcessor:
                 value = {
                     SLOTS.INITIAL_VALUE.value: slot.initial_value,
                     SLOTS.VALUE_RESET_DELAY.value: slot.value_reset_delay,
-                    SLOTS.AUTO_FILL.value: slot.auto_fill,
                     SLOTS.MIN_VALUE.value: slot.min_value,
                     SLOTS.MAX_VALUE.value: slot.max_value,
                 }
@@ -1022,17 +1021,16 @@ class MongoProcessor:
                 value = {
                     SLOTS.INITIAL_VALUE.value: slot.initial_value,
                     SLOTS.VALUE_RESET_DELAY.value: slot.value_reset_delay,
-                    SLOTS.AUTO_FILL.value: slot.auto_fill,
                     SLOTS.VALUES.value: slot.values,
                 }
             else:
                 value = {
                     SLOTS.INITIAL_VALUE.value: slot.initial_value,
                     SLOTS.VALUE_RESET_DELAY.value: slot.value_reset_delay,
-                    SLOTS.AUTO_FILL.value: slot.auto_fill,
                 }
             value[SLOTS.TYPE.value] = slot.type
-            value['influence_conversation'] = slot.influence_conversation
+            value["influence_conversation"] = slot.influence_conversation
+            value["mappings"] = slots_mapping.get(key, [])
             results.append({key: value})
         return dict(ChainMap(*results))
 
@@ -1271,7 +1269,7 @@ class MongoProcessor:
                 raise AppException(config_errors[0])
             return self.add_or_overwrite_config(configs, bot, user)
         except Exception as e:
-            logging.exception(e)
+            logging.info(e)
             raise AppException(e)
 
     def add_or_overwrite_config(self, configs: dict, bot: Text, user: Text):
@@ -1425,7 +1423,7 @@ class MongoProcessor:
         return {
             key: config_dict[key]
             for key in config_dict
-            if key in ["language", "pipeline", "policies"]
+            if key not in ["bot", "user", "timestamp", "status", "_id"]
         }
 
     def load_chat_client_config(self, bot: Text, user: Text):
@@ -1850,10 +1848,10 @@ class MongoProcessor:
             doc.timestamp = datetime.utcnow()
             doc.save(validate=False)
         except DoesNotExist as e:
-            logging.exception(e)
+            logging.info(e)
             raise AppException("Unable to remove document")
         except Exception as e:
-            logging.exception(e)
+            logging.info(e)
             raise AppException("Unable to remove document")
 
     def __prepare_document_list(self, documents: List[Document], field: Text):
@@ -2702,7 +2700,7 @@ class MongoProcessor:
             else:
                 raise AppException("Endpoint not configured")
         except DoesNotExist as e:
-            logging.exception(e)
+            logging.info(e)
             raise AppException("No Endpoint configured")
 
     def get_history_server_endpoint(self, bot):
@@ -2747,7 +2745,7 @@ class MongoProcessor:
 
             return endpoint
         except DoesNotExist as e:
-            logging.exception(e)
+            logging.info(e)
             if raise_exception:
                 raise AppException("Endpoint Configuration does not exists!")
             else:
@@ -2843,7 +2841,7 @@ class MongoProcessor:
             intent_obj = Intents.objects(bot=bot, status=True).get(name__iexact=intent)
             MongoProcessor.get_attached_flows(bot, intent, 'user')
         except DoesNotExist as custEx:
-            logging.exception(custEx)
+            logging.info(custEx)
             raise AppException(
                 "Invalid IntentName: Unable to remove document: " + str(custEx)
             )
@@ -2863,35 +2861,33 @@ class MongoProcessor:
                     [TrainingExamples], bot=bot, user=user, intent__iexact=intent
                 )
         except Exception as ex:
-            logging.exception(ex)
+            logging.info(ex)
             raise AppException("Unable to remove document" + str(ex))
 
-    def delete_utterance(self, utterance_name: str, bot: str, validate_has_form: bool = True):
-        if not (utterance_name and utterance_name.strip()):
+    def delete_utterance(self, utterance: str, bot: str, validate_form: bool = True):
+        if not (utterance and utterance.strip()):
             raise AppException("Utterance cannot be empty or spaces")
         try:
-            responses = list(Responses.objects(name=utterance_name, bot=bot, status=True))
-            if not responses:
-                if Utility.is_exist(Utterances, raise_error=False, bot=bot, status=True, name__iexact=utterance_name):
-                    self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form,
-                                               raise_exc=True)
-                    return
-                raise DoesNotExist("Utterance does not exists")
-            MongoProcessor.get_attached_flows(bot, utterance_name, 'action')
-            self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=validate_has_form, raise_exc=True)
-            for response in responses:
-                response.status = False
-                response.save()
-        except DoesNotExist as e:
-            raise AppException(e)
+            utterance = Utterances.objects(name__iexact=utterance, bot=bot, status=True).get()
+            utterance_name = utterance.name
 
-    def delete_response(self, utterance_id: str, bot: str, user: str):
+            if validate_form and not Utility.check_empty_string(utterance.form_attached):
+                raise AppException(
+                    f"Utterance cannot be deleted as it is linked to form: {utterance.form_attached}"
+                )
+
+            MongoProcessor.get_attached_flows(bot, utterance_name, 'action')
+            Utility.hard_delete_document([Responses], bot=bot, name=utterance_name)
+            utterance.delete()
+        except DoesNotExist as e:
+            logging.info(e)
+            raise AppException("Utterance does not exists")
+
+    def delete_response(self, utterance_id: str, bot: str):
         if not (utterance_id and utterance_id.strip()):
-            raise AppException("Utterance Id cannot be empty or spaces")
+            raise AppException("Response Id cannot be empty or spaces")
         try:
             response = Responses.objects(bot=bot, status=True).get(id=utterance_id)
-            if response is None:
-                raise DoesNotExist()
             utterance_name = response['name']
             story = MongoProcessor.get_attached_flows(bot, utterance_name, 'action', False)
             responses = list(Responses.objects(bot=bot, status=True, name__iexact=utterance_name))
@@ -2899,8 +2895,8 @@ class MongoProcessor:
             if story and len(responses) <= 1:
                 raise AppException("At least one response is required for utterance linked to story")
             if len(responses) <= 1:
-                self.delete_utterance_name(name=utterance_name, bot=bot, validate_has_form=True, raise_exc=True)
-            self.remove_document(Responses, utterance_id, bot, user)
+                self.delete_utterance_name(name=utterance_name, bot=bot, raise_exc=True)
+            response.delete()
         except DoesNotExist as e:
             raise AppException(e)
 
@@ -2994,7 +2990,7 @@ class MongoProcessor:
             }[http_config_dict['content_type']]
             return http_config_dict
         except DoesNotExist as ex:
-            logging.exception(ex)
+            logging.info(ex)
             raise AppException("No HTTP action found for bot " + bot + " and action " + action_name)
 
     def list_http_actions(self, bot: str):
@@ -3073,7 +3069,7 @@ class MongoProcessor:
             vector_embedding_config['_id'] = vector_embedding_config['_id'].__str__()
             return vector_embedding_config
         except DoesNotExist as ex:
-            logging.exception(ex)
+            logging.info(ex)
             raise AppException("Action does not exists!")
 
     def list_db_actions(self, bot: str, with_doc_id: bool = True):
@@ -3277,7 +3273,7 @@ class MongoProcessor:
             slot.save()
             self.delete_entity(slot_name, bot, user, False)
         except DoesNotExist as custEx:
-            logging.exception(custEx)
+            logging.info(custEx)
             raise AppException(
                 "Slot does not exist."
             )
@@ -3712,7 +3708,6 @@ class MongoProcessor:
             rule_policy['core_fallback_action_name'] = 'action_default_fallback'
         if not rule_policy.get('core_fallback_threshold'):
             rule_policy['core_fallback_threshold'] = 0.3
-            self.add_default_fallback_data(bot, user, False, True)
 
         property_idx = next(
             (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
@@ -3720,9 +3715,10 @@ class MongoProcessor:
             property_idx = next(
                 (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "DIETClassifier"), None)
             if property_idx:
-                fallback = {'name': 'FallbackClassifier', 'threshold': 0.7}
-                config_obj['pipeline'].insert(property_idx + 1, fallback)
-                self.add_default_fallback_data(bot, user, True, False)
+                fallback = {"name": "FallbackClassifier", "threshold": 0.7}
+                config_obj["pipeline"].insert(property_idx + 1, fallback)
+
+        self.add_default_fallback_data(bot, user, True, True)
 
     @staticmethod
     def fetch_nlu_fallback_action(bot: Text):
@@ -3735,7 +3731,7 @@ class MongoProcessor:
                     action = event.name
                     break
         except DoesNotExist as e:
-            logging.error(e)
+            logging.info(e)
         return action
 
     def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
@@ -3752,7 +3748,7 @@ class MongoProcessor:
             try:
                 self.add_complex_story(rule, bot, user)
             except AppException as e:
-                logging.error(str(e))
+                logging.info(str(e))
 
         if action_fallback:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True, name__iexact=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME):
@@ -3946,7 +3942,7 @@ class MongoProcessor:
             if raise_error_if_exists:
                 raise AppException('Utterance exists')
         except DoesNotExist as e:
-            logging.exception(e)
+            logging.info(e)
             Utterances(name=name, form_attached=form_attached, bot=bot, user=user).save()
 
     def get_utterances(self, bot: Text):
@@ -3960,17 +3956,16 @@ class MongoProcessor:
             utterance.pop('user')
             yield utterance
 
-    def delete_utterance_name(self, name: Text, bot: Text, validate_has_form: bool = False, raise_exc: bool = False):
+    def delete_utterance_name(self, name: Text, bot: Text, raise_exc: bool = False):
         try:
             utterance = Utterances.objects(name__iexact=name, bot=bot, status=True).get()
-            if validate_has_form and not Utility.check_empty_string(utterance.form_attached):
+            if not Utility.check_empty_string(utterance.form_attached):
                 if raise_exc:
-                    raise AppException(f'At least one question is required for utterance linked to form: {utterance.form_attached}')
+                    raise AppException(f'Utterance cannot be deleted as it is linked to form: {utterance.form_attached}')
             else:
-                utterance.status = False
-                utterance.save()
+                utterance.delete()
         except DoesNotExist as e:
-            logging.exception(e)
+            logging.info(e)
             if raise_exc:
                 raise AppException('Utterance not found')
 
@@ -3998,7 +3993,7 @@ class MongoProcessor:
         try:
             settings = BotSettings.objects(bot=bot, status=True).get()
         except DoesNotExist as e:
-            logging.error(e)
+            logging.info(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
 
@@ -4064,7 +4059,7 @@ class MongoProcessor:
             client_config = ChatClientConfig.objects(bot=bot, status=True).get()
             client_config.config['whitelist'] = client_config.white_listed_domain
         except DoesNotExist as e:
-            logging.error(e)
+            logging.info(e)
             config = Utility.load_json_file("./template/chat-client/default-config.json")
             client_config = ChatClientConfig(config=config, bot=bot, user=user)
         if not client_config.config.get('headers'):
@@ -4428,7 +4423,7 @@ class MongoProcessor:
             form['settings'] = slot_mapping
             return form
         except DoesNotExist as e:
-            logging.error(str(e))
+            logging.info(str(e))
             raise AppException('Form does not exists')
 
     def edit_form(self, name: str, path: list, bot: Text, user: Text):
@@ -4469,7 +4464,7 @@ class MongoProcessor:
                     utterance_name = f'utter_ask_{name}_{slot}'
                     self.delete_utterance(utterance_name, bot, False)
                 except Exception as e:
-                    logging.error(str(e))
+                    logging.info(str(e))
             form.status = False
             form.save()
             if Utility.is_exist(FormValidationAction, raise_error=False, name__iexact=f'validate_{name}', bot=bot,
@@ -4497,6 +4492,18 @@ class MongoProcessor:
         slot_mapping.user = user
         slot_mapping.timestamp = datetime.utcnow()
         return slot_mapping.save().id.__str__()
+
+    def __prepare_slot_mappings(self, bot: Text):
+        """
+        Fetches existing slot mappings.
+
+        :param bot: bot id
+        :return: list of slot mappings for training
+        """
+        mappings = self.get_slot_mappings(bot)
+        for mapping in mappings:
+            yield {mapping['slot']: mapping['mapping']}
+
 
     def get_slot_mappings(self, bot: Text):
         """
@@ -5363,7 +5370,7 @@ class MongoProcessor:
                 is_response_added = True
                 self.add_complex_story(rule, bot, user)
             except Exception as e:
-                logging.exception(e)
+                logging.info(e)
                 training_example_errors = [f"{a['message']}: {a['text']}" for a in training_example_errors if a["_id"] is None]
                 error_summary['training_examples'].extend(training_example_errors)
                 if is_intent_added:

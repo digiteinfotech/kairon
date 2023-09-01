@@ -1,0 +1,24 @@
+version: "3.1"
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - good morning
+    - good evening
+    - hey there
+    - watsup
+    - howdy
+- intent: deny
+  examples: |
+    - no
+    - never
+    - I don't think so
+    - don't like that
+- intent: affirm
+  examples: |
+    - yes
+    - correct
+    - affirmative that is fine yes
+    - sure, please go ahead

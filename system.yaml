@@ -1,3 +1,4 @@
+env: prod
 database:
   url: ${DATABASE_URL:"mongodb://localhost:27017/conversations"}
   test_db: ${TEST_DB:"test_conversations"}
@@ -205,3 +206,12 @@ support_mail: ${KAIRON_SUPPORT_MAIL:"kairon@digite.com"}
 properties:
   bot:
     enable_onboarding: ${ENABLE_ONBOARDING:true}
+
+
+core:
+  components:
+    - custom.ner.SpacyPatternNER
+    - custom.fallback.FallbackIntentFilter
+    - kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer
+  policies:
+    - kairon.shared.policy.RulePolicy

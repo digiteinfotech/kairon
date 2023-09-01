@@ -13,6 +13,7 @@ from kairon.shared.account.data_objects import Bot
 from google.cloud.translate_v3 import TranslationServiceClient
 from google.oauth2 import service_account
 from unittest.mock import patch
+from mongomock import MongoClient
 
 
 class TestMultilingualProcessor:

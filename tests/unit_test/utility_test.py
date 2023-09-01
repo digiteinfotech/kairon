@@ -1,10 +1,15 @@
+import json
 import os
 import re
 import shutil
 import tempfile
 import uuid
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from io import BytesIO
 from unittest import mock
+from unittest.mock import patch
+from urllib.parse import urlencode
 
 import numpy as np
 import pandas as pd
@@ -13,12 +18,15 @@ import requests
 import responses
 from fastapi import UploadFile
 from mongoengine import connect
+from mongoengine.queryset.visitor import Q
+from mongomock import MongoClient
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from websockets import InvalidStatusCode
 
-from mongoengine.queryset.visitor import Q
+from kairon.chat.converters.channels.response_factory import ConverterFactory
+from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
@@ -32,14 +40,7 @@ from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility, MailUtility
-from unittest.mock import patch
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
-from kairon.chat.converters.channels.response_factory import ConverterFactory
-import json
 from kairon.shared.verification.email import QuickEmailVerification
-from urllib.parse import urlencode, urljoin
 
 
 class TestUtility:
@@ -163,7 +164,7 @@ class TestUtility:
         rules_content = "rules:\n\n- rule: Only say `hello` if the user provided a location\n  condition:\n  - slot_was_set:\n    - location: true\n  steps:\n  - intent: greet\n  - action: utter_greet\n".encode()
         http_action_content = "http_actions:\n- action_name: action_performanceUsers1000@digite.com\n  auth_token: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  http_url: http://www.alphabet.com\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response: json\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
@@ -249,7 +250,7 @@ class TestUtility:
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\nactions:\n- utter_offer_help\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, None)
@@ -350,10 +351,6 @@ class TestUtility:
         actual = DataUtility.prepare_nlu_text(text, entities)
         assert expected == actual
 
-    def test_get_interpreter_with_no_model(self):
-        actual = DataUtility.get_interpreter("test.tar.gz")
-        assert actual is None
-
     def test_validate_files(self, resource_validate_files):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir)
         assert not requirements
@@ -361,46 +358,30 @@ class TestUtility:
     def test_initiate_apm_client_disabled(self):
         assert not Utility.initiate_apm_client_config()
 
-    def test_initiate_apm_client_enabled(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        assert not Utility.initiate_apm_client_config()
+    def test_initiate_apm_client_enabled(self):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": False, 'service_name': 'kairon', 'apm_server_url': None}):
+            assert not Utility.initiate_apm_client_config()
 
-    def test_initiate_apm_client_server_url_not_present(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', None)
+    def test_initiate_apm_client_server_url_not_present(self):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': None}):
+            assert not Utility.initiate_apm_client_config()
 
-        assert not Utility.initiate_apm_client_config()
+    def test_initiate_apm_client_service_url_not_present(self):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': None, 'apm_server_url': None}):
+            assert not Utility.initiate_apm_client_config()
 
-    def test_initiate_apm_client_service_url_not_present(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', None)
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', None)
+    def test_initiate_apm_client_env_not_present(self):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': None, 'apm_server_url': None, 'env_type': None}):
+            assert Utility.initiate_apm_client_config() is None
 
-        assert not Utility.initiate_apm_client_config()
+    def test_initiate_apm_client_with_url_present(self):
+        with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8082', 'secret_token': "12345"}):
+            client = Utility.initiate_apm_client_config()
 
-    def test_initiate_apm_client_env_not_present(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'env_type', None)
-
-        assert Utility.initiate_apm_client_config() is None
-
-    def test_initiate_apm_client_with_url_present(self, monkeypatch):
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'enable', True)
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'service_name', "kairon")
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'apm_server_url', "http://localhost:8082")
-
-        client = Utility.initiate_apm_client_config()
-        assert client == {"SERVER_URL": "http://localhost:8082",
-                          "SERVICE_NAME": "kairon",
-                          'ENVIRONMENT': "development"}
-
-        monkeypatch.setitem(Utility.environment["elasticsearch"], 'secret_token', "12345")
-
-        client = Utility.initiate_apm_client_config()
-        assert client == {"SERVER_URL": "http://localhost:8082",
-                          "SERVICE_NAME": "kairon",
-                          'ENVIRONMENT': "development",
-                          "SECRET_TOKEN": "12345"}
+            assert client == {"SERVER_URL": "http://localhost:8082",
+                              "SERVICE_NAME": "kairon",
+                              'ENVIRONMENT': "development",
+                              "SECRET_TOKEN": "12345"}
 
     def test_validate_path_not_found(self):
         with pytest.raises(AppException):

@@ -1,0 +1,44 @@
+FROM amazonlinux:latest
+
+ENV KAIRON_HOME=/app
+
+RUN yum update -y
+RUN yum -y install wget make gcc openssl11 openssl11-devel bzip2-devel tar xz gzip
+RUN yum -y install libffi-devel
+RUN wget https://www.python.org/ftp/python/3.10.10/Python-3.10.12.tgz
+RUN tar -xf Python-3.10.12.tgz
+RUN rm ./Python-3.10.12.tgz
+WORKDIR Python-3.10.10/
+RUN ./configure --enable-optimizations
+RUN make altinstall
+WORKDIR ~
+RUN rm -rf Python-3.10.12
+WORKDIR ${KAIRON_HOME}
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python2 50
+RUN update-alternatives --install /usr/bin/python python /usr/local/bin/python3.10 60
+RUN python -m pip install --upgrade pip
+COPY ./requirements.txt requirements.txt
+RUN python -m pip install -r requirements.txt
+RUN rm requirements.txt
+
+RUN mkdir ssl
+RUN mkdir data_generator
+RUN mkdir training_data
+RUN mkdir testing_data
+RUN mkdir models
+RUN mkdir .rasa
+RUN chmod 777 -R /tmp
+RUN mkdir -p /home/cache
+RUN chmod -R 777 /home/cache
+RUN chmod -R 777 /tmp
+ENV HF_HOME="/home/cache"
+ENV SENTENCE_TRANSFORMERS_HOME="/home/cache"
+
+COPY kairon ${KAIRON_HOME}/kairon
+COPY metadata ${KAIRON_HOME}/metadata
+COPY system.yaml ${KAIRON_HOME}/
+COPY template ${KAIRON_HOME}/template
+COPY custom ${KAIRON_HOME}/custom
+COPY email.yaml ${KAIRON_HOME}/
+COPY augmentation ${KAIRON_HOME}/augmentation
+

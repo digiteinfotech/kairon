@@ -13,7 +13,7 @@ from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.data_objects import BotAssets
-
+from mongomock import MongoClient
 
 class TestAssetsProcessor:
 

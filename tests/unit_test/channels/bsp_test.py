@@ -13,6 +13,7 @@ from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
+from mongomock import MongoClient
 
 
 class TestBusinessServiceProvider:

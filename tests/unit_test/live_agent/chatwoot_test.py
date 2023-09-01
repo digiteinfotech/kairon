@@ -8,6 +8,7 @@ from mongoengine import connect
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.live_agent.chatwoot import ChatwootLiveAgent
+from mongomock import MongoClient
 
 
 class TestChatwootLiveAgent:

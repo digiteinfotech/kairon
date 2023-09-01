@@ -8,17 +8,33 @@ from mongoengine import (
     DateTimeField,
     BooleanField,
     IntField,
-    ListField, DictField, DynamicField, DynamicDocument, FloatField
+    ListField,
+    DictField,
+    DynamicField,
+    DynamicDocument,
+    FloatField,
 )
 from mongoengine.errors import ValidationError
-from validators import ValidationFailure, url
+from validators import url
+from validators.utils import ValidationError as ValidationFailure
 from validators import email
 
-from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType
+from kairon.shared.actions.models import (
+    ActionType,
+    ActionParameterType,
+    HttpRequestContentType,
+    EvaluationType,
+    DispatchType,
+    DbQueryValueType,
+    DbActionOperationType,
+)
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.base_data import Auditlog
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
+from kairon.shared.data.constant import (
+    KAIRON_TWO_STAGE_FALLBACK,
+    FALLBACK_MESSAGE,
+    DEFAULT_NLU_FALLBACK_RESPONSE,
+)
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import LlmPromptType, LlmPromptSource
 from kairon.shared.utils import Utility
@@ -27,16 +43,21 @@ from kairon.shared.utils import Utility
 class HttpActionRequestBody(EmbeddedDocument):
     key = StringField(required=True)
     value = StringField(default="")
-    parameter_type = StringField(default=ActionParameterType.value,
-                                 choices=[p_type.value for p_type in ActionParameterType])
+    parameter_type = StringField(
+        default=ActionParameterType.value,
+        choices=[p_type.value for p_type in ActionParameterType],
+    )
     encrypt = BooleanField(default=False)
 
-    meta = {'allow_inheritance': True}
+    meta = {"allow_inheritance": True}
 
     def clean(self):
         from .utils import ActionUtility
 
-        if self.parameter_type == ActionParameterType.slot.value and not ActionUtility.is_empty(self.value):
+        if (
+            self.parameter_type == ActionParameterType.slot.value
+            and not ActionUtility.is_empty(self.value)
+        ):
             self.value = self.value.lower()
 
         if self.parameter_type == ActionParameterType.key_vault.value:
@@ -50,29 +71,46 @@ class HttpActionRequestBody(EmbeddedDocument):
 
         if ActionUtility.is_empty(self.key):
             raise ValidationError("key in http action parameters cannot be empty")
-        if self.parameter_type == ActionParameterType.slot.value and ActionUtility.is_empty(self.value):
+        if (
+            self.parameter_type == ActionParameterType.slot.value
+            and ActionUtility.is_empty(self.value)
+        ):
             raise ValidationError("Provide name of the slot as value")
-        if self.parameter_type == ActionParameterType.key_vault.value and ActionUtility.is_empty(self.value):
+        if (
+            self.parameter_type == ActionParameterType.key_vault.value
+            and ActionUtility.is_empty(self.value)
+        ):
             raise ValidationError("Provide key from key vault as value")
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.key == other.key and self.parameter_type == other.parameter_type and self.value == other.value
+        return (
+            isinstance(other, self.__class__)
+            and self.key == other.key
+            and self.parameter_type == other.parameter_type
+            and self.value == other.value
+        )
 
 
 class SetSlotsFromResponse(EmbeddedDocument):
     name = StringField(required=True)
     value = StringField(required=True)
-    evaluation_type = StringField(default=EvaluationType.expression.value,
-                                  choices=[p_type.value for p_type in EvaluationType])
+    evaluation_type = StringField(
+        default=EvaluationType.expression.value,
+        choices=[p_type.value for p_type in EvaluationType],
+    )
 
 
 class HttpActionResponse(EmbeddedDocument):
     value = StringField(default=None)
     dispatch = BooleanField(default=True)
-    evaluation_type = StringField(default=EvaluationType.expression.value,
-                                  choices=[p_type.value for p_type in EvaluationType])
-    dispatch_type = StringField(default=DispatchType.text.value,
-                                choices=[d_type.value for d_type in DispatchType])
+    evaluation_type = StringField(
+        default=EvaluationType.expression.value,
+        choices=[p_type.value for p_type in EvaluationType],
+    )
+    dispatch_type = StringField(
+        default=DispatchType.text.value,
+        choices=[d_type.value for d_type in DispatchType],
+    )
 
     def validate(self, clean=True):
         from .utils import ActionUtility
@@ -89,9 +127,13 @@ class HttpActionConfig(Auditlog):
     action_name = StringField(required=True)
     http_url = StringField(required=True)
     request_method = StringField(required=True)
-    content_type = StringField(default=HttpRequestContentType.json.value,
-                               choices=[c_type.value for c_type in HttpRequestContentType])
-    params_list = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
+    content_type = StringField(
+        default=HttpRequestContentType.json.value,
+        choices=[c_type.value for c_type in HttpRequestContentType],
+    )
+    params_list = ListField(
+        EmbeddedDocumentField(HttpActionRequestBody), required=False
+    )
     dynamic_params = StringField(default=None)
     headers = ListField(EmbeddedDocumentField(HttpActionRequestBody), required=False)
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
@@ -115,7 +157,7 @@ class HttpActionConfig(Auditlog):
             raise ValidationError("Invalid HTTP method")
         if ActionUtility.is_empty(self.http_url):
             raise ValidationError("URL cannot be empty")
-        if isinstance(url(self.http_url), ValidationFailure):
+        if isinstance(url(self.http_url, simple_host=True), ValidationFailure):
             raise ValidationError("URL is malformed")
         for param in self.headers:
             param.validate()
@@ -131,19 +173,29 @@ class HttpActionConfig(Auditlog):
         from kairon.shared.actions.utils import ActionUtility
 
         for param in document.headers:
-            if param.encrypt is True and param.parameter_type == ActionParameterType.value.value:
+            if (
+                param.encrypt is True
+                and param.parameter_type == ActionParameterType.value.value
+            ):
                 if not ActionUtility.is_empty(param.value):
                     param.value = Utility.encrypt_message(param.value)
 
         for param in document.params_list:
-            if param.encrypt is True and param.parameter_type == ActionParameterType.value.value:
+            if (
+                param.encrypt is True
+                and param.parameter_type == ActionParameterType.value.value
+            ):
                 if not ActionUtility.is_empty(param.value):
                     param.value = Utility.encrypt_message(param.value)
 
 
 class DbOperation(EmbeddedDocument):
-    type = StringField(required=True, choices=[op_type.value for op_type in DbQueryValueType])
-    value = StringField(required=True, choices=[payload.value for payload in DbActionOperationType])
+    type = StringField(
+        required=True, choices=[op_type.value for op_type in DbQueryValueType]
+    )
+    value = StringField(
+        required=True, choices=[payload.value for payload in DbActionOperationType]
+    )
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.type):
@@ -153,7 +205,9 @@ class DbOperation(EmbeddedDocument):
 
 
 class DbQuery(EmbeddedDocument):
-    type = StringField(required=True, choices=[op_type.value for op_type in DbQueryValueType])
+    type = StringField(
+        required=True, choices=[op_type.value for op_type in DbQueryValueType]
+    )
     value = DynamicField(required=True)
 
     def validate(self, clean=True):
@@ -172,8 +226,8 @@ class DatabaseAction(Auditlog):
     payload = EmbeddedDocumentField(DbQuery, default=DbQuery())
     response = EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse())
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
-    db_type = StringField(required=True, default='qdrant')
-    failure_response = StringField(default='I have failed to process your request.')
+    db_type = StringField(required=True, default="qdrant")
+    failure_response = StringField(default="I have failed to process your request.")
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -239,7 +293,7 @@ class Actions(Auditlog):
         if ActionUtility.is_empty(self.name):
             raise ValidationError("Action name cannot be empty or blank spaces")
 
-        if self.name.startswith('utter_'):
+        if self.name.startswith("utter_"):
             raise ValidationError("Action name cannot start with utter_")
 
 
@@ -256,7 +310,12 @@ class SetSlots(EmbeddedDocument):
         self.name = self.name.strip().lower()
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.name == other.name and self.type == other.type and self.value == other.value
+        return (
+            isinstance(other, self.__class__)
+            and self.name == other.name
+            and self.type == other.type
+            and self.value == other.value
+        )
 
 
 @auditlogger.log
@@ -282,13 +341,18 @@ class SlotSetAction(Auditlog):
 
 
 class FormSlotSet(EmbeddedDocument):
-    type = StringField(default=FORM_SLOT_SET_TYPE.current.value,
-                       choices=[type.value for type in FORM_SLOT_SET_TYPE])
+    type = StringField(
+        default=FORM_SLOT_SET_TYPE.current.value,
+        choices=[type.value for type in FORM_SLOT_SET_TYPE],
+    )
     value = DynamicField()
 
     def validate(self, clean=True):
-        if self.type not in [FORM_SLOT_SET_TYPE.current.value, FORM_SLOT_SET_TYPE.custom.value,
-                             FORM_SLOT_SET_TYPE.slot.value]:
+        if self.type not in [
+            FORM_SLOT_SET_TYPE.current.value,
+            FORM_SLOT_SET_TYPE.custom.value,
+            FORM_SLOT_SET_TYPE.slot.value,
+        ]:
             raise ValidationError("Invalid form_slot_set_type")
 
 
@@ -320,9 +384,15 @@ class FormValidationAction(Auditlog):
 
 class CustomActionRequestParameters(HttpActionRequestBody):
     value = StringField(required=True)
-    parameter_type = StringField(default=ActionParameterType.value,
-                                 choices=[ActionParameterType.value, ActionParameterType.slot,
-                                          ActionParameterType.key_vault, ActionParameterType.sender_id])
+    parameter_type = StringField(
+        default=ActionParameterType.value,
+        choices=[
+            ActionParameterType.value,
+            ActionParameterType.slot,
+            ActionParameterType.key_vault,
+            ActionParameterType.sender_id,
+        ],
+    )
 
 
 @auditlogger.log
@@ -380,7 +450,7 @@ class GoogleSearchAction(Auditlog):
     api_key = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
     search_engine_id = StringField(default=None)
     website = StringField(default=None)
-    failure_response = StringField(default='I have failed to process your request.')
+    failure_response = StringField(default="I have failed to process your request.")
     num_results = IntField(default=1)
     dispatch_response = BooleanField(default=True)
     set_slot = StringField()
@@ -400,7 +470,7 @@ class GoogleSearchAction(Auditlog):
         if self.api_key:
             self.api_key.key = "api_key"
         if Utility.check_empty_string(self.failure_response):
-            self.failure_response = 'I have failed to process your request.'
+            self.failure_response = "I have failed to process your request."
         try:
             self.num_results = int(self.num_results)
         except ValueError:
@@ -436,9 +506,18 @@ class JiraAction(Auditlog):
             if param_type in {ActionParameterType.value, ActionParameterType.key_vault}:
                 api_token = self.api_token.value
                 if ActionParameterType.key_vault == param_type:
-                    api_token = ActionUtility.get_secret_from_key_vault(api_token, self.bot)
+                    api_token = ActionUtility.get_secret_from_key_vault(
+                        api_token, self.bot
+                    )
                 ActionUtility.get_jira_client(self.url, self.user_name, api_token)
-                ActionUtility.validate_jira_action(self.url, self.user_name, api_token, self.project_key, self.issue_type, self.parent_key)
+                ActionUtility.validate_jira_action(
+                    self.url,
+                    self.user_name,
+                    api_token,
+                    self.project_key,
+                    self.issue_type,
+                    self.parent_key,
+                )
         except Exception as e:
             raise ValidationError(e)
 
@@ -474,8 +553,12 @@ class ZendeskAction(Auditlog):
             if param_type in {ActionParameterType.value, ActionParameterType.key_vault}:
                 api_token = self.api_token.value
                 if ActionParameterType.key_vault == param_type:
-                    api_token = ActionUtility.get_secret_from_key_vault(api_token, self.bot)
-                ActionUtility.validate_zendesk_credentials(self.subdomain, self.user_name, api_token)
+                    api_token = ActionUtility.get_secret_from_key_vault(
+                        api_token, self.bot
+                    )
+                ActionUtility.validate_zendesk_credentials(
+                    self.subdomain, self.user_name, api_token
+                )
         except Exception as e:
             raise ValidationError(e)
 
@@ -511,9 +594,11 @@ class PipedriveLeadsAction(Auditlog):
             if param_type in {ActionParameterType.value, ActionParameterType.key_vault}:
                 api_token = self.api_token.value
                 if ActionParameterType.key_vault == param_type:
-                    api_token = ActionUtility.get_secret_from_key_vault(api_token, self.bot)
+                    api_token = ActionUtility.get_secret_from_key_vault(
+                        api_token, self.bot
+                    )
                 ActionUtility.validate_pipedrive_credentials(self.domain, api_token)
-            if Utility.check_empty_string(self.metadata.get('name')):
+            if Utility.check_empty_string(self.metadata.get("name")):
                 raise ValidationError("metadata: name is required")
         except Exception as e:
             raise ValidationError(e)
@@ -563,7 +648,9 @@ class TwoStageFallbackTextualRecommendations(EmbeddedDocument):
 @push_notification.apply
 class KaironTwoStageFallbackAction(Auditlog):
     name = StringField(default=KAIRON_TWO_STAGE_FALLBACK)
-    text_recommendations = EmbeddedDocumentField(TwoStageFallbackTextualRecommendations, default=None)
+    text_recommendations = EmbeddedDocumentField(
+        TwoStageFallbackTextualRecommendations, default=None
+    )
     trigger_rules = ListField(EmbeddedDocumentField(QuickReplies, default=None))
     bot = StringField(required=True)
     fallback_message = StringField(default=FALLBACK_MESSAGE)
@@ -578,7 +665,9 @@ class KaironTwoStageFallbackAction(Auditlog):
             self.clean()
 
         if not self.text_recommendations and not self.trigger_rules:
-            raise ValidationError("One of text_recommendations or trigger_rules should be defined")
+            raise ValidationError(
+                "One of text_recommendations or trigger_rules should be defined"
+            )
 
     def clean(self):
         self.name = self.name.strip().lower()
@@ -588,14 +677,31 @@ class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
     data = StringField()
     instructions = StringField()
-    type = StringField(required=True, choices=[LlmPromptType.user.value, LlmPromptType.system.value, LlmPromptType.query.value])
-    source = StringField(choices=[LlmPromptSource.static.value, LlmPromptSource.history.value, LlmPromptSource.bot_content.value,
-                                  LlmPromptSource.action.value, LlmPromptSource.slot.value],
-                         default=LlmPromptSource.static.value)
+    type = StringField(
+        required=True,
+        choices=[
+            LlmPromptType.user.value,
+            LlmPromptType.system.value,
+            LlmPromptType.query.value,
+        ],
+    )
+    source = StringField(
+        choices=[
+            LlmPromptSource.static.value,
+            LlmPromptSource.history.value,
+            LlmPromptSource.bot_content.value,
+            LlmPromptSource.action.value,
+            LlmPromptSource.slot.value,
+        ],
+        default=LlmPromptSource.static.value,
+    )
     is_enabled = BooleanField(default=True)
 
     def validate(self, clean=True):
-        if self.type == LlmPromptType.system.value and self.source != LlmPromptSource.static.value:
+        if (
+            self.type == LlmPromptType.system.value
+            and self.source != LlmPromptSource.static.value
+        ):
             raise ValidationError("System prompt must have static source!")
 
 
@@ -637,8 +743,12 @@ class PromptAction(Auditlog):
         if not self.llm_prompts:
             raise ValidationError("llm_prompts are required!")
         dict_data = self.to_mongo().to_dict()
-        Utility.validate_kairon_faq_llm_prompts(dict_data['llm_prompts'], ValidationError)
-        Utility.validate_llm_hyperparameters(dict_data['hyperparameters'], ValidationError)
+        Utility.validate_kairon_faq_llm_prompts(
+            dict_data["llm_prompts"], ValidationError
+        )
+        Utility.validate_llm_hyperparameters(
+            dict_data["hyperparameters"], ValidationError
+        )
 
 
 @auditlogger.log
@@ -664,7 +774,9 @@ class RazorpayAction(Auditlog):
             self.clean()
 
         if not (self.api_key and self.api_secret and self.amount and self.currency):
-            raise ValidationError("Fields api_key, api_secret, amount, currency are required!")
+            raise ValidationError(
+                "Fields api_key, api_secret, amount, currency are required!"
+            )
 
     def clean(self):
         self.name = self.name.strip().lower()
@@ -685,4 +797,7 @@ class RazorpayAction(Auditlog):
 
 
 from mongoengine import signals
-signals.pre_save_post_validation.connect(HttpActionConfig.pre_save_post_validation, sender=HttpActionConfig)
+
+signals.pre_save_post_validation.connect(
+    HttpActionConfig.pre_save_post_validation, sender=HttpActionConfig
+)

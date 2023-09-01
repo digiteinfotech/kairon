@@ -11,6 +11,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.custom_widgets.processor import CustomWidgetsProcessor
 from kairon.shared.data.processor import MongoProcessor
+from mongomock import MongoClient
 
 
 class TestCustomWidgetsProcessor:

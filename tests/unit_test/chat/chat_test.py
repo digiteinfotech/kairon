@@ -23,6 +23,7 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 import mock
 from pymongo.errors import ServerSelectionTimeoutError
+from mongomock import MongoClient
 
 
 class TestChat:

@@ -1,0 +1,26 @@
+version: "3.1"
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - good morning
+- intent: deny
+  examples: |
+    - no
+    - never
+    - I don't think so
+    - don't like that
+- intent: affirm
+  examples: |
+    - yes
+    - correct
+    - affirmative that is fine yes
+    - sure, please go ahead
+- intent: bot_challenge
+  examples: |
+    - are you a bot?
+    - who are you?
+    - are you a chatbot?
+    - am i talking to a chatbot?

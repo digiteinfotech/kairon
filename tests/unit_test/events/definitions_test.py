@@ -37,7 +37,7 @@ from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.data.data_objects import StoryEvents, Rules
 from kairon.shared.data.processor import MongoProcessor
 import mock
-import mongomock
+from mongomock import MongoClient
 
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 
@@ -157,8 +157,8 @@ class TestEventDefinitions:
     def test_data_importer_enqueue_connection_failure(self):
         bot = 'test_definitions'
         user = 'test_user'
-        file_path = 'tests/testing_data/all/data/nlu.md'
-        file = UploadFile(filename="nlu.md", file=BytesIO(open(file_path, 'rb').read()))
+        file_path = 'tests/testing_data/all/data/nlu.yml'
+        file = UploadFile(filename="nlu.yml", file=BytesIO(open(file_path, 'rb').read()))
 
         assert TrainingDataImporterEvent(bot, user).validate(is_data_uploaded=True, training_files=[file], overwrite=True)
         logs = list(DataImporterLogProcessor.get_logs(bot))
@@ -594,7 +594,7 @@ class TestEventDefinitions:
 
         bot = 'test_definitions'
         user = 'test_user'
-        mongo_client = mongomock.MongoClient("mongodb://test/conversations")
+        mongo_client = MongoClient("mongodb://test/conversations")
         db = mongo_client.get_database("conversation")
         collection = db.get_collection(bot)
         items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))

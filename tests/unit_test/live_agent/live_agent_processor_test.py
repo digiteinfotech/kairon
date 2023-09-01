@@ -13,6 +13,7 @@ from kairon.live_agent.live_agent import LiveAgent
 import json
 from kairon.live_agent.factory import LiveAgentFactory
 from datetime import datetime, timezone
+from mongomock import MongoClient
 
 
 class TestLiveAgentProcessor:

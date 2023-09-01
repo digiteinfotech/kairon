@@ -46,7 +46,7 @@ class AgentProcessor:
                 bot, raise_exception=False
             )
             action_endpoint = Utility.get_action_url(endpoint)
-            lock_store_endpoint = LockStore.create(Utility.get_lock_store_url(bot))
+            lock_store_endpoint = Utility.get_lock_store(bot)
             model_path = Utility.get_latest_model(bot)
             domain = AgentProcessor.mongo_processor.load_domain(bot)
             mongo_store = Utility.get_local_mongo_store(bot, domain)

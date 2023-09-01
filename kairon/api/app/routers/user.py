@@ -61,7 +61,7 @@ async def book_a_demo(
 @router.post("/{bot}/member", response_model=Response)
 async def allow_bot_for_user(
         allow_bot: BotAccessRequest, background_tasks: BackgroundTasks,
-        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -82,7 +82,7 @@ async def allow_bot_for_user(
 @router.post("/{bot}/invite/accept", response_model=Response)
 async def accept_bot_collaboration_invite_with_token_validation(
         background_tasks: BackgroundTasks,
-        token: RecaptchaVerifiedTextData, bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183")
+        token: RecaptchaVerifiedTextData, bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"])
 ):
     """
     Accepts a bot collaboration invitation sent via mail.
@@ -99,7 +99,7 @@ async def accept_bot_collaboration_invite_with_token_validation(
 @router.post("/{bot}/member/invite/accept", response_model=Response)
 async def accept_bot_collaboration_invite(
         background_tasks: BackgroundTasks,
-        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"]),
         current_user: User = Security(Authentication.get_current_user)
 ):
     """
@@ -116,7 +116,7 @@ async def accept_bot_collaboration_invite(
 @router.put("/{bot}/member", response_model=Response)
 async def update_bot_access_for_user(
         allow_bot: BotAccessRequest, background_tasks: BackgroundTasks,
-        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -140,7 +140,7 @@ async def update_bot_access_for_user(
 @router.put("/{bot}/owner/change", response_model=Response)
 async def transfer_ownership(
         request_data: RecaptchaVerifiedTextData, background_tasks: BackgroundTasks,
-        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=OWNER_ACCESS)
 ):
     """
@@ -161,8 +161,8 @@ async def transfer_ownership(
 
 @router.delete("/{bot}/member/{user}", response_model=Response)
 async def remove_member_from_bot(
-        user: str = Path(default=None, description="user mail id", example="user@kairon.ai"),
-        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        user: str = Path(description="user mail id", examples=["user@kairon.ai"]),
+        bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -174,7 +174,7 @@ async def remove_member_from_bot(
 
 @router.get("/{bot}/member", response_model=Response)
 async def list_users_for_bot(
-        bot: str = Path(default=None, description="bot id", example="613f63e87a1d435607c3c183"),
+        bot: str = Path(description="bot id", examples=["613f63e87a1d435607c3c183"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """

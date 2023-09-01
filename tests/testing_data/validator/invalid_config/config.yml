@@ -1,3 +1,4 @@
+recipe: default.v1
 # Configuration for Rasa NLU.
 # https://rasa.com/docs/rasa/nlu/components/
 language: en
@@ -28,4 +29,5 @@ policies:
     nlu_threshold: 0.75
     core_threshold: 0.3
     fallback_action_name: "action_small_talk"
+
 

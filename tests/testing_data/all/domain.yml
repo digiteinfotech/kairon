@@ -35,9 +35,11 @@ entities:
 - fdResponse
 slots:
   category:
-    type: unfeaturized
+    type: text
+    mappings: []
   priority:
     type: categorical
+    mappings: []
     values:
     - low
     - medium
@@ -45,17 +47,22 @@ slots:
   ticketID:
     type: float
     initial_value: 1.0
+    mappings: []
   requested_slot:
-    type: unfeaturized
+    type: text
+    mappings: []
   file:
-    type: unfeaturized
+    type: text
+    mappings: []
   file_text:
-    type: unfeaturized
+    type: text
+    mappings: []
   file_error:
-    type: unfeaturized
+    type: text
+    mappings: []
   name:
-    type: unfeaturized
-
+    type: text
+    mappings: []
 responses:
   utter_greet:
   - text: Hey! How are you?
@@ -283,6 +290,8 @@ actions:
 - utter_bad_feedback
 
 forms:
-- ticket_attributes_form
-- ticket_file_form
+  ticket_attributes_form:
+    required_slots: []
+  ticket_file_form:
+    required_slots: []
 

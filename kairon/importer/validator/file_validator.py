@@ -35,7 +35,7 @@ class TrainingDataValidator(Validator):
     def __init__(self, validator: Validator):
         """Initiate class with rasa validator object."""
 
-        super().__init__(validator.domain, validator.intents, validator.story_graph, validator.nlu_config.as_dict())
+        super().__init__(validator.domain, validator.intents, validator.story_graph, validator.config)
         self.validator = validator
         self.summary = {}
         self.component_count = {}
@@ -47,11 +47,11 @@ class TrainingDataValidator(Validator):
         @param importer: rasa training data importer object.
         @return: validator
         """
-        validator = await Validator.from_importer(importer)
+        validator = Validator.from_importer(importer)
         cls.story_graph = validator.story_graph
         cls.domain = validator.domain
         cls.intents = validator.intents
-        cls.config = await importer.get_config()
+        cls.config = importer.get_config()
         return cls(validator)
 
     @classmethod
@@ -313,22 +313,20 @@ class TrainingDataValidator(Validator):
         :return: None
         """
         config_errors = []
-        from rasa.nlu.registry import registered_components as nlu_components
+        from rasa.engine.recipes.default_components import DEFAULT_COMPONENTS
+        components = [item.__name__ for item in DEFAULT_COMPONENTS]
         if config.get('pipeline'):
             for item in config['pipeline']:
                 component_cfg = item['name']
-                if not (component_cfg in nlu_components or
-                        component_cfg in ["custom.ner.SpacyPatternNER", "custom.fallback.FallbackIntentFilter",
-                                          "kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer"] or
-                        component_cfg in [custom_component for custom_component in Utility.environment['model']['pipeline']['custom']]):
+                if not (component_cfg in components or
+                        component_cfg in Utility.environment['core']['components']):
                     config_errors.append("Invalid component " + component_cfg)
         else:
             config_errors.append("You didn't define any pipeline")
 
         if config.get('policies'):
-            core_policies = DataUtility.get_rasa_core_policies()
             for policy in config['policies']:
-                if policy['name'] not in core_policies:
+                if not (policy['name'] in components or policy['name'] in Utility.environment['core']['policies']):
                     config_errors.append("Invalid policy " + policy['name'])
         else:
             config_errors.append("You didn't define any policies")
@@ -352,12 +350,12 @@ class TrainingDataValidator(Validator):
         """
         self.component_count['domain'] = {}
         self.component_count['domain']['intents'] = len(self.domain.intents)
-        self.component_count['domain']['utterances'] = len(self.domain.templates)
+        self.component_count['domain']['utterances'] = len(self.domain.responses)
         self.component_count['domain']['actions'] = len(self.domain.user_actions)
         self.component_count['domain']['forms'] = len(self.domain.form_names)
         self.component_count['domain']['slots'] = len(self.domain.slots)
         self.component_count['domain']['entities'] = len(self.domain.entities)
-        self.component_count['utterances'] = len(self.domain.templates)
+        self.component_count['utterances'] = len(self.domain.responses)
         if self.domain.is_empty():
             self.summary['domain'] = ["domain.yml is empty!"]
 
@@ -794,7 +792,7 @@ class TrainingDataValidator(Validator):
     def validate_domain(domain_path: Text):
         try:
             domain = Domain.load(domain_path)
-            domain.check_missing_templates()
+            domain.check_missing_responses()
         except Exception as e:
             raise AppException(f"Failed to load domain.yml. Error: '{e}'")
 

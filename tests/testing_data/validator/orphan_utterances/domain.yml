@@ -1,3 +1,4 @@
+version: "3.1"
 intents:
 - greet
 - deny
@@ -22,7 +23,6 @@ responses:
   - text: plz provide ur name
   utter_ask_job_apply_age:
   - text: enter ur age
-
 actions:
 - utter_greet
 - utter_goodbye
@@ -35,9 +35,6 @@ actions:
 forms:
   job_apply:
     required_slots:
-      name:
-      - type: from_text
-      age:
-      - type: from_text
-      email:
-      - type: from_text
+        - name
+        - age
+        - email

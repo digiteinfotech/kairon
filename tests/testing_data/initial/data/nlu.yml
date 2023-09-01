@@ -1,0 +1,72 @@
+version: "3.1"
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - good morning
+    - good evening
+    - hey there
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you around
+    - see you later
+- intent: affirm
+  examples: |
+    - yes
+    - indeed
+    - of course
+    - that sounds good
+    - correct
+- intent: deny
+  examples: |
+    - no
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - not really
+- intent: mood_great
+  examples: |
+    - perfect
+    - very good
+    - great
+    - amazing
+    - wonderful
+    - I am feeling very good
+    - I am great
+    - I'm good
+- intent: mood_unhappy
+  examples: |
+    - sad
+    - very sad
+    - unhappy
+    - bad
+    - very bad
+    - awful
+    - terrible
+    - not very good
+    - extremely sad
+    - so sad
+- intent: bot_challenge
+  examples: |
+    - are you a bot?
+    - are you a human?
+    - am I talking to a bot?
+    - am I talking to a human?
+- intent: performance_feedback
+  examples: |
+    - i would like to give some feedback for the bot
+    - i want to give feedback for bot
+    - can i give some feedback?
+    - can i say something regarding the bot performance?
+- intent: user_feedback
+  examples: |
+    - i [like](fdResponse) the performance of this bot
+    - i [like](fdResponse) the answers given by this bot
+    - i [like](fdResponse) this bot
+    - i [hate](fdResponse) this bot
+    - i [hate](fdResponse) this bot's performance

@@ -1,0 +1,20 @@
+version: "3.1"
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - good morning
+- intent: deny
+  examples: |
+    - no
+    - never
+    - I don't think so
+    - don't like that
+- intent: apply
+  examples: |
+    - i want to apply for job
+    - job application
+    - application for job
+    - apply for job

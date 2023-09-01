@@ -68,56 +68,66 @@ entities:
 - file
 - file_error
 - fdResponse
+- date_time
 slots:
+  date_time:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: date_time
   category:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings: []
   file:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: file
   file_error:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings: []
   file_text:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings: []
   name:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
+    mappings: []
   priority:
     type: rasa.shared.core.slots.CategoricalSlot
     initial_value: null
-    auto_fill: true
     influence_conversation: true
+    mappings:
+    - type: from_entity
+      entity: priority
     values:
     - low
     - medium
     - high
   requested_slot:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
+    mappings: []
   ticketID:
     type: rasa.shared.core.slots.FloatSlot
     initial_value: 1.0
-    auto_fill: true
     influence_conversation: true
     max_value: 1
     min_value: 0
+    mappings: []
   bot:
-    type: rasa.shared.core.slots.AnySlot
+    type: any
     initial_value: 6f7f0d6f9f6f09fff08fflkf896
-    auto_fill: false
     influence_conversation: false
+    mappings: []
 responses:
   utter_attachment_upload:
   - text: Do you wish to upload any relevant document?
@@ -341,14 +351,11 @@ actions:
 - ticket_file_form
 forms:
   ticket_attributes_form:
-    date_time:
-      - type: from_entity
-        entity: date_time
-    priority:
-      - type: from_entity
-        entity: priority
+    required_slots:
+        - date_time
+        - priority
+
   ticket_file_form:
-    file:
-      - type: from_entity
-        entity: file
+    required_slots:
+        - file
 e2e_actions: []

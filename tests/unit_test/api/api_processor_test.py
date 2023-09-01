@@ -39,7 +39,7 @@ from kairon.exceptions import AppException
 import time
 from kairon.idp.data_objects import IdpConfig
 from kairon.api.models import RegisterAccount, EventConfig, IDPConfig,StoryRequest, HttpActionParameters,Password
-
+from mongomock import MongoClient
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
@@ -1987,13 +1987,6 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.POST,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": "asdfghjklzxcvb",
-                "code": "4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q",
-                "redirect_uri": "http://localhost:8080/callback/linkedin",
-                "client_secret": "qwertyuiopasdf"
-            },
             json={'access_token': '1234567890'},
             match_content=b"grant_type=authorization_code&client_id=asdfghjklzxcvb&code=4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback%2Flinkedin&client_secret=qwertyuiopasdf",
         )
@@ -2034,13 +2027,6 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.POST,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": "asdfghjklzxcvb",
-                "code": "4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q",
-                "redirect_uri": "http://localhost:8080/callback/linkedin",
-                "client_secret": "qwertyuiopasdf"
-            },
             json={'access_token': '1234567890'},
             match_content=b"grant_type=authorization_code&client_id=asdfghjklzxcvb&code=4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback%2Flinkedin&client_secret=qwertyuiopasdf",
         )
@@ -2091,13 +2077,6 @@ class TestAccountProcessor:
         httpx_mock.add_response(
             method=responses.POST,
             url=await LoginSSOFactory.get_client('linkedin').sso_client.token_endpoint,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": "asdfghjklzxcvb",
-                "code": "4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q",
-                "redirect_uri": "http://localhost:8080/callback/linkedin",
-                "client_secret": "qwertyuiopasdf"
-            },
             json={'access_token': '1234567890'},
             match_content=b"grant_type=authorization_code&client_id=asdfghjklzxcvb&code=4%2F0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback%2Flinkedin&client_secret=qwertyuiopasdf",
         )

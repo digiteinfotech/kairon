@@ -13,19 +13,19 @@ test:
     - kairon-test
   stage: test
   script:
-    - python3.8 -V
-    - python3.8 -m pip install virtualenv
-    - python3.8 -m virtualenv env
+    - python3.10 -V
+    - python3.10 -m pip install virtualenv
+    - python3.10 -m virtualenv env
     - source env/bin/activate
-    - python3.8 -m pip install pip==20.2.4
+    - python3.10 -m pip install pip==20.2.4
     - export PIP_DEFAULT_TIMEOUT=100
-    - python3.8 -m pip --no-cache-dir --default-timeout=100 install -r requirements.txt
-    - python3.8 -m nltk.downloader wordnet
-    - python3.8 -m nltk.downloader averaged_perceptron_tagger
-    - python3.8 -m nltk.downloader punkt
-    - python3.8 -m nltk.downloader stopwords
-    - python3.8 -m nltk.downloader omw-1.4
-    - python3.8 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html
+    - python3.10 -m pip --no-cache-dir --default-timeout=100 install -r requirements.txt
+    - python3.10 -m nltk.downloader wordnet
+    - python3.10 -m nltk.downloader averaged_perceptron_tagger
+    - python3.10 -m nltk.downloader punkt
+    - python3.10 -m nltk.downloader stopwords
+    - python3.10 -m nltk.downloader omw-1.4
+    - python3.10 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html
     - deactivate
     - rm -r env/
 
@@ -36,22 +36,23 @@ build-dev:
     - master
   stage: build-dev
   script:
-    -  docker build -f ./docker/Dockerfile_api -t kairon-api-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task -t kairon-task-dev:latest .
-    -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase-dev:latest .
-    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation-dev:latest .
-    -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer-dev:latest .
-    -  docker build -f ./docker/Dockerfile_history_server -t kairon-history-server-dev:latest .
-    -  docker build -f ./docker/Dockerfile_chat -t kairon-chat-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_model_testing -t kairon-model-tester-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_delete_history -t kairon-delete-history-dev:latest .
-    -  docker build -f ./docker/Dockerfile_event_server -t kairon-event-server-dev:latest .
-    -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_delete_logs -t kairon-delete-logs-dev:latest .
-    -  docker build -f ./docker/Dockerfile_task_message_broadcast -t kairon-broadcast-dev:latest .
+    -  docker build -f ./docker/Dockerfile_Base -t kairon-base-dev:latest .
+    -  docker build -f ./docker/Dockerfile_api --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-api-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-task-dev:latest .
+    -  docker build -f ./docker/Dockerfile_paraphrase --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-paraphrase-dev:latest .
+    -  docker build -f ./docker/Dockerfile_question_generation --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-question-generation-dev:latest .
+    -  docker build -f ./docker/Dockerfile_action_server --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-action-server-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_training_data_generator --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-task-data-gen-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_data_importer --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-data-importer-dev:latest .
+    -  docker build -f ./docker/Dockerfile_history_server --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-history-server-dev:latest .
+    -  docker build -f ./docker/Dockerfile_chat --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-chat-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_model_testing --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-model-tester-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_delete_history --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-delete-history-dev:latest .
+    -  docker build -f ./docker/Dockerfile_event_server --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-event-server-dev:latest .
+    -  docker build -f ./docker/Dockerfile_event_worker --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-worker-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_multilingual_translator --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-multilingual-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_delete_logs --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-delete-logs-dev:latest .
+    -  docker build -f ./docker/Dockerfile_task_message_broadcast --build-arg BASE_IMAGE=kairon-base-dev:latest -t kairon-broadcast-dev:latest .
 
 build-release:
   tags:
@@ -60,6 +61,7 @@ build-release:
     - release
   stage: build-release
   script:
+    -  docker build -f ./docker/Dockerfile_Base -t kairon-base:latest .
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:latest .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:latest .
     -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase:latest .

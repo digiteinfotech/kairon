@@ -9,6 +9,7 @@ os.environ["system_file"] = "./tests/testing_data/system.yaml"
 import pytest
 from mongoengine import connect
 from kairon.shared.utils import Utility
+from mongomock import MongoClient
 
 
 class TestSysAdminProcessor:

@@ -15,11 +15,10 @@ from rasa.nlu.test import (
             substitute_labels,
             collect_successful_entity_predictions,
             collect_incorrect_entity_predictions,
-            remove_pretrained_extractors,
             get_eval_data,
             evaluate_intents,
             evaluate_response_selections,
-            get_entity_extractors,
+            _get_active_entity_extractors,
         )
 from rasa.model_testing import get_evaluation_metrics
 
@@ -54,9 +53,9 @@ class ModelTester:
         logger.info(f"model test data path: {bot_home}")
         try:
             model_path = Utility.get_latest_model(bot)
-            nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, run_e2e, augment_data)
+            nlu_path, stories_path, saved_phrases, domain_path = TestDataGenerator.create(bot, run_e2e, augment_data)
             stories_results = asyncio.run(ModelTester.run_test_on_stories(stories_path, model_path, run_e2e))
-            nlu_results = ModelTester.run_test_on_nlu(nlu_path, model_path, saved_phrases)
+            nlu_results = ModelTester.run_test_on_nlu(nlu_path, model_path, saved_phrases, domain_path)
             return nlu_results, stories_results
         except Exception as e:
             raise AppException(f'Model testing failed: {e}')
@@ -83,7 +82,7 @@ class ModelTester:
         test_report = {}
         agent = Agent.load(model_path)
 
-        generator = await _create_data_generator(stories_path, agent, use_conversation_test_files=e2e)
+        generator = _create_data_generator(stories_path, agent, use_conversation_test_files=e2e)
         completed_trackers = generator.generate_story_trackers()
 
         story_evaluation, _, _ = await _collect_story_predictions(
@@ -133,7 +132,7 @@ class ModelTester:
         return test_report
 
     @staticmethod
-    def run_test_on_nlu(nlu_path: str, model_path: str, saved_phrases: set):
+    def run_test_on_nlu(nlu_path: str, model_path: str, saved_phrases: set, domain_path: str):
         """
         Run tests on stories.
 
@@ -141,20 +140,22 @@ class ModelTester:
             nlu_path: path where nlu test data is present as YAML.
             model_path: Model path where model on which test has to be run is present.
             saved_phrases: Phrases that are present as part of the training examples in the bot.
+            domain_path: path where domain.yml id present
 
         Returns: dictionary with evaluation results
-        """
-        from rasa.model import get_model
-        import rasa.shared.nlu.training_data.loading
-        from rasa.nlu.model import Interpreter
 
-        unpacked_model = get_model(model_path)
-        nlu_model = os.path.join(unpacked_model, "nlu")
-        interpreter = Interpreter.load(nlu_model)
-        interpreter.pipeline = remove_pretrained_extractors(interpreter.pipeline)
-        test_data = rasa.shared.nlu.training_data.loading.load_data(
-            nlu_path, interpreter.model_metadata.language
+        """
+        from rasa.core.agent import Agent
+        from rasa.shared.importers.importer import TrainingDataImporter
+        from rasa.nlu.test import get_eval_data
+
+        _agent = Agent.load(model_path=model_path)
+
+        test_data_importer = TrainingDataImporter.load_from_dict(
+            training_data_paths=[nlu_path],
+            domain_path=domain_path,
         )
+        test_data = test_data_importer.get_nlu_data()
 
         result: Dict[Text, Optional[Dict]] = {
             "intent_evaluation": None,
@@ -162,9 +163,9 @@ class ModelTester:
             "response_selection_evaluation": None,
         }
 
-        (intent_results, response_selection_results, entity_results) = get_eval_data(
-            interpreter, test_data
-        )
+        (intent_results, response_selection_results, entity_results) = asyncio.new_event_loop().run_until_complete(get_eval_data(
+            _agent.processor, test_data
+        ))
 
         if intent_results:
             successes = []
@@ -245,7 +246,7 @@ class ModelTester:
             result["response_selection_evaluation"]['errors'] = errors
 
         if any(entity_results):
-            extractors = get_entity_extractors(interpreter)
+            extractors = _get_active_entity_extractors(entity_results)
             result["entity_evaluation"] = ModelTester.__evaluate_entities(entity_results, extractors)
         return result
 
@@ -312,6 +313,12 @@ class TestDataGenerator:
         bot_home = os.path.join('testing_data', bot)
         Utility.make_dirs(bot_home)
         processor = MongoProcessor()
+
+        domain = processor.load_domain(bot)
+        domain_as_str = domain.as_yaml().encode()
+        domain_path = os.path.join(bot_home, "domain.yml")
+        Utility.write_to_file(domain_path, domain_as_str)
+
         intents_and_training_examples = processor.get_intents_and_training_examples(bot)
         for intent, phrases in intents_and_training_examples.items():
             if augment_data:
@@ -340,7 +347,7 @@ class TestDataGenerator:
         else:
             stories_path = os.path.join(bot_home, "stories.yml")
         YAMLStoryWriter().dump(stories_path, stories.story_steps, is_test_story=use_test_stories)
-        return nlu_path, stories_path, saved_phrases
+        return nlu_path, stories_path, saved_phrases, domain_path
 
     @staticmethod
     def augment_sentences(input_text: list):

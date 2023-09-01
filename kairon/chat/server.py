@@ -112,7 +112,7 @@ async def shutdown():
 async def startlette_exception_handler(request, exc):
     """ This function logs the Starlette HTTP error detected and returns the
         appropriate message and details of the error """
-    logger.exception(exc)
+    logger.info(exc)
 
     return JSONResponse(
         Response(

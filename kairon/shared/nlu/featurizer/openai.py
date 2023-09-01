@@ -1,9 +1,12 @@
 import logging
+import os
+from abc import ABC
 from typing import Any, Optional, Text, List, Dict, Tuple, Type
 
 import numpy as np
 import openai
-from rasa.nlu.config import RasaNLUModelConfig
+from rasa.engine.graph import GraphComponent, ExecutionContext
+from rasa.engine.recipes.default_recipe import DefaultV1Recipe
 from rasa.nlu.constants import (
     DENSE_FEATURIZABLE_ATTRIBUTES,
     SEQUENCE_FEATURES,
@@ -11,7 +14,7 @@ from rasa.nlu.constants import (
     FEATURIZER_CLASS_ALIAS,
     TOKENS_NAMES
 )
-from rasa.nlu.featurizers.featurizer import DenseFeaturizer
+from rasa.nlu.featurizers.dense_featurizer.dense_featurizer import DenseFeaturizer
 from rasa.nlu.tokenizers.tokenizer import Tokenizer
 from rasa.shared.nlu.constants import (
     TEXT,
@@ -22,31 +25,27 @@ from rasa.shared.nlu.constants import (
 from rasa.shared.nlu.training_data.features import Features
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData
-from rasa.nlu.components import Component
-import os
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-
-class OpenAIFeaturizer(DenseFeaturizer):
+@DefaultV1Recipe.register(
+    DefaultV1Recipe.ComponentType.MESSAGE_FEATURIZER, is_trainable=False
+)
+class OpenAIFeaturizer(DenseFeaturizer, GraphComponent, ABC):
     """Featurizer using openai language models."""
 
-    defaults = {
-        "bot_id": None,
-    }
 
     def __init__(
-            self,
-            component_config: Optional[Dict[Text, Any]] = None,
+            self, config: Dict[Text, Any], execution_context: ExecutionContext
     ) -> None:
         """Initializes OpenAIFeaturizer with the specified model.
 
         Args:
             component_config: Configuration for the component.
         """
-        super(OpenAIFeaturizer, self).__init__(component_config)
-        self.load_api_key(component_config.get("bot_id"))
+        super(OpenAIFeaturizer, self).__init__(execution_context.node_name, config)
+        self.load_api_key(config.get("bot_id"))
 
     def load_api_key(self, bot_id: Text):
         if bot_id:
@@ -61,7 +60,7 @@ class OpenAIFeaturizer(DenseFeaturizer):
             )
 
     @classmethod
-    def required_components(cls) -> List[Type[Component]]:
+    def required_components(cls) -> List[Type]:
         """Packages needed to be installed."""
         return [Tokenizer]
 
@@ -69,6 +68,14 @@ class OpenAIFeaturizer(DenseFeaturizer):
     def required_packages(cls) -> List[Text]:
         """Packages needed to be installed."""
         return ["openai"]
+
+    @staticmethod
+    def get_default_config() -> Dict[Text, Any]:
+        """Returns OpenAIFeaturizer's default config."""
+        return {
+            **DenseFeaturizer.get_default_config(),
+            "bot_id": None,
+        }
 
     def get_tokens_embeddings(self, tokens):
         embeddings = []
@@ -145,12 +152,7 @@ class OpenAIFeaturizer(DenseFeaturizer):
 
         return batch_docs
 
-    def train(
-            self,
-            training_data: TrainingData,
-            config: Optional[RasaNLUModelConfig] = None,
-            **kwargs: Any,
-    ) -> None:
+    def process_training_data(self, training_data: TrainingData) -> TrainingData:
         """Compute tokens and dense features for each message in training data.
 
         Args:
@@ -186,8 +188,9 @@ class OpenAIFeaturizer(DenseFeaturizer):
                         self._set_lm_features(batch_docs[index], ex, attribute)
                         pbar.update(1)
                     batch_start_index += batch_size
+        return training_data
 
-    def process(self, message: Message, **kwargs: Any) -> None:
+    def process(self, message: Message) -> None:
         """Process an incoming message by computing its tokens and dense features.
 
         Args:

@@ -7,7 +7,6 @@ import tempfile
 from datetime import datetime, timedelta
 from io import BytesIO
 from unittest.mock import patch
-from urllib.parse import urlencode
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
@@ -52,6 +51,8 @@ from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility, MailUtility
+from urllib.parse import urlencode
+from deepdiff import DeepDiff
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -1153,9 +1154,6 @@ def test_get_content():
 def test_delete_content():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
-        json={
-            "text_id": pytest.content_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1169,9 +1167,6 @@ def test_delete_content_does_not_exist():
     content_id = '635981f6e40f61599e000064'
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/text/faq/{content_id}",
-        json={
-            "text_id": content_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1332,9 +1327,6 @@ def test_get_payload_content():
 def test_delete_payload_content():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
-        json={
-            "text_id": pytest.payload_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1349,9 +1341,6 @@ def test_delete_payload_content_does_not_exist():
     payload_id = '61f3a2c0aef88d5b4c58e90f'
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
-        json={
-            "text_id": payload_id,
-        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -2108,9 +2097,9 @@ def test_upload():
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
 
-    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+    files = (('training_files', ("nlu.yml", open("tests/testing_data/all/data/nlu.yml", "rb"))),
              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
-             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("stories.yml", open("tests/testing_data/all/data/stories.yml", "rb"))),
              ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
              ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))))
     response = client.post(
@@ -2161,9 +2150,9 @@ def test_list_entities():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
+    assert not DeepDiff({e['name'] for e in actual["data"]}, {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
-                                                   'audio', 'image', 'doc_url', 'document', 'video'}
+                                                   'audio', 'image', 'doc_url', 'document', 'video', 'name'}, ignore_order=True)
     assert actual["success"]
 
 
@@ -2417,10 +2406,10 @@ def test_get_data_importer_logs():
     assert len(actual['data']["logs"][3]['rules']['data']) == 0
     assert actual['data']["logs"][3]['training_examples']['count'] == 292
     assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
-    assert actual['data']["logs"][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
-                                           'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 11,
+                                           'utterances_count': 25, 'forms_count': 2, 'entities_count': 9, 'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
-    assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
+    assert not DeepDiff(actual['data']["logs"][3]['actions'], [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
@@ -2428,7 +2417,7 @@ def test_get_data_importer_logs():
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
-                                            {'type': 'prompt_actions', 'count': 0, 'data': []}]
+                                            {'type': 'prompt_actions', 'count': 0, 'data': []}], ignore_order=True)
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config'}
@@ -2488,9 +2477,9 @@ def test_upload_with_chat_client_config():
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
 
-    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+    files = (('training_files', ("nlu.yml", open("tests/testing_data/all/data/nlu.yml", "rb"))),
              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
-             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("stories.yml", open("tests/testing_data/all/data/stories.yml", "rb"))),
              ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))),
              ('training_files', ("chat_client_config.yml", open("tests/testing_data/all/chat_client_config.yml", "rb"))))
     response = client.post(
@@ -2514,9 +2503,9 @@ def test_upload_without_chat_client_config():
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
 
-    files = (('training_files', ("nlu.md", open("tests/testing_data/all/data/nlu.md", "rb"))),
+    files = (('training_files', ("nlu.yml", open("tests/testing_data/all/data/nlu.yml", "rb"))),
              ('training_files', ("domain.yml", open("tests/testing_data/all/domain.yml", "rb"))),
-             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("stories.yml", open("tests/testing_data/all/data/stories.yml", "rb"))),
              ('training_files', ("config.yml", open("tests/testing_data/all/config.yml", "rb"))))
     response = client.post(
         f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
@@ -2611,7 +2600,7 @@ def test_add_invalid_slots_type():
 
     actual = response.json()
     assert actual["message"][0][
-               'msg'] == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'unfeaturized', 'list', 'text', 'bool', 'any'"
+               'msg'] == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'list', 'text', 'bool', 'any'"
     assert not actual["success"]
     assert actual["error_code"] == 422
 
@@ -2672,7 +2661,7 @@ def test_edit_invalid_slots_type():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"][0][
-               'msg'] == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'unfeaturized', 'list', 'text', 'bool', 'any'"
+               'msg'] == "value is not a valid enumeration member; permitted: 'float', 'categorical', 'list', 'text', 'bool', 'any'"
 
 
 def test_get_intents():
@@ -2860,9 +2849,9 @@ def test_remove_training_examples():
     )
     training_examples = training_examples.json()
     assert len(training_examples["data"]) == 9
+    id = training_examples['data'][0]['_id']
     response = client.delete(
-        f"/api/bot/{pytest.bot}/training_examples",
-        json={"data": training_examples["data"][0]["_id"]},
+        f"/api/bot/{pytest.bot}/training_examples/{id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -2879,8 +2868,7 @@ def test_remove_training_examples():
 
 def test_remove_training_examples_empty_id():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/training_examples",
-        json={"data": ""},
+        f"/api/bot/{pytest.bot}/training_examples/ ",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3109,21 +3097,21 @@ def test_add_custom_empty_response():
 
 
 def test_remove_response():
-    training_examples = client.get(
+    response = client.get(
         f"/api/bot/{pytest.bot}/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    training_examples = training_examples.json()
-    assert len(training_examples["data"]) == 3
+    utterances = response.json()
+    assert len(utterances["data"]) == 3
+    id = utterances['data'][0]['_id']
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/False",
-        json={"data": training_examples["data"][0]["_id"]},
+        f"/api/bot/{pytest.bot}/response/{id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Utterance removed!"
+    assert actual["message"] == "Response removed!"
     training_examples = client.get(
         f"/api/bot/{pytest.bot}/response/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -3151,8 +3139,7 @@ def test_remove_utterance_attached_to_story():
     assert actual["error_code"] == 0
     assert actual["message"] == "Flow added successfully"
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/True",
-        json={"data": "utter_greet"},
+        f"/api/bot/{pytest.bot}/responses/utter_greet",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3168,8 +3155,7 @@ def test_remove_utterance():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/True",
-        json={"data": "utter_remove_utterance"},
+        f"/api/bot/{pytest.bot}/responses/utter_remove_utterance",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3180,8 +3166,7 @@ def test_remove_utterance():
 
 def test_remove_utterance_non_existing():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/True",
-        json={"data": "utter_delete_non_existing"},
+        f"/api/bot/{pytest.bot}/responses/utter_delete_non_existing",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3192,8 +3177,7 @@ def test_remove_utterance_non_existing():
 
 def test_remove_utterance_empty():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/True",
-        json={"data": " "},
+        f"/api/bot/{pytest.bot}/responses/ ",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3204,14 +3188,13 @@ def test_remove_utterance_empty():
 
 def test_remove_response_empty_id():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/False",
-        json={"data": ""},
+        f"/api/bot/{pytest.bot}/response/ ",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "Utterance Id cannot be empty or spaces"
+    assert actual["message"] == "Response Id cannot be empty or spaces"
 
 
 def test_edit_response():
@@ -3265,19 +3248,18 @@ def test_remove_custom_utterance():
     )
     actual = response.json()
     assert actual["data"]["_id"]
+    id = actual["data"]["_id"]
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/False",
-        json={"data": actual["data"]["_id"]},
+        f"/api/bot/{pytest.bot}/response/{id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Utterance removed!"
+    assert actual["message"] == "Response removed!"
 
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/True",
-        json={"data": "utter_custom"},
+        f"/api/bot/{pytest.bot}/responses/utter_custom",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -4116,6 +4098,40 @@ def test_train_on_updated_data(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={
+            "name": "frontend",
+            "type": "text",
+            "influence_conversation": True,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    
+    actual = response.json()
+    assert "data" in actual
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={
+            "name": "more_queries",
+            "type": "text",
+            "influence_conversation": True,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    
+    actual = response.json()
+    assert "data" in actual
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
     response = client.post(
         f"/api/bot/{pytest.bot}/train",
@@ -5038,7 +5054,7 @@ def test_get_config():
     )
 
     actual = response.json()
-    assert all(key in ["language", "pipeline", "policies"] for key in actual['data']['config'].keys())
+    assert all(key in ["language", "pipeline", "policies", "recipe"] for key in actual['data']['config'].keys())
     assert actual['error_code'] == 0
     assert actual['message'] is None
     assert actual['success']
@@ -5048,7 +5064,7 @@ def test_set_config():
     response = client.put(
         f"/api/bot/{pytest.bot}/config",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json=read_config_file('./template/config/kairon-default.yml')
+        json=read_config_file('./tests/testing_data/kairon-default.yml')
     )
 
     actual = response.json()
@@ -5059,7 +5075,7 @@ def test_set_config():
 
 
 def test_set_config_policy_error():
-    data = read_config_file('./template/config/kairon-default.yml')
+    data = read_config_file('./tests/testing_data/kairon-default.yml')
     data['policies'].append({"name": "TestPolicy"})
     response = client.put(
         f"/api/bot/{pytest.bot}/config",
@@ -5076,7 +5092,7 @@ def test_set_config_policy_error():
 
 
 def test_set_config_pipeline_error():
-    data = read_config_file('./template/config/kairon-default.yml')
+    data = read_config_file('./tests/testing_data/kairon-default.yml')
     data['pipeline'].append({"name": "TestFeaturizer"})
     response = client.put(
         f"/api/bot/{pytest.bot}/config",
@@ -5092,7 +5108,7 @@ def test_set_config_pipeline_error():
 
 
 def test_set_config_pipeline_error_empty_policies():
-    data = read_config_file('./template/config/kairon-default.yml')
+    data = read_config_file('./tests/testing_data/kairon-default.yml')
     data['policies'] = []
     response = client.put(
         f"/api/bot/{pytest.bot}/config",
@@ -8024,8 +8040,8 @@ def test_file_upload_error(mock_file_upload, monkeypatch):
         f"/api/bot/{pytest.bot}/upload/data_generation/file",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files={"doc": (
-            "nlu.md",
-            open("tests/testing_data/all/data/nlu.md", "rb"))})
+            "nlu.yml",
+            open("tests/testing_data/all/data/nlu.yml", "rb"))})
 
     actual = response.json()
     assert actual["message"] == "Invalid File Format"
@@ -8543,7 +8559,7 @@ def test_upload_missing_data():
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
     files = (('training_files', ("domain.yml", BytesIO(open("tests/testing_data/all/domain.yml", "rb").read()))),
-             ('training_files', ("stories.md", BytesIO(open("tests/testing_data/all/data/stories.md", "rb").read()))),
+             ('training_files', ("stories.yml", BytesIO(open("tests/testing_data/all/data/stories.yml", "rb").read()))),
              ('training_files', ("config.yml", BytesIO(open("tests/testing_data/all/config.yml", "rb").read()))),
              )
     response = client.post(
@@ -8565,9 +8581,9 @@ def test_upload_valid_and_invalid_data():
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
-    files = (('training_files', ("nlu_1.md", None)),
+    files = (('training_files', ("nlu_1.yml", b'')),
              ('training_files', ("domain_5.yml", open("tests/testing_data/all/domain.yml", "rb"))),
-             ('training_files', ("stories.md", open("tests/testing_data/all/data/stories.md", "rb"))),
+             ('training_files', ("stories.yml", open("tests/testing_data/all/data/stories.yml", "rb"))),
              ('training_files', ("config_6.yml", open("tests/testing_data/all/config.yml", "rb"))))
     response = client.post(
         f"/api/bot/{pytest.bot}/upload",
@@ -8676,9 +8692,9 @@ def test_get_editable_config():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual['data'] == {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
+    assert not DeepDiff(actual['data'], {'nlu_confidence_threshold': 0.75, 'action_fallback': 'action_small_talk',
                               'action_fallback_threshold': 0.3,
-                              'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}
+                              'ted_epochs': 5, 'nlu_epochs': 5, 'response_epochs': 5}, ignore_order=True)
 
 
 def test_set_epoch_and_fallback():
@@ -10150,23 +10166,21 @@ def test_add_utterance_to_form():
 def test_delete_utterance_in_form():
     response = client.get(
         f"/api/bot/{pytest.bot}/response/utter_ask_restaurant_form_num_people",
-        json={"data": "num people?"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["data"]
     assert actual["success"]
     assert actual["error_code"] == 0
-
+    id = actual["data"][0]["_id"]
     response = client.delete(
-        f"/api/bot/{pytest.bot}/response/False",
-        json={"data": actual["data"][0]["_id"]},
+        f"/api/bot/{pytest.bot}/response/{id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Utterance removed!"
+    assert actual["message"] == "Response removed!"
 
 
 def test_create_rule_with_form_invalid_step():
@@ -10738,7 +10752,7 @@ def test_get_slot_mapping():
     )
     actual = response.json()
     assert actual["success"]
-    assert actual['data'] == [{'slot': 'name', 'mapping': [{'type': 'from_text', 'value': 'user'},
+    assert not DeepDiff(actual['data'], [{'slot': 'name', 'mapping': [{'type': 'from_text', 'value': 'user'},
                                                            {'type': 'from_entity', 'entity': 'name'}]},
                               {'slot': 'num_people', 'mapping': [{'type': 'from_entity', 'entity': 'number',
                                                                   'intent': ['inform', 'request_restaurant']}]},
@@ -10775,14 +10789,13 @@ def test_get_slot_mapping():
                                                                                             'intent': ['affirm']},
                                                                                            {'type': 'from_intent',
                                                                                             'value': False,
-                                                                                            'intent': ['deny']}]}]
+                                                                                            'intent': ['deny']}]}], ignore_order=True)
     assert actual["error_code"] == 0
 
 
 def test_delete_form():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/forms",
-        json={'data': 'restaurant_form'},
+        f"/api/bot/{pytest.bot}/forms/restaurant_form",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10793,8 +10806,7 @@ def test_delete_form():
 
 def test_delete_form_already_deleted():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/forms",
-        json={'data': 'restaurant_form'},
+        f"/api/bot/{pytest.bot}/forms/restaurant_form",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -10805,8 +10817,7 @@ def test_delete_form_already_deleted():
 
 def test_delete_form_not_exists():
     response = client.delete(
-        f"/api/bot/{pytest.bot}/forms",
-        json={'data': 'form_not_exists'},
+        f"/api/bot/{pytest.bot}/forms/form_not_exists",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -12757,11 +12768,11 @@ def test_add_bot_with_template_name(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual['data'] == {'google_search_action': ['google_search_action'], 'prompt_action': ['kairon_faq_action'],
-                              'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
+    assert not DeepDiff(actual['data'], {'google_search_action': ['google_search_action'], 'prompt_action': ['kairon_faq_action'],
+                              'utterances': ["utter_please_rephrase", "utter_default"], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
                               'email_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                               'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
-                              'razorpay_action': [], 'database_action': [], 'actions': []}
+                              'razorpay_action': [], 'database_action': [], 'actions': []}, ignore_order=True)
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
@@ -13228,7 +13239,7 @@ def test_list_broadcast_config():
          "pyscript": "send_msg('template_name', '9876543210')", 'status': True, "template_config": []},
         {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10, "broadcast_type": "static",
          'recipients_config': {'recipients': '918958030541,'}, 'template_config': [
-            {'template_id': 'brochure_pdf', "language": "en"}], 'status': True, "template_config": [{'template_id': 'brochure_pdf', "language": "en"}]}]}
+            {'template_id': 'brochure_pdf', "language": "en"}], 'status': True}]}
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)

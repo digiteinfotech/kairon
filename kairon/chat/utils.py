@@ -6,7 +6,7 @@ from loguru import logger
 from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 from rasa.core.channels import UserMessage
-from rasa.core.tracker_store import TrackerStore
+from rasa.core.tracker_store import SerializedTrackerAsDict
 from tornado.escape import json_decode
 from tornado.httputil import HTTPServerRequest
 
@@ -28,7 +28,7 @@ class ChatUtils:
         metadata = ChatUtils.__get_metadata(account, bot, is_integration_user, metadata)
         msg = UserMessage(data, sender_id=user, metadata=metadata)
         chat_response = await model.handle_message(msg)
-        ChatUtils.__attach_agent_handoff_metadata(account, bot, user, chat_response, model.tracker_store)
+        await ChatUtils.__attach_agent_handoff_metadata(account, bot, user, chat_response, model.tracker_store)
         return chat_response
 
     @staticmethod
@@ -36,7 +36,7 @@ class ChatUtils:
         AgentProcessor.reload(bot)
 
     @staticmethod
-    def __attach_agent_handoff_metadata(account: int, bot: Text, sender_id: Text, bot_predictions, tracker):
+    async def __attach_agent_handoff_metadata(account: int, bot: Text, sender_id: Text, bot_predictions, tracker):
         metadata = {'initiate': False, 'type': None, "additional_properties": None}
         exception = None
         should_initiate_handoff = False
@@ -61,7 +61,7 @@ class ChatUtils:
                                 bot_predictions["agent_handoff"] = metadata
                                 should_initiate_handoff = False
                                 return metadata
-                    message_trail = ChatUtils.__retrieve_conversation(tracker, sender_id)
+                    message_trail = await ChatUtils.__retrieve_conversation(tracker, sender_id)
                     live_agent.send_conversation_log(message_trail, metadata["additional_properties"]["destination"])
         except Exception as e:
             logger.exception(e)
@@ -78,9 +78,8 @@ class ChatUtils:
         return metadata
 
     @staticmethod
-    def __retrieve_conversation(tracker, sender_id: Text):
-        events = TrackerStore.serialise_tracker(tracker.retrieve(sender_id))
-        events = json.loads(events)
+    async def __retrieve_conversation(tracker, sender_id: Text):
+        events = SerializedTrackerAsDict.serialise_tracker(await tracker.retrieve(sender_id))
         _, message_trail = ActionUtility.prepare_message_trail(events.get("events"))
         return message_trail
 

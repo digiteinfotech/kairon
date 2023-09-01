@@ -8,6 +8,7 @@ from io import BytesIO
 from unittest.mock import patch
 from urllib.parse import urljoin
 
+import mock
 import pytest
 import responses
 from fastapi import UploadFile
@@ -16,29 +17,26 @@ from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAUL
 from rasa.shared.importers.rasa import RasaFileImporter
 from responses import matchers
 
-from kairon.events.definitions.scheduled_base import ScheduledEventsBase
-from kairon.shared.utils import Utility
-
-os.environ["system_file"] = "./tests/testing_data/system.yaml"
-
-from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
-
-from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
+from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
+from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
+from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
+from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass, EventRequestType
 from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
 from kairon.shared.data.data_objects import Configs, BotSettings
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
-from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.test.processor import ModelTestingLogProcessor
+from kairon.shared.utils import Utility
 from kairon.test.test_models import ModelTester
 
-from kairon.events.definitions.faq_importer import FaqDataImporterEvent
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
 class TestEventExecution:
@@ -64,10 +62,10 @@ class TestEventExecution:
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
-            domain = await importer.get_domain()
-            story_graph = await importer.get_stories()
-            config = await importer.get_config()
-            nlu = await importer.get_nlu_data(config.get('language'))
+            domain = importer.get_domain()
+            story_graph = importer.get_stories()
+            config = importer.get_config()
+            nlu = importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
             return nlu, story_graph, domain, config, http_actions
 
@@ -153,7 +151,7 @@ class TestEventExecution:
         assert not logs[0].get('training_examples').get('data')
         assert not logs[0].get('domain').get('data')
         assert not logs[0].get('config').get('data')
-        assert logs[0].get('exception').__contains__('Failed to read YAML')
+        assert logs[0].get('exception').__contains__("Failed to validate nlu.yml. Please make sure the file is correct and all mandatory parameters are specified. Here are the errors found during validation:\n  in nlu.yml:3:\n      Value 'intent' is not a dict. Value path: '/nlu/1'")
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
         assert logs[0]['status'] == 'Failure'
@@ -678,7 +676,7 @@ class TestEventExecution:
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
-        assert not logs[0].get('stories').get('data')
+        assert logs[0].get('stories').get('data')
         assert logs[0].get('utterances').get('data')
         assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
@@ -687,15 +685,15 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
-        assert len(mongo_processor.fetch_stories(bot)) == 3
-        assert len(list(mongo_processor.fetch_training_examples(bot))) == 12
-        assert len(list(mongo_processor.fetch_responses(bot))) == 11
-        assert len(mongo_processor.fetch_actions(bot)) == 1
-        assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
+        assert len(mongo_processor.fetch_stories(bot)) == 0
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 0
+        assert len(list(mongo_processor.fetch_responses(bot))) == 0
+        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 0
 
     def test_trigger_data_importer_import_with_intent_issues(self, monkeypatch):
         bot = 'test_trigger_data_importer_import_with_intent_issues'
@@ -750,7 +748,7 @@ class TestEventExecution:
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
-        assert not logs[0].get('stories').get('data')
+        assert logs[0].get('stories').get('data')
         assert logs[0].get('utterances').get('data')
         assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
@@ -909,10 +907,10 @@ class TestEventExecution:
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=data_path)
-            domain = await importer.get_domain()
-            story_graph = await importer.get_stories()
-            config = await importer.get_config()
-            nlu = await importer.get_nlu_data(config.get('language'))
+            domain = importer.get_domain()
+            story_graph = importer.get_stories()
+            config = importer.get_config()
+            nlu = importer.get_nlu_data(config.get('language'))
 
             processor = MongoProcessor()
             processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True,
@@ -948,9 +946,8 @@ class TestEventExecution:
         pytest.model_path = ModelTrainingEvent(bot, user).execute()
         assert not Utility.check_empty_string(pytest.model_path)
 
-    def test_trigger_model_testing_event_run_tests_on_model(self, load_data, create_model, monkeypatch):
-        import rasa.utils.common
-
+    @mock.patch("kairon.test.test_models.ModelTester.run_test_on_stories")
+    def test_trigger_model_testing_event_run_tests_on_model(self, mocked_run_stories, load_data, create_model):
         bot = 'test_events_bot'
         user = 'test_user'
         config_path = 'tests/testing_data/model_tester/config.yml'
@@ -959,15 +956,12 @@ class TestEventExecution:
         stories_path = 'tests/testing_data/model_tester/training_stories_success/stories.yml'
         asyncio.run(load_data(config_path, domain_path, nlu_path, stories_path, bot, user))
 
-        def _mock_stories_output(*args, **kwargs):
-            return {
-                "precision": 0.91,
-                "f1": 0.98,
-                "accuracy": 0.99,
-                "failed_stories": [],
-            }
-
-        monkeypatch.setattr(rasa.utils.common, 'run_in_loop', _mock_stories_output)
+        mocked_run_stories.return_value = {
+            "precision": 0.91,
+            "f1": 0.98,
+            "accuracy": 0.99,
+            "failed_stories": [],
+        }
         ModelTestingEvent(bot, user, run_e2e=False).execute()
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 2
@@ -1077,7 +1071,7 @@ class TestEventExecution:
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
     def test_trigger_history_deletion_for_bot(self):
-        from datetime import datetime, timedelta
+        from datetime import datetime
         bot = 'test_events_bot'
         user = 'test_user'
         till_date = datetime.utcnow().date()

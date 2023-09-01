@@ -58,6 +58,8 @@ class DataUtility:
             Utility.make_dirs(data_path)
 
             for file in training_files:
+                if not file:
+                    continue
                 if file.filename in ALLOWED_NLU_FORMATS.union(ALLOWED_STORIES_FORMATS).union(ALLOWED_RULES_FORMATS):
                     path = os.path.join(data_path, file.filename)
                     Utility.write_to_file(path, await file.read())
@@ -272,21 +274,6 @@ class DataUtility:
                                                        user=user,
                                                        status=EVENT_STATUS.FAIL.value,
                                                        exception=str(e))
-
-    @staticmethod
-    def get_interpreter(model_path):
-        from rasa.model import get_model, get_model_subdirectories
-        from rasa.core.interpreter import create_interpreter
-        try:
-            with get_model(model_path) as unpacked_model:
-                _, nlu_model = get_model_subdirectories(unpacked_model)
-                _interpreter = create_interpreter(
-                    nlu_model
-                )
-        except Exception:
-            logger.debug(f"Could not load interpreter from '{model_path}'.")
-            _interpreter = None
-        return _interpreter
 
     @staticmethod
     def validate_flow_events(events, event_type, name):

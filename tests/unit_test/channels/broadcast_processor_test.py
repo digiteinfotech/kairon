@@ -9,6 +9,7 @@ from mongoengine import connect, ValidationError
 from kairon.exceptions import AppException
 from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
 from kairon.shared.utils import Utility
+from mongomock import MongoClient
 
 
 class TestMessageBroadcastProcessor:

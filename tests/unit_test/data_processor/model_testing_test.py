@@ -86,7 +86,7 @@ class TestModelTesting:
     def test_run_test_on_nlu(self):
         saved_phrases = {'hey', 'goodbye', 'that sounds good', 'I am feeling very good'}
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_success/nlu.yml',
-                                             pytest.model_path, saved_phrases)
+                                             pytest.model_path, saved_phrases, "tests/testing_data/model_tester/domain.yml")
         assert result['intent_evaluation']['total_count'] == 43
         assert result['intent_evaluation']['failure_count'] == 0
         assert len(result['intent_evaluation']['successes']) == 0
@@ -98,7 +98,7 @@ class TestModelTesting:
     def test_run_test_on_nlu_failure(self):
         saved_phrases = {'sad', 'awful', 'that sounds good', 'I am feeling very good'}
         result = ModelTester.run_test_on_nlu('tests/testing_data/model_tester/nlu_failures/nlu.yml',
-                                             pytest.model_path, saved_phrases)
+                                             pytest.model_path, saved_phrases, "tests/testing_data/model_tester/domain.yml")
         assert result['intent_evaluation']['total_count'] == 52
         assert result['intent_evaluation']['success_count'] == 29
         assert result['intent_evaluation']['failure_count'] == 23
@@ -220,17 +220,15 @@ class TestModelTesting:
             ModelTestingLogProcessor.is_event_in_progress('test_bot')
 
     def test_is_limit_exceeded_failure(self, monkeypatch):
-        bot = 'test_bot'
-        bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.test_limit_per_day = 0
-        bot_settings.save()
+        bot = 'test_bot_model_testing'
+        BotSettings(bot=bot, user="test_user", test_limit_per_day=0).save()
         assert ModelTestingLogProcessor.is_limit_exceeded(bot, False)
 
         with pytest.raises(AppException, match='Daily limit exceeded.'):
             ModelTestingLogProcessor.is_limit_exceeded(bot)
 
     def test_is_limit_exceeded(self, monkeypatch):
-        bot = 'test_bot'
+        bot = 'test_bot_model_testing'
         bot_settings = BotSettings.objects(bot=bot).get()
         bot_settings.test_limit_per_day = 5
         bot_settings.save()
@@ -253,10 +251,10 @@ class TestModelTesting:
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=data_path)
-            domain = await importer.get_domain()
-            story_graph = await importer.get_stories()
-            config = await importer.get_config()
-            nlu = await importer.get_nlu_data(config.get('language'))
+            domain = importer.get_domain()
+            story_graph = importer.get_stories()
+            config = importer.get_config()
+            nlu = importer.get_nlu_data(config.get('language'))
 
             processor = MongoProcessor()
             processor.save_training_data(bot, user, config, domain, story_graph, nlu, overwrite=True,
@@ -278,9 +276,10 @@ class TestModelTesting:
             return []
 
         monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
-        nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, True)
+        nlu_path, stories_path, saved_phrases, domain_path = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
+        assert os.path.exists(domain_path)
         assert saved_phrases == {'name?', 'am i talking to a tiger?', 'good morning', 'are you a bot?', 'never',
                                  'what is your name?', 'am i talking to an elephant?', 'not really', 'extremely sad',
                                  'am I talking to a human?', 'bye', 'not very good', 'see you around', 'see you later',
@@ -316,9 +315,10 @@ class TestModelTesting:
             return ["agree", "right", "exactly"]
 
         monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
-        nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, True)
+        nlu_path, stories_path, saved_phrases, domain_path = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
+        assert os.path.exists(domain_path)
         assert saved_phrases == {'yes', 'that sounds good', 'indeed', 'correct', 'of course'}
 
     def test_data_generator_no_training_data(self):
@@ -341,15 +341,17 @@ class TestModelTesting:
 
         monkeypatch.setattr(ParaPhrasing, "paraphrases", __mock_resp)
 
-        nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, True)
+        nlu_path, stories_path, saved_phrases, domain_path = TestDataGenerator.create(bot, True)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
+        assert os.path.exists(domain_path)
         assert len(saved_phrases) == 20
 
     @pytest.mark.asyncio
     async def test_data_generator_disable_augmentation(self):
         bot = 'test_threshold'
-        nlu_path, stories_path, saved_phrases = TestDataGenerator.create(bot, True, False)
+        nlu_path, stories_path, saved_phrases, domain_path = TestDataGenerator.create(bot, True, False)
         assert os.path.exists(nlu_path)
         assert os.path.exists(stories_path)
+        assert os.path.exists(domain_path)
         assert len(saved_phrases) == 135

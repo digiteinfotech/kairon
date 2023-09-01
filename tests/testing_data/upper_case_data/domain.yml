@@ -25,25 +25,33 @@ entities:
 
 slots:
   APPLICATION_NAME:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: APPLICATION_NAME
   EMAIL_ID:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: EMAIL_ID
   LOCATION:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: LOCATION
   USER:
-    type: rasa.shared.core.slots.UnfeaturizedSlot
+    type: text
     initial_value: null
-    auto_fill: true
     influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: USER
 actions:
 - ACTION_GET_GOOGLE_APPLICATION
 - ACTION_GET_MICROSOFT_APPLICATION
@@ -52,16 +60,10 @@ actions:
 
 forms:
   ASK_USER:
-    USER:
-      - type: from_entity
-        entity: USER
-    EMAIL_ID:
-      - type: from_entity
-        entity: EMAIL_ID
+    required_slots:
+      - USER
+      - EMAIL_ID
   ASK_LOCATION:
-    LOCATION:
-      - type: from_entity
-        entity: LOCATION
-    APPLICATION_NAME:
-      - type: from_entity
-        entity: APPLICATION_NAME
+    required_slots:
+      - LOCATION
+      - APPLICATION_NAME
