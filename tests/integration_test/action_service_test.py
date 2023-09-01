@@ -76,9 +76,7 @@ def test_pyscript_action_execution():
 
     responses.add(
         "POST", Utility.environment['evaluator']['scripts']['url'],
-        json={"success": True,
-              "data": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-                       "slots": {"natural_numbers": [1, 2, 3, 4, 5], "sum_of_numbers": 15}},
+        json={"success": True, "data": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
               "message": None, "error_code": 0}
     )
 
@@ -87,7 +85,7 @@ def test_pyscript_action_execution():
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"},
             "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
@@ -120,10 +118,10 @@ def test_pyscript_action_execution():
         {"event": "slot", "timestamp": None, "name": "sum_of_numbers", "value": "15"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
          "value": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-                   "slots": {"natural_numbers": [1, 2, 3, 4, 5], "sum_of_numbers": 15}}}]
+                   "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}}]
     assert response_json['responses'][0]['text'] == {
         "response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-        "slots": {"natural_numbers": [1, 2, 3, 4, 5], "sum_of_numbers": 15}
+        "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}
     }
 
 

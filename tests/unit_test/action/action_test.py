@@ -1125,8 +1125,7 @@ class TestActions:
         responses.add(
             "POST", Utility.environment['evaluator']['scripts']['url'],
             json={"success": True,
-                  "data": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-                           "slots": {"natural_numbers": [1, 2, 3, 4, 5], "sum_of_numbers": 15}},
+                  "data": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
                   "message": None, "error_code": 0}
         )
         mock_get_action.return_value = _get_action()
@@ -1142,6 +1141,7 @@ class TestActions:
 
         assert actual[0]['value']['response']['numbers'] == [1, 2, 3, 4, 5]
         assert actual[0]['value']['response']['total'] == 15
+        assert actual[0]['value']['slots'] == slots
 
     @responses.activate
     @pytest.mark.asyncio
