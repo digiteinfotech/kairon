@@ -481,7 +481,8 @@ class ActionUtility:
         resp = ActionUtility.execute_http_request(endpoint, "POST", request_body)
         if not resp.get('success') and raise_err_on_failure:
             raise ActionFailure(f'Pyscript evaluation failed: {resp}')
-        result = resp.get('data')
+        data = resp.get('data')
+        result = {'response': data, 'slots': context.get('slot')}
         return result
 
     @staticmethod
