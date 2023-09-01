@@ -405,7 +405,7 @@ class ActionUtility:
             search_term = f"{search_term} site: {kwargs.get('website')}" if not ActionUtility.is_empty(
                 kwargs.get('website')) else search_term
             request_body = {"text": search_term, "top_n": kwargs.get("top_n")}
-            if search_engine_url:
+            if not ActionUtility.is_empty(search_engine_url):
                 response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
                 search_results = response.get('data')
             else:
