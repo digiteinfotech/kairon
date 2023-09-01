@@ -22,7 +22,7 @@ pipedrive-python-lib
 zenpy
 google-cloud-translate
 blinker
-PyMuPDF
+pymupdf
 python-docx
 python-multipart
 pandas
