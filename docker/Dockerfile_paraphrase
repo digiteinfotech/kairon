@@ -1,6 +1,8 @@
 ARG BASE_IMAGE=kairon-base:latest
 FROM $BASE_IMAGE
 
+WORKDIR ${KAIRON_HOME}
+
 RUN python -m nltk.downloader wordnet
 RUN python -m nltk.downloader averaged_perceptron_tagger
 

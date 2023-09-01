@@ -17,7 +17,7 @@ test:
     - python3.10 -m pip install virtualenv
     - python3.10 -m virtualenv env
     - source env/bin/activate
-    - python3.10 -m pip install pip==20.2.4
+    - python3.10 -m pip install --upgrade pip
     - export PIP_DEFAULT_TIMEOUT=100
     - python3.10 -m pip --no-cache-dir --default-timeout=100 install -r requirements.txt
     - python3.10 -m nltk.downloader wordnet

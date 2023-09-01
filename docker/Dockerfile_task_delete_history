@@ -1,6 +1,8 @@
 ARG BASE_IMAGE=kairon-base:latest
 FROM $BASE_IMAGE
 
+WORKDIR ${KAIRON_HOME}
+
 ENV BOT default
 ENV USER default
 ENV TILL_DATE default

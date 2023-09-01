@@ -1,5 +1,7 @@
 ARG BASE_IMAGE=kairon-base:latest
 FROM $BASE_IMAGE
 
+WORKDIR ${KAIRON_HOME}
+
 EXPOSE 8000
 CMD ["uvicorn", "augmentation.question_generator.server:app","--host","0.0.0.0", "--no-server-header", "--no-access-log"]

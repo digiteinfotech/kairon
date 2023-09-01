@@ -4,7 +4,7 @@ ENV KAIRON_HOME=/app
 ENV PYTHON_VERSION=3.10.13
 
 RUN yum update -y
-RUN yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel
+RUN yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel
 RUN yum -y install libffi-devel
 RUN wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
 RUN tar -xf Python-${PYTHON_VERSION}.tgz

@@ -1,6 +1,8 @@
 ARG BASE_IMAGE=kairon-base:latest
 FROM $BASE_IMAGE
 
+WORKDIR ${KAIRON_HOME}
+
 ENV WORKER_TIMEOUT=240
 ENV APP_MODULE=kairon.api.app.main:app
 EXPOSE 80

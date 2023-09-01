@@ -1,6 +1,8 @@
 ARG BASE_IMAGE=kairon-base:latest
 FROM $BASE_IMAGE
 
+WORKDIR ${KAIRON_HOME}
+
 USER 1001
 EXPOSE 5056
 CMD ["python","-m", "kairon.events.server", "--logging=debug"]
