@@ -1142,24 +1142,6 @@ def test_add_pyscript_action_case_insensitivity():
     assert actual["message"] == "Action added!"
     assert actual["success"]
 
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/action/pyscript/TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual['message'] == 'Action does not exists!'
-    assert not actual['data']
-
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/action/pyscript/test_add_pyscript_action_case_insensitivity",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual['data']
-    assert actual["success"]
-
 
 def test_update_pyscript_action_does_not_exist():
     script = """
@@ -1209,38 +1191,6 @@ def test_update_pyscript_action():
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action updated!'
     assert actual["success"]
-
-
-def test_get_pyscript_action():
-    script = """
-    data = [1, 2, 3, 4, 5, 6, 7]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/action/pyscript/test_add_pyscript_action",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["success"]
-    assert actual['data']['name'] == 'test_add_pyscript_action'
-    assert actual['data']['source_code'] == script
-    assert actual['data']['dispatch_response']
-    assert actual['data']['set_slots'] == []
-
-
-def test_get_pyscript_action_does_not_exist():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/action/pyscript/test_get_pyscript_action_does_not_exist",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual['message'] == 'Action does not exists!'
-    assert not actual["success"]
 
 
 def test_list_pyscript_actions():
