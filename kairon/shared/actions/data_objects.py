@@ -409,6 +409,36 @@ class GoogleSearchAction(Auditlog):
 
 @auditlogger.log
 @push_notification.apply
+class WebSearchAction(Auditlog):
+    name = StringField(required=True)
+    website = StringField(default=None)
+    failure_response = StringField(default='I have failed to process your request.')
+    top_n = IntField(default=1)
+    dispatch_response = BooleanField(default=True)
+    set_slot = StringField()
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if self.top_n < 1:
+            raise ValidationError("top_n must be greater than or equal to 1!")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        if Utility.check_empty_string(self.failure_response):
+            self.failure_response = 'I have failed to process your request.'
+
+
+@auditlogger.log
+@push_notification.apply
 class JiraAction(Auditlog):
     name = StringField(required=True)
     url = StringField(required=True)

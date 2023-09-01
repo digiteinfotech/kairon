@@ -39,6 +39,7 @@ class ActionType(str, Enum):
     razorpay_action = "razorpay_action"
     prompt_action = "prompt_action"
     database_action = "database_action"
+    web_search_action = "web_search_action"
 
 
 class HttpRequestContentType(str, Enum):

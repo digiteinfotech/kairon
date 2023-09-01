@@ -24,6 +24,7 @@ class StoryStepType(str, Enum):
     razorpay_action = "RAZORPAY_ACTION"
     two_stage_fallback_action = "TWO_STAGE_FALLBACK_ACTION"
     prompt_action = "PROMPT_ACTION"
+    web_search_action = "WEB_SEARCH_ACTION"
 
 
 class StoryType(str, Enum):
