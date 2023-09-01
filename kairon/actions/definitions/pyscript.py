@@ -65,7 +65,7 @@ class ActionPyscript(ActionsBase):
             tracker_data = ActionUtility.build_context(tracker, True)
             dispatch_bot_response = pyscript_action_config['dispatch_response']
             source_code = pyscript_action_config['source_code']
-            bot_response = ActionUtility.run_pyscript(source_code)
+            bot_response = ActionUtility.run_pyscript(source_code, tracker_data)
             response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(
                 pyscript_action_config.get('set_slots', []), response_context)
