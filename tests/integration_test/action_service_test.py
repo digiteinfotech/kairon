@@ -58,9 +58,9 @@ def test_pyscript_action_execution():
     Actions(name=action_name, type=ActionType.pyscript_action.value,
             bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     script = """
-    data = [1, 2, 3, 4, 5]
+    numbers = [1, 2, 3, 4, 5]
     total = 0
-    for i in data:
+    for i in numbers:
         total += i
     print(total)
     """
@@ -68,16 +68,18 @@ def test_pyscript_action_execution():
     PyscriptActionConfig(
         name=action_name,
         source_code=script,
-        set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),
-                   SetSlotsFromResponse(name="total_val", value="${data.total}")],
+        set_slots=[SetSlotsFromResponse(name="natural_numbers", value="${data.response.numbers}"),
+                   SetSlotsFromResponse(name="sum_of_numbers", value="${data.response.total}")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
 
     responses.add(
         "POST", Utility.environment['evaluator']['scripts']['url'],
-        json={"success": True, "data": {'data': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}, "message": None,
-              "error_code": 0}
+        json={"success": True,
+              "data": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                       "slots": {"natural_numbers": [1, 2, 3, 4, 5], "sum_of_numbers": 15}},
+              "message": None, "error_code": 0}
     )
 
     request_object = {
@@ -114,11 +116,15 @@ def test_pyscript_action_execution():
     assert len(response_json['events']) == 3
     assert len(response_json['responses']) == 1
     assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "data_val", "value": "[1, 2, 3, 4, 5]"},
-        {"event": "slot", "timestamp": None, "name": "total_val", "value": "15"},
+        {"event": "slot", "timestamp": None, "name": "natural_numbers", "value": "[1, 2, 3, 4, 5]"},
+        {"event": "slot", "timestamp": None, "name": "sum_of_numbers", "value": "15"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": {'data': [1, 2, 3, 4, 5], 'i': 5, 'total': 15}}]
-    assert response_json['responses'][0]['text'] == {'data': [1, 2, 3, 4, 5], 'i': 5, 'total': 15}
+         "value": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                   "slots": {"natural_numbers": [1, 2, 3, 4, 5], "sum_of_numbers": 15}}}]
+    assert response_json['responses'][0]['text'] == {
+        "response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+        "slots": {"natural_numbers": [1, 2, 3, 4, 5], "sum_of_numbers": 15}
+    }
 
 
 @responses.activate

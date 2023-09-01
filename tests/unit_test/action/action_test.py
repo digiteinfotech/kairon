@@ -1,5 +1,6 @@
 import json
 import os
+import mock
 import re
 from unittest import mock
 
@@ -1069,7 +1070,8 @@ class TestActions:
         assert actual['status']
 
     @pytest.mark.asyncio
-    async def test_run_pyscript_action_without_action(self, monkeypatch):
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_without_action(self, mock_get_action):
         slots = {"bot": "5f50fd0a56b698ca10d35d2e",
                  "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -1079,7 +1081,7 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
 
-        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        mock_get_action.return_value = _get_action()
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
@@ -1093,7 +1095,8 @@ class TestActions:
 
     @responses.activate
     @pytest.mark.asyncio
-    async def test_run_pyscript_action(self, monkeypatch):
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action(self, mock_get_action):
         import textwrap
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e",
@@ -1102,9 +1105,9 @@ class TestActions:
         latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
         action_name = "test_run_pyscript_action"
         script = """
-        data = [1, 2, 3, 4, 5]
+        numbers = [1, 2, 3, 4, 5]
         total = 0
-        for i in data:
+        for i in numbers:
             total += i
         print(total)
         """
@@ -1121,10 +1124,12 @@ class TestActions:
 
         responses.add(
             "POST", Utility.environment['evaluator']['scripts']['url'],
-            json={"success": True, "data": {'data': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}, "message": None,
-                  "error_code": 0}
+            json={"success": True,
+                  "data": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                           "slots": {"natural_numbers": [1, 2, 3, 4, 5], "sum_of_numbers": 15}},
+                  "message": None, "error_code": 0}
         )
-        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        mock_get_action.return_value = _get_action()
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
@@ -1135,12 +1140,13 @@ class TestActions:
                                        bot="5f50fd0a56b698ca10d35d2e",
                                        status="SUCCESS").get()
 
-        assert actual[0]['value']['data'] == [1, 2, 3, 4, 5]
-        assert actual[0]['value']['total'] == 15
+        assert actual[0]['value']['response']['numbers'] == [1, 2, 3, 4, 5]
+        assert actual[0]['value']['response']['total'] == 15
 
     @responses.activate
     @pytest.mark.asyncio
-    async def test_run_pyscript_action_with_invalid_response(self, monkeypatch):
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_invalid_response(self, mock_get_action):
         import textwrap
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e",
@@ -1171,7 +1177,7 @@ class TestActions:
             json={"success": False, "data": None,
                   "message": "Script execution error: import of 'requests' is unauthorized", "error_code": 422}
         )
-        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        mock_get_action.return_value = _get_action()
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
@@ -1186,7 +1192,8 @@ class TestActions:
 
     @responses.activate
     @pytest.mark.asyncio
-    async def test_run_pyscript_action_with_interpreter_error(self, monkeypatch):
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_interpreter_error(self, mock_get_action):
         import textwrap
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e",
@@ -1216,7 +1223,7 @@ class TestActions:
             "POST", Utility.environment['evaluator']['scripts']['url'], callback=raise_custom_exception,
         )
 
-        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        mock_get_action.return_value = _get_action()
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
