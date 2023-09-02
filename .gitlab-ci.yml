@@ -19,7 +19,7 @@ test:
     - source env/bin/activate
     - python3.10 -m pip install --upgrade pip
     - export PIP_DEFAULT_TIMEOUT=100
-    - python3.10 -m pip --no-cache-dir --default-timeout=100 install -r requirements.txt
+    - python3.10 -m pip --no-cache-dir --default-timeout=100 install -r requirements/dev.txt
     - python3.10 -m nltk.downloader wordnet
     - python3.10 -m nltk.downloader averaged_perceptron_tagger
     - python3.10 -m nltk.downloader punkt
