@@ -1,0 +1,13 @@
+-r prod.txt
+pytest
+pytest_httpx
+pytest-asyncio
+responses
+mock
+moto
+mongomock
+black
+locust
+deepdiff
+pytest-cov
+pytest-html

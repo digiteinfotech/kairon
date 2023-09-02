@@ -18,9 +18,9 @@ WORKDIR ${KAIRON_HOME}
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python2 50
 RUN update-alternatives --install /usr/bin/python python /usr/local/bin/python3.10 60
 RUN python -m pip install --upgrade pip
-COPY ./requirements.txt requirements.txt
-RUN python -m pip install -r requirements.txt
-RUN rm requirements.txt
+COPY requirements  ${KAIRON_HOME}/requirements
+RUN python -m pip install -r ./requirements/prod.txt
+RUN rm -rf requirements
 
 RUN mkdir ssl
 RUN mkdir data_generator

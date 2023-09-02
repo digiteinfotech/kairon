@@ -13,7 +13,6 @@ bs4
 uuid6
 passlib[bcrypt]
 openai
-openapi_spec_validator
 tornado
 json2html
 google-api-python-client
@@ -28,7 +27,6 @@ python-multipart
 pandas
 openpyxl
 sentencepiece
-responses
 dramatiq
 dramatiq-mongodb
 nlpaug
@@ -43,14 +41,3 @@ AccessControl
 pykka
 timeout-decorator
 googlesearch-python
-pytest
-pytest_httpx
-pytest-asyncio
-mock
-moto
-mongomock
-black
-locust
-deepdiff
-pytest-cov
-pytest-html

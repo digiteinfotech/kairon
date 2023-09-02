@@ -25,7 +25,7 @@ test:
     - python3.10 -m nltk.downloader punkt
     - python3.10 -m nltk.downloader stopwords
     - python3.10 -m nltk.downloader omw-1.4
-    - python3.10 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html
+    - python3.10 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html --disable-warnings
     - deactivate
     - rm -r env/
 
