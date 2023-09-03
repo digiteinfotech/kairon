@@ -2169,13 +2169,9 @@ def test_model_testing_no_existing_models():
 
 @responses.activate
 def test_train(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
-
     def _mock_training_limit(*arge, **kwargs):
         return False
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
 
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
@@ -4085,13 +4081,9 @@ def test_get_utterance_from_not_exist_intent():
 
 @responses.activate
 def test_train_on_updated_data(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
-
     def _mock_training_limit(*arge, **kwargs):
         return False
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
 
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
@@ -4826,11 +4818,7 @@ def test_save_history_endpoint():
 
 @responses.activate
 def test_save_endpoint(monkeypatch):
-    def mongo_store(*args, **kwargs):
-        return None
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    monkeypatch.setitem(Utility.environment['action'], "url", None)
     monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
 
     responses.add(
@@ -4965,11 +4953,7 @@ def test_set_templates_insecure():
 
 @responses.activate
 def test_reload_model(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
-    monkeypatch.setitem(Utility.environment['action'], "url", None)
     monkeypatch.setitem(Utility.environment['model']['agent'], "url", "http://localhost/")
 
     responses.add(
@@ -5791,15 +5775,11 @@ def test_add_story_to_different_bot():
 
 @responses.activate
 def test_train_on_different_bot(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
 
     def _mock_training_limit(*arge, **kwargs):
         return False
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
-    monkeypatch.setattr(DataUtility, "validate_existing_data_train", mongo_store)
 
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
     responses.add(
@@ -5819,13 +5799,9 @@ def test_train_on_different_bot(monkeypatch):
 
 
 def test_train_insufficient_data(monkeypatch):
-    def mongo_store(*arge, **kwargs):
-        return None
-
     def _mock_training_limit(*arge, **kwargs):
         return False
 
-    monkeypatch.setattr(Utility, "get_local_mongo_store", mongo_store)
     monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
 
     response = client.post(
