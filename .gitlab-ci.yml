@@ -81,4 +81,4 @@ build-release:
 cleanup:
   stage: cleanup
   script:
-    -  docker rmi $(sudo docker images -f "dangling=true" -q)
+    -  docker system prune -f
