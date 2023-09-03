@@ -49,7 +49,7 @@ def train_model_for_bot(bot: str):
 
     output = os.path.join(DEFAULT_MODELS_PATH, bot)
     if not os.path.exists(output):
-        os.mkdir(output)
+        os.makedirs(output, exist_ok=True)
     model = train(
         domain=os.path.join(directory, DEFAULT_DOMAIN_PATH),
         config=os.path.join(directory, DEFAULT_CONFIG_PATH),
