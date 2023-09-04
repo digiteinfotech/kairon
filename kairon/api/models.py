@@ -752,7 +752,7 @@ class WebSearchActionRequest(BaseModel):
     @validator("topn")
     def validate_top_n(cls, v, values, **kwargs):
         if not v or v < 1:
-            raise ValueError("top_n must be greater than or equal to 1!")
+            raise ValueError("topn must be greater than or equal to 1!")
         return v
 
 
