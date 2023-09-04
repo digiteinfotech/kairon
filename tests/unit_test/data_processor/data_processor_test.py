@@ -943,6 +943,50 @@ class TestMongoProcessor:
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
 
+    def test_add_pyscript_action_empty_name(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action_empty_name"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        pyscript_config_dict = pyscript_config.dict()
+        pyscript_config_dict['name'] = ''
+        with pytest.raises(ValidationError, match="Action name cannot be empty"):
+            processor.add_pyscript_action(pyscript_config_dict, user, bot)
+
+    def test_add_pyscript_action_empty_source_code(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action_empty_source_code"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        pyscript_config_dict = pyscript_config.dict()
+        pyscript_config_dict['source_code'] = ''
+        with pytest.raises(ValidationError, match="Source code cannot be empty"):
+            processor.add_pyscript_action(pyscript_config_dict, user, bot)
+
     def test_add_pyscript_action(self):
         bot = 'test_bot'
         user = 'test_user'
@@ -984,15 +1028,14 @@ class TestMongoProcessor:
             name=action,
             source_code=script,
             dispatch_response=False,
-            set_slots=[SetSlotsUsingActionResponse(name="total", value="${data.total}", evaluation_type="expression")]
         )
         with pytest.raises(AppException, match="Action exists!"):
             processor.add_pyscript_action(pyscript_config.dict(), user, bot)
 
-    def test_add_pyscript_action_with_set_slots(self):
+    def test_add_pyscript_action_case_insensitivity(self):
         bot = 'test_bot'
         user = 'test_user'
-        action = "test_add_pyscript_action_with_set_slots"
+        action = "TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY"
         script = """
         data = [1, 2, 3, 4, 5]
         total = 0
@@ -1005,13 +1048,13 @@ class TestMongoProcessor:
             name=action,
             source_code=script,
             dispatch_response=False,
-            set_slots=[SetSlotsUsingActionResponse(name="total", value="${data.total}", evaluation_type="expression")]
         )
         action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
-        assert Actions.objects(name=action, status=True, bot=bot).get()
-        pyscript_config_action = PyscriptActionConfig.objects(name=action, bot=bot, status=True).get()
+        assert Actions.objects(name="test_add_pyscript_action_case_insensitivity", status=True, bot=bot).get()
+        pyscript_config_action = PyscriptActionConfig.objects(name="test_add_pyscript_action_case_insensitivity",
+                                                              bot=bot, status=True).get()
         assert str(pyscript_config_action.id) == action_id
-        assert pyscript_config_action.name == action
+        assert pyscript_config_action.name == "test_add_pyscript_action_case_insensitivity"
         assert pyscript_config_action.source_code == script
         assert not pyscript_config_action.dispatch_response
 
@@ -1031,7 +1074,6 @@ class TestMongoProcessor:
             name=action,
             source_code=script,
             dispatch_response=False,
-            set_slots=[SetSlotsUsingActionResponse(name="total", value="${data.total}", evaluation_type="expression")]
         )
         with pytest.raises(AppException, match='Action with name "test_update_pyscript_action" not found'):
             processor.update_pyscript_action(pyscript_config.dict(), user, bot)
@@ -1052,7 +1094,6 @@ class TestMongoProcessor:
             name=action,
             source_code=script,
             dispatch_response=True,
-            set_slots=[SetSlotsUsingActionResponse(name="total", value="${data.total}", evaluation_type="expression")]
         )
         action_id = processor.update_pyscript_action(pyscript_config.dict(), user, bot)
         assert Actions.objects(name=action, status=True, bot=bot).get()
@@ -1119,11 +1160,9 @@ class TestMongoProcessor:
         assert actions[0]['name'] == 'test_add_pyscript_action'
         assert actions[0]['source_code'] == script1
         assert actions[0]['dispatch_response']
-        assert actions[0]['set_slots'] == [{'name': 'total', 'value': '${data.total}', 'evaluation_type': 'expression'}]
-        assert actions[1]['name'] == 'test_add_pyscript_action_with_set_slots'
+        assert actions[1]['name'] == 'test_add_pyscript_action_case_insensitivity'
         assert actions[1]['source_code'] == script2
         assert not actions[1]['dispatch_response']
-        assert actions[1]['set_slots'] == [{'name': 'total', 'value': '${data.total}', 'evaluation_type': 'expression'}]
 
     def test_delete_pyscript_action(self):
         name = 'test_add_pyscript_action'
@@ -1148,18 +1187,18 @@ class TestMongoProcessor:
         user = 'test_user'
         steps = [
             {"name": "greet", "type": "INTENT"},
-            {"name": "test_add_pyscript_action_with_set_slots", "type": "PYSCRIPT_ACTION"},
+            {"name": "test_add_pyscript_action_case_insensitivity", "type": "PYSCRIPT_ACTION"},
         ]
         story_dict = {'name': "story with pyscript action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
         story_id = processor.add_complex_story(story_dict, bot, user)
         story = Stories.objects(block_name="story with pyscript action", bot=bot,
-                                events__name='test_add_pyscript_action_with_set_slots', status=True).get()
+                                events__name='test_add_pyscript_action_case_insensitivity', status=True).get()
         assert story.events[1].type == 'action'
         stories = list(processor.get_stories(bot))
         story_with_form = [s for s in stories if s['name'] == "story with pyscript action"]
         assert story_with_form[0]['steps'] == [
             {"name": "greet", "type": "INTENT"},
-            {"name": "test_add_pyscript_action_with_set_slots", "type": "PYSCRIPT_ACTION"},
+            {"name": "test_add_pyscript_action_case_insensitivity", "type": "PYSCRIPT_ACTION"},
         ]
         processor.delete_complex_story(story_id, 'STORY', bot, user)
 

@@ -135,8 +135,8 @@ events:
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://192.168.100.109:8085/evaluate"}
-  scripts:
-    url: ${SCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8080/evaluate"}
+  pyscript:
+    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8080/evaluate"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}

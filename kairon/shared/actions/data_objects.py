@@ -89,7 +89,6 @@ class PyscriptActionConfig(Auditlog):
     name = StringField(required=True)
     source_code = StringField(required=True)
     dispatch_response = BooleanField(default=True)
-    set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
