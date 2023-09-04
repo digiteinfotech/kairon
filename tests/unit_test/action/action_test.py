@@ -2537,17 +2537,38 @@ class TestActions:
         topn = 1
 
         mock_trigger_lambda.return_value = {
-            "StatusCode": 200,
-            "statusDescription": "200 OK",
-            "isBase64Encoded": "false",
-            "headers": {
-                "Content-Type": "text/html; charset=utf-8"
+            "ResponseMetadata": {
+                "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                "HTTPStatusCode": 200,
+                "HTTPHeaders": {
+                    "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+                    "content-type": "application/json",
+                    "content-length": "152",
+                    "connection": "keep-alive",
+                    "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                    "x-amzn-remapped-content-length": "0",
+                    "x-amz-executed-version": "$LATEST",
+                    "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+                    "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+                },
+                "RetryAttempts": 0
             },
-            "body": [{
-                "title": "Data Science Introduction - W3Schools",
-                "description": "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
-                "url": "https://www.w3schools.com/datascience/ds_introduction.asp"
-            }]
+            "StatusCode": 200,
+            "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+            "ExecutedVersion": "$LATEST",
+            "Payload": {
+                "statusCode": 200,
+                "statusDescription": "200 OK",
+                "isBase64Encoded": 'false',
+                "headers": {
+                    "Content-Type": "text/html; charset=utf-8"
+                },
+                "body": [{
+            'title': 'Data Science Introduction - W3Schools',
+            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+        }]
+            }
         }
         result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
         assert result == [{
@@ -2566,12 +2587,32 @@ class TestActions:
         topn = 2
 
         mock_trigger_lambda.return_value = {
-            "StatusCode": 200,
-            "statusDescription": "200 OK",
-            "isBase64Encoded": "false",
-            "headers": {
-                "Content-Type": "text/html; charset=utf-8"
+            "ResponseMetadata": {
+                "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                "HTTPStatusCode": 200,
+                "HTTPHeaders": {
+                    "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+                    "content-type": "application/json",
+                    "content-length": "152",
+                    "connection": "keep-alive",
+                    "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                    "x-amzn-remapped-content-length": "0",
+                    "x-amz-executed-version": "$LATEST",
+                    "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+                    "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+                },
+                "RetryAttempts": 0
             },
+            "StatusCode": 200,
+            "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+            "ExecutedVersion": "$LATEST",
+            "Payload": {
+                "statusCode": 200,
+                "statusDescription": "200 OK",
+                "isBase64Encoded": 'false',
+                "headers": {
+                    "Content-Type": "text/html; charset=utf-8"
+                },
             "body": [{
                 "title": "Artificial intelligence - Wikipedia",
                 "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
@@ -2581,6 +2622,7 @@ class TestActions:
                  "description": "artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.",
                 "url": "https://www.britannica.com/technology/artificial-intelligence"
                  }]
+        }
         }
 
         result = ActionUtility.perform_web_search(search_term, topn=topn)
@@ -2602,7 +2644,36 @@ class TestActions:
         search_term = "What is data science?"
         website = "https://www.w3schools.com/"
         topn = 1
-        response = {'StatusCode': 404, 'statusDescription': '404 Not Found', 'isBase64Encoded': 'false', 'headers': {'Content-Type': 'text/plain; charset=utf-8'}, 'body': 'The requested resource was not found on the server.'}
+        response = {
+  "ResponseMetadata": {
+      "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+      "HTTPStatusCode": 404,
+      "HTTPHeaders": {
+          "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+          "content-type": "application/json",
+          "content-length": "152",
+          "connection": "keep-alive",
+          "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+          "x-amzn-remapped-content-length": "0",
+          "x-amz-executed-version": "$LATEST",
+          "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+          "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+      },
+      "RetryAttempts": 0
+  },
+            "StatusCode": 404,
+            "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+            "ExecutedVersion": "$LATEST",
+            "Payload": {
+                "statusCode": 404,
+                "statusDescription": "404 Not Found",
+                "isBase64Encoded": 'false',
+                "headers": {
+                    "Content-Type": "text/html; charset=utf-8"
+                },
+                "body": 'The requested resource was not found on the server.'
+            }
+        }
         mock_trigger_lambda.return_value = response
         with pytest.raises(ActionFailure) as action_failure:
             ActionUtility.perform_web_search(search_term, topn=topn, website=website)
@@ -2675,13 +2746,34 @@ class TestActions:
         topn = 2
 
         mock_trigger_lambda.return_value = {
-            "StatusCode": 200,
-            "statusDescription": "200 OK",
-            "isBase64Encoded": "false",
-            "headers": {
-                "Content-Type": "text/html; charset=utf-8"
+            "ResponseMetadata": {
+                "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                "HTTPStatusCode": 200,
+                "HTTPHeaders": {
+                    "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+                    "content-type": "application/json",
+                    "content-length": "152",
+                    "connection": "keep-alive",
+                    "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                    "x-amzn-remapped-content-length": "0",
+                    "x-amz-executed-version": "$LATEST",
+                    "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+                    "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+                },
+                "RetryAttempts": 0
             },
-            "body": ""
+            "StatusCode": 200,
+            "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLCRydWUJCg==",
+            "ExecutedVersion": "$LATEST",
+            "Payload": {
+                "statusCode": 200,
+                "statusDescription": "200 OK",
+                "isBase64Encoded": 'false',
+                "headers": {
+                    "Content-Type": "text/html; charset=utf-8"
+                },
+                "body": ""
+            }
         }
 
         with pytest.raises(ActionFailure, match="No response retrieved!"):
