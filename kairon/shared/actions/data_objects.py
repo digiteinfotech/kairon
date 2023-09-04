@@ -413,7 +413,7 @@ class WebSearchAction(Auditlog):
     name = StringField(required=True)
     website = StringField(default=None)
     failure_response = StringField(default='I have failed to process your request.')
-    top_n = IntField(default=1)
+    topn = IntField(default=1)
     dispatch_response = BooleanField(default=True)
     set_slot = StringField()
     bot = StringField(required=True)
@@ -428,8 +428,8 @@ class WebSearchAction(Auditlog):
             self.clean()
         if Utility.check_empty_string(self.name):
             raise ValidationError("Action name cannot be empty")
-        if self.top_n < 1:
-            raise ValidationError("top_n must be greater than or equal to 1!")
+        if self.topn < 1:
+            raise ValidationError("topn must be greater than or equal to 1!")
 
     def clean(self):
         self.name = self.name.strip().lower()

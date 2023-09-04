@@ -3212,7 +3212,7 @@ class MongoProcessor:
             name=action_config['name'],
             website=action_config.get('website', None),
             failure_response=action_config.get('failure_response'),
-            top_n=action_config.get('top_n'),
+            topn=action_config.get('topn'),
             dispatch_response=action_config.get('dispatch_response', True),
             set_slot=action_config.get('set_slot'),
             bot=bot,
@@ -3238,7 +3238,7 @@ class MongoProcessor:
         action = WebSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
         action.website = action_config.get('website', None)
         action.failure_response = action_config.get('failure_response')
-        action.top_n = action_config.get('top_n')
+        action.topn = action_config.get('topn')
         action.dispatch_response = action_config.get('dispatch_response', True)
         action.set_slot = action_config.get('set_slot')
         action.user = user

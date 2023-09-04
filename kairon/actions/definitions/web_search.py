@@ -65,10 +65,10 @@ class ActionWebSearch(ActionsBase):
                     latest_msg = user_msg
             if not ActionUtility.is_empty(latest_msg):
                 results = ActionUtility.perform_web_search(latest_msg,
-                                                           num=action_config.get("top_n"),
+                                                           topn=action_config.get("topn"),
                                                            website=action_config.get("website"))
                 if results:
-                    bot_response = '\n'.join([entry['text'] for entry in results])
+                    bot_response = '\n'.join([entry['description'] for entry in results])
                     self.__response = bot_response
                     self.__is_success = True
                     if not ActionUtility.is_empty(action_config.get('set_slot')):

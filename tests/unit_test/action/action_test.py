@@ -2533,7 +2533,7 @@ class TestActions:
         Utility.load_environment()
         search_term = "What is data science?"
         website = "https://www.w3schools.com/"
-        top_n = 1
+        topn = 1
 
         mock_trigger_lambda.return_value = {
             "statusCode": 200,
@@ -2543,24 +2543,26 @@ class TestActions:
                 "Content-Type": "text/html; charset=utf-8"
             },
             "body": [{
-                "href": "https://www.w3schools.com/datascience/ds_introduction.asp",
                 "title": "Data Science Introduction - W3Schools",
-                "body": "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making."
+                "description": "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+                "url": "https://www.w3schools.com/datascience/ds_introduction.asp"
             }]
         }
-        result = ActionUtility.perform_web_search(search_term, top_n=top_n, website=website)
+        result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
         assert result == [{
             'title': 'Data Science Introduction - W3Schools',
-            'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
-            'link': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
         }]
+        called_args = mock_trigger_lambda.call_args
+        assert called_args.args[1] == {'text': 'What is data science?', 'site': 'https://www.w3schools.com/', 'topn': 1}
 
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_without_website(self, mock_trigger_lambda):
         Utility.load_environment()
         search_term = "What is AI?"
-        top_n = 2
+        topn = 2
 
         mock_trigger_lambda.return_value = {
             "statusCode": 200,
@@ -2570,53 +2572,62 @@ class TestActions:
                 "Content-Type": "text/html; charset=utf-8"
             },
             "body": [{
-                "href": "https://en.wikipedia.org/wiki/Artificial_intelligence",
                 "title": "Artificial intelligence - Wikipedia",
-                "body": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals."},
-                {"href": "https://www.britannica.com/technology/artificial-intelligence",
+                "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
+                "url": "https://en.wikipedia.org/wiki/Artificial_intelligence"},
+                {
                  "title": "Artificial intelligence (AI) - Britannica",
-                 "body": "artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings."
+                 "description": "artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.",
+                "url": "https://www.britannica.com/technology/artificial-intelligence"
                  }]
         }
 
-        result = ActionUtility.perform_web_search(search_term, top_n=top_n)
+        result = ActionUtility.perform_web_search(search_term, topn=topn)
         assert result == [
             {'title': 'Artificial intelligence - Wikipedia',
-             'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence',
-             'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.'},
+             'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+             'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence',},
             {'title': 'Artificial intelligence (AI) - Britannica',
-             'link': 'https://www.britannica.com/technology/artificial-intelligence',
-             'text': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.'}
+             'description': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.',
+             'url': 'https://www.britannica.com/technology/artificial-intelligence'}
         ]
+        called_args = mock_trigger_lambda.call_args
+        assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2}
 
     def test_public_search_action_error(self):
         search_term = "What is science?"
         website = "www.google.com"
-        top_n = 1
-        with pytest.raises(ActionFailure):
-            ActionUtility.perform_web_search(search_term, website=website, top_n=top_n)
+        topn = 1
+        with pytest.raises(ActionFailure, match="Parameter validation failed:\nInvalid type for parameter FunctionName, value: None, type: <class 'NoneType'>, valid types: <class 'str'>"):
+            ActionUtility.perform_web_search(search_term, website=website, topn=topn)
 
-    @pytest.mark.asyncio
-    @mock.patch("kairon.shared.actions.utils.ActionUtility.execute_http_request", autospec=True)
-    def test_public_search_with_url(self, mock_execute_http_request):
+    @responses.activate
+    def test_public_search_with_url(self):
         Utility.load_environment()
         search_term = "What is AI?"
-        top_n = 1
+        topn = 1
         search_engine_url = "https://duckduckgo.com/"
-        # request_body = {"text": search_term, "top_n": 1}
-
-        mock_execute_http_request.return_value = {"success": True, "data": [{
-            "href": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+        responses.add(
+            method=responses.POST,
+            url=search_engine_url,
+            json={"data": [{
             "title": "Artificial intelligence - Wikipedia",
-            "body": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals."
-        }]}
+            "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
+            "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+        }]},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({
+                    "text": 'What is AI?', "site": '', "topn": 1
+                })],
+        )
 
         with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
-            result = ActionUtility.perform_web_search(search_term, top_n=top_n)
+            result = ActionUtility.perform_web_search(search_term, topn=topn)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
-                 'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
-                 'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+                 'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
             ]
 
     @pytest.mark.asyncio
@@ -2624,7 +2635,7 @@ class TestActions:
     def test_public_search_action_app_exception(self, mock_trigger_lambda):
         Utility.load_environment()
         search_term = "What is AI?"
-        top_n = 2
+        topn = 2
 
         mock_trigger_lambda.return_value = {
             "statusCode": 200,
@@ -2637,7 +2648,7 @@ class TestActions:
         }
 
         with pytest.raises(ActionFailure, match="No response retrieved!"):
-            ActionUtility.perform_web_search(search_term, top_n=top_n)
+            ActionUtility.perform_web_search(search_term, topn=topn)
 
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'

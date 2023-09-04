@@ -402,9 +402,8 @@ class ActionUtility:
         search_engine_url = Utility.environment['web_search_url']['url']
         results = []
         try:
-            search_term = f"{search_term} site: {kwargs.get('website')}" if not ActionUtility.is_empty(
-                kwargs.get('website')) else search_term
-            request_body = {"text": search_term, "top_n": kwargs.get("top_n")}
+            website = kwargs.get('website') if kwargs.get('website') else ''
+            request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
             if not ActionUtility.is_empty(search_engine_url):
                 response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
                 search_results = response.get('data')
@@ -414,7 +413,7 @@ class ActionUtility:
             if not search_results:
                 raise Exception("No response retrieved!")
             for item in search_results:
-                results.append({'title': item['title'], 'text': item['body'], 'link': item['href']})
+                results.append({'title': item['title'], 'description': item['description'], 'url': item['url']})
         except Exception as e:
             logger.exception(e)
             raise ActionFailure(e)

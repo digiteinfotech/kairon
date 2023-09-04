@@ -5566,14 +5566,14 @@ def test_process_web_search_action():
     bot = "5f51zd0a56b698ca10d35d2e"
     user = 'test_user'
     Actions(name=action_name, type=ActionType.web_search_action.value, bot=bot, user='test_user').save()
-    WebSearchAction(name=action_name, website="https://www.w3schools.com/", top_n=2,
+    WebSearchAction(name=action_name, website="https://www.w3schools.com/", topn=2,
                     set_slot='public_search_response', bot=bot, user=user).save()
 
     def _perform_web_search(*args, **kwargs):
         return [{
             'title': 'Data Science Introduction - W3Schools',
-            'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
-            'link': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
         }]
 
     request_object = {
@@ -5681,17 +5681,18 @@ def test_process_web_search_action_with_search_engine_url():
     user = 'test_user'
     search_engine_url = "https://duckduckgo.com/"
     Actions(name=action_name, type=ActionType.web_search_action.value, bot=bot, user='test_user').save()
-    WebSearchAction(name=action_name, top_n=1,
+    WebSearchAction(name=action_name,
                     set_slot='public_search_response', bot=bot, user=user).save()
 
     responses.add(
         method=responses.POST,
         url=search_engine_url,
-        json={"data": [{"title": "Data Science: Definition, Lifecycle, Skills and Tools | IBM", "href": "https://www.ibm.com/topics/data-science", "body": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning."}]},
+        json={"data": [{"title": "Data Science: Definition, Lifecycle, Skills and Tools | IBM", "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
+                        "url": "https://www.ibm.com/topics/data-science"}]},
         status=200,
         match=[
             responses.matchers.json_params_matcher({
-            "text": 'What is data science?', "top_n": None
+            "text": 'What is data science?', "site": '', "topn": 1
         })],
     )
 
@@ -5790,16 +5791,17 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
     bot = "5f51zd0a56b698ca10d35d2e"
     user = 'test_user'
     Actions(name=action_name, type=ActionType.web_search_action.value, bot=bot, user='test_user').save()
-    WebSearchAction(name=action_name, set_slot='public_search_response', top_n=1, bot=bot,
+    WebSearchAction(name=action_name, set_slot='public_search_response', topn=2, bot=bot,
                     user=user).save()
 
     def _perform_web_search(*args, **kwargs):
         return [
-            {'title': 'What is Data Science? | IBM', 'link': 'https://www.ibm.com/topics/data-science',
-             'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.'},
+            {'title': 'What is Data Science? | IBM',
+             'description': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
+             'url': 'https://www.ibm.com/topics/data-science'},
             {'title': 'What Is Data Science? Definition, Examples, Jobs, and More',
-             'link': 'https://www.coursera.org/articles/what-is-data-science',
-             'text': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'}]
+             'description': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
+             'url': 'https://www.coursera.org/articles/what-is-data-science'}]
 
     request_object = {
         "next_action": action_name,
@@ -5904,19 +5906,20 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
 
 def test_process_web_search_action_without_kairon_user_msg_entity():
     action_name = "public_search_action_one_without_kairon_user_msg_entity"
-    bot = "5f51zd0a56b698ca10d35d2e"
+    bot = "5f51zd0a56b698ca10d35d6z"
     user = 'test_user'
     Actions(name=action_name, type=ActionType.web_search_action.value, bot=bot, user='test_user').save()
-    WebSearchAction(name=action_name, set_slot='public_search_response', top_n=1, bot=bot,
+    WebSearchAction(name=action_name, set_slot='public_search_response', topn=2, bot=bot,
                     user=user).save()
 
     def _perform_web_search(*args, **kwargs):
         return [
-            {'title': 'What is Data Science? | IBM', 'link': 'https://www.ibm.com/topics/data-science',
-             'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.'},
+            {'title': 'What is Data Science? | IBM',
+             'description': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
+             'url': 'https://www.ibm.com/topics/data-science'},
             {'title': 'What Is Data Science? Definition, Examples, Jobs, and More',
-             'link': 'https://www.coursera.org/articles/what-is-data-science',
-             'text': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'}]
+             'description': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
+             'url': 'https://www.coursera.org/articles/what-is-data-science',}]
 
     request_object = {
         "next_action": action_name,
@@ -6016,6 +6019,8 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
                     'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
                     'attachment': None}]}
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
+    assert log['user_msg'] == '/action_public_search'
 
 
 def test_process_web_search_action_dispatch_false():
@@ -6029,8 +6034,8 @@ def test_process_web_search_action_dispatch_false():
     def _perform_web_search(*args, **kwargs):
         return [
             {'title': 'Python.org - What is Python? Executive Summary',
-             'link': 'https://www.python.org/doc/essays/blurb/',
-             'text': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.'}
+             'description': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.',
+             'url': 'https://www.python.org/doc/essays/blurb/'}
         ]
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))

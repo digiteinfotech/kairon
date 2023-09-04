@@ -234,7 +234,7 @@ class TestCloudUtils:
 
         def __mock_make_api_call(self, operation_name, kwargs):
             assert kwargs == {'FunctionName': 'public_search', 'InvocationType': 'RequestResponse', 'LogType': 'Tail',
-                              'Payload': b'{"text": "demo", "website": "www.google.com", "top_n": 3}'}
+                              'Payload': b'{"text": "demo", "site": "www.google.com", "topn": 3}'}
             if operation_name == 'Invoke':
                 return response
 
@@ -243,7 +243,7 @@ class TestCloudUtils:
         with patch.dict(Utility.environment, mock_env):
             with mock.patch('botocore.client.BaseClient._make_api_call', new=__mock_make_api_call):
                 resp = CloudUtility.trigger_lambda(EventClass.web_search,
-                                                   {"text": "demo", "website": "www.google.com", "top_n": 3})
+                                                   {"text": "demo", "site": "www.google.com", "topn": 3})
                 assert resp == response
 
     def test_trigger_lambda_delete_history(self):

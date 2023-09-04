@@ -12168,11 +12168,7 @@ def test_delete_google_search_action_not_exists():
     assert actual["message"] == 'Action with name "google_custom_search" not found'
 
 
-def test_add_web_search_action(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+def test_add_web_search_action():
     action = {
         'name': 'public_custom_search',
         "dispatch_response": False, "set_slot": "public_search_result",
@@ -12190,11 +12186,7 @@ def test_add_web_search_action(monkeypatch):
     assert actual["message"] == "Action added"
 
 
-def test_add_web_search_exists(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+def test_add_web_search_exists():
     action = {
         'name': 'public_custom_search',
         "dispatch_response": False, "set_slot": "public_search_result",
@@ -12212,14 +12204,10 @@ def test_add_web_search_exists(monkeypatch):
     assert actual["message"] == 'Action exists!'
 
 
-def test_add_web_search_invalid_parameters_top_n(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+def test_add_web_search_invalid_parameters_top_n():
     action = {
         'name': 'public_custom_search_two',
-        "top_n": 0,
+        "topn": 0,
         "dispatch_response": False, "set_slot": "public_search_result",
         'failure_response': 'I have failed to process your request',
         'website': 'https://www.google.com',
@@ -12233,17 +12221,13 @@ def test_add_web_search_invalid_parameters_top_n(monkeypatch):
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [
-        {'loc': ['body', 'top_n'], 'msg': 'top_n must be greater than or equal to 1!', 'type': 'value_error'}]
+        {'loc': ['body', 'topn'], 'msg': 'topn must be greater than or equal to 1!', 'type': 'value_error'}]
 
 
-def test_add_web_search_invalid_parameters_name(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+def test_add_web_search_invalid_parameters_name():
     action = {
         'name': '',
-        "top_n": 1,
+        "topn": 1,
         "dispatch_response": False, "set_slot": "public_search_result",
         'failure_response': 'I have failed to process your request',
         'website': 'https://www.google.com',
@@ -12310,7 +12294,7 @@ def test_list_web_search_action():
     assert actual["data"][0]['name'] == 'public_custom_search'
     assert actual["data"][0]['failure_response'] == 'Failed to perform public search'
     assert actual['data'][0]['website'] == 'https://nimblework.com'
-    assert actual["data"][0]['top_n'] == 1
+    assert actual["data"][0]['topn'] == 1
     assert not actual["data"][0]['dispatch_response']
     assert actual["data"][0].get('set_slot')
 
