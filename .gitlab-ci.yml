@@ -62,7 +62,7 @@ build-release:
     - upgrade-rasa3
   stage: build-release
   script:
-    -  docker build -f ./docker/Dockerfile_Base -t kairon-base:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_Base -t kairon-base:latest .
     -  docker build -f ./docker/Dockerfile_api -t kairon-api:3.0.0 .
     -  docker build -f ./docker/Dockerfile_task -t kairon-task:3.0.0 .
     -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase:3.0.0 .
