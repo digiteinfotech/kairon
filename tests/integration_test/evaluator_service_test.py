@@ -28,6 +28,38 @@ def test_index():
     assert not actual['data']
 
 
+def test_run_pyscript_with_source_code_empty():
+    request_body = {
+        "source_code": "",
+    }
+    response = client.post(
+        url=f"/evaluate",
+        json=request_body
+    )
+    actual = response.json()
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert actual['message'] == [{'loc': ['body', 'source_code'],
+                                  'msg': 'source_code is required', 'type': 'value_error'}]
+    assert not actual['data']
+
+
+def test_run_pyscript_with_source_code_none():
+    request_body = {
+        "source_code": None,
+    }
+    response = client.post(
+        url=f"/evaluate",
+        json=request_body
+    )
+    actual = response.json()
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert actual['message'] == [{'loc': ['body', 'source_code'],
+                                  'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}]
+    assert not actual['data']
+
+
 def test_run_pyscript():
     script = """
     data = [1, 2, 3, 4, 5]
