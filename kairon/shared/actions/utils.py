@@ -409,6 +409,8 @@ class ActionUtility:
                 search_results = response.get('data')
             else:
                 lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
+                if lambda_response['StatusCode'] != 200:
+                    raise Exception(lambda_response)
                 search_results = lambda_response.get('body')
             if not search_results:
                 raise Exception("No response retrieved!")

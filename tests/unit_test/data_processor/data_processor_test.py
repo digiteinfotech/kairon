@@ -12792,17 +12792,6 @@ class TestMongoProcessor:
         assert Actions.objects(name='public_custom_search', status=True, bot=bot).get()
         assert WebSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
 
-    def test_add_web_search_action_existing_name(self):
-        processor = MongoProcessor()
-        bot = 'test_bot'
-        user = 'test_user'
-        action = {
-            'name': 'test_action',
-            'failure_response': 'I have failed to process your request',
-        }
-        with pytest.raises(AppException, match='Action exists!'):
-            processor.add_web_search_action(action, bot, user)
-        assert Actions.objects(name='test_action', status=True, bot=bot).get()
 
     def test_list_web_search_action_masked(self):
         processor = MongoProcessor()

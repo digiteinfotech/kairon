@@ -18,6 +18,7 @@ from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.web_search import ActionWebSearch
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
+from kairon.exceptions import AppException
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
@@ -2536,7 +2537,7 @@ class TestActions:
         topn = 1
 
         mock_trigger_lambda.return_value = {
-            "statusCode": 200,
+            "StatusCode": 200,
             "statusDescription": "200 OK",
             "isBase64Encoded": "false",
             "headers": {
@@ -2565,7 +2566,7 @@ class TestActions:
         topn = 2
 
         mock_trigger_lambda.return_value = {
-            "statusCode": 200,
+            "StatusCode": 200,
             "statusDescription": "200 OK",
             "isBase64Encoded": "false",
             "headers": {
@@ -2593,6 +2594,20 @@ class TestActions:
         ]
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2}
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+    def test_public_search_action_exception_lambda(self, mock_trigger_lambda):
+        Utility.load_environment()
+        search_term = "What is data science?"
+        website = "https://www.w3schools.com/"
+        topn = 1
+        response = {'StatusCode': 404, 'statusDescription': '404 Not Found', 'isBase64Encoded': 'false', 'headers': {'Content-Type': 'text/plain; charset=utf-8'}, 'body': 'The requested resource was not found on the server.'}
+        mock_trigger_lambda.return_value = response
+        with pytest.raises(ActionFailure) as action_failure:
+            ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+        payload = action_failure.value
+        assert payload.args[0].args[0] == response
 
     def test_public_search_action_error(self):
         search_term = "What is science?"
@@ -2630,6 +2645,28 @@ class TestActions:
                  'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
             ]
 
+    @responses.activate
+    def test_public_search_with_url_exception(self):
+        Utility.load_environment()
+        search_term = "What is AI?"
+        topn = 1
+        search_engine_url = "https://duckduckgo.com/"
+        responses.add(
+            method=responses.POST,
+            url=search_engine_url,
+            json={"data": []},
+            status=500,
+            match=[
+                responses.matchers.json_params_matcher({
+                    "text": 'What is AI?', "site": '', "topn": 1
+                })],
+        )
+
+        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+            with pytest.raises(ActionFailure) as e:
+                ActionUtility.perform_web_search(search_term, topn=topn)
+            assert str(e).__contains__('Failed to execute the url: Got non-200 status code: 500 {"data": []}')
+
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_app_exception(self, mock_trigger_lambda):
@@ -2638,7 +2675,7 @@ class TestActions:
         topn = 2
 
         mock_trigger_lambda.return_value = {
-            "statusCode": 200,
+            "StatusCode": 200,
             "statusDescription": "200 OK",
             "isBase64Encoded": "false",
             "headers": {
