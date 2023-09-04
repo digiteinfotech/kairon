@@ -522,7 +522,7 @@ class TrainingDataValidator(Validator):
         for action in prompt_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
-                    data_error.append(f'Required fields {required_fields} not found in action: {action.get("name")}')
+                    data_error.append(f'Required fields {sorted(required_fields)} not found in action: {action.get("name")}')
                     continue
                 if action.get('num_bot_responses') and (action['num_bot_responses'] > 5 or not isinstance(action['num_bot_responses'], int)):
                     data_error.append(f'num_bot_responses should not be greater than 5 and of type int: {action.get("name")}')
