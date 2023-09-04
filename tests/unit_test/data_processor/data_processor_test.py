@@ -12709,24 +12709,22 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             GoogleSearchAction.objects(name='google_custom_search', status=True, bot=bot).get()
 
-    def test_add_web_search_action(self, monkeypatch):
+    def test_add_web_search_action(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
+        slot_name = "public_search_result"
         action = {
             'name': 'public_custom_search',
             "dispatch_response": False, "set_slot": "public_search_result",
             'failure_response': 'I have failed to process your request',
             'website': 'https://www.google.com',
         }
+        slot = {"name": slot_name, "type": "any", "initial_value": None, "influence_conversation": True}
+        processor.add_slot(slot_value=slot, bot=bot, user=user)
         assert processor.add_web_search_action(action, bot, user)
         assert Actions.objects(name='public_custom_search', status=True, bot=bot).get()
         assert WebSearchAction.objects(name='public_custom_search', status=True, bot=bot).get()
-
-        def __mock_get_slots(*args, **kwargs):
-            return "some_mock_value"
-
-        monkeypatch.setattr(BaseQuerySet, "get", __mock_get_slots)
         with pytest.raises(AppException,
                            match=re.escape("Slot is attached to action: ['public_custom_search']")):
             processor.delete_slot("public_search_result", bot, user)
@@ -12753,7 +12751,7 @@ class TestMongoProcessor:
         ]
         processor.delete_complex_story(story_id, 'STORY', bot, user)
 
-    def test_add_web_search_action_with_empty_name(self, monkeypatch):
+    def test_add_web_search_action_with_empty_name(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
@@ -12766,7 +12764,7 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Action name cannot be empty"):
             processor.add_web_search_action(action, bot, user)
 
-    def test_add_web_search_action_with_invalid_top_n(self, monkeypatch):
+    def test_add_web_search_action_with_invalid_top_n(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
