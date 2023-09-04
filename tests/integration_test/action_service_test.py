@@ -68,16 +68,15 @@ def test_pyscript_action_execution():
     PyscriptActionConfig(
         name=action_name,
         source_code=script,
-        set_slots=[SetSlotsFromResponse(name="natural_numbers", value="${data.response.numbers}"),
-                   SetSlotsFromResponse(name="sum_of_numbers", value="${data.response.total}")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
 
     responses.add(
-        "POST", Utility.environment['evaluator']['scripts']['url'],
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
         json={"success": True, "data": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-              "message": None, "error_code": 0}
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher({'source_code': script})]
     )
 
     request_object = {
@@ -86,81 +85,7 @@ def test_pyscript_action_execution():
             "sender_id": "default",
             "conversation_id": "default",
             "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
-            "latest_event_time": 1537645578.314389,
-            "followup_action": "action_listen",
-            "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
-            "latest_input_channel": "rest",
-            "active_loop": {},
-            "latest_action": {},
-        },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
-        "version": "version"
-    }
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {"event": "slot", "timestamp": None, "name": "natural_numbers", "value": "[1, 2, 3, 4, 5]"},
-        {"event": "slot", "timestamp": None, "name": "sum_of_numbers", "value": "15"},
-        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-                   "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}}]
-    assert response_json['responses'][0]['text'] == {
-        "response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-        "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}
-    }
-
-
-@responses.activate
-def test_pyscript_action_execution_with_error():
-    import textwrap
-
-    action_name = "test_pyscript_action_execution_with_error"
-    Actions(name=action_name, type=ActionType.pyscript_action.value,
-            bot="5f50fd0a56b698ca10d35d2e", user="user").save()
-    script = """
-    for i in 10
-    """
-    script = textwrap.dedent(script)
-    PyscriptActionConfig(
-        name=action_name,
-        source_code=script,
-        dispatch_response=False,
-        set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),
-                   SetSlotsFromResponse(name="total_val", value="${data.total}")],
-        bot="5f50fd0a56b698ca10d35d2e",
-        user="user"
-    ).save()
-
-    def raise_custom_exception(request):
-        raise Exception(
-            'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')
-
-    responses.add_callback(
-        "POST", Utility.environment['evaluator']['scripts']['url'], callback=raise_custom_exception,
-    )
-
-    request_object = {
-        "next_action": action_name,
-        "tracker": {
-            "sender_id": "default",
-            "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
             "paused": False,
@@ -186,18 +111,93 @@ def test_pyscript_action_execution_with_error():
     response_json = response.json()
     assert response.status_code == 200
     assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': 'I have failed to process your request'}]
-    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    assert log['exception'] == 'Failed to execute the url: Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)'
+        {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+         "value": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                   "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}}]
+    assert response_json['responses'][0]['text'] == {
+        "response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+        "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}
+    }
 
 
 @responses.activate
-def test_pyscript_action_execution_with_invalid_response():
+@mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_lambda):
     import textwrap
 
-    action_name = "test_pyscript_action_execution_with_with_script_errors"
+    action_name = "test_pyscript_action_execution_without_pyscript_evaluator_url"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+    mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+        mock_trigger_lambda.return_value = {"body": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json['events']) == 1
+        assert len(response_json['responses']) == 1
+        assert response_json['events'] == [
+            {"event": "slot", "timestamp": None, "name": "kairon_action_response",
+             "value": {"response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                       "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}}]
+        assert response_json['responses'][0]['text'] == {
+            "response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}
+        }
+        called_args = mock_trigger_lambda.call_args
+        assert called_args.args[1] == {'source_code': script}
+
+
+@responses.activate
+def test_pyscript_action_execution_with_error():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_error"
     Actions(name=action_name, type=ActionType.pyscript_action.value,
             bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     script = """
@@ -211,16 +211,16 @@ def test_pyscript_action_execution_with_invalid_response():
         name=action_name,
         source_code=script,
         dispatch_response=False,
-        set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),
-                   SetSlotsFromResponse(name="total_val", value="${data.total}")],
         bot="5f50fd0a56b698ca10d35d2e",
         user="user"
     ).save()
 
-    responses.add(
-        "POST", Utility.environment['evaluator']['scripts']['url'],
-        json={"success": False, "data": None,
-              "message": "Script execution error: import of 'requests' is unauthorized", "error_code": 422}
+    def raise_custom_exception(request):
+        raise Exception("Script execution error: import of 'requests' is unauthorized")
+
+    responses.add_callback(
+        "POST", Utility.environment['evaluator']['pyscript']['url'], callback=raise_custom_exception,
+        match=[responses.matchers.json_params_matcher({'source_code': script})]
     )
 
     request_object = {
@@ -228,8 +228,8 @@ def test_pyscript_action_execution_with_invalid_response():
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore",  "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
             "paused": False,
@@ -259,7 +259,74 @@ def test_pyscript_action_execution_with_invalid_response():
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': 'I have failed to process your request'}]
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-    assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': "Script execution error: import of \'requests\' is unauthorized", \'error_code\': 422}'
+    assert log['exception'] == \
+           'Failed to execute the url: Script execution error: import of \'requests\' is unauthorized'
+
+
+@responses.activate
+def test_pyscript_action_execution_with_invalid_response():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_with_script_errors"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2e", user="user").save()
+    script = """
+    for i in 10
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        dispatch_response=False,
+        bot="5f50fd0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": False, "data": None,
+              "message": 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)',
+              "error_code": 422},
+        match=[responses.matchers.json_params_matcher({'source_code': script})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'I have failed to process your request'}]
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
 
 
 @responses.activate

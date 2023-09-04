@@ -1047,8 +1047,6 @@ class TestActions:
         expected = PyscriptActionConfig(
             name=action_name,
             source_code=script,
-            set_slots=[SetSlotsFromResponse(name="data_val", value="${data.data}"),
-                       SetSlotsFromResponse(name="total_val", value="${data.total}")],
             bot="5f50fd0a56b698ca10d35d2e",
             user="user"
         ).save().to_mongo().to_dict()
@@ -1058,11 +1056,6 @@ class TestActions:
         assert expected['name'] == actual['name']
         assert expected['source_code'] == actual['source_code']
         assert expected['dispatch_response'] == actual['dispatch_response']
-        assert expected['set_slots'] is not None
-        assert expected['set_slots'][0] == {'name': 'data_val', 'value': '${data.data}',
-                                            'evaluation_type': 'expression'}
-        assert expected['set_slots'][1] == {'name': 'total_val', 'value': '${data.total}',
-                                            'evaluation_type': 'expression'}
         assert actual['status']
 
     @pytest.mark.asyncio
@@ -1095,8 +1088,7 @@ class TestActions:
     async def test_run_pyscript_action(self, mock_get_action):
         import textwrap
 
-        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
-                 "param2": "param2value"}
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
         action_name = "test_run_pyscript_action"
@@ -1119,11 +1111,11 @@ class TestActions:
             return {"type": ActionType.pyscript_action.value}
 
         responses.add(
-            "POST", Utility.environment['evaluator']['scripts']['url'],
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
             json={"success": True,
                   "data": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-                  "message": None, "error_code": 0}
-        )
+                  "message": None, "error_code": 0},
+            match=[responses.matchers.json_params_matcher({'source_code': script})])
         mock_get_action.return_value = _get_action()
         dispatcher: CollectingDispatcher = CollectingDispatcher()
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
@@ -1141,6 +1133,55 @@ class TestActions:
 
     @responses.activate
     @pytest.mark.asyncio
+    @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_without_pyscript_evaluator_url(self, mock_get_action, mock_trigger_lambda):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2a", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_without_pyscript_evaluator_url"
+        script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2a",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+
+        with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+            mock_trigger_lambda.return_value = {"body": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}
+            mock_get_action.return_value = _get_action()
+            dispatcher: CollectingDispatcher = CollectingDispatcher()
+            tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                              followup_action=None, active_loop=None, latest_action_name=None)
+            domain: Dict[Text, Any] = None
+            actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+            log = ActionServerLogs.objects(sender="sender1",
+                                           action=action_name,
+                                           bot="5f50fd0a56b698ca10d35d2a",
+                                           status="SUCCESS").get()
+            assert actual[0]['value']['response']['numbers'] == [1, 2, 3, 4, 5]
+            assert actual[0]['value']['response']['total'] == 15
+            assert actual[0]['value']['slots'] == slots
+            called_args = mock_trigger_lambda.call_args
+            assert called_args.args[1] == {'source_code': script}
+
+    @responses.activate
+    @pytest.mark.asyncio
     @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
     async def test_run_pyscript_action_with_invalid_response(self, mock_get_action):
         import textwrap
@@ -1150,6 +1191,52 @@ class TestActions:
         events = [{"event1": "hello"}, {"event2": "how are you"}]
         latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
         action_name = "test_run_pyscript_action_with_invalid_response"
+        script = """
+        for i in 10
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.reset()
+        responses.add(
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": False, "data": None,
+                  "message": 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)',
+                  "error_code": 422},
+            match=[responses.matchers.json_params_matcher({'source_code': script})]
+        )
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2e",
+                                       status="FAILURE").get()
+        assert log['bot_response'] == 'I have failed to process your request'
+        assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_interpreter_error(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_interpreter_error"
         script = """
         import requests
         response = requests.get('http://localhost')
@@ -1167,56 +1254,12 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
 
-        responses.reset()
-        responses.add(
-            "POST", Utility.environment['evaluator']['scripts']['url'],
-            json={"success": False, "data": None,
-                  "message": "Script execution error: import of 'requests' is unauthorized", "error_code": 422}
-        )
-        mock_get_action.return_value = _get_action()
-        dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
-                          followup_action=None, active_loop=None, latest_action_name=None)
-        domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
-        log = ActionServerLogs.objects(sender="sender1",
-                                       action=action_name,
-                                       bot="5f50fd0a56b698ca10d35d2e",
-                                       status="FAILURE").get()
-        assert log['bot_response'] == 'I have failed to process your request'
-        assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': "Script execution error: import of \'requests\' is unauthorized", \'error_code\': 422}'
-
-    @responses.activate
-    @pytest.mark.asyncio
-    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
-    async def test_run_pyscript_action_with_interpreter_error(self, mock_get_action):
-        import textwrap
-
-        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
-                 "param2": "param2value"}
-        events = [{"event1": "hello"}, {"event2": "how are you"}]
-        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
-        action_name = "test_run_pyscript_action_with_interpreter_error"
-        script = """
-        for i in 10
-        """
-        script = textwrap.dedent(script)
-        PyscriptActionConfig(
-            name=action_name,
-            source_code=script,
-            bot="5f50fd0a56b698ca10d35d2e",
-            user="user"
-        ).save()
-
-        def _get_action(*args, **kwargs):
-            return {"type": ActionType.pyscript_action.value}
-
         def raise_custom_exception(request):
-            raise Exception(
-                'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')
+            raise Exception("Script execution error: import of 'requests' is unauthorized")
 
         responses.add_callback(
-            "POST", Utility.environment['evaluator']['scripts']['url'], callback=raise_custom_exception,
+            "POST", Utility.environment['evaluator']['pyscript']['url'], callback=raise_custom_exception,
+            match=[responses.matchers.json_params_matcher({'source_code': script})]
         )
 
         mock_get_action.return_value = _get_action()
@@ -1229,8 +1272,7 @@ class TestActions:
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2e",
                                        status="FAILURE").get()
-        assert log['exception'].__contains__(
-            'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)')
+        assert log['exception'].__contains__("Script execution error: import of 'requests' is unauthorized")
 
     @pytest.mark.asyncio
     async def test_run(self, monkeypatch):

@@ -66,11 +66,6 @@ class ActionPyscript(ActionsBase):
             dispatch_bot_response = pyscript_action_config['dispatch_response']
             source_code = pyscript_action_config['source_code']
             bot_response = ActionUtility.run_pyscript(source_code, tracker_data)
-            response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
-            slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(
-                pyscript_action_config.get('set_slots', []), response_context)
-            msg_logger.extend(slot_eval_log)
-            filled_slots.update(slot_values)
             logger.info("response: " + str(bot_response))
         except Exception as e:
             exception = str(e)
@@ -95,8 +90,3 @@ class ActionPyscript(ActionsBase):
             ).save()
         filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return filled_slots
-
-    @staticmethod
-    def __add_user_context_to_http_response(http_response, tracker_data):
-        response_context = {"data": http_response, 'context': tracker_data}
-        return response_context

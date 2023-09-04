@@ -401,7 +401,6 @@ class PyscriptActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     source_code: str
     dispatch_response: bool = True
-    set_slots: List[SetSlotsUsingActionResponse] = []
 
     @validator("name")
     def validate_action_name(cls, v, values, **kwargs):

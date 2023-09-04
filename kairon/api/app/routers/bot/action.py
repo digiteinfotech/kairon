@@ -78,18 +78,6 @@ async def add_pyscript_action(
     return Response(data={"_id": pyscript_config_id}, message="Action added!")
 
 
-@router.get("/pyscript/{action}", response_model=Response)
-async def get_pyscript_action(
-        action: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
-):
-    """
-    Returns configuration set for the Pyscript action
-    """
-    action_config = mongo_processor.get_pyscript_config(bot=current_user.get_bot(), action=action)
-    return Response(data=action_config)
-
-
 @router.get("/pyscript", response_model=Response)
 async def list_pyscript_actions(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):

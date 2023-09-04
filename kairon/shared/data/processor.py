@@ -3019,12 +3019,10 @@ class MongoProcessor:
         :return: Pyscript configuration id for saved Pyscript action config
         """
         Utility.is_valid_action_name(pyscript_config.get("name"), bot, PyscriptActionConfig)
-        set_slots = [SetSlotsFromResponse(**slot) for slot in pyscript_config.get('set_slots')]
         action_id = PyscriptActionConfig(
             name=pyscript_config['name'],
             source_code=pyscript_config['source_code'],
             dispatch_response=pyscript_config['dispatch_response'],
-            set_slots=set_slots,
             bot=bot,
             user=user,
         ).save().id.__str__()
@@ -3045,10 +3043,9 @@ class MongoProcessor:
                                 bot=bot, status=True):
             raise AppException(f'Action with name "{request_data.get("name")}" not found')
         action = PyscriptActionConfig.objects(name=request_data.get('name'), bot=bot, status=True).get()
-        set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in request_data.get('set_slots')]
         action.update(
             source_code=request_data['source_code'], set__dispatch_response=request_data['dispatch_response'],
-            set__set_slots=set_slots, set__user=user, set__timestamp=datetime.utcnow()
+            set__user=user, set__timestamp=datetime.utcnow()
         )
         return action.id.__str__()
 

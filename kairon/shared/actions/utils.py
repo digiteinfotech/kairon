@@ -15,7 +15,8 @@ from .exception import ActionFailure
 from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
-from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes
+from ..cloud.utils import CloudUtility
+from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
 from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
@@ -475,13 +476,17 @@ class ActionUtility:
         return parsed_output
 
     @staticmethod
-    def run_pyscript(source_code: Text, context: dict, raise_err_on_failure: bool = True):
-        endpoint = Utility.environment['evaluator']['scripts']['url']
-        request_body = {"source_code": source_code, "context": context}
-        resp = ActionUtility.execute_http_request(endpoint, "POST", request_body)
-        if not resp.get('success') and raise_err_on_failure:
-            raise ActionFailure(f'Pyscript evaluation failed: {resp}')
-        data = resp.get('data')
+    def run_pyscript(source_code: Text, context: dict):
+        pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
+        request_body = {"source_code": source_code}
+        if not ActionUtility.is_empty(pyscript_evaluator_url):
+            resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
+            if not resp.get('success'):
+                raise ActionFailure(f'Pyscript evaluation failed: {resp}')
+            data = resp.get('data')
+        else:
+            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body)
+            data = lambda_response.get('body')
         result = {'response': data, 'slots': context.get('slot')}
         return result
 
