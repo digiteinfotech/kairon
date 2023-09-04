@@ -2696,11 +2696,11 @@ class TestActions:
         responses.add(
             method=responses.POST,
             url=search_engine_url,
-            json={"data": [{
+            json={"success": True, "data": [{
             "title": "Artificial intelligence - Wikipedia",
             "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
             "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
-        }]},
+        }], "error_code": 0},
             status=200,
             match=[
                 responses.matchers.json_params_matcher({
@@ -2710,6 +2710,36 @@ class TestActions:
 
         with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
             result = ActionUtility.perform_web_search(search_term, topn=topn)
+            assert result == [
+                {'title': 'Artificial intelligence - Wikipedia',
+                 'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+            ]
+
+    @responses.activate
+    def test_public_search_with_url_with_site(self):
+        Utility.load_environment()
+        search_term = "What is AI?"
+        topn = 1
+        website = "https://en.wikipedia.org/"
+        search_engine_url = "https://duckduckgo.com/"
+        responses.add(
+            method=responses.POST,
+            url=search_engine_url,
+            json={"success": True, "data": [{
+                "title": "Artificial intelligence - Wikipedia",
+                "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
+                "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+            }], "error_code": 0},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({
+                    "text": 'What is AI?', "site": 'https://en.wikipedia.org/', "topn": 1
+                })],
+        )
+
+        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+            result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
                  'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
@@ -2737,6 +2767,29 @@ class TestActions:
             with pytest.raises(ActionFailure) as e:
                 ActionUtility.perform_web_search(search_term, topn=topn)
             assert str(e).__contains__('Failed to execute the url: Got non-200 status code: 500 {"data": []}')
+
+    @responses.activate
+    def test_public_search_with_url_exception_error_code_not_zero(self):
+        Utility.load_environment()
+        search_term = "What is AI?"
+        topn = 1
+        search_engine_url = "https://duckduckgo.com/"
+        responses.add(
+            method=responses.POST,
+            url=search_engine_url,
+            json={"success": False, "data": [], "error_code": 422},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({
+                    "text": 'What is AI?', "site": '', "topn": 1
+                })],
+        )
+
+        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+            with pytest.raises(ActionFailure) as e:
+                ActionUtility.perform_web_search(search_term, topn=topn)
+            value = e.value
+            assert value.args[0].args[0] == {'success': False, 'data': [], 'error_code': 422}
 
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
@@ -2869,6 +2922,18 @@ class TestActions:
         ).save()
         saved_action = GoogleSearchAction.objects(name='google_action', bot='test_google_search', status=True).get()
         assert saved_action.num_results == 1
+        assert saved_action.failure_response == 'I have failed to process your request.'
+
+    def test_web_search_action_config_data_object(self):
+        WebSearchAction(
+            name='web_action',
+            topn=1,
+            failure_response='',
+            bot='test_web_search',
+            user='test_web_search',
+        ).save()
+        saved_action = WebSearchAction.objects(name='web_action', bot='test_web_search', status=True).get()
+        assert saved_action.topn == 1
         assert saved_action.failure_response == 'I have failed to process your request.'
 
     def test_get_pipedrive_leads_action_config_not_found(self):

@@ -406,6 +406,8 @@ class ActionUtility:
             request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
             if not ActionUtility.is_empty(search_engine_url):
                 response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
+                if response.get('error_code') != 0:
+                    raise Exception(response)
                 search_results = response.get('data')
             else:
                 lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)

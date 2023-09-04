@@ -5687,8 +5687,8 @@ def test_process_web_search_action_with_search_engine_url():
     responses.add(
         method=responses.POST,
         url=search_engine_url,
-        json={"data": [{"title": "Data Science: Definition, Lifecycle, Skills and Tools | IBM", "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
-                        "url": "https://www.ibm.com/topics/data-science"}]},
+        json={"success": True, "data": [{"title": "Data Science: Definition, Lifecycle, Skills and Tools | IBM", "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
+                        "url": "https://www.ibm.com/topics/data-science"}], "error_code": 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher({
@@ -5795,6 +5795,8 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
                     user=user).save()
 
     def _perform_web_search(*args, **kwargs):
+        assert args == ('my public search text',)
+        assert kwargs == {'topn': 2, 'website': None}
         return [
             {'title': 'What is Data Science? | IBM',
              'description': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
@@ -5913,6 +5915,8 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
                     user=user).save()
 
     def _perform_web_search(*args, **kwargs):
+        assert args == ('/action_public_search',)
+        assert kwargs == {'topn': 2, 'website': None}
         return [
             {'title': 'What is Data Science? | IBM',
              'description': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',

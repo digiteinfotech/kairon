@@ -24,8 +24,6 @@ class ActionWebSearch(ActionsBase):
         """
         self.bot = bot
         self.name = name
-        self.__response = None
-        self.__is_success = False
 
     def retrieve_config(self):
         """
@@ -69,8 +67,6 @@ class ActionWebSearch(ActionsBase):
                                                            website=action_config.get("website"))
                 if results:
                     bot_response = '\n'.join([entry['description'] for entry in results])
-                    self.__response = bot_response
-                    self.__is_success = True
                     if not ActionUtility.is_empty(action_config.get('set_slot')):
                         slots_set.update({action_config['set_slot']: bot_response})
         except Exception as e:
@@ -94,11 +90,3 @@ class ActionWebSearch(ActionsBase):
             dispatcher.utter_message(bot_response)
         slots_set.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return slots_set
-
-    @property
-    def is_success(self):
-        return self.__is_success
-
-    @property
-    def response(self):
-        return self.__response
