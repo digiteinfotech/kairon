@@ -86,9 +86,9 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             msg_broadcast_id = MessageBroadcastProcessor.add_scheduled_task(self.bot, self.user, config)
             cron_exp = config["scheduler_config"]["schedule"]
             timezone = config["scheduler_config"]["timezone"]
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id,
-                       "cron_exp": cron_exp, "timezone": timezone}
-            Utility.request_event_server(EventClass.message_broadcast, payload, is_scheduled=True)
+            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id}
+            Utility.request_event_server(EventClass.message_broadcast, payload, is_scheduled=True, cron_exp=cron_exp,
+                                         timezone=timezone)
             return msg_broadcast_id
         except Exception as e:
             logger.error(e)
@@ -107,9 +107,9 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             settings_updated = True
             cron_exp = config["scheduler_config"]["schedule"]
             timezone = config["scheduler_config"]["timezone"]
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id,
-                       "cron_exp": cron_exp, "timezone": timezone}
-            Utility.request_event_server(EventClass.message_broadcast, payload, method="PUT", is_scheduled=True)
+            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id}
+            Utility.request_event_server(EventClass.message_broadcast, payload, method="PUT", is_scheduled=True,
+                                         cron_exp=cron_exp, timezone=timezone)
         except Exception as e:
             logger.error(e)
             if settings_updated:
@@ -121,8 +121,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             if not Utility.is_exist(MessageBroadcastSettings, raise_error=False, bot=self.bot,
                                     id=msg_broadcast_id, status=True):
                 raise AppException("Notification settings not found!")
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id}
-            Utility.request_event_server(EventClass.message_broadcast, payload, method="DELETE", is_scheduled=True)
+            Utility.delete_scheduled_event(msg_broadcast_id)
             MessageBroadcastProcessor.delete_task(msg_broadcast_id, self.bot)
         except Exception as e:
             logger.error(e)

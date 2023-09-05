@@ -2263,7 +2263,8 @@ def test_upload_using_event_append(monkeypatch):
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '', 'event_type': EventClass.data_importer})],
+                {"data": {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '',
+                          'event_type': EventClass.data_importer}, "cron_exp": None, "timezone": None})],
     )
 
     response = client.post(
@@ -13385,7 +13386,7 @@ def test_list_broadcast_config():
             {'template_id': 'brochure_pdf', "language": "en"}], 'status': True, "template_config": [{'template_id': 'brochure_pdf', "language": "en"}]}]}
 
 
-@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+@patch("kairon.shared.utils.Utility.delete_scheduled_event", autospec=True)
 def test_delete_broadcast(mock_event_server):
     response = client.delete(
         f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
@@ -15316,8 +15317,8 @@ def test_multilingual_translate():
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.matchers.json_params_matcher(
-                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': "", 'translate_actions': ""})],
+                {"data": {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                  'translate_responses': "", 'translate_actions': ""}, "cron_exp": None, "timezone": None})],
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/multilingual/translate",
@@ -15412,8 +15413,9 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.matchers.json_params_matcher(
-                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'})],
+                {"data": {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'}, 
+                 "cron_exp": None, "timezone": None})],
     )
 
     response = client.post(
@@ -15492,10 +15494,10 @@ def test_data_generation_from_website(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.matchers.json_params_matcher({
+            responses.matchers.json_params_matcher({"data": {
                 'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
                 'website_url': 'website.com', 'depth': 1
-            })],
+            }, "cron_exp": None, "timezone": None})],
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com&depth=1",
@@ -15577,8 +15579,8 @@ def test_data_generation_in_progress(monkeypatch):
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.matchers.json_params_matcher({
-                'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
-                'website_url': 'website.com', 'depth': 0
+                "data": {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
+                'website_url': 'website.com', 'depth': 0}, "cron_exp": None, "timezone": None
             })],
     )
     response = client.post(

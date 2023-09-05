@@ -340,7 +340,8 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {'bot': bot, 'user': user, 'import_data': '--import-data', 'event_type': EventClass.data_importer, 'overwrite': ''})],
+                              {"cron_exp": None, "data": {"bot": "test_events_bot", "event_type": "data_importer",
+                                                          "import_data": "--import-data", "overwrite": "", "user": "test_user"}, "timezone": None})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=True)
         event.validate()
@@ -374,7 +375,9 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {'bot': bot, 'user': user, 'import_data': '--import-data', 'event_type': EventClass.data_importer, 'overwrite': '--overwrite'})],
+                              {"data": {'bot': bot, 'user': user, 'import_data': '--import-data',
+                                        'event_type': EventClass.data_importer, 'overwrite': '--overwrite'},
+                               "cron_exp": None, "timezone": None})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True)
         event.validate()
@@ -408,7 +411,9 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {'bot': bot, 'user': user, 'import_data': '', 'event_type': EventClass.data_importer, 'overwrite': ''})],
+                              {"data": {'bot': bot, 'user': user, 'import_data': '', 
+                                        'event_type': EventClass.data_importer, 'overwrite': ''},
+                               "cron_exp": None, "timezone": None})],
                       )
         event = TrainingDataImporterEvent(bot, user, import_data=False, overwrite=False)
         event.validate()
@@ -1035,7 +1040,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {'bot': bot, 'user': user, 'augment_data': '--augment'})],
+                              {"data": {'bot': bot, 'user': user, 'augment_data': '--augment'}, "cron_exp": None, "timezone": None})],
                       )
         ModelTestingEvent(bot, user).enqueue()
         responses.reset()
@@ -1061,7 +1066,7 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {'bot': bot, 'user': user, 'augment_data': ''})],
+                              {"data": {'bot': bot, 'user': user, 'augment_data': ''}, "cron_exp": None, "timezone": None})],
                       )
         ModelTestingEvent(bot, user, augment_data=False).enqueue()
         responses.reset()
@@ -1090,8 +1095,8 @@ class TestEventExecution:
                       status=200,
                       match=[
                           responses.matchers.json_params_matcher(
-                              {'bot': bot, 'user': user, 'till_date': Utility.convert_date_to_string(till_date),
-                               'sender_id': sender_id})],
+                              {"data": {'bot': bot, 'user': user, 'till_date': Utility.convert_date_to_string(till_date),
+                               'sender_id': sender_id}, "cron_exp": None, "timezone": None})],
                       )
         responses.start()
         event = DeleteHistoryEvent(bot, user, till_date=till_date, sender_id=None)

@@ -1452,18 +1452,35 @@ class Utility:
         return Utility.environment['events']['server_url']
 
     @staticmethod
-    def request_event_server(event_class: EventClass, payload: dict, method: Text = "POST", is_scheduled: bool = False):
+    def request_event_server(event_class: EventClass, payload: dict, method: Text = "POST", is_scheduled: bool = False,
+                             cron_exp: Text = None, timezone: Text = None):
         """
         Trigger request to event server along with payload.
         """
         event_server_url = Utility.get_event_server_url()
-        logger.debug(payload)
+        request_body = {
+            "data": payload, "cron_exp": cron_exp, "timezone": timezone
+        }
+        logger.debug(request_body)
         resp = Utility.execute_http_request(
             method, urljoin(event_server_url, f'/api/events/execute/{event_class}?is_scheduled={is_scheduled}'),
-            payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
+            request_body, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
         )
         if not resp['success']:
             raise AppException(f"Failed to trigger {event_class} event: {resp.get('message', '')}")
+
+    @staticmethod
+    def delete_scheduled_event(event_id: Text):
+        """
+        Trigger request to delete scheduled event.
+        """
+        event_server_url = Utility.get_event_server_url()
+        resp = Utility.execute_http_request(
+            "DELETE", urljoin(event_server_url, f'/api/events/{event_id}'),
+            err_msg=f"Failed to delete scheduled event {event_id}: ", validate_status=True
+        )
+        if not resp['success']:
+            raise AppException(f"Failed to delete scheduled event {event_id}: {resp.get('message', '')}")
 
     @staticmethod
     def validate_recaptcha(recaptcha_response: str = None, remote_ip: str = None):
