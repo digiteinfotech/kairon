@@ -16,6 +16,7 @@ test:
     - python3.10 -V
     - python3.10 -m pip install --upgrade pip
     - export PIP_DEFAULT_TIMEOUT=100
+    - python3.10 -m pip install -r requirements/dev.txt
     - chmod 777 ./setup.sh
     - ./setup.sh
     - python3.10 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html --disable-warnings
