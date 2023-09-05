@@ -15,16 +15,10 @@ test:
   script:
     - python3.10 -V
     - python3.10 -m pip install --upgrade pip
-    - python3.10 -m pip install virtualenv
-    - python3.10 -m virtualenv env
-    - source env/bin/activate
     - export PIP_DEFAULT_TIMEOUT=100
-    - python3.10 -m pip --no-cache-dir --default-timeout=100 install -r requirements/dev.txt
-    - python3.10 -m nltk.downloader wordnet
-    - python3.10 -m nltk.downloader averaged_perceptron_tagger
-    - python3.10 -m nltk.downloader punkt
-    - python3.10 -m nltk.downloader stopwords
-    - python3.10 -m nltk.downloader omw-1.4
+    - python3.10 -m pip install -r requirements/dev.txt
+    - chmod 777 ./setup.sh
+    - ./setup.sh
     - python3.10 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html --disable-warnings
     - deactivate
     - rm -r env/
