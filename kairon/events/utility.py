@@ -11,8 +11,9 @@ class EventUtility:
     def add_job(event_type: Text, request_data: Dict, is_scheduled: bool):
         message = None
         if is_scheduled:
+            response = None
             event_id = request_data["data"]["event_id"]
-            response = KScheduler().add_job(event_class=event_type, event_id=event_id, **request_data)
+            KScheduler().add_job(event_class=event_type, event_id=event_id, **request_data)
             message = 'Event Scheduled!'
         else:
             response = ExecutorFactory.get_executor().execute_task(event_type, request_data["data"])
@@ -24,6 +25,5 @@ class EventUtility:
             raise AppException("Updating non-scheduled event not supported!")
 
         event_id = request_data["data"]["event_id"]
-        response = KScheduler().update_job(event_class=event_type, event_id=event_id, **request_data)
-        message = 'Scheduled event updated!'
-        return response, message
+        KScheduler().update_job(event_class=event_type, event_id=event_id, **request_data)
+        return None, 'Scheduled event updated!'

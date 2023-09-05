@@ -1446,9 +1446,12 @@ def test_delete_user_chat_history(mock_auth_admin, mock_mongo_processor_endpoint
     responses.add("POST",
                   event_url,
                   json={"success": True, "message": "Event triggered successfully!"},
-                  match=[responses.matchers.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com',
+                  match=[responses.matchers.json_params_matcher({
+                      "data": {'bot': 'integration', 'user': 'integration@demo.com',
                                                         'till_date': Utility.convert_date_to_string(till_date),
-                                                        'sender_id': '5e564fbcdcf0d5fad89e3acd'})],
+                                                        'sender_id': '5e564fbcdcf0d5fad89e3acd'},
+                      "cron_exp": None, "timezone": None
+                  })],
                   status=200)
 
     response = client.delete(
@@ -1510,9 +1513,12 @@ def test_delete_bot_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_
     responses.add("POST",
                   event_url,
                   json={"success": True, "message": "Event triggered successfully!"},
-                  match=[responses.matchers.json_params_matcher({'bot': 'integration', 'user': 'integration@demo.com',
+                  match=[responses.matchers.json_params_matcher({
+                      "data": {'bot': 'integration', 'user': 'integration@demo.com',
                                                         'till_date': Utility.convert_date_to_string(till_date),
-                                                        'sender_id': ""})],
+                                                        'sender_id': ""},
+                      "cron_exp": None, "timezone": None
+                  })],
                   status=200)
 
     response = client.delete(
