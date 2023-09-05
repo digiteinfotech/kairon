@@ -5566,10 +5566,12 @@ def test_process_web_search_action():
     bot = "5f51zd0a56b698ca10d35d2e"
     user = 'test_user'
     Actions(name=action_name, type=ActionType.web_search_action.value, bot=bot, user='test_user').save()
-    WebSearchAction(name=action_name, website="https://www.w3schools.com/", topn=2,
+    WebSearchAction(name=action_name, website="https://www.w3schools.com/", topn=1,
                     set_slot='public_search_response', bot=bot, user=user).save()
 
     def _perform_web_search(*args, **kwargs):
+        assert args == ('What is data?',)
+        assert kwargs == {'topn': 1, 'website': 'https://www.w3schools.com/'}
         return [{
             'title': 'Data Science Introduction - W3Schools',
             'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
@@ -6036,6 +6038,8 @@ def test_process_web_search_action_dispatch_false():
                     set_slot="public_response").save()
 
     def _perform_web_search(*args, **kwargs):
+        assert args == ('What is Python?',)
+        assert kwargs == {'topn': 1, 'website': None}
         return [
             {'title': 'Python.org - What is Python? Executive Summary',
              'description': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.',
@@ -6069,6 +6073,8 @@ def test_process_web_search_action_failure():
     WebSearchAction(name=action_name, bot=bot, user=user).save()
 
     def _perform_web_search(*args, **kwargs):
+        assert args == ('get intents',)
+        assert kwargs == {'topn': 1, 'website': None}
         raise Exception('Connection error')
 
     request_object = {
@@ -6171,6 +6177,8 @@ def test_process_web_search_action_no_results():
     WebSearchAction(name=action_name, bot=bot, user=user).save()
 
     def _perform_web_search(*args, **kwargs):
+        assert args == ('get intents',)
+        assert kwargs == {'topn': 1, 'website': None}
         return []
 
     request_object = {

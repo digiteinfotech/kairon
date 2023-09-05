@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from unittest import mock
 
 from googleapiclient.http import HttpRequest
@@ -2531,7 +2532,6 @@ class TestActions:
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action(self, mock_trigger_lambda):
-        Utility.load_environment()
         search_term = "What is data science?"
         website = "https://www.w3schools.com/"
         topn = 1
@@ -2582,7 +2582,6 @@ class TestActions:
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_without_website(self, mock_trigger_lambda):
-        Utility.load_environment()
         search_term = "What is AI?"
         topn = 2
 
@@ -2640,7 +2639,6 @@ class TestActions:
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_exception_lambda(self, mock_trigger_lambda):
-        Utility.load_environment()
         search_term = "What is data science?"
         website = "https://www.w3schools.com/"
         topn = 1
@@ -2675,10 +2673,8 @@ class TestActions:
             }
         }
         mock_trigger_lambda.return_value = response
-        with pytest.raises(ActionFailure) as action_failure:
+        with pytest.raises(ActionFailure, match=re.escape(f"{response}")):
             ActionUtility.perform_web_search(search_term, topn=topn, website=website)
-        payload = action_failure.value
-        assert payload.args[0].args[0] == response
 
     def test_public_search_action_error(self):
         search_term = "What is science?"
@@ -2689,7 +2685,6 @@ class TestActions:
 
     @responses.activate
     def test_public_search_with_url(self):
-        Utility.load_environment()
         search_term = "What is AI?"
         topn = 1
         search_engine_url = "https://duckduckgo.com/"
@@ -2718,7 +2713,6 @@ class TestActions:
 
     @responses.activate
     def test_public_search_with_url_with_site(self):
-        Utility.load_environment()
         search_term = "What is AI?"
         topn = 1
         website = "https://en.wikipedia.org/"
@@ -2748,7 +2742,6 @@ class TestActions:
 
     @responses.activate
     def test_public_search_with_url_exception(self):
-        Utility.load_environment()
         search_term = "What is AI?"
         topn = 1
         search_engine_url = "https://duckduckgo.com/"
@@ -2764,16 +2757,15 @@ class TestActions:
         )
 
         with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
-            with pytest.raises(ActionFailure) as e:
+            with pytest.raises(ActionFailure, match=re.escape('Failed to execute the url: Got non-200 status code: 500 {"data": []}')):
                 ActionUtility.perform_web_search(search_term, topn=topn)
-            assert str(e).__contains__('Failed to execute the url: Got non-200 status code: 500 {"data": []}')
 
     @responses.activate
     def test_public_search_with_url_exception_error_code_not_zero(self):
-        Utility.load_environment()
         search_term = "What is AI?"
         topn = 1
         search_engine_url = "https://duckduckgo.com/"
+        result = {'success': False, 'data': [], 'error_code': 422}
         responses.add(
             method=responses.POST,
             url=search_engine_url,
@@ -2786,15 +2778,12 @@ class TestActions:
         )
 
         with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
-            with pytest.raises(ActionFailure) as e:
+            with pytest.raises(ActionFailure, match=re.escape(f"{result}")):
                 ActionUtility.perform_web_search(search_term, topn=topn)
-            value = e.value
-            assert value.args[0].args[0] == {'success': False, 'data': [], 'error_code': 422}
 
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_app_exception(self, mock_trigger_lambda):
-        Utility.load_environment()
         search_term = "What is AI?"
         topn = 2
 

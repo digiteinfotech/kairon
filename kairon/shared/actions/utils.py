@@ -407,15 +407,15 @@ class ActionUtility:
             if not ActionUtility.is_empty(search_engine_url):
                 response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
                 if response.get('error_code') != 0:
-                    raise Exception(response)
+                    raise ActionFailure(f"{response}")
                 search_results = response.get('data')
             else:
                 lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
                 if lambda_response['StatusCode'] != 200:
-                    raise Exception(lambda_response)
+                    raise ActionFailure(f"{lambda_response}")
                 search_results = lambda_response["Payload"].get('body')
             if not search_results:
-                raise Exception("No response retrieved!")
+                raise ActionFailure("No response retrieved!")
             for item in search_results:
                 results.append({'title': item['title'], 'description': item['description'], 'url': item['url']})
         except Exception as e:
