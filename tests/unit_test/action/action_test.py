@@ -1,5 +1,7 @@
 import json
 import os
+import re
+from unittest import mock
 
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
@@ -15,7 +17,9 @@ from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.prompt import ActionPrompt
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
+from kairon.actions.definitions.web_search import ActionWebSearch
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
+from kairon.exceptions import AppException
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
@@ -32,7 +36,7 @@ from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction
+    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, WebSearchAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -2176,6 +2180,22 @@ class TestActions:
         with pytest.raises(ActionFailure, match="No Google search action found for given action and bot"):
             ActionGoogleSearch(bot, 'custom_search_action').retrieve_config()
 
+    def test_get_web_search_action_config(self):
+        bot = 'test_action_server'
+        user = 'test_user'
+        Actions(name='public_search_action', type=ActionType.web_search_action.value, bot=bot, user=user).save()
+        WebSearchAction(name='public_search_action', website="www.google.com", bot=bot, user=user).save()
+        actual = ActionUtility.get_action(bot, 'public_search_action')
+        assert actual['type'] == ActionType.web_search_action.value
+        actual = ActionWebSearch(bot, 'public_search_action').retrieve_config()
+        assert actual['name'] == 'public_search_action'
+        assert actual['website'] == "www.google.com"
+
+    def test_get_web_search_action_config_not_exists(self):
+        bot = 'test_action_server'
+        with pytest.raises(ActionFailure, match="No Public search action found for given action and bot"):
+            ActionWebSearch(bot, 'custom_search_action').retrieve_config()
+
     def test_get_jira_action_not_exists(self):
         bot = 'test_action_server'
         with pytest.raises(ActionFailure, match="No Jira action found for given action and bot"):
@@ -2509,6 +2529,298 @@ class TestActions:
             'link': 'https://www.digite.com/kanban/what-is-kanban/'
         }]
 
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+    def test_public_search_action(self, mock_trigger_lambda):
+        search_term = "What is data science?"
+        website = "https://www.w3schools.com/"
+        topn = 1
+
+        mock_trigger_lambda.return_value = {
+            "ResponseMetadata": {
+                "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                "HTTPStatusCode": 200,
+                "HTTPHeaders": {
+                    "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+                    "content-type": "application/json",
+                    "content-length": "152",
+                    "connection": "keep-alive",
+                    "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                    "x-amzn-remapped-content-length": "0",
+                    "x-amz-executed-version": "$LATEST",
+                    "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+                    "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+                },
+                "RetryAttempts": 0
+            },
+            "StatusCode": 200,
+            "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+            "ExecutedVersion": "$LATEST",
+            "Payload": {
+                "statusCode": 200,
+                "statusDescription": "200 OK",
+                "isBase64Encoded": 'false',
+                "headers": {
+                    "Content-Type": "text/html; charset=utf-8"
+                },
+                "body": [{
+            'title': 'Data Science Introduction - W3Schools',
+            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+        }]
+            }
+        }
+        result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+        assert result == [{
+            'title': 'Data Science Introduction - W3Schools',
+            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+        }]
+        called_args = mock_trigger_lambda.call_args
+        assert called_args.args[1] == {'text': 'What is data science?', 'site': 'https://www.w3schools.com/', 'topn': 1}
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+    def test_public_search_action_without_website(self, mock_trigger_lambda):
+        search_term = "What is AI?"
+        topn = 2
+
+        mock_trigger_lambda.return_value = {
+            "ResponseMetadata": {
+                "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                "HTTPStatusCode": 200,
+                "HTTPHeaders": {
+                    "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+                    "content-type": "application/json",
+                    "content-length": "152",
+                    "connection": "keep-alive",
+                    "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                    "x-amzn-remapped-content-length": "0",
+                    "x-amz-executed-version": "$LATEST",
+                    "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+                    "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+                },
+                "RetryAttempts": 0
+            },
+            "StatusCode": 200,
+            "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+            "ExecutedVersion": "$LATEST",
+            "Payload": {
+                "statusCode": 200,
+                "statusDescription": "200 OK",
+                "isBase64Encoded": 'false',
+                "headers": {
+                    "Content-Type": "text/html; charset=utf-8"
+                },
+            "body": [{
+                "title": "Artificial intelligence - Wikipedia",
+                "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
+                "url": "https://en.wikipedia.org/wiki/Artificial_intelligence"},
+                {
+                 "title": "Artificial intelligence (AI) - Britannica",
+                 "description": "artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.",
+                "url": "https://www.britannica.com/technology/artificial-intelligence"
+                 }]
+        }
+        }
+
+        result = ActionUtility.perform_web_search(search_term, topn=topn)
+        assert result == [
+            {'title': 'Artificial intelligence - Wikipedia',
+             'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+             'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence',},
+            {'title': 'Artificial intelligence (AI) - Britannica',
+             'description': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.',
+             'url': 'https://www.britannica.com/technology/artificial-intelligence'}
+        ]
+        called_args = mock_trigger_lambda.call_args
+        assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2}
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+    def test_public_search_action_exception_lambda(self, mock_trigger_lambda):
+        search_term = "What is data science?"
+        website = "https://www.w3schools.com/"
+        topn = 1
+        response = {
+  "ResponseMetadata": {
+      "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+      "HTTPStatusCode": 404,
+      "HTTPHeaders": {
+          "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+          "content-type": "application/json",
+          "content-length": "152",
+          "connection": "keep-alive",
+          "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+          "x-amzn-remapped-content-length": "0",
+          "x-amz-executed-version": "$LATEST",
+          "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+          "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+      },
+      "RetryAttempts": 0
+  },
+            "StatusCode": 404,
+            "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+            "ExecutedVersion": "$LATEST",
+            "Payload": {
+                "statusCode": 404,
+                "statusDescription": "404 Not Found",
+                "isBase64Encoded": 'false',
+                "headers": {
+                    "Content-Type": "text/html; charset=utf-8"
+                },
+                "body": 'The requested resource was not found on the server.'
+            }
+        }
+        mock_trigger_lambda.return_value = response
+        with pytest.raises(ActionFailure, match=re.escape(f"{response}")):
+            ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+
+    def test_public_search_action_error(self):
+        search_term = "What is science?"
+        website = "www.google.com"
+        topn = 1
+        with pytest.raises(ActionFailure, match="Parameter validation failed:\nInvalid type for parameter FunctionName, value: None, type: <class 'NoneType'>, valid types: <class 'str'>"):
+            ActionUtility.perform_web_search(search_term, website=website, topn=topn)
+
+    @responses.activate
+    def test_public_search_with_url(self):
+        search_term = "What is AI?"
+        topn = 1
+        search_engine_url = "https://duckduckgo.com/"
+        responses.add(
+            method=responses.POST,
+            url=search_engine_url,
+            json={"success": True, "data": [{
+            "title": "Artificial intelligence - Wikipedia",
+            "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
+            "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+        }], "error_code": 0},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({
+                    "text": 'What is AI?', "site": '', "topn": 1
+                })],
+        )
+
+        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+            result = ActionUtility.perform_web_search(search_term, topn=topn)
+            assert result == [
+                {'title': 'Artificial intelligence - Wikipedia',
+                 'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+            ]
+
+    @responses.activate
+    def test_public_search_with_url_with_site(self):
+        search_term = "What is AI?"
+        topn = 1
+        website = "https://en.wikipedia.org/"
+        search_engine_url = "https://duckduckgo.com/"
+        responses.add(
+            method=responses.POST,
+            url=search_engine_url,
+            json={"success": True, "data": [{
+                "title": "Artificial intelligence - Wikipedia",
+                "description": "Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.",
+                "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+            }], "error_code": 0},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({
+                    "text": 'What is AI?', "site": 'https://en.wikipedia.org/', "topn": 1
+                })],
+        )
+
+        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+            result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+            assert result == [
+                {'title': 'Artificial intelligence - Wikipedia',
+                 'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+            ]
+
+    @responses.activate
+    def test_public_search_with_url_exception(self):
+        search_term = "What is AI?"
+        topn = 1
+        search_engine_url = "https://duckduckgo.com/"
+        responses.add(
+            method=responses.POST,
+            url=search_engine_url,
+            json={"data": []},
+            status=500,
+            match=[
+                responses.matchers.json_params_matcher({
+                    "text": 'What is AI?', "site": '', "topn": 1
+                })],
+        )
+
+        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+            with pytest.raises(ActionFailure, match=re.escape('Failed to execute the url: Got non-200 status code: 500 {"data": []}')):
+                ActionUtility.perform_web_search(search_term, topn=topn)
+
+    @responses.activate
+    def test_public_search_with_url_exception_error_code_not_zero(self):
+        search_term = "What is AI?"
+        topn = 1
+        search_engine_url = "https://duckduckgo.com/"
+        result = {'success': False, 'data': [], 'error_code': 422}
+        responses.add(
+            method=responses.POST,
+            url=search_engine_url,
+            json={"success": False, "data": [], "error_code": 422},
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher({
+                    "text": 'What is AI?', "site": '', "topn": 1
+                })],
+        )
+
+        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+            with pytest.raises(ActionFailure, match=re.escape(f"{result}")):
+                ActionUtility.perform_web_search(search_term, topn=topn)
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+    def test_public_search_action_app_exception(self, mock_trigger_lambda):
+        search_term = "What is AI?"
+        topn = 2
+
+        mock_trigger_lambda.return_value = {
+            "ResponseMetadata": {
+                "RequestId": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                "HTTPStatusCode": 200,
+                "HTTPHeaders": {
+                    "date": "Thu, 24 Aug 2023 11:41:20 GMT",
+                    "content-type": "application/json",
+                    "content-length": "152",
+                    "connection": "keep-alive",
+                    "x-amzn-requestid": "7cc44dbe-ad8f-4dbb-9197-0f65fd454f49",
+                    "x-amzn-remapped-content-length": "0",
+                    "x-amz-executed-version": "$LATEST",
+                    "x-amz-log-result": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLC==",
+                    "x-amzn-trace-id": "root=1-64e741dd-65e379c0699bc2b13b9934b8;sampled=1;lineage=8e6b0d55:0"
+                },
+                "RetryAttempts": 0
+            },
+            "StatusCode": 200,
+            "LogResult": "RUZBVUxUX1JFR0lPTic6ICd1cy1lYXN0LTEnLCRydWUJCg==",
+            "ExecutedVersion": "$LATEST",
+            "Payload": {
+                "statusCode": 200,
+                "statusDescription": "200 OK",
+                "isBase64Encoded": 'false',
+                "headers": {
+                    "Content-Type": "text/html; charset=utf-8"
+                },
+                "body": ""
+            }
+        }
+
+        with pytest.raises(ActionFailure, match="No response retrieved!"):
+            ActionUtility.perform_web_search(search_term, topn=topn)
+
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'
         with pytest.raises(ActionFailure, match='No Zendesk action found for given action and bot'):
@@ -2599,6 +2911,18 @@ class TestActions:
         ).save()
         saved_action = GoogleSearchAction.objects(name='google_action', bot='test_google_search', status=True).get()
         assert saved_action.num_results == 1
+        assert saved_action.failure_response == 'I have failed to process your request.'
+
+    def test_web_search_action_config_data_object(self):
+        WebSearchAction(
+            name='web_action',
+            topn=1,
+            failure_response='',
+            bot='test_web_search',
+            user='test_web_search',
+        ).save()
+        saved_action = WebSearchAction.objects(name='web_action', bot='test_web_search', status=True).get()
+        assert saved_action.topn == 1
         assert saved_action.failure_response == 'I have failed to process your request.'
 
     def test_get_pipedrive_leads_action_config_not_found(self):

@@ -733,6 +733,29 @@ class GoogleSearchActionRequest(BaseModel):
         return v
 
 
+class WebSearchActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    website: str = None
+    failure_response: str = 'I have failed to process your request.'
+    topn: int = 1
+    dispatch_response: bool = True
+    set_slot: str = None
+
+    @validator("name")
+    def validate_action_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("name is required")
+        return v
+
+    @validator("topn")
+    def validate_top_n(cls, v, values, **kwargs):
+        if not v or v < 1:
+            raise ValueError("topn must be greater than or equal to 1!")
+        return v
+
+
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
     smtp_url: str
