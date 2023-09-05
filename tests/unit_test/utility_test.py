@@ -1,10 +1,15 @@
+import json
 import os
 import re
 import shutil
 import tempfile
 import uuid
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from io import BytesIO
 from unittest import mock
+from unittest.mock import patch
+from urllib.parse import urlencode
 
 import numpy as np
 import pandas as pd
@@ -13,12 +18,14 @@ import requests
 import responses
 from fastapi import UploadFile
 from mongoengine import connect
+from mongoengine.queryset.visitor import Q
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from websockets import InvalidStatusCode
 
-from mongoengine.queryset.visitor import Q
+from kairon.chat.converters.channels.response_factory import ConverterFactory
+from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
@@ -32,14 +39,7 @@ from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility, MailUtility
-from unittest.mock import patch
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
-from kairon.chat.converters.channels.response_factory import ConverterFactory
-import json
 from kairon.shared.verification.email import QuickEmailVerification
-from urllib.parse import urlencode, urljoin
 
 
 class TestUtility:
@@ -119,6 +119,14 @@ class TestUtility:
         shutil.copy2('tests/testing_data/yml_training_files/actions.yml', bot_data_home_dir)
         pytest.bot_data_home_dir = bot_data_home_dir
         yield "resource_validate_only_http_actions"
+        shutil.rmtree(bot_data_home_dir)
+
+    @pytest.fixture()
+    def resource_validate_only_multiflow_stories(self):
+        bot_data_home_dir = tempfile.mkdtemp()
+        shutil.copy2('tests/testing_data/yml_training_files/multiflow_stories.yml', bot_data_home_dir)
+        pytest.bot_data_home_dir = bot_data_home_dir
+        yield "resource_validate_only_multiflow_stories"
         shutil.rmtree(bot_data_home_dir)
 
     @pytest.fixture()
@@ -418,19 +426,23 @@ class TestUtility:
 
     def test_validate_only_stories_and_nlu(self, resource_validate_only_stories_and_nlu):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'actions', 'config', 'domain', 'chat_client_config'} == requirements
+        assert {'actions', 'config', 'domain', 'chat_client_config', 'multiflow_stories'} == requirements
 
     def test_validate_only_http_actions(self, resource_validate_only_http_actions):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'domain', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
+        assert {'rules', 'domain', 'config', 'stories', 'nlu', 'chat_client_config', 'multiflow_stories'} == requirements
+
+    def test_validate_only_multiflow_stories(self, resource_validate_only_multiflow_stories):
+        requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        assert {'actions', 'config', 'stories', 'chat_client_config', 'nlu', 'rules', 'domain'} == requirements
 
     def test_validate_only_domain(self, resource_validate_only_domain):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
+        assert {'rules', 'actions', 'config', 'stories', 'nlu', 'chat_client_config', 'multiflow_stories'} == requirements
 
     def test_validate_only_config(self, resource_validate_only_config):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'domain', 'stories', 'nlu', 'chat_client_config'} == requirements
+        assert {'rules', 'actions', 'domain', 'stories', 'nlu', 'chat_client_config', 'multiflow_stories'} == requirements
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate(self, resource_unzip_and_validate):
