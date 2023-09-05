@@ -3,8 +3,5 @@ FROM $BASE_IMAGE
 
 WORKDIR ${KAIRON_HOME}
 
-RUN python -m nltk.downloader wordnet
-RUN python -m nltk.downloader averaged_perceptron_tagger
-
 EXPOSE 8000
 CMD ["uvicorn", "augmentation.paraphrase.server:app","--host","0.0.0.0", "--no-server-header", "--no-access-log"]

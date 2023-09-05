@@ -1,6 +1,6 @@
-rasa==3.6.8
+rasa[full]==3.6.8
 mongoengine==0.27.0
-fastapi==0.103.0
+fastapi==0.103.1
 uvicorn
 smart-config
 fastapi_sso

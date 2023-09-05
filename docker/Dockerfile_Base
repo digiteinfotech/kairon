@@ -4,7 +4,7 @@ ENV KAIRON_HOME=/app
 ENV PYTHON_VERSION=3.10.13
 
 RUN yum update -y
-RUN yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel
+RUN yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel
 RUN yum -y install libffi-devel
 RUN wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
 RUN tar -xf Python-${PYTHON_VERSION}.tgz
@@ -34,6 +34,14 @@ RUN chmod -R 777 /home/cache
 RUN chmod -R 777 /tmp
 ENV HF_HOME="/home/cache"
 ENV SENTENCE_TRANSFORMERS_HOME="/home/cache"
+
+RUN python -m spacy download en_core_web_md
+RUN python -m spacy link en_core_web_md en
+RUN python -m nltk.downloader averaged_perceptron_tagger
+RUN python -m nltk.downloader punkt
+RUN python -m nltk.downloader stopwords
+RUN python -m nltk.downloader omw-1.4
+RUN python -m nltk.downloader wordnet
 
 COPY kairon ${KAIRON_HOME}/kairon
 COPY metadata ${KAIRON_HOME}/metadata
