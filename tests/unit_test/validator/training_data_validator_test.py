@@ -245,6 +245,22 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('config')
 
     @pytest.mark.asyncio
+    async def test_validate_valid_training_data_with_multiflow(self):
+        root = 'tests/testing_data/validator/valid_with_multiflow'
+        domain_path = 'tests/testing_data/validator/valid_with_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/validator/valid_with_multiflow/data'
+        config_path = 'tests/testing_data/validator/valid_with_multiflow/config.yml'
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+        validator.validate_training_data()
+        assert not validator.summary.get('intents')
+        assert not validator.summary.get('utterances')
+        assert not validator.summary.get('stories')
+        assert not validator.summary.get('multiflow_stories')
+        assert not validator.summary.get('training_examples')
+        assert not validator.summary.get('domain')
+        assert not validator.summary.get('config')
+
+    @pytest.mark.asyncio
     async def test_validate_invalid_training_file_path(self):
         root = 'tests/testing_data/invalid_path/domain.yml'
         domain_path = 'tests/testing_data/invalid_path/domain.yml'

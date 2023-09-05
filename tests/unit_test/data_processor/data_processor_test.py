@@ -4613,6 +4613,51 @@ class TestMongoProcessor:
         assert isinstance(actions, dict) is True
         assert len(actions['http_action']) == 5
 
+    def test_delete_multiflow_stories_only(self):
+        bot = 'test'
+        user = 'test'
+        mongo_processor = MongoProcessor()
+        mongo_processor.delete_bot_data(bot, user, {"multiflow_stories"})
+        training_data = mongo_processor.load_nlu(bot)
+        assert isinstance(training_data, TrainingData)
+        assert training_data.training_examples.__len__() == 305
+        assert training_data.entity_synonyms.__len__() == 3
+        assert training_data.regex_features.__len__() == 5
+        assert training_data.lookup_tables.__len__() == 1
+        story_graph = mongo_processor.load_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 0
+        multiflow_story = mongo_processor.load_multiflow_stories(bot)
+        assert isinstance(story_graph, StoryGraph) is True
+        assert story_graph.story_steps.__len__() == 0
+        print(multiflow_story)
+        assert story_graph.story_steps.__len__() == 0
+        domain = mongo_processor.load_domain(bot)
+        assert isinstance(domain, Domain)
+        assert domain.slots.__len__() == 17
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert domain.intent_properties.__len__() == 33
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    domain.intent_properties.get(intent)['used_entities']]) == 27
+        assert len([intent for intent in domain.intent_properties.keys() if
+                    not domain.intent_properties.get(intent)['used_entities']]) == 6
+        assert domain.templates.keys().__len__() == 31
+        assert domain.entities.__len__() == 16
+        assert domain.form_names.__len__() == 2
+        assert domain.user_actions.__len__() == 52
+        assert domain.intents.__len__() == 33
+        assert not Utility.check_empty_string(
+            domain.templates["utter_cheer_up"][0]["image"]
+        )
+        assert domain.templates["utter_did_that_help"][0]["buttons"].__len__() == 2
+        assert domain.templates["utter_offer_help"][0]["custom"]
+        rules = mongo_processor.fetch_rule_block_names(bot)
+        assert len(rules) == 4
+        actions = mongo_processor.load_http_action(bot)
+        assert isinstance(actions, dict) is True
+        assert len(actions['http_action']) == 5
+
     @pytest.mark.asyncio
     async def test_save_stories_only(self, get_training_data):
         path = 'tests/testing_data/yml_training_files'
@@ -12037,7 +12082,7 @@ class TestMongoProcessor:
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default', 'utter_please_rephrase'],
             'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': []}
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [], 'web_search_action': []}
 
 
     def test_delete_non_existing_complex_story(self):

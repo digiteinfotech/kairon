@@ -278,6 +278,8 @@ class MongoProcessor:
             self.delete_rules(bot, user)
         if 'actions' in what:
             self.delete_bot_actions(bot, user)
+        if 'multiflow_stories' in what:
+            self.delete_multiflow_stories(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -405,6 +407,16 @@ class MongoProcessor:
         :return: StoryGraph
         """
         return self.__prepare_training_story(bot)
+
+    def delete_multiflow_stories(self, bot: Text, user: Text):
+        """
+        soft deletes stories
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.hard_delete_document([MultiflowStories], bot=bot)
 
     def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
         """

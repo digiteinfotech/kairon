@@ -491,6 +491,7 @@ class TrainingDataValidator(Validator):
         """
         if self.multiflow_stories:
             multiflow_errors, component_count = TrainingDataValidator.validate_multiflow_stories(self.multiflow_stories)
+            self.component_count['multiflow_stories'] = len(self.multiflow_stories)
             self.summary['multiflow_stories'] = multiflow_errors
             self.component_count.update(component_count)
             if multiflow_errors and raise_exception:
