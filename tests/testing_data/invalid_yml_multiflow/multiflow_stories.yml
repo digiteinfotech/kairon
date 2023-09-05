@@ -1,0 +1,70 @@
+multiflow_story:
+- block_name: mf_one_1
+  events:
+    - step:
+        name: query
+        type: INTENT
+        node_id: "1"
+        component_id: "61m96mPGu2VexybDeVg1dLyH"
+      connections:
+        - name: utter_query
+          type: BOT
+          node_id: "2"
+          component_id: "61uaImwNrsJI1pVphl8mZh20"
+    - step:
+        name: utter_query
+        type: BOT
+        node_id: "2"
+        component_id: "61uaImwNrsJI1pVphl8mZh20"
+      connections:
+        - name: performance_feedback
+          type: INTENT
+          node_id: "3"
+          component_id: "62By0VXVLpUNDNPqkr5vRRzm"
+        - name: more_info
+          type: INTENT
+          node_id: "4"
+          component_id: "62N9BCfSKVYOKoBivGhWDRHC"
+    - step:
+        name: more_info
+        type: INTENT
+        node_id: "4"
+        component_id: "62N9BCfSKVYOKoBivGhWDRHC"
+      connections:
+        - name: utter_more_info
+          type: BOT
+          node_id: "5"
+          component_id: "62uzXd9Pj5a9tEbVBkMuVn3o"
+    - step:
+        name: utter_more_info
+        type: BOT
+        node_id: "5"
+        component_id: "62uzXd9Pj5a9tEbVBkMuVn3o"
+      connections:
+        - name: utter_feedback
+          type: BOT
+          node_id: "6"
+          component_id: "62ib6tlbgIGth8vBSwSYFvbS"
+    - step:
+        name: utter_feedback
+        type: BOT
+        node_id: "6"
+        component_id: "62ib6tlbgIGth8vBSwSYFvbS"
+      connections:
+        - name: utter_more_info
+          type: BOT
+          node_id: "5"
+          component_id: "62uzXd9Pj5a9tEbVBkMuVn3o"
+    - step:
+        name: performance_feedback
+        type: INTENT
+        node_id: "3"
+        component_id: "62By0VXVLpUNDNPqkr5vRRzm"
+      connections:
+        - name: utter_feedback
+          type: BOT
+          node_id: "6"
+          component_id: "62ib6tlbgIGth8vBSwSYFvbS"
+  metadata:
+    - node_id: "6"
+      flow_type: STORY

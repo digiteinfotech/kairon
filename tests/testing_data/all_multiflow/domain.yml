@@ -1,0 +1,294 @@
+intents:
+- greet
+- goodbye
+- affirm
+- deny
+- mood_great
+- mood_unhappy
+- bot_challenge
+- log_ticket
+- log_ticket_with_attributes
+- get_priority
+- get_category
+- get_ticketID
+- affirm_attachment
+- deny_attachment
+- file_upload
+- thank
+- upload_file_on_ticket
+- valid_ticketID
+- get_ticket_status
+- file_upload_json
+- small_talk
+- get_procurement_tickets
+- performance_feedback
+- user_feedback
+- query
+- more_info
+
+entities:
+- priority
+- requested_slot
+- category
+- ticketID
+- file_text
+- file
+- file_error
+- fdResponse
+slots:
+  category:
+    type: unfeaturized
+  priority:
+    type: categorical
+    values:
+    - low
+    - medium
+    - high
+  ticketID:
+    type: float
+    initial_value: 1.0
+  requested_slot:
+    type: unfeaturized
+  file:
+    type: unfeaturized
+  file_text:
+    type: unfeaturized
+  file_error:
+    type: unfeaturized
+  name:
+    type: unfeaturized
+
+responses:
+  utter_greet:
+  - text: Hey! How are you?
+  utter_cheer_up:
+  - text: 'Here is something to cheer you up:'
+    image: https://i.imgur.com/nGF1K8f.jpg
+  utter_did_that_help:
+  - text: Did that help you?
+    buttons:
+      - title: "Yes"
+        payload: "Yes"
+      - title: "No"
+        payload: "No"
+  utter_happy:
+  - text: Great, carry on!
+  utter_goodbye:
+  - text: Bye
+  utter_iamabot:
+  - text: I am a Jarvis, powered by Citta.ai .
+  utter_offer_help:
+  - custom:
+      blocks:
+        - type: section
+          text:
+            type: mrkdwn
+            text: 'Hi,'
+        - type: section
+          text:
+            type: mrkdwn
+            text: "I am CITTA BOT, your virtual assistant from IT Dept!! \nMy team ensures
+              that the network runs smoothly. We also address all hardware/software requests."
+        - type: section
+          text:
+            type: mrkdwn
+            text: 'I can assist you with :bulb:'
+        - type: section
+          text:
+            type: mrkdwn
+            text: |-
+              • Log a new ticket
+              • Upload document against a ticket
+              • Get status of your ticket
+              • Get list of all your open tickets
+  utter_request_ticket_attributes:
+  - text: Let me log a ticket for you. Please specify priority and category for the
+      ticket
+  utter_ticket_attributes:
+  - text: Shall I go ahead and log a {priority} priority ticket for you
+  utter_form_ticket_attributes:
+  - text: Logging {priority} priority ticket for you
+  utter_invalid_ticketID:
+  - text: This is an invalid id. Please provide a valid ticket id.
+  utter_ask_priority:
+  - custom:
+      blocks:
+        - type: section
+          text:
+            type: mrkdwn
+            text: "Please select priority for the ticket from the options\n"
+          accessory:
+            type: static_select
+            placeholder:
+              type: plain_text
+              text: Select priority
+              emoji: true
+            options:
+              - text:
+                  type: plain_text
+                  text: Critical
+                  emoji: true
+                value: Critical
+              - text:
+                  type: plain_text
+                  text: High
+                  emoji: true
+                value: High
+              - text:
+                  type: plain_text
+                  text: Medium
+                  emoji: true
+                value: Medium
+              - text:
+                  type: plain_text
+                  text: Low
+                  emoji: true
+                value: Low
+  utter_attachment_upload:
+  - text: Do you wish to upload any relevant document?
+  utter_ask_file:
+  - text: Please click on the upload button
+  utter_upload_successful:
+  - text: Your document has been uploaded successfully!!
+  utter_deny_attachment:
+  - text: "No problem, I will be here to assist you :smile:"
+  utter_welcome_message:
+  - text: "Let me know if you need any other assistance."
+  utter_change_priority:
+  - text: Gotcha, let me log a {priority} priority ticket for you. Do you wish to upload any relevant document?
+  utter_procurement:
+  - custom:
+      blocks:
+        - type: section
+          text:
+            type: mrkdwn
+            text: 'TKT123: Increase laptop RAM from 8GB to 16GB'
+        - type: actions
+          elements:
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: View
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: Approve
+              style: primary
+              value: yes
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: Reject
+              style: danger
+              value: no
+        - type: section
+          text:
+            type: mrkdwn
+            text: 'TKT456: MSOffice license renewal for 1 year'
+        - type: actions
+          elements:
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: View
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: Approve
+              style: primary
+              value: yes
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: Reject
+              style: danger
+              value: no
+        - type: section
+          text:
+            type: mrkdwn
+            text: 'TKT450: Cloud hosting of demo setup for 1 month'
+        - type: actions
+          elements:
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: View
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: Approve
+              style: primary
+              value: yes
+            - type: button
+              text:
+                type: plain_text
+                emoji: true
+                text: Reject
+              style: danger
+              value: no
+  utter_procurement_approved:
+  - text: Ticket has been approved!!
+  utter_procurement_rejected:
+  - text: Ticket has been rejected!!
+  utter_delete:
+  - text: "I will be deleted."
+  utter_feedback:
+  - text: We would love to hear what you have to say.
+  utter_good_feedback:
+  - text: Thanks you for loving us. Keep using.
+  utter_bad_feedback:
+  - text: Thanks you for your feedback. We will train better till next time.
+  utter_query:
+  - text: AI is a trending field.
+  utter_more_info:
+    - text: Yes you can ask more questions.
+
+actions:
+- utter_greet
+- utter_cheer_up
+- utter_did_that_help
+- utter_happy
+- utter_goodbye
+- utter_iamabot
+- utter_offer_help
+- action_identify_ticket_attributes
+- action_log_ticket
+- action_get_ticket_status
+- utter_request_ticket_attributes
+- utter_ticket_attributes
+- utter_ask_priority
+- utter_form_ticket_attributes
+- action_reset_slots
+- action_clear_memory
+- utter_attachment_upload
+- utter_ask_file
+- utter_upload_successful
+- utter_deny_attachment
+- utter_welcome_message
+- utter_change_priority
+- action_validate_ticket_for_fileUpload
+- utter_invalid_ticketID
+- action_validate_ticket_for_status
+- action_clear_file
+- action_clear_priority
+- action_log_message
+- action_small_talk
+- utter_procurement
+- utter_procurement_approved
+- utter_procurement_rejected
+- utter_feedback
+- utter_good_feedback
+- utter_bad_feedback
+
+forms:
+- ticket_attributes_form
+- ticket_file_form
+
