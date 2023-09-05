@@ -1066,14 +1066,6 @@ class Utility:
             raise AppException("Agent config not found!")
 
     @staticmethod
-    def initiate_tornado_apm_client(app):
-        from elasticapm.contrib.tornado import ElasticAPM
-        config = Utility.initiate_apm_client_config()
-        if config:
-            app.settings['ELASTIC_APM'] = config
-            ElasticAPM(app)
-
-    @staticmethod
     def initiate_fastapi_apm_client():
         from elasticapm.contrib.starlette import make_apm_client
         config = Utility.initiate_apm_client_config()
@@ -1754,14 +1746,6 @@ class Utility:
         if Utility.check_empty_string(value):
             raise AppException("Value can not be empty")
         return html.escape(value)
-
-    @staticmethod
-    def is_valid_event_request(event_class: Text, body: Dict):
-        if event_class not in {EventClass.message_broadcast.value}:
-            raise AppException(f"Scheduling is not allowed for '{event_class}' event")
-        if {"event_id", "bot", "user", "cron_exp"}.difference(set(body.keys())):
-            raise AppException(f'Missing {"event_id", "bot", "user", "cron_exp"} all or any from request body!')
-        return True
 
     @staticmethod
     def verify_email(email: Text):
