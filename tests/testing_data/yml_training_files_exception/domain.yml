@@ -7,21 +7,11 @@ session_config:
 intents:
 - affirm:
     use_entities: true
-- affirm_attachment:
-    use_entities: true
-- back:
-    use_entities: true
-- bot_challenge:
-    use_entities: true
 - deny:
-    use_entities: true
-- deny_attachment:
     use_entities: true
 - file_upload:
     use_entities: true
 - file_upload_json:
-    use_entities: true
-- get_category:
     use_entities: true
 - get_priority:
     use_entities: true
@@ -31,17 +21,11 @@ intents:
     use_entities: true
 - get_ticket_status:
     use_entities: true
-- goodbye:
-    use_entities: true
 - greet:
     use_entities: true
 - log_ticket:
     use_entities: true
 - log_ticket_with_attributes:
-    use_entities: true
-- mood_great:
-    use_entities: true
-- mood_unhappy:
     use_entities: true
 - nlu_fallback
 - out_of_scope
@@ -53,15 +37,11 @@ intents:
     use_entities: false
 - thank:
     use_entities: false
-- upload_file_on_ticket:
-    use_entities: true
 - user_feedback:
     use_entities: true
 - valid_ticketID:
     use_entities: true
 - query:
-    use_entities: false
-- feedback:
     use_entities: false
 - more_info:
     use_entities: false
@@ -297,6 +277,10 @@ responses:
   - text: This is an invalid id. Please provide a valid ticket id.
   utter_greet:
   - text: Hey! How are you?
+  utter_query:
+    - text: Yes I know what AI is!
+  utter_more_info:
+    - text: Okay we will proceed with this!
   utter_request_ticket_attributes:
   - text: Let me log a ticket for you. Please specify priority and category for the ticket
   utter_did_that_help:

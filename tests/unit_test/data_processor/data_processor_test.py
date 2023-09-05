@@ -971,6 +971,26 @@ class TestMongoProcessor:
                 )
             )
 
+    @pytest.mark.asyncio
+    async def test_save_from_path_yml_multiflow_events_steps(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            result = await (
+                processor.save_from_path(
+                    "./tests/testing_data/yml_training_files_exception", bot="test_load_yml_multiflow", user="testUser"
+                )
+            )
+
+    @pytest.mark.asyncio
+    async def test_save_from_path_yml_multiflow_events_connections(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException):
+            result = await (
+                processor.save_from_path(
+                    "./tests/testing_data/all_multiflow", bot="test_load_yml_multiflow", user="testUser"
+                )
+            )
+
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
