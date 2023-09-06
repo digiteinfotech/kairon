@@ -41,3 +41,4 @@ AccessControl
 pykka
 timeout-decorator
 googlesearch-python
+elasticsearch

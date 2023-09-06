@@ -15,7 +15,6 @@ from kairon.api.models import Response
 from kairon.events.models import EventRequest
 from kairon.events.scheduler.kscheduler import KScheduler
 from kairon.events.utility import EventUtility
-from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
 from kairon.shared.utils import Utility
 
@@ -102,8 +101,6 @@ async def startup():
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
-    await AccountProcessor.default_account_setup()
-    AccountProcessor.load_system_properties()
 
 
 @app.on_event("shutdown")

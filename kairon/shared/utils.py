@@ -646,6 +646,7 @@ class Utility:
             if config["options"].get("authSource")
             else "admin",
         )
+    
 
     @staticmethod
     def special_match(strg, search=re.compile(r"[^a-zA-Z0-9_]").search):
