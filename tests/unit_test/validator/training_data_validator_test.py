@@ -155,7 +155,6 @@ class TestTrainingDataValidator:
 
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
-        print(validator.summary['intents'])
         assert validator.summary['intents'][0] == 'The intent \'affirm\' is not used in any story.'
         assert validator.summary['intents'][1] == 'The intent \'bot_challenge\' is not used in any story.'
         assert not validator.summary.get('utterances')
