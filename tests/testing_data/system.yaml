@@ -123,6 +123,7 @@ events:
     data_generator: ${DATA_GENERATION_TASK_DEFINITION}
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
+    pyscript: ${PYSCRIPT_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
   scheduler:

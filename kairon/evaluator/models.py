@@ -3,6 +3,7 @@ from pydantic import BaseModel, validator
 
 class EvaluatorRequest(BaseModel):
     source_code: str
+    predefined_objects: dict = None
 
     @validator("source_code")
     def validate_source_code(cls, v, values, **kwargs):
