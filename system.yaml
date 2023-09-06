@@ -126,6 +126,7 @@ events:
     data_generator: ${DATA_GENERATION_TASK_DEFINITION}
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
+    pyscript: ${PYSCRIPT_TASK_DEFINITION}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}

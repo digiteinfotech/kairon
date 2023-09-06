@@ -210,7 +210,9 @@ def test_run_pyscript_with_mongoengine_lookup_exception(mock_evaluate_pyscript):
     print(total)
     """
     mock_evaluate_pyscript.side_effect = LookUpError("An unexpected data lookup error occurred.")
-    response = client.post("/evaluate", json={"source_code": script})
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": context})
     actual = response.json()
     assert actual == {'success': False, 'message': 'An unexpected data lookup error occurred.',
                       'data': None, 'error_code': 422}
@@ -229,7 +231,9 @@ def test_run_pyscript_with_mongoengine_multiple_objects_exception(mock_evaluate_
     """
     mock_evaluate_pyscript.side_effect = MultipleObjectsReturned(
         "Multiple matching records found when only one was expected.")
-    response = client.post("/evaluate", json={"source_code": script})
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": context})
     actual = response.json()
     assert actual == {'success': False, 'message': 'Multiple matching records found when only one was expected.',
                       'data': None, 'error_code': 422}
@@ -248,7 +252,9 @@ def test_run_pyscript_with_mongoengine_invalid_query_exception(mock_evaluate_pys
     """
     mock_evaluate_pyscript.side_effect = InvalidQueryError(
         "Invalid query error occurred while processing the request.")
-    response = client.post("/evaluate", json={"source_code": script})
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": context})
     actual = response.json()
     assert actual == {'success': False, 'message': 'Invalid query error occurred while processing the request.',
                       'data': None, 'error_code': 422}
@@ -266,14 +272,19 @@ def test_run_pyscript_with_app_exception(mock_evaluate_pyscript):
     print(total)
     """
     mock_evaluate_pyscript.side_effect = AppException("Failed to execute the URL")
-    response = client.post("/evaluate", json={"source_code": script})
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": context})
     actual = response.json()
     assert actual == {'success': False, 'message': 'Failed to execute the URL', 'data': None, 'error_code': 422}
 
 
 def test_run_pyscript_with_source_code_empty():
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": "",
+        "predefined_objects": context
     }
     response = client.post(
         url=f"/evaluate",
@@ -288,8 +299,11 @@ def test_run_pyscript_with_source_code_empty():
 
 
 def test_run_pyscript_with_source_code_none():
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": None,
+        "predefined_objects": context
     }
     response = client.post(
         url=f"/evaluate",
@@ -312,8 +326,11 @@ def test_run_pyscript():
     print(total)
     """
     script = textwrap.dedent(script)
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": script,
+        "predefined_objects": context
     }
     response = client.post(
         url=f"/evaluate",
@@ -334,8 +351,11 @@ def test_evaluate_pyscript_with_script_errors():
     data = value['data']
     """
     script = textwrap.dedent(script)
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": script,
+        "predefined_objects": context
     }
     response = client.post(
         url=f"/evaluate",
@@ -352,8 +372,11 @@ def test_evaluate_pyscript_with_interpreter_error():
     for i in 10
     """
     script = textwrap.dedent(script)
+    context = {'sender_id': 'default', 'user_message': 'get intents',
+               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": script,
+        "predefined_objects": context
     }
     response = client.post(
         url=f"/evaluate",

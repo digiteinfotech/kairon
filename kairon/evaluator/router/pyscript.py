@@ -9,5 +9,6 @@ router = APIRouter()
 
 @router.post("/evaluate", response_model=Response)
 def run_pyscript(request_data: EvaluatorRequest):
-    response, message = EvaluatorProcessor.evaluate_pyscript(source_code=request_data.source_code)
+    response, message = EvaluatorProcessor.evaluate_pyscript(source_code=request_data.source_code,
+                                                             predefined_objects=request_data.predefined_objects)
     return Response(data=response, message=message)
