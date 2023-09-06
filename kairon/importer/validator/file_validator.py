@@ -172,6 +172,12 @@ class TrainingDataValidator(Validator):
                 intents_mismatch_summary.append(msg)
         self.summary['intents'] = intents_mismatch_summary
 
+    def multiflow_story_graph(self):
+        for item in self.multiflow_stories['multiflow_story']:
+            steps = item['events']
+            story_graph = StoryValidator.get_graph(steps)
+        return story_graph
+
     def verify_intents_in_stories(self, raise_exception: bool = True):
         """
         Validates intents in stories.
@@ -189,12 +195,10 @@ class TrainingDataValidator(Validator):
             if isinstance(event, UserUttered)
         }
         if self.multiflow_stories:
-            for item in self.multiflow_stories['multiflow_story']:
-                steps = item['events']
-                story_graph = StoryValidator.get_graph(steps)
-                for story_node in story_graph.nodes():
-                    if story_node.step_type == "INTENT":
-                        multiflow_stories_intent.add(story_node.name)
+            story_graph = self.multiflow_story_graph()
+            for story_node in story_graph.nodes():
+                if story_node.step_type == "INTENT":
+                    multiflow_stories_intent.add(story_node.name)
 
         for story_intent in stories_intents:
             if story_intent not in self.domain.intents and story_intent not in DEFAULT_INTENTS:
@@ -215,7 +219,7 @@ class TrainingDataValidator(Validator):
 
         unused_intents = set(self.domain.intents) - set(stories_intents) - multiflow_stories_intent - set(DEFAULT_INTENTS)
 
-        for intent in unused_intents:
+        for intent in sorted(unused_intents):
             msg = f"The intent '{intent}' is not used in any story."
             if raise_exception:
                 raise AppException(msg)
@@ -273,12 +277,10 @@ class TrainingDataValidator(Validator):
         multiflow_stories_utterances = set()
 
         if self.multiflow_stories:
-            for item in self.multiflow_stories['multiflow_story']:
-                steps = item['events']
-                story_graph = StoryValidator.get_graph(steps)
-                for story_node in story_graph.nodes():
-                    if story_node.step_type != "INTENT":
-                        multiflow_stories_utterances.add(story_node.name)
+            story_graph = self.multiflow_story_graph()
+            for story_node in story_graph.nodes():
+                if story_node.step_type == "BOT":
+                    multiflow_stories_utterances.add(story_node.name)
 
         for story in self.story_graph.story_steps:
             for event in story.events:
@@ -310,7 +312,7 @@ class TrainingDataValidator(Validator):
 
         unused_utterances = set(utterance_actions) - stories_utterances - multiflow_stories_utterances - system_triggered_actions.union(fallback_action)
 
-        for utterance in unused_utterances:
+        for utterance in sorted(unused_utterances):
             msg = f"The utterance '{utterance}' is not used in any story."
             if raise_exception:
                 raise AppException(msg)
@@ -396,8 +398,8 @@ class TrainingDataValidator(Validator):
         story_error = []
         story_present = set()
 
-        required_fields = {k for k, v in MultiflowStories._fields.items() if v.required and
-                           k not in {'bot', 'user', 'timestamp', 'status', 'template_type', 'start_checkpoints'}} | {'events'}
+        required_fields = {k for k, v in MultiflowStories._fields.items() if v and
+                           k not in {'bot', 'user', 'timestamp', 'status', 'id'}}
         for story in multiflow_story:
             if isinstance(story, dict):
                 if len(required_fields.difference(set(story.keys()))) > 0:

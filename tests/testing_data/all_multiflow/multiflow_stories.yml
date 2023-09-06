@@ -64,3 +64,6 @@ multiflow_story:
   metadata:
     - node_id: "6"
       flow_type: STORY
+  start_checkpoints: [STORY_START]
+  end_checkpoints: []
+  template_type: CUSTOM

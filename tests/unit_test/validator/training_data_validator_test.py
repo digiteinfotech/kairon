@@ -156,8 +156,8 @@ class TestTrainingDataValidator:
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
         print(validator.summary['intents'])
-        assert validator.summary['intents'][0] == 'The intent \'bot_challenge\' is not used in any story.'
-        assert validator.summary['intents'][1] == 'The intent \'affirm\' is not used in any story.'
+        assert validator.summary['intents'][0] == 'The intent \'affirm\' is not used in any story.'
+        assert validator.summary['intents'][1] == 'The intent \'bot_challenge\' is not used in any story.'
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -1039,50 +1039,59 @@ class TestTrainingDataValidator:
         ]
         metadata_twelve = [{"node_id": '2', "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}]
         steps_mf_fourteen = [
-            {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "63ue2YkCdcVmnU0L7Q8wCjnc"},
-             "connections": [
-                 {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"}]
+            {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63NSzOE45TM6VxMTkak6C5Oy"},
-             "connections": [
-                 {"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
-                 {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"}]
+            {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+             "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                             {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "mood", "type": "INTENT", "node_id": "4", "component_id": "63ejBpfbp5XXvmgbkfYdWt8t"},
-             "connections": [
-                 {"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"}]
+            {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
              },
-            {"step": {"name": "utter_mood", "type": "BOT", "node_id": "5", "component_id": "63Mcq10uhqwcrP8Pq29eqQYa"},
-             "connections": [
-                 {"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
-             },
-            {"step": {"name": "utter_thought", "type": "BOT", "node_id": "6",
-                      "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"},
+            {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
              "connections": None
              },
-            {"step": {"name": "thought", "type": "INTENT", "node_id": "3", "component_id": "63qydua5wtsuI3Dr0Q4gAtlj"},
-             "connections": [
-                 {"name": "utter_thought", "type": "BOT", "node_id": "6", "component_id": "63CYvgxUsX0aeLYV4WdfIJF2"}]
+            {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
+             "connections": None
+             },
+            {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+             "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
              }
         ]
-        test_dict = {"multiflow_story": [{"block_name": "mf_one", "events": steps_mf_one},
-                                         {"block_name": "mf_two", "events": steps_mf_two},
+        test_dict = {"multiflow_story": [{"block_name": "mf_one", "events": steps_mf_one, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_two", "events": steps_mf_two, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
                                          {"block_name": "mf_three", "events": steps_mf_three},
-                                         {"block_name": "mf_four", "events": steps_mf_four},
-                                         {"block_name": "mf_five", "events": steps_mf_five},
-                                         {"block_name": "mf_six", "events": steps_mf_six},
-                                         {"block_name": "mf_seven", "events": steps_mf_seven},
-                                         {"block_name": "mf_eight", "events": steps_mf_eight},
-                                         {"block_name": "mf_nine", "events": steps_mf_nine},
-                                         {"block_name": "mf_ten", "events": steps_mf_ten},
-                                         {"block_name": "mf_eleven", "events": steps_mf_eleven, "metadata": metadata_eleven},
-                                         {"block_name": "mf_twelve", "events": steps_mf_twelve, "metadata": metadata_twelve},
+                                         {"block_name": "mf_four", "events": steps_mf_four, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_five", "events": steps_mf_five, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_six", "events": steps_mf_six, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_seven", "events": steps_mf_seven, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_eight", "events": steps_mf_eight, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_nine", "events": steps_mf_nine, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_ten", "events": steps_mf_ten, "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_eleven", "events": steps_mf_eleven, "metadata": metadata_eleven, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_twelve", "events": steps_mf_twelve, "metadata": metadata_twelve, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
                                          {"block_name": "mf_thirteen"},
-                                         {"block_name": "mf_fourteen", "events": steps_mf_fourteen},
-                                         {"block_name": "mf_fourteen", "events": steps_mf_fourteen},
+                                         {"block_name": "mf_fourteen", "events": steps_mf_fourteen,
+                                          "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
+                                         {"block_name": "mf_fourteen", "events": steps_mf_fourteen,
+                                          "metadata": None, "start_checkpoints": ['STORY_START'],
+                                          "end_checkpoints": [], "template_type": 'CUSTOM'},
                                          [{"block_name": "mf_thirteen"}]]}
         errors, count = TrainingDataValidator.validate_multiflow_stories(test_dict)
-        assert len(errors) == 21
+        assert len(errors) == 23
         assert count['multiflow_stories'] == 16
 
     def test_validate_multiflow_stories_empty_content(self):
