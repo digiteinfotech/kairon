@@ -63,6 +63,6 @@ slots:
 responses: {}
 actions:
 - kairon_faq_action
-- web_search_action
+- google_search_action
 forms: {}
 e2e_actions: []

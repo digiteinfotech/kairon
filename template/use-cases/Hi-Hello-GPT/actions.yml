@@ -1,7 +1,7 @@
 email_action: []
 form_validation_action: []
 web_search_action:
-- name: web_search_action
+- name: google_search_action
   website: ''
   failure_response: I have failed to process your request.
   topn: 1
