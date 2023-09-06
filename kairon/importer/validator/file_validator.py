@@ -182,7 +182,7 @@ class TrainingDataValidator(Validator):
         """
         intents_mismatched = []
         self.verify_intents(raise_exception)
-        multiflow_stories_intent = {}
+        multiflow_stories_intent = set()
 
         stories_intents = {
             event.intent["name"]
@@ -191,12 +191,12 @@ class TrainingDataValidator(Validator):
             if isinstance(event, UserUttered)
         }
         if self.multiflow_stories:
-            multiflow_stories_intent = {
-                intent['step']['name']
-                for item in self.multiflow_stories['multiflow_story']
-                for intent in item['events']
-                if intent['step']['type'] == StoryStepType.intent.value
-            }
+            for item in self.multiflow_stories['multiflow_story']:
+                steps = item['events']
+                story_graph = StoryValidator.get_graph(steps)
+                for story_node in story_graph.nodes():
+                    if story_node.step_type == "INTENT":
+                        multiflow_stories_intent.add(story_node.name)
 
         for story_intent in stories_intents:
             if story_intent not in self.domain.intents and story_intent not in DEFAULT_INTENTS:
@@ -215,18 +215,13 @@ class TrainingDataValidator(Validator):
                         raise AppException(msg)
                     intents_mismatched.append(msg)
 
-        for intent in self.domain.intents:
+        unused_intents = set(self.domain.intents) - set(stories_intents) - multiflow_stories_intent - set(DEFAULT_INTENTS)
+
+        for intent in unused_intents:
             msg = f"The intent '{intent}' is not used in any story."
-            if multiflow_stories_intent:
-                if intent not in stories_intents and intent not in multiflow_stories_intent and intent not in DEFAULT_INTENTS:
-                    if raise_exception:
-                        raise AppException(msg)
-                    intents_mismatched.append(msg)
-            else:
-                if intent not in stories_intents and intent not in DEFAULT_INTENTS:
-                    if raise_exception:
-                        raise AppException(msg)
-                    intents_mismatched.append(msg)
+            if raise_exception:
+                raise AppException(msg)
+            intents_mismatched.append(msg)
 
         if not self.summary.get('intents'):
             self.summary['intents'] = []
@@ -277,14 +272,16 @@ class TrainingDataValidator(Validator):
         fallback_action = DataUtility.parse_fallback_action(self.config)
         system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES).union(KAIRON_TWO_STAGE_FALLBACK)
         stories_utterances = set()
-        multiflow_stories_utterances = {}
+        multiflow_stories_utterances = set()
+
         if self.multiflow_stories:
-            multiflow_stories_utterances = {
-                utterance['step']['name']
-                for item in self.multiflow_stories['multiflow_story']
-                for utterance in item['events']
-                if utterance['step']['type'] != StoryStepType.intent.value
-            }
+            for item in self.multiflow_stories['multiflow_story']:
+                steps = item['events']
+                story_graph = StoryValidator.get_graph(steps)
+                for story_node in story_graph.nodes():
+                    if story_node.step_type != "INTENT":
+                        multiflow_stories_utterances.add(story_node.name)
+
         for story in self.story_graph.story_steps:
             for event in story.events:
                 if not isinstance(event, ActionExecuted):
@@ -313,18 +310,13 @@ class TrainingDataValidator(Validator):
                 form_utterances.add(f"utter_ask_{form}_{slot}")
         utterance_actions = utterance_actions.difference(form_utterances)
 
-        for utterance in utterance_actions:
+        unused_utterances = set(utterance_actions) - stories_utterances - multiflow_stories_utterances - system_triggered_actions.union(fallback_action)
+
+        for utterance in unused_utterances:
             msg = f"The utterance '{utterance}' is not used in any story."
-            if multiflow_stories_utterances:
-                if utterance not in stories_utterances and utterance not in multiflow_stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
-                    if raise_exception:
-                        raise AppException(msg)
-                    utterance_mismatch_summary.append(msg)
-            else:
-                if utterance not in stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
-                    if raise_exception:
-                        raise AppException(msg)
-                    utterance_mismatch_summary.append(msg)
+            if raise_exception:
+                raise AppException(msg)
+            utterance_mismatch_summary.append(msg)
 
         if not self.summary.get('utterances'):
             self.summary['utterances'] = []
@@ -414,7 +406,7 @@ class TrainingDataValidator(Validator):
                     story_error.append(f'Required fields {required_fields} not found in story: {story.get("name")}')
                     continue
                 if story.get('events'):
-                    errors = TrainingDataValidator.__validate_multiflow_story_steps(story.get('events'), story.get('metadata', []))
+                    errors = StoryValidator.validate_multiflow_story_steps_file_validator(story.get('events'), story.get('metadata', []))
                     story_error.extend(errors)
                 if story['block_name'] in story_present:
                     story_error.append(f'Duplicate story found: {story["block_name"]}')
@@ -422,54 +414,6 @@ class TrainingDataValidator(Validator):
             else:
                 story_error.append('Invalid story configuration format. Dictionary expected.')
         return story_error
-
-    @staticmethod
-    def __validate_multiflow_story_steps(steps: list, metadata: list):
-        errors = []
-        story_graph = StoryValidator.get_graph(steps)
-        leaf_nodes = StoryValidator.get_leaf_nodes(story_graph)
-        leaf_node_ids = [value.node_id for value in leaf_nodes]
-        source = StoryValidator.get_source_node(story_graph)
-
-        if not is_connected(Graph(story_graph)):
-            errors.append("All steps must be connected!")
-
-        if len(source) > 1:
-            errors.append("Story cannot have multiple sources!")
-
-        if source[0].step_type != StoryStepType.intent:
-            errors.append("First step should be an intent")
-
-        if recursive_simple_cycles(story_graph):
-            errors.append("Story cannot contain cycle!")
-
-        for story_node in story_graph.nodes():
-            if story_node.step_type == "INTENT":
-                if [successor for successor in story_graph.successors(story_node) if successor.step_type == "INTENT"]:
-                    errors.append("Intent should be followed by an Action or Slot type event")
-                if len(list(story_graph.successors(story_node))) > 1:
-                    errors.append("Intent can only have one connection of action type or slot type")
-            if story_node.step_type == 'SLOT' and story_node.value:
-                if story_node.value is not None and not isinstance(story_node.value, (str, int, bool)):
-                    errors.append("slot values in multiflow story must be either None or of type int, str or boolean")
-            if story_node.step_type != 'SLOT' and story_node.value is not None:
-                errors.append("Value is allowed only for slot events in multiflow story")
-            if story_node.step_type == 'SLOT' and story_node.node_id in leaf_node_ids:
-                errors.append("Slots cannot be leaf nodes!")
-            if story_node.step_type == 'INTENT' and story_node.node_id in leaf_node_ids:
-                errors.append("Leaf nodes cannot be intent")
-        if metadata:
-            for value in metadata:
-                if value.get('flow_type') == 'RULE':
-                    if any(leaf.node_id == value.get('node_id') for leaf in leaf_nodes):
-                        paths = list(all_simple_paths(story_graph, source[0], next(
-                            leaf for leaf in leaf_nodes if leaf.node_id == value.get('node_id'))))
-                        if any(len([node.step_type for node in path if node.step_type == 'INTENT']) > 1 for path in
-                               paths):
-                            errors.append('Path tagged as RULE can have only one intent!')
-            if any(value['node_id'] not in leaf_node_ids for value in metadata):
-                errors.append("Only leaf nodes can be tagged with a flow")
-        return errors
 
     @staticmethod
     def validate_multiflow_stories(multiflow_stories: Dict):

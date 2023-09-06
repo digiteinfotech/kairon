@@ -155,8 +155,9 @@ class TestTrainingDataValidator:
 
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
-        assert validator.summary['intents'][0] == 'The intent \'affirm\' is not used in any story.'
-        assert validator.summary['intents'][1] == 'The intent \'bot_challenge\' is not used in any story.'
+        print(validator.summary['intents'])
+        assert validator.summary['intents'][0] == 'The intent \'bot_challenge\' is not used in any story.'
+        assert validator.summary['intents'][1] == 'The intent \'affirm\' is not used in any story.'
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -245,7 +246,7 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('config')
 
     @pytest.mark.asyncio
-    async def test_validate_valid_training_data(self):
+    async def test_validate_valid_training_data_with_multiflow(self):
         root = 'tests/testing_data/validator/valid_with_multiflow'
         domain_path = 'tests/testing_data/validator/valid_with_multiflow/domain.yml'
         nlu_path = 'tests/testing_data/validator/valid_with_multiflow/data'
