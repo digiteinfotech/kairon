@@ -1176,8 +1176,8 @@ async def get_chat_client_config_url(
 
 @router.get("/chat/client/config/{token}", response_model=Response)
 async def get_client_config_using_uid(
-        request: Request, bot: Text = Path(default=None, description="Bot id"),
-        token: Text = Path(default=None, description="Token generated from api server"),
+        request: Request, bot: Text = Path(description="Bot id"),
+        token: Text = Path(description="Token generated from api server"),
         token_claims: Dict = Security(Authentication.validate_bot_specific_token, scopes=TESTER_ACCESS)
 ):
     config = mongo_processor.get_client_config_using_uid(bot, token_claims)

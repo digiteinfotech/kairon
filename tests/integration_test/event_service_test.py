@@ -3,7 +3,6 @@ import re
 from unittest import mock
 
 from dramatiq.brokers.stub import StubBroker
-from elasticmock import _get_elasticmock
 from loguru import logger
 from mock import patch
 from starlette.testclient import TestClient
@@ -17,7 +16,6 @@ with patch.dict(
 ):
     with patch("pymongo.collection.Collection.create_index"):
         with patch('elasticsearch.Elasticsearch') as mock_apm_client:
-            mock_apm_client.return_value = _get_elasticmock()
             from kairon.events.server import app
 
             Utility.load_environment()
