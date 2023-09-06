@@ -22,8 +22,9 @@ from kairon.shared.actions.data_objects import FormValidationAction, SlotSetActi
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
+from kairon.shared.data.data_objects import MultiflowStories
 from kairon.shared.data.utils import DataUtility
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, StoryValidator
 
 
 class TrainingDataValidator(Validator):
@@ -73,6 +74,7 @@ class TrainingDataValidator(Validator):
             cls.actions = Utility.read_yaml(os.path.join(root_dir, 'actions.yml'))
             chat_client_config = Utility.read_yaml(os.path.join(root_dir, 'chat_client_config.yml'))
             cls.chat_client_config = chat_client_config if chat_client_config else {}
+            cls.multiflow_stories = Utility.read_yaml(os.path.join(root_dir, 'multiflow_stories.yml'))
 
             return await TrainingDataValidator.from_importer(file_importer)
         except YamlValidationException as e:
@@ -170,6 +172,12 @@ class TrainingDataValidator(Validator):
                 intents_mismatch_summary.append(msg)
         self.summary['intents'] = intents_mismatch_summary
 
+    def multiflow_story_graph(self):
+        for item in self.multiflow_stories['multiflow_story']:
+            steps = item['events']
+            story_graph = StoryValidator.get_graph(steps)
+        return story_graph
+
     def verify_intents_in_stories(self, raise_exception: bool = True):
         """
         Validates intents in stories.
@@ -178,6 +186,7 @@ class TrainingDataValidator(Validator):
         """
         intents_mismatched = []
         self.verify_intents(raise_exception)
+        multiflow_stories_intent = set()
 
         stories_intents = {
             event.intent["name"]
@@ -185,6 +194,11 @@ class TrainingDataValidator(Validator):
             for event in story.events
             if isinstance(event, UserUttered)
         }
+        if self.multiflow_stories:
+            story_graph = self.multiflow_story_graph()
+            for story_node in story_graph.nodes():
+                if story_node.step_type == "INTENT":
+                    multiflow_stories_intent.add(story_node.name)
 
         for story_intent in stories_intents:
             if story_intent not in self.domain.intents and story_intent not in DEFAULT_INTENTS:
@@ -194,12 +208,22 @@ class TrainingDataValidator(Validator):
                     raise AppException(msg)
                 intents_mismatched.append(msg)
 
-        for intent in self.domain.intents:
-            if intent not in stories_intents and intent not in DEFAULT_INTENTS:
-                msg = f"The intent '{intent}' is not used in any story."
-                if raise_exception:
-                    raise AppException(msg)
-                intents_mismatched.append(msg)
+        if multiflow_stories_intent:
+            for intent in multiflow_stories_intent:
+                if intent not in self.domain.intents and intent not in DEFAULT_INTENTS:
+                    msg = f"The intent '{intent}' is used in your multiflow_stories, but it is not listed in " \
+                          f"the domain file. You should add it to your domain file!"
+                    if raise_exception:
+                        raise AppException(msg)
+                    intents_mismatched.append(msg)
+
+        unused_intents = set(self.domain.intents) - set(stories_intents) - multiflow_stories_intent - set(DEFAULT_INTENTS)
+
+        for intent in sorted(unused_intents):
+            msg = f"The intent '{intent}' is not used in any story."
+            if raise_exception:
+                raise AppException(msg)
+            intents_mismatched.append(msg)
 
         if not self.summary.get('intents'):
             self.summary['intents'] = []
@@ -250,6 +274,12 @@ class TrainingDataValidator(Validator):
         fallback_action = DataUtility.parse_fallback_action(self.config)
         system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES).union(KAIRON_TWO_STAGE_FALLBACK)
         stories_utterances = set()
+        multiflow_stories_utterances = set()
+        if self.multiflow_stories:
+            story_graph = self.multiflow_story_graph()
+            for story_node in story_graph.nodes():
+                if story_node.step_type == "BOT":
+                    multiflow_stories_utterances.add(story_node.name)
 
         for story in self.story_graph.story_steps:
             for event in story.events:
@@ -279,12 +309,13 @@ class TrainingDataValidator(Validator):
                 form_utterances.add(f"utter_ask_{form}_{slot}")
         utterance_actions = utterance_actions.difference(form_utterances)
 
-        for utterance in utterance_actions:
-            if utterance not in stories_utterances and utterance not in system_triggered_actions.union(fallback_action):
-                msg = f"The utterance '{utterance}' is not used in any story."
-                if raise_exception:
-                    raise AppException(msg)
-                utterance_mismatch_summary.append(msg)
+        unused_utterances = set(utterance_actions) - stories_utterances - multiflow_stories_utterances - system_triggered_actions.union(fallback_action)
+
+        for utterance in sorted(unused_utterances):
+            msg = f"The utterance '{utterance}' is not used in any story."
+            if raise_exception:
+                raise AppException(msg)
+            utterance_mismatch_summary.append(msg)
 
         if not self.summary.get('utterances'):
             self.summary['utterances'] = []
@@ -360,6 +391,54 @@ class TrainingDataValidator(Validator):
         self.component_count['utterances'] = len(self.domain.templates)
         if self.domain.is_empty():
             self.summary['domain'] = ["domain.yml is empty!"]
+
+    @staticmethod
+    def verify_multiflow_story_structure(multiflow_story: list):
+        story_error = []
+        story_present = set()
+
+        required_fields = {k for k, v in MultiflowStories._fields.items() if v and
+                           k not in {'bot', 'user', 'timestamp', 'status', 'id'}}
+        for story in multiflow_story:
+            if isinstance(story, dict):
+                if len(required_fields.difference(set(story.keys()))) > 0:
+                    story_error.append(f'Required fields {required_fields} not found in story: {story.get("name")}')
+                    continue
+                if story.get('events'):
+                    errors = StoryValidator.validate_multiflow_story_steps_file_validator(story.get('events'), story.get('metadata', []))
+                    story_error.extend(errors)
+                if story['block_name'] in story_present:
+                    story_error.append(f'Duplicate story found: {story["block_name"]}')
+                story_present.add(story["block_name"])
+            else:
+                story_error.append('Invalid story configuration format. Dictionary expected.')
+        return story_error
+
+    @staticmethod
+    def validate_multiflow_stories(multiflow_stories: Dict):
+        errors = None
+        count = {'multiflow_stories': 0}
+        if not isinstance(multiflow_stories, dict):
+            story_errors = {'multiflow_story': ['Invalid multiflow story configuration format. Dictionary expected.']}
+            return story_errors
+        if multiflow_stories['multiflow_story'] or []:
+            count['multiflow_stories'] = len(multiflow_stories['multiflow_story'])
+            errors = TrainingDataValidator.verify_multiflow_story_structure(multiflow_stories['multiflow_story'])
+        return errors, count
+
+    def validate_multiflow(self, raise_exception: bool = True):
+        """
+        Validates multiflow_stories.yml.
+        @param raise_exception: Set this flag to false to prevent raising exceptions.
+        @return:
+        """
+        if self.multiflow_stories:
+            multiflow_errors, component_count = TrainingDataValidator.validate_multiflow_stories(self.multiflow_stories)
+            self.component_count['multiflow_stories'] = len(self.multiflow_stories)
+            self.summary['multiflow_stories'] = multiflow_errors
+            self.component_count.update(component_count)
+            if multiflow_errors and raise_exception:
+                raise AppException("Invalid multiflow_stories.yml. Check logs!")
 
     @staticmethod
     def validate_custom_actions(actions: Dict):
@@ -822,6 +901,7 @@ class TrainingDataValidator(Validator):
             self.verify_nlu(raise_exception)
             self.validate_actions(raise_exception)
             self.validate_config(raise_exception)
+            self.validate_multiflow(raise_exception)
         except Exception as e:
             logger.error(str(e))
             raise AppException(e)
