@@ -1,16 +1,12 @@
 import os
 from datetime import date, datetime
 from typing import List, Optional, Dict, Text
+
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
 from fastapi import File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
 
-from kairon.events.definitions.data_importer import TrainingDataImporterEvent
-from kairon.events.definitions.model_testing import ModelTestingEvent
-from kairon.events.definitions.model_training import ModelTrainingEvent
-from kairon.shared.account.activity_log import UserActivityLogger
-from kairon.shared.auth import Authentication
 from kairon.api.models import (
     TextData,
     ListData,
@@ -22,25 +18,30 @@ from kairon.api.models import (
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
     TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest
 )
+from kairon.events.definitions.data_importer import TrainingDataImporterEvent
+from kairon.events.definitions.model_testing import ModelTestingEvent
+from kairon.events.definitions.model_training import ModelTrainingEvent
+from kairon.exceptions import AppException
+from kairon.shared.account.activity_log import UserActivityLogger
+from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     VIEW_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.base_data import AuditLogData
-from kairon.shared.importer.data_objects import ValidationLogs
-from kairon.shared.models import User, TemplateType
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
     TrainingDataSourceType
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
-from kairon.exceptions import AppException
-from kairon.shared.importer.processor import DataImporterLogProcessor
-from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.test.data_objects import ModelTestingLogs
-from kairon.shared.utils import Utility
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.importer.data_objects import ValidationLogs
+from kairon.shared.importer.processor import DataImporterLogProcessor
+from kairon.shared.models import User, TemplateType
+from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
+from kairon.shared.utils import Utility
 
 router = APIRouter()
 v2 = APIRouter()
@@ -1165,8 +1166,8 @@ async def get_chat_client_config_url(
 
 @router.get("/chat/client/config/{token}", response_model=Response)
 async def get_client_config_using_uid(
-        request: Request, bot: Text = Path(description="Bot id"),
-        token: Text = Path(description="Token generated from api server"),
+        request: Request, bot: Text = Path(default=None, description="Bot id"),
+        token: Text = Path(default=None, description="Token generated from api server"),
         token_claims: Dict = Security(Authentication.validate_bot_specific_token, scopes=TESTER_ACCESS)
 ):
     config = mongo_processor.get_client_config_using_uid(bot, token_claims)

@@ -119,11 +119,13 @@ class TestEventDefinitions:
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=True).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
-        assert body['bot'] == bot
-        assert body['user'] == user
-        assert body['import_data'] == '--import-data'
-        assert body['overwrite'] == '--overwrite'
-        assert body['event_type'] == 'data_importer'
+        assert body["data"]['bot'] == bot
+        assert body["data"]['user'] == user
+        assert body["data"]['import_data'] == '--import-data'
+        assert body["data"]['overwrite'] == '--overwrite'
+        assert body["data"]['event_type'] == 'data_importer'
+        assert body["cron_exp"] is None
+        assert body["timezone"] is None
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 2
         assert logs[0]['files_received'] == ['domain']
@@ -143,11 +145,13 @@ class TestEventDefinitions:
             TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
-        assert body['bot'] == bot
-        assert body['user'] == user
-        assert body['import_data'] == '--import-data'
-        assert body['overwrite'] == ''
-        assert body['event_type'] == 'data_importer'
+        assert body["data"]['bot'] == bot
+        assert body["data"]['user'] == user
+        assert body["data"]['import_data'] == '--import-data'
+        assert body["data"]['overwrite'] == ''
+        assert body["data"]['event_type'] == 'data_importer'
+        assert body["cron_exp"] is None
+        assert body["timezone"] is None
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0]['files_received'] == ['config']
@@ -229,10 +233,12 @@ class TestEventDefinitions:
         FaqDataImporterEvent(bot, user).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
-        assert body['bot'] == bot
-        assert body['user'] == user
-        assert body['event_type'] == EventClass.faq_importer
-        assert body['import_data'] == "--import-data"
+        assert body["data"]['bot'] == bot
+        assert body["data"]['user'] == user
+        assert body["data"]['event_type'] == EventClass.faq_importer
+        assert body["data"]['import_data'] == "--import-data"
+        assert body["cron_exp"] is None
+        assert body["timezone"] is None
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0]['files_received'] == ['config.csv']
@@ -252,10 +258,12 @@ class TestEventDefinitions:
             FaqDataImporterEvent(bot, user).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
-        assert body['bot'] == bot
-        assert body['user'] == user
-        assert body['event_type'] == EventClass.faq_importer
-        assert body['import_data'] == "--import-data"
+        assert body["data"]['bot'] == bot
+        assert body["data"]['user'] == user
+        assert body["data"]['event_type'] == EventClass.faq_importer
+        assert body["data"]['import_data'] == "--import-data"
+        assert body["cron_exp"] is None
+        assert body["timezone"] is None
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 0
         assert not os.path.isdir('training_data/test_faq')
@@ -371,9 +379,11 @@ class TestEventDefinitions:
         ModelTrainingEvent(bot, user).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
-        assert body['bot'] == bot
-        assert body['user'] == user
-        assert not Utility.check_empty_string(body['token'])
+        assert body["data"]['bot'] == bot
+        assert body["data"]['user'] == user
+        assert body["cron_exp"] is None
+        assert body["timezone"] is None
+        assert not Utility.check_empty_string(body["data"]['token'])
         logs = list(ModelProcessor.get_training_history(bot))
         assert len(logs) == 1
         assert logs[0]['status'] == EVENT_STATUS.ENQUEUED.value
@@ -470,8 +480,8 @@ class TestEventDefinitions:
         ModelTestingEvent(bot, user).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
-        assert body['bot'] == bot
-        assert body['user'] == user
+        assert body["data"]['bot'] == bot
+        assert body["data"]['user'] == user
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert logs[0]['event_status'] == EVENT_STATUS.ENQUEUED.value
@@ -565,7 +575,8 @@ class TestEventDefinitions:
         responses.add(
             "POST", url,
             match=[responses.matchers.json_params_matcher(
-                {"bot": bot, "user": user, "till_date": str(till_date), "sender_id": "udit.pandey@digite.com"})],
+                {"data": {"bot": bot, "user": user, "till_date": str(till_date), "sender_id": "udit.pandey@digite.com"},
+                 "cron_exp": None, "timezone": None})],
             json={"message": "Success", "success": True, "error_code": 0, "data": {
                 'StatusCode': 200,
                 'FunctionError': None,
@@ -621,10 +632,10 @@ class TestEventDefinitions:
             DeleteHistoryEvent(bot, user).enqueue()
         body = [call.request.body for call in list(responses.calls) if call.request.url == url][0]
         body = json.loads(body.decode())
-        assert body['bot'] == bot
-        assert body['user'] == user
-        assert body['till_date']
-        assert body['sender_id'] == ""
+        assert body["data"]['bot'] == bot
+        assert body["data"]['user'] == user
+        assert body["data"]['till_date']
+        assert body["data"]['sender_id'] == ""
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
 
@@ -682,9 +693,10 @@ class TestEventDefinitions:
                       json={"message": "Event triggered successfully!", "success": True},
                       status=200,
                       match=[
-                          responses.json_params_matcher(
-                              {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang': d_lang,
-                               'translate_responses': '', 'translate_actions': '--translate-actions'})]
+                          responses.matchers.json_params_matcher(
+                              {"data": {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang': d_lang,
+                               'translate_responses': '', 'translate_actions': '--translate-actions'},
+                               "cron_exp": None, "timezone": None})]
                       )
         MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=False,
                           translate_actions=True).enqueue()
@@ -775,8 +787,8 @@ class TestEventDefinitions:
                       status=200,
                       match=[
                           responses.json_params_matcher(
-                              {'bot': bot, 'user': user, 'type': '--from-website', 'website_url': website_url,
-                               'depth': 0})]
+                              {"data": {'bot': bot, 'user': user, 'type': '--from-website', 'website_url': website_url,
+                               'depth': 0}, "cron_exp": None, "timezone": None})]
                       )
         DataGenerationEvent(bot, user, website_url=website_url).enqueue()
         logs = list(TrainingDataGenerationProcessor.get_training_data_generator_history(bot, source_type))
@@ -1253,16 +1265,14 @@ class TestEventDefinitions:
         user = "test_user"
         setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True&bot={bot}&user={user}&event_id={setting_id}"
+        url = f"http://localhost:5001/api/events/{setting_id}"
         responses.add(
             "DELETE", url,
             json={"message": "Failed to delete event!", "success": False, "error_code": 0, "data": None},
-            match=[responses.matchers.query_param_matcher(
-                {"bot": bot, "user": user, "is_scheduled": True, "event_id": setting_id})],
         )
 
         event = MessageBroadcastEvent(bot, user)
-        with pytest.raises(AppException, match=r"Failed to trigger message_broadcast event: *"):
+        with pytest.raises(AppException, match=f"Failed to delete scheduled event {setting_id}: Failed to delete event!"):
             event.delete_schedule(msg_broadcast_id=setting_id)
 
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2
@@ -1283,12 +1293,10 @@ class TestEventDefinitions:
         user = "test_user"
         setting_id = next(MessageBroadcastProcessor.list_settings(bot))["_id"]
 
-        url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True&bot={bot}&user={user}&event_id={setting_id}"
+        url = f"http://localhost:5001/api/events/{setting_id}"
         responses.add(
             "DELETE", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None},
-            match=[responses.matchers.query_param_matcher(
-                {"bot": bot, "user": user, "is_scheduled": True, "event_id": setting_id})],
         )
 
         event = MessageBroadcastEvent(bot, user)
