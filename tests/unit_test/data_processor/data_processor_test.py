@@ -4477,8 +4477,8 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 17
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 8
         assert domain.intent_properties.__len__() == 30
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
@@ -11918,7 +11918,7 @@ class TestMongoProcessor:
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
-            'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase']}, ignore_order=True)
+            'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -12036,7 +12036,7 @@ class TestMongoProcessor:
                            'utter_good_feedback',
                            'utter_bad_feedback',
                            'utter_default',
-                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}
+                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']}, ignore_order=True)
 
     def test_add_duplicate_rule(self):
         processor = MongoProcessor()

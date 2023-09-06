@@ -3466,9 +3466,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3725,11 +3725,11 @@ def test_add_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', "
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
                  'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']}
+                 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
                  }]
     )
 
@@ -3795,9 +3795,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3933,12 +3933,12 @@ def test_update_multiflow_story_invalid_event_type():
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                         "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
-                        "'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                        "'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
                         'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                        'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']}
+                        'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
                  }]
     )
 
@@ -7693,7 +7693,7 @@ def test_list_actions():
                                              'utter_goodbye', 'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
                               'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
                               'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],'hubspot_forms_action': [],
-                              'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []}
+                              'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'web_search_action': []}
 
     assert actual["success"]
 
@@ -8373,9 +8373,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -8438,9 +8438,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -12152,6 +12152,159 @@ def test_delete_google_search_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "google_custom_search" not found'
+
+
+def test_add_web_search_action():
+    action = {
+        'name': 'public_custom_search',
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_web_search_exists():
+    action = {
+        'name': 'public_custom_search',
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action exists!'
+
+
+def test_add_web_search_invalid_parameters_top_n():
+    action = {
+        'name': 'public_custom_search_two',
+        "topn": 0,
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'topn'], 'msg': 'topn must be greater than or equal to 1!', 'type': 'value_error'}]
+
+
+def test_add_web_search_invalid_parameters_name():
+    action = {
+        'name': '',
+        "topn": 1,
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
+
+
+def test_edit_web_search_action_not_exists():
+
+    action = {
+        'name': 'custom_search',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Public search action with name "custom_search" not found'
+
+
+def test_edit_web_search_action():
+    action = {
+        'name': 'public_custom_search',
+         "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'Failed to perform public search',
+        'website': 'https://nimblework.com',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+def test_list_web_search_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+    print(actual["data"])
+    actual["data"][0].pop("_id")
+    assert actual["data"][0]['name'] == 'public_custom_search'
+    assert actual["data"][0]['failure_response'] == 'Failed to perform public search'
+    assert actual['data'][0]['website'] == 'https://nimblework.com'
+    assert actual["data"][0]['topn'] == 1
+    assert not actual["data"][0]['dispatch_response']
+    assert actual["data"][0].get('set_slot')
+
+
+def test_delete_web_search_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/public_custom_search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
+def test_delete_web_search_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/public_custom_search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "public_custom_search" not found'
 
 
 def test_list_hubspot_forms_action_no_actions():
