@@ -3,7 +3,6 @@ from collections import defaultdict
 from typing import Optional, Dict, Text
 
 from loguru import logger
-from networkx import is_connected, Graph, recursive_simple_cycles, all_simple_paths
 from rasa.core.training.story_conflict import find_story_conflicts
 from rasa.shared.constants import UTTER_PREFIX
 from rasa.shared.core.domain import Domain
@@ -25,7 +24,6 @@ from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRI
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories
 from kairon.shared.data.utils import DataUtility
-from kairon.shared.models import StoryStepType
 from kairon.shared.utils import Utility, StoryValidator
 
 
