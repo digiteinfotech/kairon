@@ -1,0 +1,44 @@
+config:
+  api_server_host_url: http://testserver
+  botClassName: ''
+  buttonType: button
+  chatContainerClassName: ''
+  chat_server_base_url: null
+  container: '#root'
+  containerClassName: ''
+  formClassName: ''
+  headerClassName: ''
+  name: kairon_testing
+  openButtonClassName: ''
+  styles:
+    botStyle:
+      backgroundColor: '#e0e0e0'
+      color: '#000000'
+      fontFamily: '''Roboto'', sans-serif'
+      fontSize: 14px
+      iconSrc: ''
+      showIcon: 'false'
+    buttonStyle:
+      backgroundColor: '#2b3595'
+      color: '#ffffff'
+    containerStyles:
+      background: '#ffffff'
+      height: 500px
+      width: 350px
+    headerStyle:
+      backgroundColor: '#2b3595'
+      color: '#ffffff'
+      height: 60px
+    userStyle:
+      backgroundColor: '#2b3595'
+      color: '#ffffff'
+      fontFamily: '''Roboto'', sans-serif'
+      fontSize: 14px
+      iconSrc: ''
+      showIcon: 'false'
+  userClassName: ''
+  userStorage: ls
+  userType: custom
+  welcomeMessage: Hello! How are you? This is Testing Welcome Message.
+  whitelist:
+  - '*'
