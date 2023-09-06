@@ -1936,6 +1936,54 @@ class StoryValidator:
             if any(value['node_id'] not in leaf_node_ids for value in flow_metadata):
                 raise ValidationError("Only leaf nodes can be tagged with a flow")
 
+    @staticmethod
+    def validate_multiflow_story_steps_file_validator(steps: list, metadata: list):
+        errors = []
+        story_graph = StoryValidator.get_graph(steps)
+        leaf_nodes = StoryValidator.get_leaf_nodes(story_graph)
+        leaf_node_ids = [value.node_id for value in leaf_nodes]
+        source = StoryValidator.get_source_node(story_graph)
+
+        if not is_connected(Graph(story_graph)):
+            errors.append("All steps must be connected!")
+
+        if len(source) > 1:
+            errors.append("Story cannot have multiple sources!")
+
+        if source[0].step_type != StoryStepType.intent:
+            errors.append("First step should be an intent")
+
+        if recursive_simple_cycles(story_graph):
+            errors.append("Story cannot contain cycle!")
+
+        for story_node in story_graph.nodes():
+            if story_node.step_type == "INTENT":
+                if [successor for successor in story_graph.successors(story_node) if successor.step_type == "INTENT"]:
+                    errors.append("Intent should be followed by an Action or Slot type event")
+                if len(list(story_graph.successors(story_node))) > 1:
+                    errors.append("Intent can only have one connection of action type or slot type")
+            if story_node.step_type == 'SLOT' and story_node.value:
+                if story_node.value is not None and not isinstance(story_node.value, (str, int, bool)):
+                    errors.append("slot values in multiflow story must be either None or of type int, str or boolean")
+            if story_node.step_type != 'SLOT' and story_node.value is not None:
+                errors.append("Value is allowed only for slot events in multiflow story")
+            if story_node.step_type == 'SLOT' and story_node.node_id in leaf_node_ids:
+                errors.append("Slots cannot be leaf nodes!")
+            if story_node.step_type == 'INTENT' and story_node.node_id in leaf_node_ids:
+                errors.append("Leaf nodes cannot be intent")
+        if metadata:
+            for value in metadata:
+                if value.get('flow_type') == 'RULE':
+                    if any(leaf.node_id == value.get('node_id') for leaf in leaf_nodes):
+                        paths = list(all_simple_paths(story_graph, source[0], next(
+                            leaf for leaf in leaf_nodes if leaf.node_id == value.get('node_id'))))
+                        if any(len([node.step_type for node in path if node.step_type == 'INTENT']) > 1 for path in
+                               paths):
+                            errors.append('Path tagged as RULE can have only one intent!')
+            if any(value['node_id'] not in leaf_node_ids for value in metadata):
+                errors.append("Only leaf nodes can be tagged with a flow")
+        return errors
+
 
 class MailUtility:
 
