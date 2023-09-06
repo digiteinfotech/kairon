@@ -19,20 +19,10 @@ class KScheduler(EventSchedulerBase):
                                       job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
     __scheduler.start()
 
-    def __init__(self, bot: Text, user: Text):
-        self.bot = bot
-        self.user = user
-
-    def add_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict, timezone=None):
-        func = ExecutorFactory.get_executor().execute_task
-        args = (event_class, body,)
-        trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
-        KScheduler.__scheduler.add_job(func, trigger, args, id=event_id, name=func.__name__, jobstore=KScheduler.__job_store_name)
-
-    def update_job(self, event_id: Text, cron_exp: Text, event_class: Text, body: dict, timezone=None):
+    def update_job(self, event_id: Text, cron_exp: Text, event_class: Text, data: dict, timezone=None):
         try:
             func = ExecutorFactory.get_executor().execute_task
-            args = (event_class, body,)
+            args = (event_class, data,)
             trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
             changes = {
                 "func": func, "trigger": trigger, "args": args, "name": func.__name__
@@ -42,6 +32,12 @@ class KScheduler(EventSchedulerBase):
         except JobLookupError as e:
             logger.exception(e)
             raise AppException(e)
+
+    def add_job(self, event_id: Text, cron_exp: Text, event_class: Text, data: dict, timezone=None):
+        func = ExecutorFactory.get_executor().execute_task
+        args = (event_class, data,)
+        trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
+        KScheduler.__scheduler.add_job(func, trigger, args, id=event_id, name=func.__name__, jobstore=KScheduler.__job_store_name)
 
     def list_jobs(self):
         return [job.id for job in KScheduler.__scheduler.get_jobs(jobstore=KScheduler.__job_store_name)]
