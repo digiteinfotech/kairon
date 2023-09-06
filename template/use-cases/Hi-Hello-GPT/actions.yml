@@ -35,7 +35,7 @@ prompt_action:
     name: System Context
     source: static
     type: system
-  - data: google_search_result
+  - data: web_search_result
     instructions: Make sure that your answers are relevant to the question that the
       user has asked. You can be creative with your answers and crack jokes too but
       don't make things up. Your answer must be in the same language in which the
