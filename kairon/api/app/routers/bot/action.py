@@ -6,7 +6,7 @@ from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
-    RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest
+    RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, WebSearchActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -212,6 +212,45 @@ async def update_google_search_action(
     Updates the google search action configuration.
     """
     mongo_processor.edit_google_search_action(
+        request_data.dict(), current_user.get_bot(), current_user.get_user()
+    )
+    return Response(message='Action updated')
+
+
+@router.post("/websearch", response_model=Response)
+async def add_web_search_action(
+        request_data: WebSearchActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the public search action config.
+    """
+    action_id = mongo_processor.add_web_search_action(
+        request_data.dict(), current_user.get_bot(), current_user.get_user()
+    )
+    return Response(data=action_id, message='Action added')
+
+
+@router.get("/websearch", response_model=Response)
+async def list_web_search_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns list of public search actions for bot.
+    """
+    actions = list(mongo_processor.list_web_search_actions(bot=current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/websearch", response_model=Response)
+async def update_web_search_action(
+        request_data: WebSearchActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the public search action configuration.
+    """
+    mongo_processor.edit_web_search_action(
         request_data.dict(), current_user.get_bot(), current_user.get_user()
     )
     return Response(message='Action updated')

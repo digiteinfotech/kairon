@@ -65,6 +65,7 @@ class EventClass(str, Enum):
     data_generator = "data_generator"
     faq_importer = "faq_importer"
     message_broadcast = "message_broadcast"
+    web_search = "web_search"
 
 
 class EventRequestType(str, Enum):

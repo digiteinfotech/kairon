@@ -15,7 +15,8 @@ from .exception import ActionFailure
 from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
-from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes
+from ..cloud.utils import CloudUtility
+from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
 from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
@@ -391,6 +392,32 @@ class ActionUtility:
                 search_results = service.cse().list(q=search_term, cx=search_engine_id, **kwargs).execute()
                 for item in search_results.get('items') or []:
                     results.append({'title': item['title'], 'text': item['snippet'], 'link': item['link']})
+        except Exception as e:
+            logger.exception(e)
+            raise ActionFailure(e)
+        return results
+
+    @staticmethod
+    def perform_web_search(search_term: str, **kwargs):
+        search_engine_url = Utility.environment['web_search_url']['url']
+        results = []
+        try:
+            website = kwargs.get('website') if kwargs.get('website') else ''
+            request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
+            if not ActionUtility.is_empty(search_engine_url):
+                response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
+                if response.get('error_code') != 0:
+                    raise ActionFailure(f"{response}")
+                search_results = response.get('data')
+            else:
+                lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
+                if lambda_response['StatusCode'] != 200:
+                    raise ActionFailure(f"{lambda_response}")
+                search_results = lambda_response["Payload"].get('body')
+            if not search_results:
+                raise ActionFailure("No response retrieved!")
+            for item in search_results:
+                results.append({'title': item['title'], 'description': item['description'], 'url': item['url']})
         except Exception as e:
             logger.exception(e)
             raise ActionFailure(e)

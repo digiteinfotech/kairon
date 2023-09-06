@@ -4100,7 +4100,7 @@ def test_train_on_updated_data(monkeypatch):
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    
+
     actual = response.json()
     assert "data" in actual
     assert actual["message"] == "Slot added successfully!"
@@ -4117,7 +4117,7 @@ def test_train_on_updated_data(monkeypatch):
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    
+
     actual = response.json()
     assert "data" in actual
     assert actual["message"] == "Slot added successfully!"
@@ -12748,7 +12748,7 @@ def test_add_bot_with_template_name(monkeypatch):
                               'utterances': ["utter_please_rephrase", "utter_default"], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
                               'email_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                               'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
-                              'razorpay_action': [], 'database_action': [], 'actions': []}, ignore_order=True)
+                              'razorpay_action': [], 'database_action': [], 'web_search_action': [], 'actions': []}, ignore_order=True)
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
