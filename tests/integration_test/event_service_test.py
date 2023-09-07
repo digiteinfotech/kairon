@@ -48,7 +48,7 @@ def test_lambda_executor():
         with mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda") as mock_trigger:
             mock_trigger.side_effect = __mock_lambda_execution
             request_body = {"data": {"bot": "test", "user": "test_user", "token": "asdfghjk23456789"}}
-            response = client.post(f"/api/events/execute/{EventClass.model_training}", json=request_body)
+            response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false", json=request_body)
             response_json = response.json()
             assert response_json == {"data": {"StatusCode": 200, "FunctionError": "Unhandled",
                                               "LogResult": "U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=",
@@ -75,7 +75,7 @@ def test_lambda_executor_failed():
         with mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda") as mock_trigger:
             mock_trigger.side_effect = __mock_lambda_execution
             request_body = {"data": {"bot": "test_bot", "user": "test_user", "token": "asdfghjk23456789"}}
-            response = client.post(f"/api/events/execute/{EventClass.model_training}",
+            response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
                                    json=request_body)
             response_json = response.json()
             assert response_json == {'data': None, 'success': False, 'error_code': 422,
@@ -92,7 +92,7 @@ def test_dramatiq_executor(mock_mongo_client, mock_database):
         with patch('dramatiq_mongodb.MongoDBBroker.__new__') as mock_broker:
             mock_broker.return_value = broker
             request_body = {"data": {"bot": "test", "user": "test_user", "token": "asdfghjk23456789"}}
-            response = client.post(f"/api/events/execute/{EventClass.model_training}",
+            response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
                                    json=request_body)
             response_json = response.json()
             assert re.match(
@@ -119,7 +119,7 @@ def test_dramatiq_executor_failure(mock_mongo_client, mock_database):
             mock_broker.return_value = broker
             with patch('kairon.shared.events.broker.mongo.MongoBroker.enqueue') as mock_enqueue:
                 mock_enqueue.side_effect = __mock_enqueue_error
-                response = client.post(f"/api/events/execute/{EventClass.model_training}",
+                response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
                                        json=request_body)
             response_json = response.json()
             assert response_json == {"data": None, "success": False, "error_code": 422,
@@ -139,7 +139,7 @@ def test_standalone_executor():
     with patch.dict(Utility.environment, mock_env):
         with mock.patch("kairon.events.definitions.model_training.ModelTrainingEvent.execute") as event:
             event.side_effect = __mock_execute
-            response = client.post(f"/api/events/execute/{EventClass.model_training}",
+            response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
                                    json=request_body)
             response_json = response.json()
             assert response_json == {'data': 'Task Spawned!', 'error_code': 0, 'message': None, 'success': True}
@@ -159,7 +159,7 @@ def test_standalone_executor_failure():
     with patch.dict(Utility.environment, mock_env):
         with mock.patch("kairon.events.definitions.model_training.ModelTrainingEvent.execute") as event:
             event.side_effect = __mock_execute
-            response = client.post(f"/api/events/execute/{EventClass.model_training}",
+            response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
                                    json=request_body)
             response_json = response.json()
             assert response_json == {'data': 'Task Spawned!', 'error_code': 0, 'message': None, 'success': True}
@@ -194,7 +194,7 @@ def test_non_scheduled_message_broadcast_request(mock_trigger_lambda):
     mock_trigger_lambda.side_effect = __mock_lambda_execution
 
     request_body = {"data": {"bot": "test", "user": "test_user", "event_id": "6543212345678909876543"}}
-    response = client.post(f"/api/events/execute/{EventClass.message_broadcast}", json=request_body)
+    response = client.post(f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=false", json=request_body)
     response_json = response.json()
     assert response_json == {"data": {"StatusCode": 200, "FunctionError": "Unhandled",
                                       "LogResult": "U1RBUlQgUmVxdWVzdElkOiBlOTJiMWNjMC02MjcwLTQ0OWItOA3O=",
