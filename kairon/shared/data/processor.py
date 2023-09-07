@@ -3487,7 +3487,8 @@ class MongoProcessor:
             ActionType.jira_action.value: JiraAction, ActionType.form_validation_action.value: FormValidationAction,
             ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,
             ActionType.pipedrive_leads_action.value: PipedriveLeadsAction,
-            ActionType.prompt_action.value: PromptAction
+            ActionType.prompt_action.value: PromptAction,
+            ActionType.web_search_action.value: WebSearchAction
         }
         saved_actions = set(Actions.objects(bot=bot, status=True, type__ne=None).values_list('name'))
         for action_type, actions_list in actions.items():

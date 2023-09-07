@@ -101,6 +101,8 @@ async def startup():
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
+    await AccountProcessor.default_account_setup()
+    AccountProcessor.load_system_properties()
 
 
 @app.on_event("shutdown")

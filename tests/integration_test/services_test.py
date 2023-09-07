@@ -7,6 +7,7 @@ import tempfile
 from datetime import datetime, timedelta
 from io import BytesIO
 from unittest.mock import patch
+from urllib.parse import urlencode
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
@@ -4091,40 +4092,6 @@ def test_train_on_updated_data(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/slots",
-        json={
-            "name": "frontend",
-            "type": "text",
-            "influence_conversation": True,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert "data" in actual
-    assert actual["message"] == "Slot added successfully!"
-    assert actual["data"]["_id"]
-    assert actual["success"]
-    assert actual["error_code"] == 0
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/slots",
-        json={
-            "name": "more_queries",
-            "type": "text",
-            "influence_conversation": True,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert "data" in actual
-    assert actual["message"] == "Slot added successfully!"
-    assert actual["data"]["_id"]
-    assert actual["success"]
-    assert actual["error_code"] == 0
 
     response = client.post(
         f"/api/bot/{pytest.bot}/train",
