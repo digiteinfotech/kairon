@@ -30,23 +30,6 @@ def test_index():
 
 
 @patch.object(EvaluatorProcessor, 'evaluate_pyscript')
-def test_run_pyscript_with_starlette_exception(mock_evaluate_pyscript):
-    from starlette.exceptions import HTTPException as StarletteHTTPException
-
-    script = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
-    mock_evaluate_pyscript.side_effect = StarletteHTTPException(status_code=400, detail="Invalid input data")
-    response = client.post("/evaluate", json={"source_code": script})
-    actual = response.json()
-    assert actual == {'success': False, 'message': 'Invalid input data', 'data': None, 'error_code': 400}
-
-
-@patch.object(EvaluatorProcessor, 'evaluate_pyscript')
 def test_run_pyscript_with_assertion_error(mock_evaluate_pyscript):
     script = """
     data = [1, 2, 3, 4, 5]
@@ -59,25 +42,6 @@ def test_run_pyscript_with_assertion_error(mock_evaluate_pyscript):
     response = client.post("/evaluate", json={"source_code": script})
     actual = response.json()
     assert actual == {'success': False, 'message': 'Assertion error', 'data': None, 'error_code': 422}
-
-
-@patch.object(EvaluatorProcessor, 'evaluate_pyscript')
-def test_run_pyscript_with_http_exception(mock_evaluate_pyscript):
-    from starlette.exceptions import HTTPException
-
-    script = """
-    data = [1, 2, 3, 4, 5]
-    total = 0
-    for i in data:
-        total += i
-    print(total)
-    """
-    mock_evaluate_pyscript.side_effect = HTTPException(status_code=422,
-                                                       detail="Validation failed. Please check your input data")
-    response = client.post("/evaluate", json={"source_code": script})
-    actual = response.json()
-    assert actual == {'success': False, 'message': 'Validation failed. Please check your input data',
-                      'data': None, 'error_code': 422}
 
 
 @patch.object(EvaluatorProcessor, 'evaluate_pyscript')
@@ -210,9 +174,9 @@ def test_run_pyscript_with_mongoengine_lookup_exception(mock_evaluate_pyscript):
     print(total)
     """
     mock_evaluate_pyscript.side_effect = LookUpError("An unexpected data lookup error occurred.")
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
-    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": context})
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": predefined_objects})
     actual = response.json()
     assert actual == {'success': False, 'message': 'An unexpected data lookup error occurred.',
                       'data': None, 'error_code': 422}
@@ -231,9 +195,9 @@ def test_run_pyscript_with_mongoengine_multiple_objects_exception(mock_evaluate_
     """
     mock_evaluate_pyscript.side_effect = MultipleObjectsReturned(
         "Multiple matching records found when only one was expected.")
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
-    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": context})
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": predefined_objects})
     actual = response.json()
     assert actual == {'success': False, 'message': 'Multiple matching records found when only one was expected.',
                       'data': None, 'error_code': 422}
@@ -252,9 +216,9 @@ def test_run_pyscript_with_mongoengine_invalid_query_exception(mock_evaluate_pys
     """
     mock_evaluate_pyscript.side_effect = InvalidQueryError(
         "Invalid query error occurred while processing the request.")
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
-    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": context})
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": predefined_objects})
     actual = response.json()
     assert actual == {'success': False, 'message': 'Invalid query error occurred while processing the request.',
                       'data': None, 'error_code': 422}
@@ -272,49 +236,46 @@ def test_run_pyscript_with_app_exception(mock_evaluate_pyscript):
     print(total)
     """
     mock_evaluate_pyscript.side_effect = AppException("Failed to execute the URL")
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
-    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": context})
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    response = client.post("/evaluate", json={"source_code": script, "predefined_objects": predefined_objects})
     actual = response.json()
     assert actual == {'success': False, 'message': 'Failed to execute the URL', 'data': None, 'error_code': 422}
 
 
 def test_run_pyscript_with_source_code_empty():
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": "",
-        "predefined_objects": context
+        "predefined_objects": predefined_objects
     }
     response = client.post(
         url=f"/evaluate",
         json=request_body
     )
     actual = response.json()
-    assert not actual['success']
-    assert actual['error_code'] == 422
-    assert actual['message'] == [{'loc': ['body', 'source_code'],
-                                  'msg': 'source_code is required', 'type': 'value_error'}]
-    assert not actual['data']
+    assert response.status_code == 422
+    assert actual == {
+        'detail': [{'loc': ['body', 'source_code'], 'msg': 'source_code is required', 'type': 'value_error'}]}
 
 
 def test_run_pyscript_with_source_code_none():
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": None,
-        "predefined_objects": context
+        "predefined_objects": predefined_objects
     }
     response = client.post(
         url=f"/evaluate",
         json=request_body
     )
     actual = response.json()
-    assert not actual['success']
-    assert actual['error_code'] == 422
-    assert actual['message'] == [{'loc': ['body', 'source_code'],
-                                  'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}]
-    assert not actual['data']
+    assert response.status_code == 422
+    assert actual == {
+        'detail': [{'loc': ['body', 'source_code'],
+                    'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}]}
 
 
 def test_run_pyscript():
@@ -326,11 +287,8 @@ def test_run_pyscript():
     print(total)
     """
     script = textwrap.dedent(script)
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": script,
-        "predefined_objects": context
     }
     response = client.post(
         url=f"/evaluate",
@@ -338,12 +296,40 @@ def test_run_pyscript():
     )
     actual = response.json()
     assert actual['success']
+    assert actual['error_code'] == 0
     assert not actual['message']
     assert actual['data']['data'] == [1, 2, 3, 4, 5]
     assert actual['data']['total'] == 15
 
 
-def test_evaluate_pyscript_with_script_errors():
+def test_run_pyscript_with_predefined_objects():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    request_body = {
+        "source_code": script,
+        "predefined_objects": predefined_objects
+    }
+    response = client.post(
+        url=f"/evaluate",
+        json=request_body
+    )
+    actual = response.json()
+    assert actual['success']
+    assert actual['error_code'] == 0
+    assert not actual['message']
+    assert actual['data']['data'] == [1, 2, 3, 4, 5]
+    assert actual['data']['total'] == 15
+
+
+def test_run_pyscript_with_script_errors():
     script = """
     import requests
     response = requests.get('http://localhost')
@@ -351,38 +337,40 @@ def test_evaluate_pyscript_with_script_errors():
     data = value['data']
     """
     script = textwrap.dedent(script)
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": script,
-        "predefined_objects": context
+        "predefined_objects": predefined_objects
     }
     response = client.post(
         url=f"/evaluate",
         json=request_body
     )
     actual = response.json()
-    assert actual['success']
+    assert not actual['success']
+    assert actual['error_code'] == 422
     assert not actual['data']
     assert actual['message'] == "Script execution error: import of 'requests' is unauthorized"
 
 
-def test_evaluate_pyscript_with_interpreter_error():
+def test_run_pyscript_with_interpreter_error():
     script = """
     for i in 10
     """
     script = textwrap.dedent(script)
-    context = {'sender_id': 'default', 'user_message': 'get intents',
-               'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
+    predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                          'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore", "langauge": "Kannada"}}
     request_body = {
         "source_code": script,
-        "predefined_objects": context
+        "predefined_objects": predefined_objects
     }
     response = client.post(
         url=f"/evaluate",
         json=request_body
     )
     actual = response.json()
-    assert actual['success']
+    assert not actual['success']
+    assert actual['error_code'] == 422
     assert not actual['data']
     assert actual['message'] == 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)'

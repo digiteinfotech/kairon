@@ -524,8 +524,8 @@ class ActionUtility:
     def filter_out_kairon_system_slots(slots: dict):
         from kairon.shared.constants import KaironSystemSlots
 
-        slot_values = {slot: value for slot, value in slots.items() if
-                       slot not in {item.value for item in KaironSystemSlots}}
+        slots = {} if not isinstance(slots, dict) else slots
+        slot_values = {slot: value for slot, value in slots.items() if slot not in {KaironSystemSlots.bot.value}}
         return slot_values
 
     @staticmethod
@@ -543,9 +543,7 @@ class ActionUtility:
                 raise ActionFailure(f"{lambda_response}")
             result = lambda_response["Payload"].get('body')
 
-        response_type = DispatchType.json.value if isinstance(result, dict) else DispatchType.text.value
-        response = {"bot_response": result, "slots": context.get('slot'), "type": response_type}
-        return response
+        return result
 
     @staticmethod
     def compose_response(response_config: dict, http_response: Any):

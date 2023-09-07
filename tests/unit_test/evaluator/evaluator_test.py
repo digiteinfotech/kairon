@@ -6,6 +6,7 @@ from mongoengine import connect
 
 from kairon import Utility
 from kairon.evaluator.processor import EvaluatorProcessor
+from kairon.exceptions import AppException
 
 
 class TestEvaluatorProcessor:
@@ -25,10 +26,26 @@ class TestEvaluatorProcessor:
         print(total)
         """
         script = textwrap.dedent(script)
-        response, message = EvaluatorProcessor.evaluate_pyscript(source_code=script)
+        response = EvaluatorProcessor.evaluate_pyscript(source_code=script)
         assert response["data"] == [1, 2, 3, 4, 5]
         assert response['total'] == 15
-        assert not message
+
+    def test_evaluate_pyscript_with_predefined_objects(self):
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        predefined_objects = {'sender_id': 'default', 'user_message': 'get intents',
+                              'slot': {"bot": "5f50fd0a56b698ca10d35d2e", "location": "Bangalore",
+                                       "langauge": "Kannada"}}
+        script = textwrap.dedent(script)
+        response = EvaluatorProcessor.evaluate_pyscript(source_code=script,
+                                                        predefined_objects=predefined_objects)
+        assert response["data"] == [1, 2, 3, 4, 5]
+        assert response['total'] == 15
 
     def test_evaluate_pyscript_with_script_errors(self):
         script = """
@@ -38,15 +55,17 @@ class TestEvaluatorProcessor:
         data = value['data']
         """
         script = textwrap.dedent(script)
-        response, message = EvaluatorProcessor.evaluate_pyscript(source_code=script)
-        assert not response
-        assert message == "Script execution error: import of 'requests' is unauthorized"
+        with pytest.raises(AppException, match="Script execution error: import of 'requests' is unauthorized"):
+            EvaluatorProcessor.evaluate_pyscript(source_code=script)
 
     def test_evaluate_pyscript_with_interpreter_error(self):
         script = """
         for i in 10
         """
         script = textwrap.dedent(script)
-        response, message = EvaluatorProcessor.evaluate_pyscript(source_code=script)
-        assert not response
-        assert message == 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)'
+        with pytest.raises(
+                AppException,
+                match='Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: \'for i in 10\'",)'
+        ):
+            EvaluatorProcessor.evaluate_pyscript(source_code=script)
+
