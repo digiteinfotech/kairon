@@ -12913,11 +12913,11 @@ def test_add_bot_with_template_name(monkeypatch):
     )
     actual = response.json()
     print(actual['data'])
-    assert actual['data'] == {'google_search_action': [], 'prompt_action': ['kairon_faq_action'],
+    assert actual['data'] == {'prompt_action': ['kairon_faq_action'], 'web_search_action': ['google_search_action'],
                               'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
-                              'email_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
-                              'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
-                              'razorpay_action': [], 'database_action': [], 'web_search_action': ['web_search_action'], 'actions': []}
+                              'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
+                              'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
+                              'kairon_bot_response': [], 'razorpay_action': [], 'database_action': [], 'actions': []}
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
