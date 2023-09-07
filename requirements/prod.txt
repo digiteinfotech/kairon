@@ -13,7 +13,6 @@ bs4
 uuid6
 passlib[bcrypt]
 openai
-tornado
 json2html
 google-api-python-client
 jira

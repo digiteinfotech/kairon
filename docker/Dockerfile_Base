@@ -3,51 +3,33 @@ FROM amazonlinux:latest
 ENV KAIRON_HOME=/app
 ENV PYTHON_VERSION=3.10.13
 
-RUN yum update -y
-RUN yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel
-RUN yum -y install libffi-devel
-RUN wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz
-RUN tar -xf Python-${PYTHON_VERSION}.tgz
-RUN rm ./Python-${PYTHON_VERSION}.tgz
-WORKDIR Python-${PYTHON_VERSION}/
-RUN ./configure --enable-optimizations
-RUN make altinstall
-WORKDIR ~
-RUN rm -rf Python-${PYTHON_VERSION}
 WORKDIR ${KAIRON_HOME}
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python2 50
-RUN update-alternatives --install /usr/bin/python python /usr/local/bin/python3.10 60
-RUN python -m pip install --upgrade pip
-COPY requirements  ${KAIRON_HOME}/requirements
-RUN python -m pip install -r ./requirements/prod.txt
-RUN rm -rf requirements
 
-RUN mkdir ssl
-RUN mkdir data_generator
-RUN mkdir training_data
-RUN mkdir testing_data
-RUN mkdir models
-RUN mkdir .rasa
-RUN chmod 777 -R /tmp
-RUN mkdir -p /home/cache
-RUN chmod -R 777 /home/cache
-RUN chmod -R 777 /tmp
+RUN yum update -y && yum -y install wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel libffi-devel && \
+    wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
+    tar -xf Python-${PYTHON_VERSION}.tgz && \
+    rm ./Python-${PYTHON_VERSION}.tgz && \
+    cd Python-${PYTHON_VERSION}/ && \
+    ./configure --enable-optimizations && \
+    make altinstall && \
+    rm -rf Python-${PYTHON_VERSION} && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python2 50 && \
+    update-alternatives --install /usr/bin/python python /usr/local/bin/python3.10 60 && \
+    python -m pip install --upgrade pip && \
+    mkdir data_generator training_data testing_data models /home/cache .rasa
+
+
+COPY . .
+RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
+    python -m spacy download en_core_web_md && \
+    python -m nltk.downloader averaged_perceptron_tagger && \
+    python -m nltk.downloader punkt && \
+    python -m nltk.downloader stopwords && \
+    python -m nltk.downloader omw-1.4 && \
+    python -m nltk.downloader wordnet && \
+    rm -rf requirements
+
+
 ENV HF_HOME="/home/cache"
 ENV SENTENCE_TRANSFORMERS_HOME="/home/cache"
-
-RUN python -m spacy download en_core_web_md
-RUN python -m spacy link en_core_web_md en
-RUN python -m nltk.downloader averaged_perceptron_tagger
-RUN python -m nltk.downloader punkt
-RUN python -m nltk.downloader stopwords
-RUN python -m nltk.downloader omw-1.4
-RUN python -m nltk.downloader wordnet
-
-COPY kairon ${KAIRON_HOME}/kairon
-COPY metadata ${KAIRON_HOME}/metadata
-COPY system.yaml ${KAIRON_HOME}/
-COPY template ${KAIRON_HOME}/template
-COPY custom ${KAIRON_HOME}/custom
-COPY email.yaml ${KAIRON_HOME}/
-COPY augmentation ${KAIRON_HOME}/augmentation
 
