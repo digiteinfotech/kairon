@@ -92,7 +92,8 @@ and set google analytics tracking id
 
    **Windows**
    ```
-   setup.bat   ```
+   setup.bat   
+   ```
 
    **No Matching distribution found tensorflow-text** - remove the dependency from requirements.txt file, as **window version is not available** [#44](https://github.com/tensorflow/text/issues/44)
 
