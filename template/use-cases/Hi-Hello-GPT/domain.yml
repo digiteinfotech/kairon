@@ -50,7 +50,7 @@ slots:
     initial_value: null
     auto_fill: false
     influence_conversation: false
-  web_search_result:
+  google_search_result:
     type: rasa.shared.core.slots.TextSlot
     initial_value: null
     auto_fill: false
@@ -63,6 +63,6 @@ slots:
 responses: {}
 actions:
 - kairon_faq_action
-- web_search_action
+- google_search_action
 forms: {}
 e2e_actions: []
