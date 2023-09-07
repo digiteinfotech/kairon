@@ -85,6 +85,27 @@ class HttpActionResponse(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
+class PyscriptActionConfig(Auditlog):
+    name = StringField(required=True)
+    source_code = StringField(required=True)
+    dispatch_response = BooleanField(default=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if Utility.check_empty_string(self.source_code):
+            raise ValidationError("Source code cannot be empty")
+
+
+@auditlogger.log
+@push_notification.apply
 class HttpActionConfig(Auditlog):
     action_name = StringField(required=True)
     http_url = StringField(required=True)

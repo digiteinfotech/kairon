@@ -1,5 +1,3 @@
-import json
-from json import JSONDecodeError
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -106,17 +104,9 @@ class ActionHTTP(ActionsBase):
             bot_response = "I have failed to process your request"
         finally:
             if dispatch_bot_response:
-                if dispatch_type == DispatchType.json.value:
-                    try:
-                        if isinstance(bot_response, str):
-                            bot_response = json.loads(bot_response)
-                        dispatcher.utter_message(json_message=bot_response)
-                    except JSONDecodeError as e:
-                        msg_logger.append(f'Failed to convert http response to json: {str(e)}')
-                        logger.exception(e)
-                        dispatcher.utter_message(str(bot_response))
-                else:
-                    dispatcher.utter_message(str(bot_response))
+                bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)
+                if message:
+                    msg_logger.append(message)
             ActionServerLogs(
                 type=ActionType.http_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),

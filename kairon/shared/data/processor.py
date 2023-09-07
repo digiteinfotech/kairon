@@ -43,7 +43,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, WebSearchAction
+    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
@@ -2466,6 +2466,7 @@ class MongoProcessor:
         zendesk_actions = set(ZendeskAction.objects(bot=bot, status=True).values_list('name'))
         pipedrive_leads_actions = set(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name'))
         hubspot_forms_actions = set(HubspotFormsAction.objects(bot=bot, status=True).values_list('name'))
+        pyscript_actions = set(PyscriptActionConfig.objects(bot=bot, status=True).values_list('name'))
         razorpay_actions = set(RazorpayAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         prompt_actions = set(PromptAction.objects(bot=bot, status=True).values_list('name'))
@@ -2520,6 +2521,8 @@ class MongoProcessor:
                         step['type'] = StoryStepType.hubspot_forms_action.value
                     elif event["name"] in razorpay_actions:
                         step['type'] = StoryStepType.razorpay_action.value
+                    elif event["name"] in pyscript_actions:
+                        step['type'] = StoryStepType.pyscript_action.value
                     elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
                     elif event['name'] in prompt_actions:
@@ -3009,6 +3012,64 @@ class MongoProcessor:
         """
         actions = HttpActionConfig.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
+
+    def add_pyscript_action(self, pyscript_config: Dict, user: str, bot: str):
+        """
+        Adds a new PyscriptActionConfig action.
+        :param pyscript_config: dict object containing configuration for the Http action
+        :param user: user id
+        :param bot: bot id
+        :return: Pyscript configuration id for saved Pyscript action config
+        """
+        Utility.is_valid_action_name(pyscript_config.get("name"), bot, PyscriptActionConfig)
+        action_id = PyscriptActionConfig(
+            name=pyscript_config['name'],
+            source_code=pyscript_config['source_code'],
+            dispatch_response=pyscript_config['dispatch_response'],
+            bot=bot,
+            user=user,
+        ).save().id.__str__()
+        self.add_action(pyscript_config['name'], bot, user, action_type=ActionType.pyscript_action.value,
+                        raise_exception=False)
+        return action_id
+
+    def update_pyscript_action(self, request_data: Dict, user: str, bot: str):
+        """
+        Updates Pyscript configuration.
+        :param request_data: Dict containing configuration to be modified
+        :param user: user id
+        :param bot: bot id
+        :return: Pyscript configuration id for updated Pyscript action config
+        """
+
+        if not Utility.is_exist(PyscriptActionConfig, raise_error=False, name=request_data.get('name'),
+                                bot=bot, status=True):
+            raise AppException(f'Action with name "{request_data.get("name")}" not found')
+        action = PyscriptActionConfig.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action.update(
+            source_code=request_data['source_code'], set__dispatch_response=request_data['dispatch_response'],
+            set__user=user, set__timestamp=datetime.utcnow()
+        )
+        return action.id.__str__()
+
+    def list_pyscript_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all Pyscript actions from collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of Pyscript actions.
+        """
+        for action in PyscriptActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
+            yield action
 
     def update_db_action(self, request_data: Dict, user: str, bot: str):
         """
@@ -4694,6 +4755,8 @@ class MongoProcessor:
                 Utility.delete_document([WebSearchAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.prompt_action.value:
                 PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
+            elif action.type == ActionType.pyscript_action.value:
+                Utility.delete_document([PyscriptActionConfig], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()

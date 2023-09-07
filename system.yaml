@@ -126,6 +126,7 @@ events:
     data_generator: ${DATA_GENERATION_TASK_DEFINITION}
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
+    pyscript: ${PYSCRIPT_TASK_DEFINITION}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
@@ -135,6 +136,8 @@ events:
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://192.168.100.109:8085/evaluate"}
+  pyscript:
+    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8080/evaluate"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}

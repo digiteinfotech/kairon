@@ -9,10 +9,11 @@ from loguru import logger
 from mongoengine import DoesNotExist
 from rasa.shared.constants import UTTER_PREFIX
 from rasa_sdk import Tracker
+from rasa_sdk.executor import CollectingDispatcher
 
 from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
-from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType
+from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
@@ -417,7 +418,7 @@ class ActionUtility:
             if not search_results:
                 raise ActionFailure("No response retrieved!")
             for item in search_results:
-                results.append({'title': item['title'], 'description': item['description'], 'url': item['url']})
+                results.append({'title': item['title'], 'text': item['description'], 'link': item['url']})
         except Exception as e:
             logger.exception(e)
             raise ActionFailure(e)
@@ -500,6 +501,49 @@ class ActionUtility:
                 parsed_output = parsed_output.replace(key, str(value_mapping[key]))
 
         return parsed_output
+
+    @staticmethod
+    def handle_utter_bot_response(dispatcher: CollectingDispatcher, dispatch_type: str, bot_response: Any):
+        from json import JSONDecodeError
+
+        message = None
+        if dispatch_type == DispatchType.json.value:
+            try:
+                if isinstance(bot_response, str):
+                    bot_response = json.loads(bot_response)
+                dispatcher.utter_message(json_message=bot_response)
+            except JSONDecodeError as e:
+                message = f'Failed to convert http response to json: {str(e)}'
+                logger.exception(e)
+                dispatcher.utter_message(bot_response)
+        else:
+            dispatcher.utter_message(bot_response)
+        return bot_response, message
+
+    @staticmethod
+    def filter_out_kairon_system_slots(slots: dict):
+        from kairon.shared.constants import KaironSystemSlots
+
+        slots = {} if not isinstance(slots, dict) else slots
+        slot_values = {slot: value for slot, value in slots.items() if slot not in {KaironSystemSlots.bot.value}}
+        return slot_values
+
+    @staticmethod
+    def run_pyscript(source_code: Text, context: dict):
+        pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
+        request_body = {"source_code": source_code, "predefined_objects": context}
+        if not ActionUtility.is_empty(pyscript_evaluator_url):
+            resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
+            if resp.get('error_code') != 0:
+                raise ActionFailure(f'Pyscript evaluation failed: {resp}')
+            result = resp.get('data')
+        else:
+            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body)
+            if lambda_response['StatusCode'] != 200:
+                raise ActionFailure(f"{lambda_response}")
+            result = lambda_response["Payload"].get('body')
+
+        return result
 
     @staticmethod
     def compose_response(response_config: dict, http_response: Any):

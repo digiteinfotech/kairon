@@ -9,6 +9,7 @@ from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.prompt import ActionPrompt
+from kairon.actions.definitions.pyscript import ActionPyscript
 from kairon.actions.definitions.razorpay import ActionRazorpay
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
@@ -36,6 +37,7 @@ class ActionFactory:
         ActionType.kairon_bot_response.value: ActionKaironBotResponse,
         ActionType.razorpay_action.value: ActionRazorpay,
         ActionType.prompt_action.value: ActionPrompt,
+        ActionType.pyscript_action.value: ActionPyscript,
         ActionType.database_action.value: ActionDatabase,
         ActionType.web_search_action.value: ActionWebSearch
     }
