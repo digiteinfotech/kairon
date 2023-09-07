@@ -5574,8 +5574,8 @@ def test_process_web_search_action():
         assert kwargs == {'topn': 1, 'website': 'https://www.w3schools.com/'}
         return [{
             'title': 'Data Science Introduction - W3Schools',
-            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
-            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+            'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'link': 'https://www.w3schools.com/datascience/ds_introduction.asp'
         }]
 
     request_object = {
@@ -5663,16 +5663,16 @@ def test_process_web_search_action():
         assert response.status_code == 200
         assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
-             'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'},
+             'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'}],
+             'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'}],
             'responses': [
                 {
-                    'text': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.',
+                    'text': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>',
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
                     'attachment': None}]}
     log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
-    assert log['bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'
+    assert log['bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'
 
 
 @responses.activate
@@ -5689,7 +5689,7 @@ def test_process_web_search_action_with_search_engine_url():
     responses.add(
         method=responses.POST,
         url=search_engine_url,
-        json={"success": True, "data": [{"title": "Data Science: Definition, Lifecycle, Skills and Tools | IBM", "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
+        json={"success": True, "data": [{"title": 'Data Science: Definition, Lifecycle, Skills and Tools | IBM', "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
                         "url": "https://www.ibm.com/topics/data-science"}], "error_code": 0},
         status=200,
         match=[
@@ -5781,10 +5781,10 @@ def test_process_web_search_action_with_search_engine_url():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning."},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning."}],
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>"},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>"}],
             'responses': [
-                {'text': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
+                {'text': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>",
                  'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
 
 
@@ -5801,11 +5801,11 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
         assert kwargs == {'topn': 2, 'website': None}
         return [
             {'title': 'What is Data Science? | IBM',
-             'description': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
-             'url': 'https://www.ibm.com/topics/data-science'},
+             'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
+             'link': 'https://www.ibm.com/topics/data-science'},
             {'title': 'What Is Data Science? Definition, Examples, Jobs, and More',
-             'description': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-             'url': 'https://www.coursera.org/articles/what-is-data-science'}]
+             'text': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
+             'link': 'https://www.coursera.org/articles/what-is-data-science'}]
 
     request_object = {
         "next_action": action_name,
@@ -5897,15 +5897,11 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
-             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'}],
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'}],
             'responses': [
-                {
-                    'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
-                    'attachment': None}]}
+                {'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
+                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_process_web_search_action_without_kairon_user_msg_entity():
@@ -5921,11 +5917,11 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
         assert kwargs == {'topn': 2, 'website': None}
         return [
             {'title': 'What is Data Science? | IBM',
-             'description': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
-             'url': 'https://www.ibm.com/topics/data-science'},
+             'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
+             'link': 'https://www.ibm.com/topics/data-science'},
             {'title': 'What Is Data Science? Definition, Examples, Jobs, and More',
-             'description': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-             'url': 'https://www.coursera.org/articles/what-is-data-science',}]
+             'text': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
+             'link': 'https://www.coursera.org/articles/what-is-data-science',}]
 
     request_object = {
         "next_action": action_name,
@@ -6014,17 +6010,13 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
         mocked.side_effect = _perform_web_search
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
+        print(response_json)
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
-             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'}],
-            'responses': [
-                {
-                    'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
-                    'attachment': None}]}
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'}],
+            'responses': [{'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
+                           'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
     log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
     assert log['user_msg'] == '/action_public_search'
 
@@ -6042,8 +6034,8 @@ def test_process_web_search_action_dispatch_false():
         assert kwargs == {'topn': 1, 'website': None}
         return [
             {'title': 'Python.org - What is Python? Executive Summary',
-             'description': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.',
-             'url': 'https://www.python.org/doc/essays/blurb/'}
+             'text': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.',
+             'link': 'https://www.python.org/doc/essays/blurb/'}
         ]
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6059,9 +6051,9 @@ def test_process_web_search_action_dispatch_false():
         assert response.status_code == 200
         assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_response',
-             'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.'},
+             'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.\nTo know more, please visit: <a href = "https://www.python.org/doc/essays/blurb/" target="_blank" >Python.org - What is Python? Executive Summary</a>'},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.'}],
+             'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.\nTo know more, please visit: <a href = "https://www.python.org/doc/essays/blurb/" target="_blank" >Python.org - What is Python? Executive Summary</a>'}],
             'responses': []}
 
 
