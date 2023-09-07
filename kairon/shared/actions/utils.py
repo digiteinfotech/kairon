@@ -417,7 +417,7 @@ class ActionUtility:
             if not search_results:
                 raise ActionFailure("No response retrieved!")
             for item in search_results:
-                results.append({'title': item['title'], 'description': item['description'], 'url': item['url']})
+                results.append({'title': item['title'], 'text': item['description'], 'link': item['url']})
         except Exception as e:
             logger.exception(e)
             raise ActionFailure(e)

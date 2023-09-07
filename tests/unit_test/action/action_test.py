@@ -2573,8 +2573,8 @@ class TestActions:
         result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
         assert result == [{
             'title': 'Data Science Introduction - W3Schools',
-            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
-            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+            'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'link': 'https://www.w3schools.com/datascience/ds_introduction.asp'
         }]
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is data science?', 'site': 'https://www.w3schools.com/', 'topn': 1}
@@ -2627,11 +2627,11 @@ class TestActions:
         result = ActionUtility.perform_web_search(search_term, topn=topn)
         assert result == [
             {'title': 'Artificial intelligence - Wikipedia',
-             'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
-             'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence',},
+             'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+             'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence',},
             {'title': 'Artificial intelligence (AI) - Britannica',
-             'description': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.',
-             'url': 'https://www.britannica.com/technology/artificial-intelligence'}
+             'text': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.',
+             'link': 'https://www.britannica.com/technology/artificial-intelligence'}
         ]
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2}
@@ -2707,8 +2707,8 @@ class TestActions:
             result = ActionUtility.perform_web_search(search_term, topn=topn)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
-                 'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
-                 'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+                 'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
             ]
 
     @responses.activate
@@ -2736,8 +2736,8 @@ class TestActions:
             result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
-                 'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
-                 'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+                 'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
             ]
 
     @responses.activate
