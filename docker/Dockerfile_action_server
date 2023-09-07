@@ -48,7 +48,6 @@ COPY kairon/ /app/kairon/
 COPY metadata /app/metadata
 COPY kairon/shared/actions /app/kairon/shared/actions
 COPY kairon/shared/account /app/kairon/shared/account
-COPY kairon/shared/tornado /app/kairon/shared/tornado
 COPY kairon/shared/authorization /app/kairon/shared/authorization
 COPY kairon/shared/utils.py /app/kairon/shared/
 COPY kairon/shared/models.py /app/kairon/shared/
