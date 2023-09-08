@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import os
 
 import mock
@@ -29,6 +29,7 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.utils import Utility
+from deepdiff import DeepDiff
 
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -336,13 +337,13 @@ def test_http_action_execution_custom_json_with_invalid_json_response():
     assert response.status_code == 200
     assert len(response_json['events']) == 3
     assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
+    assert not DeepDiff(response_json['events'], [
         {"event": "slot", "timestamp": None, "name": "val_d", "value": "['red', 'buggy', 'bumpers']"},
         {"event": "slot", "timestamp": None, "name": "val_d_0", "value": "red"},
         {"event": "slot", "timestamp": None, "name": "kairon_action_response",
-         "value": 'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'}]
+         "value": 'INVALID {"a":{"b":{"3":2,"43":30,"c":[],"d":["red","buggy","bumpers"]}}}'}], ignore_order=True)
     assert response_json['responses'][0][
-               'text'] == 'INVALID {"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}'
+               'text'] == 'INVALID {"a":{"b":{"3":2,"43":30,"c":[],"d":["red","buggy","bumpers"]}}}'
 
 
 @responses.activate

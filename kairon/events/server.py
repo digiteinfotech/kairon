@@ -101,8 +101,6 @@ async def startup():
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
-    await AccountProcessor.default_account_setup()
-    AccountProcessor.load_system_properties()
 
 
 @app.on_event("shutdown")
@@ -120,7 +118,7 @@ def index():
 def add_event(
         request: EventRequest,
         is_scheduled: bool = Query(default=False, description="Whether the event is to be run once or scheduled"),
-        event_type: EventClass = Path(description="Event type", example=[e.value for e in EventClass])
+        event_type: EventClass = Path(description="Event type", examples=[e.value for e in EventClass])
 ):
     request.validate_request(is_scheduled, event_type)
     response, message = EventUtility.add_job(event_type, request.dict(), is_scheduled)
@@ -131,7 +129,7 @@ def add_event(
 def update_scheduled_event(
         request: EventRequest,
         is_scheduled: bool = Query(default=False, description="Whether the event is to be run once or scheduled"),
-        event_type: EventClass = Path(description="Event type", example=[e.value for e in EventClass])
+        event_type: EventClass = Path(description="Event type", examples=[e.value for e in EventClass])
 ):
     request.validate_request(is_scheduled, event_type)
     response, message = EventUtility.update_job(event_type, request.dict(), is_scheduled)

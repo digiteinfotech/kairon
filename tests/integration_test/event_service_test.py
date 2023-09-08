@@ -15,7 +15,7 @@ with patch.dict(
                      'ASYNC_TEST_TIMEOUT': "360", "ENABLE_APM": "True", "APM_SERVER_URL": "http://localhost:8082"}
 ):
     with patch("pymongo.collection.Collection.create_index"):
-        with patch('elasticsearch.Elasticsearch') as mock_apm_client:
+        with patch('elasticsearch.Elasticsearch', autospec=True) as mock_apm_client:
             from kairon.events.server import app
 
             Utility.load_environment()
@@ -94,7 +94,7 @@ def test_dramatiq_executor(mock_mongo_client, mock_database):
                                    json=request_body)
             response_json = response.json()
             assert re.match(
-                '{"queue_name": "kairon_events", "actor_name": "execute_task", "args": \["model_training", {"bot": "test", "user": "test_user", "token": "asdfghjk23456789"}], "kwargs": {}, "options": {}, *',
+                '{"queue_name":"kairon_events","actor_name":"execute_task","args":\["model_training",{"bot":"test","user":"test_user","token":"asdfghjk23456789"}],"kwargs":\{},"options":\{},*',
                 response_json['data'])
             assert response_json['success']
             assert response_json['error_code'] == 0

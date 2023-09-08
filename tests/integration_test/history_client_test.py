@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import os
 from datetime import datetime, date, timedelta
 import responses

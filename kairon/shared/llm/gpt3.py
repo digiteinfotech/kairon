@@ -1,4 +1,4 @@
-import json
+import ujson as json
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 

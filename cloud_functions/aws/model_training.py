@@ -1,7 +1,7 @@
 from boto3 import client
 import os
 import logging
-import json
+import ujson as json
 
 
 def lambda_handler(event, context):

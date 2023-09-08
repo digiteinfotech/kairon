@@ -1,5 +1,5 @@
 import datetime
-import json
+import ujson as json
 import re
 from http import HTTPStatus
 from typing import Text, Dict, Any, List, Iterable, Optional

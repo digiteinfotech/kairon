@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import logging
 import typing
 from typing import Any, Dict, List, Optional, Text

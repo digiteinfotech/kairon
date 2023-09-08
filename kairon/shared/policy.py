@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import functools
-import json
+import ujson as json
 import logging
 from collections import defaultdict
 from typing import Any, List, DefaultDict, Dict, Text, Optional, Set, Tuple, cast

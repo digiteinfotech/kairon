@@ -1,4 +1,4 @@
-import json
+import ujson as json
 from typing import Optional, Dict, Any
 
 import httpx

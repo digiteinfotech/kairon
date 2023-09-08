@@ -1,6 +1,6 @@
 import asyncio
 import glob
-import json
+import ujson as json
 import os
 import re
 import shutil
@@ -4820,7 +4820,7 @@ class TestMongoProcessor:
 
     @pytest.fixture()
     def resource_validate_and_prepare_data_save_actions_and_config_append(self):
-        import json
+        import ujson as json
 
         pytest.bot = 'test_validate_and_prepare_data'
         config = "language: fr\npipeline:\n- name: WhitespaceTokenizer\n- name: LexicalSyntacticFeaturizer\n-  name: DIETClassifier\npolicies:\n-  name: TEDPolicy".encode()
@@ -5061,7 +5061,7 @@ class TestMongoProcessor:
 
     @pytest.fixture()
     def resource_validate_and_prepare_data_invalid_zip_actions_config(self):
-        import json
+        import ujson as json
         tmp_dir = tempfile.mkdtemp()
         pytest.bot = 'validate_and_prepare_data_zip_actions_config'
         zip_file = os.path.join(tmp_dir, 'test')

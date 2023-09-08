@@ -1,7 +1,6 @@
 FROM amazonlinux:latest
 
-ENV KAIRON_HOME=/app
-ENV PYTHON_VERSION=3.10.13
+ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.13
 
 WORKDIR ${KAIRON_HOME}
 
@@ -30,6 +29,5 @@ RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
     rm -rf requirements
 
 
-ENV HF_HOME="/home/cache"
-ENV SENTENCE_TRANSFORMERS_HOME="/home/cache"
+ENV HF_HOME="/home/cache" SENTENCE_TRANSFORMERS_HOME="/home/cache"
 

@@ -1,4 +1,4 @@
-import json
+import ujson as json
 from datetime import datetime
 
 from bson import ObjectId

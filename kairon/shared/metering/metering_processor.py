@@ -1,5 +1,5 @@
 import calendar
-import json
+import ujson as json
 from datetime import datetime, date
 from typing import Text
 

@@ -1,4 +1,4 @@
-import json
+import ujson as json
 
 from fastapi_keycloak import FastAPIKeycloak
 from mongoengine import DoesNotExist

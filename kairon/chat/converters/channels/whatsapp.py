@@ -1,5 +1,5 @@
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
-import json
+import ujson as json
 
 from kairon.shared.constants import ElementTypes
 

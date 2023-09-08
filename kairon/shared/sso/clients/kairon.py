@@ -1,4 +1,4 @@
-import json
+import ujson as json
 from typing import Optional, Dict, Any
 from loguru import logger as logging
 import httpx

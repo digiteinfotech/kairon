@@ -1,5 +1,4 @@
 import datetime
-import json
 from typing import Text, Dict
 
 from loguru import logger
@@ -7,12 +6,9 @@ from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 from rasa.core.channels import UserMessage
 from rasa.core.tracker_store import SerializedTrackerAsDict
-from tornado.escape import json_decode
-from tornado.httputil import HTTPServerRequest
 
 from .agent_processor import AgentProcessor
 from .. import Utility
-from ..exceptions import AppException
 from ..live_agent.factory import LiveAgentFactory
 from ..shared.actions.utils import ActionUtility
 from ..shared.live_agent.processor import LiveAgentsProcessor
@@ -141,22 +137,6 @@ class ChatUtils:
             {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
         ]))
         return last_session[0] if last_session else None
-
-    @staticmethod
-    def decode_request(request_body: HTTPServerRequest):
-        try:
-            request_body = json_decode(request_body.body.decode("utf8"))
-        except Exception as e:
-            raise AppException("Invalid JSON request: " + str(e))
-
-        if request_body.get('data') and not isinstance(request_body.get('data'), str):
-            raise AppException("Invalid request body: 'data' field must be a string!")
-
-        if not request_body.get('data') or Utility.check_empty_string(request_body.get('data')):
-            raise AppException("data is required!")
-        if request_body.get('metadata') and not isinstance(request_body.get('metadata'), dict):
-            raise AppException("metadata must be a dictionary!")
-        return request_body
 
     @staticmethod
     def __get_metadata(account: int, bot: Text, is_integration_user: bool = False, metadata: Dict = None):

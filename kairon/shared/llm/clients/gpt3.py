@@ -1,6 +1,7 @@
-import json
+import ujson as json
 import random
 from json import JSONDecodeError
+from ujson import JSONDecodeError as UJSONDecodeError
 from typing import Text
 from loguru import logger
 from openai.api_requestor import parse_stream
@@ -69,7 +70,7 @@ class GPT3Resources(LLMResources):
                 if line["choices"][0].get("index") == msg_choice and line["choices"][0]['delta'].get('content'):
                     formatted_response = f"{formatted_response}{line['choices'][0]['delta']['content']}"
                 raw_response.append(line)
-        except (JSONDecodeError, UnicodeDecodeError) as e:
+        except (JSONDecodeError, UnicodeDecodeError, UJSONDecodeError) as e:
             logger.exception(e)
             raise AppException(f"Received HTTP code {response.status_code} in streaming response from openai: {line}")
         except Exception as e:

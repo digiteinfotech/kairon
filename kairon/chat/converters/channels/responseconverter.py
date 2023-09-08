@@ -1,4 +1,4 @@
-import json
+import ujson as json
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.constants import ElementTypes

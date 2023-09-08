@@ -1,5 +1,5 @@
 import itertools
-import json
+import ujson as json
 import os
 import uuid
 from collections import ChainMap

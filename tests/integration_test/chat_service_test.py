@@ -1,5 +1,5 @@
 import asyncio
-import json
+import ujson as json
 import os
 from unittest import mock
 from urllib.parse import urlencode, quote_plus

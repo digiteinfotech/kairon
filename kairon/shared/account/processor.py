@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import uuid
 from datetime import datetime
 from typing import Dict, Text

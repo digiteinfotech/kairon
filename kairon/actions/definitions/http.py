@@ -1,5 +1,5 @@
-import json
-from json import JSONDecodeError
+import ujson as json
+from ujson import JSONDecodeError
 from typing import Text, Dict, Any
 
 from loguru import logger

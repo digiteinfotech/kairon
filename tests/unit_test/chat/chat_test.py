@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import os
 from re import escape
 from unittest.mock import patch

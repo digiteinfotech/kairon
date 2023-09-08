@@ -2,7 +2,7 @@ import ast
 import asyncio
 import hashlib
 import html
-import json
+import ujson as json
 import os
 import re
 import shutil

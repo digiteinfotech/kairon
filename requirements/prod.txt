@@ -41,3 +41,4 @@ pykka
 timeout-decorator
 googlesearch-python
 elasticsearch
+tornado

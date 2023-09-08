@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import os
 import re
 import shutil
@@ -4091,6 +4091,33 @@ def test_train_on_updated_data(monkeypatch):
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={
+            "name": "frontend",
+            "type": "text",
+            "influence_conversation": True,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    
+    actual = response.json()
+    assert "data" in actual
+    assert actual["message"] == "Slot added successfully!"
+    assert actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    
+    response = client.post(
+        f"/api/bot/{pytest.bot}/slots",
+        json={
+            "name": "more_queries",
+            "type": "text",
+            "influence_conversation": True,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     response = client.post(
@@ -12865,11 +12892,11 @@ def test_add_bot_with_template_name(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert not DeepDiff(actual['data'], {'google_search_action': ['google_search_action'], 'prompt_action': ['kairon_faq_action'],
-                              'utterances': ["utter_please_rephrase", "utter_default"], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
-                              'email_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
-                              'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
-                              'razorpay_action': [], 'database_action': [], 'web_search_action': [], 'actions': []}, ignore_order=True)
+    assert not DeepDiff(actual['data'], {'prompt_action': ['kairon_faq_action'], 'web_search_action': ['google_search_action'],
+                              'utterances': ['utter_please_rephrase', 'utter_default'], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
+                              'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
+                              'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
+                              'kairon_bot_response': [], 'razorpay_action': [], 'database_action': [], 'actions': []}, ignore_order=True)
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'

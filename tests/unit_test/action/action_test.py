@@ -1,4 +1,4 @@
-import json
+import ujson as json
 import os
 import re
 from unittest import mock
@@ -19,7 +19,6 @@ from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.web_search import ActionWebSearch
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
-from kairon.exceptions import AppException
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
@@ -877,7 +876,7 @@ class TestActions:
             ]
         }
         response = ActionUtility.prepare_response("The value of ${data.0.a} in ${data.0.a.b} is ${data.0.a.b.d}", json2)
-        assert response == 'The value of {"b": {"43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}} in {"43": 30, "c": [], "d": ["red", "buggy", "bumpers"]} is [\'red\', \'buggy\', \'bumpers\']'
+        assert response == 'The value of {"b":{"43":30,"c":[],"d":["red","buggy","bumpers"]}} in {"43":30,"c":[],"d":["red","buggy","bumpers"]} is [\'red\', \'buggy\', \'bumpers\']'
 
     def test_prepare_response_key_not_present(self):
         json1 = json.dumps({
@@ -925,7 +924,7 @@ class TestActions:
         })
         http_response = {"data": json1, "context": {}}
         response = ActionUtility.prepare_response("", http_response)
-        assert response == {'data': '{"a": {"b": {"3": 2, "43": 30, "c": [], "d": ["red", "buggy", "bumpers"]}}}',
+        assert response == {'data': '{"a":{"b":{"3":2,"43":30,"c":[],"d":["red","buggy","bumpers"]}}}',
                             'context': {}}
 
     def test_prepare_response_string_empty_request_output(self):
@@ -1695,7 +1694,7 @@ class TestActions:
     def test_attach_response(self):
         http_response = {"data": {"dollars": "51"}, "context": {}}
         output = ActionUtility.attach_response("I want $${RESPONSE}", http_response)
-        assert output == 'I want ${\"dollars\": \"51\"}'
+        assert output == 'I want ${\"dollars\":\"51\"}'
 
     def test_attach_response_int(self):
         output = ActionUtility.attach_response("I want $${RESPONSE}", 51)
