@@ -19,10 +19,6 @@ class TestActors:
     def setup(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
-        yield
-        for _, proxy in ActorFactory._ActorFactory__actors.items():
-            proxy[1].stop()
-
 
     def test_actor_pyrunner(self):
         script = """

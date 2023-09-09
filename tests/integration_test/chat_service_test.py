@@ -145,13 +145,6 @@ ChatDataProcessor.save_channel_config({"connector_type": "messenger",
 responses.stop()
 
 
-@pytest.fixture
-def cleanup():
-    yield
-    for _, proxy in ActorFactory._ActorFactory__actors.items():
-        proxy[1].stop()
-
-
 def empty_store(*args, **kwargs):
     return None
 
@@ -2116,7 +2109,7 @@ def test_get_chat_history_http_error():
 
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
-def test_chat_with_chatwoot_agent_outof_workinghours(mock_validatebusiness, mock_getbusiness, cleanup):
+def test_chat_with_chatwoot_agent_outof_workinghours(mock_validatebusiness, mock_getbusiness):
     add_live_agent_config(bot, user["email"])
     responses.reset()
     responses.start()
