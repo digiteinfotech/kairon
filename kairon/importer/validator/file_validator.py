@@ -172,12 +172,6 @@ class TrainingDataValidator(Validator):
                 intents_mismatch_summary.append(msg)
         self.summary['intents'] = intents_mismatch_summary
 
-    def multiflow_story_graph(self):
-        for item in self.multiflow_stories['multiflow_story']:
-            steps = item['events']
-            story_graph = StoryValidator.get_graph(steps)
-        return story_graph
-
     def verify_intents_in_stories(self, raise_exception: bool = True):
         """
         Validates intents in stories.
@@ -195,10 +189,7 @@ class TrainingDataValidator(Validator):
             if isinstance(event, UserUttered)
         }
         if self.multiflow_stories:
-            story_graph = self.multiflow_story_graph()
-            for story_node in story_graph.nodes():
-                if story_node.step_type == "INTENT":
-                    multiflow_stories_intent.add(story_node.name)
+            multiflow_stories_intent = StoryValidator.get_step_name_from_events(self.multiflow_stories['multiflow_story'], "INTENT")
 
         for story_intent in stories_intents:
             if story_intent not in self.domain.intents and story_intent not in DEFAULT_INTENTS:
@@ -276,10 +267,7 @@ class TrainingDataValidator(Validator):
         stories_utterances = set()
         multiflow_stories_utterances = set()
         if self.multiflow_stories:
-            story_graph = self.multiflow_story_graph()
-            for story_node in story_graph.nodes():
-                if story_node.step_type == "BOT":
-                    multiflow_stories_utterances.add(story_node.name)
+            multiflow_stories_utterances = StoryValidator.get_step_name_from_events(self.multiflow_stories['multiflow_story'], "BOT")
 
         for story in self.story_graph.story_steps:
             for event in story.events:

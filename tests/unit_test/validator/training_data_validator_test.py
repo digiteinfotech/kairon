@@ -295,7 +295,7 @@ class TestTrainingDataValidator:
         nlu_path = 'tests/testing_data/invalid_yml_multiflow/data'
         config_path = 'tests/testing_data/invalid_yml_multiflow/config.yml'
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
-        with pytest.raises(AppException):
+        with pytest.raises(AppException, match="Invalid multiflow_stories.yml. Check logs!"):
             validator.validate_training_data()
 
     @pytest.mark.asyncio

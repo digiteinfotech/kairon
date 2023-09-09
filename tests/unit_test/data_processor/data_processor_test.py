@@ -942,32 +942,12 @@ class TestMongoProcessor:
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
 
     @pytest.mark.asyncio
-    async def test_save_from_path_yml_without_multiflow_events(self):
+    async def test_save_from_path_yml_invalid_multiflow_events(self):
         processor = MongoProcessor()
         with pytest.raises(AppException):
             result = await (
                 processor.save_from_path(
                     "./tests/testing_data/yml_training_files_exception", bot="test_load_yml_multiflow", user="testUser"
-                )
-            )
-
-    @pytest.mark.asyncio
-    async def test_save_from_path_yml_multiflow_events_steps(self):
-        processor = MongoProcessor()
-        with pytest.raises(AppException):
-            result = await (
-                processor.save_from_path(
-                    "./tests/testing_data/yml_training_files_exception", bot="test_load_yml_multiflow", user="testUser"
-                )
-            )
-
-    @pytest.mark.asyncio
-    async def test_save_from_path_yml_multiflow_events_connections(self):
-        processor = MongoProcessor()
-        with pytest.raises(AppException):
-            result = await (
-                processor.save_from_path(
-                    "./tests/testing_data/all_multiflow", bot="test_load_yml_multiflow", user="testUser"
                 )
             )
 
@@ -1497,7 +1477,7 @@ class TestMongoProcessor:
         assert domain.forms['ticket_file_form'] == {
             'required_slots': {'file': [{'type': 'from_entity', 'entity': 'file'}]}}
         assert isinstance(domain.forms, dict)
-        assert domain.user_actions.__len__() == 47
+        assert domain.user_actions.__len__() == 48
         assert processor.list_actions('test_load_from_path_yml_training_files')["actions"].__len__() == 12
         assert processor.list_actions('test_load_from_path_yml_training_files')["form_validation_action"].__len__() == 1
         assert domain.intents.__len__() == 32
@@ -1509,8 +1489,10 @@ class TestMongoProcessor:
         rules = processor.fetch_rule_block_names("test_load_from_path_yml_training_files")
         assert len(rules) == 4
         actions = processor.load_http_action("test_load_from_path_yml_training_files")
+        actions_google = processor.load_google_search_action("test_load_from_path_yml_training_files")
         assert isinstance(actions, dict) is True
         assert len(actions['http_action']) == 5
+        assert len(actions_google['google_search_action']) == 1
         assert Utterances.objects(bot='test_load_from_path_yml_training_files').count() == 29
 
     @pytest.mark.asyncio
@@ -4209,7 +4191,8 @@ class TestMongoProcessor:
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\n- query\n- deny\n- affirm\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\n  utter_query:\n  - text: 'Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems'\n  utter_goodbye:\n  - text: 'Bye'\n  utter_feedback:\n  - text: 'Thanks you for loving us. Keep using.'\nactions:\n- utter_offer_help\n- utter_query\n- utter_goodbye\n- utter_feedback\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
-        multiflow_stories_content = "multiflow_story:\n- block_name: mf_one_1\n  events:\n    - step:\n        name: query\n        type: INTENT\n        node_id: \"1\"\n        component_id: \"61m96mPGu2VexybDeVg1dLyH\"\n      connections:\n        - name: utter_query\n          type: BOT\n          node_id: \"2\"\n          component_id: \"61uaImwNrsJI1pVphl8mZh20\"\n    - step:\n        name: utter_query\n        type: BOT\n        node_id: \"2\"\n        component_id: \"61uaImwNrsJI1pVphl8mZh20\"\n      connections:\n        - name: deny\n          type: INTENT\n          node_id: \"3\"\n          component_id: \"62By0VXVLpUNDNPqkr5vRRzm\"\n        - name: affirm\n          type: INTENT\n          node_id: \"4\"\n          component_id: \"62N9BCfSKVYOKoBivGhWDRHC\"\n    - step:\n        name: affirm\n        type: INTENT\n        node_id: \"4\"\n        component_id: \"62N9BCfSKVYOKoBivGhWDRHC\"\n      connections:\n        - name: utter_feedback\n          type: BOT\n          node_id: \"5\"\n          component_id: \"62uzXd9Pj5a9tEbVBkMuVn3o\"\n    - step:\n        name: utter_feedback\n        type: BOT\n        node_id: \"5\"\n        component_id: \"62uzXd9Pj5a9tEbVBkMuVn3o\"\n      connections: null\n    - step:\n        name: utter_goodbye\n        type: BOT\n        node_id: \"6\"\n        component_id: \"62ib6tlbgIGth8vBSwSYFvbS\"\n      connections: null\n    - step:\n        name: deny\n        type: INTENT\n        node_id: \"3\"\n        component_id: \"62By0VXVLpUNDNPqkr5vRRzm\"\n      connections:\n        - name: utter_goodbye\n          type: BOT\n          node_id: \"6\"\n          component_id: \"62ib6tlbgIGth8vBSwSYFvbS\"\n  metadata:\n    - node_id: \"6\"\n      flow_type: STORY\n".encode()
+        # multiflow_stories_content = "multiflow_story:\n- block_name: mf_one_1\n  events:\n    - step:\n        name: query\n        type: INTENT\n        node_id: \"1\"\n        component_id: \"61m96mPGu2VexybDeVg1dLyH\"\n      connections:\n        - name: utter_query\n          type: BOT\n          node_id: \"2\"\n          component_id: \"61uaImwNrsJI1pVphl8mZh20\"\n    - step:\n        name: utter_query\n        type: BOT\n        node_id: \"2\"\n        component_id: \"61uaImwNrsJI1pVphl8mZh20\"\n      connections:\n        - name: deny\n          type: INTENT\n          node_id: \"3\"\n          component_id: \"62By0VXVLpUNDNPqkr5vRRzm\"\n        - name: affirm\n          type: INTENT\n          node_id: \"4\"\n          component_id: \"62N9BCfSKVYOKoBivGhWDRHC\"\n    - step:\n        name: affirm\n        type: INTENT\n        node_id: \"4\"\n        component_id: \"62N9BCfSKVYOKoBivGhWDRHC\"\n      connections:\n        - name: utter_feedback\n          type: BOT\n          node_id: \"5\"\n          component_id: \"62uzXd9Pj5a9tEbVBkMuVn3o\"\n    - step:\n        name: utter_feedback\n        type: BOT\n        node_id: \"5\"\n        component_id: \"62uzXd9Pj5a9tEbVBkMuVn3o\"\n      connections: null\n    - step:\n        name: utter_goodbye\n        type: BOT\n        node_id: \"6\"\n        component_id: \"62ib6tlbgIGth8vBSwSYFvbS\"\n      connections: null\n    - step:\n        name: deny\n        type: INTENT\n        node_id: \"3\"\n        component_id: \"62By0VXVLpUNDNPqkr5vRRzm\"\n      connections:\n        - name: utter_goodbye\n          type: BOT\n          node_id: \"6\"\n          component_id: \"62ib6tlbgIGth8vBSwSYFvbS\"\n  metadata:\n    - node_id: \"6\"\n      flow_type: STORY\n".encode()
+        multiflow_stories_content = "multiflow_story:\n- block_name: mf_one_1\n  events:\n    - step:\n        name: query\n        type: INTENT\n        node_id: '1'\n      connections:\n        - name: utter_query\n          type: BOT\n          node_id: '2'\n    - step:\n        name: utter_query\n        type: BOT\n        node_id: '2'\n      connections:\n        - name: deny\n          type: INTENT\n          node_id: '3'\n        - name: affirm\n          type: INTENT\n          node_id: '4'\n    - step:\n        name: affirm\n        type: INTENT\n        node_id: '4'\n      connections:\n        - name: utter_feedback\n          type: BOT\n          node_id: '5'\n    - step:\n        name: utter_feedback\n        type: BOT\n        node_id: '5'\n      connections: null\n    - step:\n        name: utter_goodbye\n        type: BOT\n        node_id: '6'\n      connections: null\n    - step:\n        name: deny\n        type: INTENT\n        node_id: '3'\n      connections:\n        - name: utter_goodbye\n          type: BOT\n          node_id: '6'\n  metadata:\n    - node_id: '6'\n      flow_type: STORY\n  start_checkpoints: [STORY_START]\n  end_checkpoints:".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
         stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
@@ -4455,7 +4438,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 47
+        assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4574,7 +4557,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 29
         assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 47
+        assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4637,7 +4620,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 52
+        assert domain.user_actions.__len__() == 53
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4687,7 +4670,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 52
+        assert domain.user_actions.__len__() == 53
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4744,7 +4727,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 52
+        assert domain.user_actions.__len__() == 53
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4789,7 +4772,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 52
+        assert domain.user_actions.__len__() == 53
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4895,7 +4878,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 0
         assert domain.entities.__len__() == 0
         assert domain.form_names.__len__() == 0
-        assert domain.user_actions.__len__() == 5
+        assert domain.user_actions.__len__() == 6
         assert domain.intents.__len__() == 5
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 0
@@ -4923,7 +4906,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 27
         assert domain.entities.__len__() == 16
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 45
+        assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 32
 
     @pytest.fixture()
@@ -5394,6 +5377,7 @@ class TestMongoProcessor:
         zip_file = os.path.join(tmp_dir, 'test')
         actions = Utility.read_yaml('tests/testing_data/yml_training_files/actions.yml')
         actions['http_action'][0].pop('action_name')
+        actions['google_search_action'][0].pop('name')
         Utility.write_to_file(os.path.join(tmp_dir, 'actions.yml'), json.dumps(actions).encode())
         shutil.copy2('tests/testing_data/yml_training_files/config.yml', tmp_dir)
         shutil.make_archive(zip_file, 'zip', tmp_dir)
@@ -12936,15 +12920,15 @@ class TestMongoProcessor:
         bot = 'test'
         actions = list(processor.list_google_search_actions(bot))
         actions[0].pop('_id')
-        assert actions[0]['name'] == 'google_custom_search'
-        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key',
+        assert actions[1]['name'] == 'google_custom_search'
+        assert actions[1]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key',
                                          'parameter_type': 'value', 'value': '12345678'}
-        assert actions[0]['search_engine_id'] == 'asdfg:123456'
-        assert actions[0]['failure_response'] == 'I have failed to process your request'
-        assert actions[0]['website'] == 'https://www.google.com'
-        assert actions[0]['num_results'] == 1
-        assert not actions[0]['dispatch_response']
-        assert actions[0]['set_slot'] == "google_search_result"
+        assert actions[1]['search_engine_id'] == 'asdfg:123456'
+        assert actions[1]['failure_response'] == 'I have failed to process your request'
+        assert actions[1]['website'] == 'https://www.google.com'
+        assert actions[1]['num_results'] == 1
+        assert not actions[1]['dispatch_response']
+        assert actions[1]['set_slot'] == "google_search_result"
 
     def test_edit_google_search_action_not_exists(self):
         processor = MongoProcessor()
@@ -12980,16 +12964,16 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         actions = list(processor.list_google_search_actions(bot, False))
-        assert actions[0].get('_id') is None
-        assert actions[0]['name'] == 'google_custom_search'
-        assert actions[0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key',
+        assert actions[1].get('_id') is None
+        assert actions[1]['name'] == 'google_custom_search'
+        assert actions[1]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key',
                                          'parameter_type': 'value', 'value': '1234567889'}
-        assert actions[0]['search_engine_id'] == 'asdfg:12345689'
-        assert actions[0]['failure_response'] == 'Failed to perform search'
-        assert actions[0]['website'] == 'https://nimblework.com'
-        assert actions[0]['num_results'] == 1
-        assert actions[0]['dispatch_response']
-        assert not actions[0].get('set_slot')
+        assert actions[1]['search_engine_id'] == 'asdfg:12345689'
+        assert actions[1]['failure_response'] == 'Failed to perform search'
+        assert actions[1]['website'] == 'https://nimblework.com'
+        assert actions[1]['num_results'] == 1
+        assert actions[1]['dispatch_response']
+        assert not actions[1].get('set_slot')
 
     def test_delete_google_search_action(self):
         processor = MongoProcessor()

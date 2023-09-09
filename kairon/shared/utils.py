@@ -1861,6 +1861,7 @@ class Utility:
             logger.exception(e)
             return False
 
+
 class StoryValidator:
 
     @staticmethod
@@ -1983,6 +1984,16 @@ class StoryValidator:
             if any(value['node_id'] not in leaf_node_ids for value in metadata):
                 errors.append("Only leaf nodes can be tagged with a flow")
         return errors
+
+    @staticmethod
+    def get_step_name_from_events(multiflow_story: list, event_type: str):
+        step_name = set()
+        for story in multiflow_story:
+            graph = StoryValidator.get_graph(story['events'])
+            for story_node in graph.nodes():
+                if story_node.step_type == event_type:
+                    step_name.add(story_node.name)
+        return step_name
 
 
 class MailUtility:
