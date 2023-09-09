@@ -144,3 +144,4 @@ class VectorEmbeddingsDatabases(str, Enum):
 
 class ActorType(str, Enum):
     pyscript_runner = "pyscript_runner"
+    callable_runner = "callable_runner"

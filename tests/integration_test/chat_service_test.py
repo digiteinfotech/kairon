@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import time
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
@@ -25,6 +26,7 @@ from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.data.constant import INTEGRATION_STATUS
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.data_objects import BotSettings
@@ -141,6 +143,13 @@ ChatDataProcessor.save_channel_config({"connector_type": "messenger",
                                        },
                                       bot, user="test@chat.com")
 responses.stop()
+
+
+@pytest.fixture
+def cleanup():
+    yield
+    for _, proxy in ActorFactory._ActorFactory__actors.items():
+        proxy[1].stop()
 
 
 def empty_store(*args, **kwargs):
@@ -1148,6 +1157,7 @@ def test_whatsapp_valid_text_message_request():
                         }]
                     }]
                 })
+        time.sleep(5)
         mock_action_execution.assert_awaited_once()
 
     actual = response.json()
@@ -2106,7 +2116,7 @@ def test_get_chat_history_http_error():
 
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.validate_businessworkinghours")
-def test_chat_with_chatwoot_agent_outof_workinghours(mock_validatebusiness, mock_getbusiness):
+def test_chat_with_chatwoot_agent_outof_workinghours(mock_validatebusiness, mock_getbusiness, cleanup):
     add_live_agent_config(bot, user["email"])
     responses.reset()
     responses.start()
@@ -2190,3 +2200,4 @@ def test_chat_with_chatwoot_agent_outof_workinghours(mock_validatebusiness, mock
             actual = response.json()
             assert actual["data"]["agent_handoff"][
                        "businessworking"] == "We are unavailable at the moment. In case of any query related to Sales, gifting or enquiry of order, please connect over following whatsapp number +912929393 ."
+

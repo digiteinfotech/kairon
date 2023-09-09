@@ -8,7 +8,6 @@ import requests
 from google.oauth2 import id_token
 from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
 from starlette.requests import Request
-from tornado.escape import json_encode
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
@@ -317,4 +316,4 @@ class HangoutsHandler(InputChannel, ChannelHandlerBase):
                 f"text: {text}"
             )
 
-        return json_encode(collector.messages)
+        return collector.messages

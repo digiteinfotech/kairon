@@ -1,10 +1,10 @@
 from loguru import logger
-from tornado.ioloop import IOLoop
 
 from kairon import Utility
 from kairon.events.definitions.factory import EventFactory
 from kairon.events.executors.base import ExecutorBase
-from kairon.shared.constants import EventClass, EventExecutor
+from kairon.shared.concurrency.actors.factory import ActorFactory
+from kairon.shared.constants import EventClass, EventExecutor, ActorType
 
 
 class StandaloneExecutor(ExecutorBase):
@@ -24,7 +24,8 @@ class StandaloneExecutor(ExecutorBase):
         logger.debug(f"event_class: {event_class}, data: {data}")
         definition = EventFactory.get_instance(event_class)(**data)
         if Utility.environment['events']['executor']['type'] == EventExecutor.standalone:
-            IOLoop.current().spawn_callback(definition.execute, **data)
+            actor = ActorFactory.get_instance(ActorType.callable_runner.value)
+            actor.execute(definition.execute, **data)
             msg = "Task Spawned!"
         else:
             definition.execute(**data)
