@@ -3,11 +3,10 @@ from datetime import datetime
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
+from kairon.exceptions import AppException
 from kairon.shared.actions.models import ActionType
 from kairon.shared.data.constant import EVENT_STATUS
-from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import BotSettings
-from kairon.shared.utils import Utility
 from kairon.shared.importer.data_objects import ValidationLogs, TrainingComponentLog, DomainLog
 
 
@@ -84,6 +83,7 @@ class DataImporterLogProcessor:
         action_summary = [{'type': s, 'count': component_count.get(s), 'data': summary.get(s)} for s in
                           summary.keys() if s in {f'{a_type.value}s' for a_type in ActionType}]
         doc.actions = action_summary
+        doc.multiflow_stories = TrainingComponentLog(count=component_count.get('multiflow_stories'), data=summary.get('multiflow_stories'))
         doc.domain = DomainLog(
             intents_count=component_count['domain'].get('intents'),
             actions_count=component_count['domain'].get('actions'),

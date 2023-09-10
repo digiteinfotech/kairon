@@ -2,6 +2,7 @@ from datetime import datetime
 
 from mongoengine import StringField, ListField, BooleanField, DateTimeField, IntField, EmbeddedDocument, \
     EmbeddedDocumentField, DynamicField, DynamicDocument
+
 from kairon.shared.data.signals import push_notification
 
 
@@ -30,6 +31,7 @@ class ValidationLogs(DynamicDocument):
     config = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     rules = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     actions = ListField()
+    multiflow_stories = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     exception = StringField(default="")
     is_data_uploaded = BooleanField(default=False)
     files_received = ListField(default=None)

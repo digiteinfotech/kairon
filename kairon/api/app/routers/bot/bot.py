@@ -614,11 +614,12 @@ async def upload_data_generation_file(
 async def download_data(
         background_tasks: BackgroundTasks,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        download_multiflow_stories: bool = False
 ):
     """
     Downloads training data nlu.md, domain.yml, stories.md, config.yml, chat_client_config.yml files
     """
-    file = mongo_processor.download_files(current_user.get_bot(), current_user.get_user())
+    file = mongo_processor.download_files(current_user.get_bot(), current_user.get_user(), download_multiflow_stories)
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
     )
