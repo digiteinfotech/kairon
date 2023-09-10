@@ -74,7 +74,9 @@ class TrainingDataValidator(Validator):
             cls.actions = Utility.read_yaml(os.path.join(root_dir, 'actions.yml'))
             chat_client_config = Utility.read_yaml(os.path.join(root_dir, 'chat_client_config.yml'))
             cls.chat_client_config = chat_client_config if chat_client_config else {}
-            cls.multiflow_stories = Utility.read_yaml(os.path.join(root_dir, 'multiflow_stories.yml'))
+            multiflow_stories = Utility.read_yaml(os.path.join(root_dir, 'multiflow_stories.yml'))
+            cls.multiflow_stories = multiflow_stories if multiflow_stories else {}
+            cls.multiflow_stories_graph = TrainingDataValidator.multiflow_story_graphs(multiflow_stories)
 
             return await TrainingDataValidator.from_importer(file_importer)
         except YamlValidationException as e:
@@ -85,6 +87,15 @@ class TrainingDataValidator(Validator):
             raise AppException(exc)
         except Exception as e:
             raise AppException(e)
+
+    @staticmethod
+    def multiflow_story_graphs(multiflow_stories: dict):
+        graphs = []
+        if multiflow_stories:
+            for events in multiflow_stories['multiflow_story']:
+                graph = StoryValidator.get_graph(events['events'])
+                graphs.append(graph)
+            return graphs
 
     def verify_example_repetition_in_intents(self, raise_exception: bool = True):
         """
@@ -189,7 +200,7 @@ class TrainingDataValidator(Validator):
             if isinstance(event, UserUttered)
         }
         if self.multiflow_stories:
-            multiflow_stories_intent = StoryValidator.get_step_name_from_events(self.multiflow_stories['multiflow_story'], "INTENT")
+            multiflow_stories_intent = StoryValidator.get_step_name_for_multiflow_stories(self.multiflow_stories_graph, "INTENT")
 
         for story_intent in stories_intents:
             if story_intent not in self.domain.intents and story_intent not in DEFAULT_INTENTS:
@@ -267,7 +278,7 @@ class TrainingDataValidator(Validator):
         stories_utterances = set()
         multiflow_stories_utterances = set()
         if self.multiflow_stories:
-            multiflow_stories_utterances = StoryValidator.get_step_name_from_events(self.multiflow_stories['multiflow_story'], "BOT")
+            multiflow_stories_utterances = StoryValidator.get_step_name_for_multiflow_stories(self.multiflow_stories_graph, "BOT")
 
         for story in self.story_graph.story_steps:
             for event in story.events:

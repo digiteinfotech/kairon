@@ -6,10 +6,10 @@ multiflow_story:
         type: INTENT
         node_id:
       connections:
-        - name: utter_query
-          type: BOT
-          node_id: "2"
-          component_id: "61uaImwNrsJI1pVphl8mZh20"
+        - name:
+          type:
+          node_id:
+          component_id:
     - step:
         name: utter_query
         type: BOT

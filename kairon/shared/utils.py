@@ -1986,14 +1986,36 @@ class StoryValidator:
         return errors
 
     @staticmethod
-    def get_step_name_from_events(multiflow_story: list, event_type: str):
-        step_name = set()
-        for story in multiflow_story:
-            graph = StoryValidator.get_graph(story['events'])
-            for story_node in graph.nodes():
-                if story_node.step_type == event_type:
-                    step_name.add(story_node.name)
-        return step_name
+    def get_names_for_events(graph: DiGraph, event_type: str):
+        name = set()
+        for story_node in graph.nodes():
+            if story_node.step_type == event_type:
+                name.add(story_node.name)
+        return name
+
+    # @staticmethod
+    # def get_names_for_events(story: dict, event_type: str):
+    #     name = set()
+    #     graph = StoryValidator.get_graph(story['events'])
+    #     for story_node in graph.nodes():
+    #         if story_node.step_type == event_type:
+    #             name.add(story_node.name)
+    #     return name
+    #
+    # @staticmethod
+    # def get_step_name_for_multiflow_stories(multiflow_story: list, event_type: str):
+    #     step_name = set()
+    #     for story in multiflow_story:
+    #         name = StoryValidator.get_names_for_events(story, event_type)
+    #         step_name.union(name)
+    #     return step_name
+
+    @staticmethod
+    def get_step_name_for_multiflow_stories(story_graph: list, event_type: str):
+        name = set()
+        for graph in story_graph:
+            name = StoryValidator.get_names_for_events(graph, event_type)
+        return name
 
 
 class MailUtility:

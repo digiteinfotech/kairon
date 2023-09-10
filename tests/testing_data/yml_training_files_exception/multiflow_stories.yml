@@ -2,9 +2,9 @@ multiflow_story:
 - block_name: mf_one_1
   events:
     - step:
-        name:
-        type:
-        node_id:
+        name: multiflow
+        type: INTENT
+        node_id: "1"
       connections:
         - name: utter_query
           type: BOT

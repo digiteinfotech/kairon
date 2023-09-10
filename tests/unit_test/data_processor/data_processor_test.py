@@ -942,12 +942,22 @@ class TestMongoProcessor:
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
 
     @pytest.mark.asyncio
-    async def test_save_from_path_yml_invalid_multiflow_events(self):
+    async def test_save_from_path_yml_invalid_multiflow_events_steps(self):
         processor = MongoProcessor()
-        with pytest.raises(AppException):
+        with pytest.raises(AppException, match="multiflow does not exists!"):
             result = await (
                 processor.save_from_path(
                     "./tests/testing_data/yml_training_files_exception", bot="test_load_yml_multiflow", user="testUser"
+                )
+            )
+
+    @pytest.mark.asyncio
+    async def test_save_from_path_yml_invalid_multiflow_events_connections(self):
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="None does not exists!"):
+            result = await (
+                processor.save_from_path(
+                    "./tests/testing_data/invalid_yml_multiflow", bot="test_load_yml_multiflow", user="testUser"
                 )
             )
 
@@ -2737,6 +2747,19 @@ class TestMongoProcessor:
         file_info_multiflow_stories = zip_file.getinfo('multiflow_stories.yml')
         file_content_stories = zip_file.read(file_info_multiflow_stories)
         print(file_content_stories)
+        zip_file.close()
+
+        file_two = processor.download_files("tests_download", "user@integration.com", True)
+        assert file_two.endswith(".zip")
+        zip_file = ZipFile(file_two, mode='r')
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        file_info_stories = zip_file.getinfo('data/stories.yml')
+        file_info_rules = zip_file.getinfo('data/rules.yml')
+        file_stories = zip_file.read(file_info_stories)
+        file_rules = zip_file.read(file_info_rules)
+        assert file_stories == b'version: "2.0"\nstories:\n- story: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: foodyy\n  - action: utter_foodyy\n- story: multiflow_story_story_download_data_files_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_rules == b'version: "2.0"\n'
         zip_file.close()
 
     def test_download_data_files_prompt_action(self, monkeypatch):
