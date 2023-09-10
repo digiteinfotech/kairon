@@ -323,7 +323,7 @@ class TestTrainingDataValidator:
 
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
-        assert validator.summary['intents'][0] == "The intent 'more_info' is used in your multiflow_stories, but it is not listed in the domain file. You should add it to your domain file!"
+        assert validator.summary['intents'][0] == "The intent 'more_info' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
 
     @pytest.mark.asyncio
     async def test_validate_intent_not_used_in_any_multiflow_story(self):

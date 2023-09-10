@@ -202,7 +202,9 @@ class TrainingDataValidator(Validator):
         if self.multiflow_stories:
             multiflow_stories_intent = StoryValidator.get_step_name_for_multiflow_stories(self.multiflow_stories_graph, "INTENT")
 
-        for story_intent in stories_intents:
+        all_intents = stories_intents.union(multiflow_stories_intent)
+
+        for story_intent in all_intents:
             if story_intent not in self.domain.intents and story_intent not in DEFAULT_INTENTS:
                 msg = f"The intent '{story_intent}' is used in your stories, but it is not listed in " \
                       f"the domain file. You should add it to your domain file!"
@@ -210,16 +212,7 @@ class TrainingDataValidator(Validator):
                     raise AppException(msg)
                 intents_mismatched.append(msg)
 
-        if multiflow_stories_intent:
-            for intent in multiflow_stories_intent:
-                if intent not in self.domain.intents and intent not in DEFAULT_INTENTS:
-                    msg = f"The intent '{intent}' is used in your multiflow_stories, but it is not listed in " \
-                          f"the domain file. You should add it to your domain file!"
-                    if raise_exception:
-                        raise AppException(msg)
-                    intents_mismatched.append(msg)
-
-        unused_intents = set(self.domain.intents) - set(stories_intents) - multiflow_stories_intent - set(DEFAULT_INTENTS)
+        unused_intents = set(self.domain.intents) - all_intents - set(DEFAULT_INTENTS)
 
         for intent in sorted(unused_intents):
             msg = f"The intent '{intent}' is not used in any story."
