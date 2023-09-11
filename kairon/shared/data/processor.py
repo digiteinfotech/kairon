@@ -452,6 +452,28 @@ class MongoProcessor:
         if multiflow_stories and multiflow_stories['multiflow_story']:
             self.__save_multiflow_stories(multiflow_stories['multiflow_story'], bot, user)
 
+    def delete_multiflow_stories(self, bot: Text, user: Text):
+        """
+        soft deletes stories
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.hard_delete_document([MultiflowStories], bot=bot)
+
+    def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
+        """
+        saves multiflow stories data
+
+        :param multiflow_stories: multiflow stories data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if multiflow_stories and multiflow_stories['multiflow_story']:
+            self.__save_multiflow_stories(multiflow_stories['multiflow_story'], bot, user)
+
     def load_linear_flows_from_multiflow_stories(self, bot: Text) -> (StoryGraph, StoryGraph):
         """
         loads multiflow stories for training.

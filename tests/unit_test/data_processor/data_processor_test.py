@@ -11186,7 +11186,7 @@ class TestMongoProcessor:
         story_name_one = "greeting story"
         story_name_two = "farmer story"
         story_name_three = "shopping story"
-        bot = "load_linear_flows_from_multiflow_stories"
+        bot = "load_multiflow_stories"
         user = "test_user"
         steps_one = [
             {"step": {"name": "welcome", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
