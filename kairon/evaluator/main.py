@@ -70,24 +70,6 @@ async def add_secure_headers(request: Request, call_next):
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """Logging request calls."""
-    authorization: str = request.headers.get("Authorization")
-    _, param = get_authorization_scheme_param(authorization)
-    start_time = time()
-
-    response = await call_next(request)
-
-    process_time = (time() - start_time) * 1000
-    formatted_process_time = "{0:.2f}".format(process_time)
-    logger.info(
-        f"rid={param} request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
-    )
-
-    return response
-
-
-@app.middleware("http")
 async def catch_exceptions_middleware(request: Request, call_next):
     try:
         return await call_next(request)

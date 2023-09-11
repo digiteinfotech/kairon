@@ -104,6 +104,17 @@ services:
     networks:
       - chatbotnetwork
 
+  kairon-evaluator-server:
+    image: digite/kairon-evaluator-server:latest
+    container_name: kairon-evaluator-server
+    hostname: kairon-evaluator-server
+    ports:
+      - 8087:8087
+    environment:
+      TRACKER_URL: "mongodb://mongo:27017/kairon"
+    networks:
+      - chatbotnetwork
+
   kairon-history-server:
     image: digite/kairon-history-server:latest
     container_name: kairon-history-server
