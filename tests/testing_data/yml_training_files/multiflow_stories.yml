@@ -1,0 +1,96 @@
+multiflow_story:
+- block_name: mf_one_1
+  events:
+    - step:
+        name: query
+        type: INTENT
+        node_id: "1"
+      connections:
+        - name: utter_query
+          type: BOT
+          node_id: "2"
+    - step:
+        name: utter_query
+        type: BOT
+        node_id: "2"
+      connections:
+        - name: feedback
+          type: INTENT
+          node_id: "3"
+        - name: more_info
+          type: INTENT
+          node_id: "4"
+    - step:
+        name: more_info
+        type: INTENT
+        node_id: "4"
+      connections:
+        - name: utter_more_info
+          type: BOT
+          node_id: "5"
+    - step:
+        name: utter_more_info
+        type: BOT
+        node_id: "5"
+      connections:
+      -  name: category
+         type: SLOT
+         value: 'food'
+         node_id: "7"
+      -  name: action_performanceUser1001@digite.com
+         type: HTTP_ACTION
+         node_id: "8"
+    - step:
+        name: utter_feedback
+        type: BOT
+        node_id: "6"
+      connections:
+        - name: google_search_action_mf
+          type: GOOGLE_SEARCH_ACTION
+          node_id: "11"
+    - step:
+        name: feedback
+        type: INTENT
+        node_id: "3"
+      connections:
+        - name: utter_feedback
+          type: BOT
+          node_id: "6"
+    - step:
+        name: category
+        type: SLOT
+        value: 'food'
+        node_id: "7"
+      connections:
+       - name: utter_delete
+         type: BOT
+         node_id: "9"
+    - step:
+        name: action_performanceUser1001@digite.com
+        type: HTTP_ACTION
+        node_id: "8"
+      connections:
+        - name: utter_happy
+          type: BOT
+          node_id: "10"
+    - step:
+        name: utter_delete
+        type: BOT
+        node_id: "9"
+      connections: null
+    - step:
+        name: utter_happy
+        type: BOT
+        node_id: "10"
+      connections: null
+    - step:
+        name: google_search_action_mf
+        type: GOOGLE_SEARCH_ACTION
+        node_id: "11"
+      connections: null
+  metadata:
+    - node_id: "11"
+      flow_type: STORY
+  start_checkpoints: [STORY_START]
+  end_checkpoints: []
+  template_type: CUSTOM

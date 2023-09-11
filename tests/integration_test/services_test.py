@@ -2618,7 +2618,6 @@ def test_get_data_importer_logs():
     del actual['data']["logs"][1]['start_timestamp']
     del actual['data']["logs"][1]['end_timestamp']
     del actual['data']["logs"][1]['files_received']
-    print(actual['data']["logs"][1])
     assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
                                  'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
@@ -2633,6 +2632,7 @@ def test_get_data_importer_logs():
                                              {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                              {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                              {'type': 'prompt_actions', 'count': 0, 'data': []}],
+                                         'multiflow_stories': {'count': 0, 'data': []},
                                  'exception': '',
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
@@ -2644,39 +2644,39 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][2]['is_data_uploaded']
     assert actual['data']["logs"][2]['start_timestamp']
     assert actual['data']["logs"][2]['end_timestamp']
-
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
-                                                                'actions', 'chat_client_config'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
-    assert actual['data']["logs"][3]['intents']['count'] == 16
+    assert actual['data']["logs"][3]['intents']['count'] == 19
     assert len(actual['data']["logs"][3]['intents']['data']) == 21
-    assert actual['data']["logs"][3]['utterances']['count'] == 25
-    assert len(actual['data']["logs"][3]['utterances']['data']) == 13
+    assert actual['data']["logs"][3]['utterances']['count'] == 27
+    assert len(actual['data']["logs"][3]['utterances']['data']) == 11
     assert actual['data']["logs"][3]['stories']['count'] == 16
     assert len(actual['data']["logs"][3]['stories']['data']) == 1
     assert actual['data']["logs"][3]['rules']['count'] == 3
     assert len(actual['data']["logs"][3]['rules']['data']) == 0
-    assert actual['data']["logs"][3]['training_examples']['count'] == 292
+    assert actual['data']["logs"][3]['training_examples']['count'] == 305
     assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
-    assert actual['data']["logs"][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
-                                           'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
+    print(actual['data']["logs"][3])
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 41, 'slots_count': 10,
+                                           'utterances_count': 27 , 'forms_count': 2, 'entities_count': 8, 'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
     assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
-                                            {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                            {'type': 'google_search_actions', 'count': 1, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                             {'type': 'prompt_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
-    assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
-                                                                'actions', 'chat_client_config'}
+    assert set(actual['data']["logs"][3]['files_received']) == {'chat_client_config', 'stories', 'nlu', 'rules',
+                                                                'actions', 'config', 'domain', 'multiflow_stories'}
 
 
 @responses.activate
@@ -2783,11 +2783,12 @@ def test_download_data_with_chat_client_config():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__() == 8
+    assert zip_file.filelist.__len__() == 9
     assert zip_file.getinfo('chat_client_config.yml')
     assert zip_file.getinfo('config.yml')
     assert zip_file.getinfo('domain.yml')
     assert zip_file.getinfo('actions.yml')
+    assert zip_file.getinfo('multiflow_stories.yml')
     assert zip_file.getinfo('data/stories.yml')
     assert zip_file.getinfo('data/rules.yml')
     assert zip_file.getinfo('data/nlu.yml')
@@ -3157,6 +3158,7 @@ def test_get_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["data"])
     assert len(actual["data"]) == 1
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -3269,6 +3271,7 @@ def test_get_custom_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["data"])
     assert len(actual["data"]) == 1
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -4978,7 +4981,7 @@ def test_download_data():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__() == 8
+    assert zip_file.filelist.__len__() == 9
     zip_file.close()
     file_bytes.close()
 
@@ -8900,7 +8903,7 @@ def test_upload_actions_and_config():
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
-                                            {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                            {'type': 'google_search_actions', 'count': 1, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
@@ -8912,9 +8915,54 @@ def test_upload_actions_and_config():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 5
+
+
+@patch("kairon.shared.importer.processor.DataImporterLogProcessor.is_limit_exceeded", autospec=True)
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_upload_multiflow_stories(mock_is_limit_exceeded, mock_event_server):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+    files = (('training_files', ("domain.yml", open("tests/testing_data/yml_training_files/domain.yml", "rb"))),
+             ('training_files',
+              ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))),
+             ('training_files',
+              ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
+             ('training_files',
+              ("rules.yml", open("tests/testing_data/yml_training_files/data/rules.yml", "rb"))),
+             ('training_files',
+              ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb"))),
+             ('training_files',
+              ("chat_client_config.yml", open("tests/testing_data/yml_training_files/chat_client_config.yml", "rb"))),
+             ('training_files',
+              ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
+             ('training_files',
+              ("multiflow_stories.yml", open("tests/testing_data/yml_training_files/multiflow_stories.yml", "rb"))))
+    mock_is_limit_exceeded.return_value = False
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "test_user", EventClass.data_importer)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
 
 
 def test_get_editable_config():
@@ -12159,20 +12207,22 @@ def test_delete_email_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action deleted'
 
 
-def test_list_google_search_action_no_actions():
+def test_list_google_search_action_one():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/googlesearch",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 0
+    assert len(actual["data"]) == 1
 
 
 def test_add_google_search_action():
@@ -12379,17 +12429,17 @@ def test_list_google_search_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 3
+    assert len(actual["data"]) == 4
     print(actual["data"])
     actual["data"][0].pop("_id")
-    assert actual["data"][0]['name'] == 'google_custom_search'
-    assert actual["data"][0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
-    assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
-    assert actual["data"][0]['failure_response'] == 'Failed to perform search'
-    assert actual['data'][0]['website'] == 'https://nimblework.com'
-    assert actual["data"][0]['num_results'] == 1
-    assert actual["data"][0]['dispatch_response']
-    assert not actual["data"][0].get('set_slot')
+    assert actual["data"][1]['name'] == 'google_custom_search'
+    assert actual["data"][1]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
+    assert actual["data"][1]['search_engine_id'] == 'asdfg:12345689'
+    assert actual["data"][1]['failure_response'] == 'Failed to perform search'
+    assert actual['data'][1]['website'] == 'https://nimblework.com'
+    assert actual["data"][1]['num_results'] == 1
+    assert actual["data"][1]['dispatch_response']
+    assert not actual["data"][1].get('set_slot')
 
 
 def test_delete_google_search_action():

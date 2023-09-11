@@ -55,3 +55,11 @@ http_action:
   request_method: GET
   response:
     value: json
+
+google_search_action:
+- name: google_search_action_mf
+  api_key:
+    key: api_key
+    value: asdfghjklrtyu
+    parameter_type: value
+  search_engine_id: sdfg34567dfgh
