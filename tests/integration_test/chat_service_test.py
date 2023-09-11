@@ -1340,18 +1340,6 @@ def test_whatsapp_valid_order_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
-    responses.add(
-        "POST", "https://graph.facebook.com/v13.0/12345678/messages", json={}
-    )
-    responses.add(
-        "GET", "https://graph.facebook.com/v13.0/sdfghj567",
-        json={
-            "messaging_product": "whatsapp",
-            "url": "http://kairon-media.url",
-            "id": "sdfghj567"
-        }
-    )
-
     with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
         with mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
                         autospec=True) as whatsapp_msg_handler:
@@ -1377,7 +1365,7 @@ def test_whatsapp_valid_order_message_request():
                                 }],
                                 "messages": [{
                                     "from": "919876543210",
-                                    "id": "wamid.HBgMOTE5NjU3MDU1MDIyFQIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA",
+                                    "id": "wamid.HBgMOTE5NjU3DMU1MDIyQFIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA",
                                     "timestamp": "1691598412",
                                     "type": "order",
                                     "order": {
@@ -1408,7 +1396,7 @@ def test_whatsapp_valid_order_message_request():
     metadata = whatsapp_msg_handler.call_args[0][3]
     metadata.pop("timestamp")
     assert metadata == {'from': '919876543210',
-                        'id': 'wamid.HBgMOTE5NjU3MDU1MDIyFQIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA',
+                        'id': 'wamid.HBgMOTE5NjU3DMU1MDIyQFIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA',
                         'type': 'order', 'order': {'catalog_id': '538971028364699',
                                                    'product_items': [{'product_retailer_id': 'akuba13e44',
                                                                       'quantity': 1, 'item_price': 200,
@@ -1612,10 +1600,7 @@ def test_whatsapp_bsp_valid_attachment_message_request():
 @responses.activate
 def test_whatsapp_bsp_valid_order_message_request():
     responses.add(
-        "POST", "https://waba-v2.360dialog.io/v1/messages", json={}
-    )
-    responses.add(
-        "PUT", 'https://waba-v2.360dialog.io/v1/messages/ABEGkZZXBVAiAhAJeqFQ3Yfld16XGKKsgUYK', json={}
+        "POST", "https://waba-v2.360dialog.io/messages", json={}
     )
 
     response = client.post(
@@ -1640,7 +1625,7 @@ def test_whatsapp_bsp_valid_order_message_request():
                         }],
                         "messages": [{
                             "from": "919876543210",
-                            "id": "wamid.HBgMOTE5NjU3MDU1MDIyFQIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA",
+                            "id": "wamid.HBoMOTE5NjU3MDU1MDIyFQIAEhggNzg5MEYwNEIyNDA1Q0IxMzU4QkI0NDc3RTVGMzYxNUEA",
                             "timestamp": "1691598412",
                             "type": "order",
                             "order": {
