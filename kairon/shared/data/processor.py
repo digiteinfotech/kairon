@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import networkx as nx
 import yaml
 from fastapi import File
-from loguru import logger as logging
+from loguru import logger as logging, logger
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
@@ -87,7 +87,7 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, CognitionData, MultiFlowStoryMetadata,
-    Synonyms, Lookup, CognitionMetadata
+    Synonyms, Lookup, CognitionMetadata, StepFlowEvent
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
@@ -110,6 +110,7 @@ class MongoProcessor:
             config: File,
             rules: File,
             http_action: File,
+            multiflow_stories: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -123,21 +124,23 @@ class MongoProcessor:
         :param rules: rules data
         :param http_action: http_actions data
         :param config: config data
+        :param multiflow_stories: multiflow_stories data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action, multiflow_stories)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
-    def download_files(self, bot: Text, user: Text):
+    def download_files(self, bot: Text, user: Text, download_multiflow: bool = False):
         """
         create zip file containing download data
 
         :param bot: bot id
         :param user: user id
+        :param download_multiflow: flag to download multiflow stories.
         :return: zip file path
         """
         nlu = self.load_nlu(bot)
@@ -146,11 +149,13 @@ class MongoProcessor:
         config = self.load_config(bot)
         chat_client_config = self.load_chat_client_config(bot, user)
         rules = self.get_rules_for_training(bot)
-        multiflow_stories = self.load_multiflow_stories(bot)
-        stories = stories.merge(multiflow_stories[0])
-        rules = rules.merge(multiflow_stories[1])
+        if download_multiflow:
+            multiflow_stories = self.load_linear_flows_from_multiflow_stories(bot)
+            stories = stories.merge(multiflow_stories[0])
+            rules = rules.merge(multiflow_stories[1])
+        multiflow_stories = self.load_multiflow_stories_yaml(bot)
         actions = self.load_action_configurations(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, chat_client_config)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, multiflow_stories, chat_client_config)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -187,6 +192,7 @@ class MongoProcessor:
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             actions_yml = os.path.join(path, 'actions.yml')
+            multiflow_stories_yml = os.path.join(path, 'multiflow_stories.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -195,9 +201,10 @@ class MongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             actions = Utility.read_yaml(actions_yml)
+            multiflow_stories = Utility.read_yaml(multiflow_stories_yml) if multiflow_stories_yml else None
             TrainingDataValidator.validate_custom_actions(actions)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite=overwrite,
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, multiflow_stories, overwrite=overwrite,
                                     what=REQUIREMENTS.copy()-{"chat_client_config"})
         except Exception as e:
             logging.exception(e)
@@ -205,7 +212,7 @@ class MongoProcessor:
 
     def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
                            story_graph: StoryGraph = None, nlu: TrainingData = None, actions: dict = None,
-                           chat_client_config: dict = None,
+                           multiflow_stories: dict = None, chat_client_config: dict = None,
                            overwrite: bool = False, what: set = REQUIREMENTS.copy()):
         if overwrite:
             self.delete_bot_data(bot, user, what)
@@ -224,6 +231,8 @@ class MongoProcessor:
             self.add_or_overwrite_config(config, bot, user)
         if 'chat_client_config' in what:
             self.save_chat_client_config(chat_client_config, bot, user)
+        if 'multiflow_stories' in what:
+            self.save_multiflow_stories(multiflow_stories, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -253,6 +262,23 @@ class MongoProcessor:
             for file in files
         ]
 
+    def load_multiflow_stories_yaml(self, bot: Text):
+        multiflow = list(MultiflowStories.objects(bot=bot, status=True))
+        fields = []
+        multiflow_stories = {}
+        for value in multiflow:
+            final = {}
+            item = value.to_mongo().to_dict()
+            final['block_name'] = item.get('block_name')
+            final['events'] = item.get('events')
+            final['metadata'] = item.get('metadata', [])
+            final['template_type'] = item.get('template_type')
+            final['start_checkpoints'] = item.get('start_checkpoints')
+            final['end_checkpoints'] = item.get('end_checkpoints', [])
+            fields.append(final)
+        multiflow_stories['multiflow_story'] = fields
+        return multiflow_stories
+
     def delete_bot_data(self, bot: Text, user: Text, what=REQUIREMENTS.copy()):
         """
         deletes bot data
@@ -274,6 +300,8 @@ class MongoProcessor:
             self.delete_rules(bot, user)
         if 'actions' in what:
             self.delete_bot_actions(bot, user)
+        if 'multiflow_stories' in what:
+            self.delete_multiflow_stories(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -402,7 +430,29 @@ class MongoProcessor:
         """
         return self.__prepare_training_story(bot)
 
-    def load_multiflow_stories(self, bot: Text) -> (StoryGraph, StoryGraph):
+    def delete_multiflow_stories(self, bot: Text, user: Text):
+        """
+        soft deletes stories
+
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.hard_delete_document([MultiflowStories], bot=bot)
+
+    def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
+        """
+        saves multiflow stories data
+
+        :param multiflow_stories: multiflow stories data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if multiflow_stories and multiflow_stories['multiflow_story']:
+            self.__save_multiflow_stories(multiflow_stories['multiflow_story'], bot, user)
+
+    def load_linear_flows_from_multiflow_stories(self, bot: Text) -> (StoryGraph, StoryGraph):
         """
         loads multiflow stories for training.
         Each multiflow story is divided into linear stories and segregated into either story or rule.
@@ -1132,6 +1182,86 @@ class MongoProcessor:
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
+    def __retrieve_existing_components(self, bot):
+        intents = {}
+        slots = {}
+        utterances = {}
+        actions = {}
+        intents['intents'] = dict(Intents.objects(bot=bot, status=True).values_list('name', 'id'))
+        slots['slots'] = dict(Slots.objects(bot=bot, status=True).values_list('name', 'id'))
+        utterances['utterances'] = dict(Utterances.objects(bot=bot, status=True).values_list('name', 'id'))
+        component_dict = {
+            StoryStepType.intent.value: intents['intents'],
+            StoryStepType.slot.value: slots['slots'],
+            StoryStepType.bot.value: utterances['utterances']
+        }
+        http_action = dict(HttpActionConfig.objects(bot=bot, status=True).values_list('action_name', 'id'))
+        email_action = dict(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name', 'id'))
+        google_search_action = dict(GoogleSearchAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        slot_set_action = dict(SlotSetAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        jira_action = dict(JiraAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        form_action = dict(FormValidationAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        zendesk_action = dict(ZendeskAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        pipedrive_leads_action = dict(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        hubspot_forms_action = dict(HubspotFormsAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        two_stage_fallback_action = dict(KaironTwoStageFallbackAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        prompt_action = dict(PromptAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        web_search_action = dict(WebSearchAction.objects(bot=bot, status=True).values_list('name', 'id'))
+        all_actions = [http_action, google_search_action, email_action, slot_set_action, jira_action, form_action,
+                       zendesk_action, pipedrive_leads_action, hubspot_forms_action, two_stage_fallback_action,
+                       prompt_action, web_search_action]
+        combined_actions = {key: value for action in all_actions for key, value in action.items()}
+        actions['actions'] = combined_actions
+        return component_dict, actions
+
+    def __updated_events(self, bot, events):
+        component_dict, actions = self.__retrieve_existing_components(bot)
+        for event in events:
+            step = event['step']
+            connections = event.get('connections', [])
+            step_type = step.get('type')
+            step_name_lower = step.get('name').lower()
+
+            if step_type in component_dict:
+                step['component_id'] = str(component_dict[step_type].get(step_name_lower))
+            elif step_name_lower in actions['actions']:
+                step['component_id'] = str(actions['actions'].get(step_name_lower))
+            if connections:
+                for connection in connections:
+                    connection_type = connection['type']
+                    connection_name_lower = connection['name'].lower()
+                    if connection_type in component_dict:
+                        connection['component_id'] = str(component_dict[connection_type].get(connection_name_lower))
+                    elif connection_name_lower in actions['actions']:
+                        connection['component_id'] = str(actions['actions'].get(connection_name_lower))
+        return events
+
+    def __fetch_multiflow_story_block_names(self, bot: Text):
+        multiflow_stories = list(
+            MultiflowStories.objects(bot=bot, status=True).values_list('block_name')
+        )
+        return multiflow_stories
+
+    def __extract_multiflow_story_step(self, multiflow_stories, bot: Text, user: Text):
+        existing_multiflow_stories = self.__fetch_multiflow_story_block_names(bot)
+        existing_stories = self.__fetch_story_block_names(bot)
+        existing_rules = self.fetch_rule_block_names(bot)
+        collection = set(existing_multiflow_stories + existing_stories + existing_rules)
+        for story in multiflow_stories:
+            if story['block_name'].strip().lower() not in collection:
+                story['events'] = self.__updated_events(bot, story['events'])
+                multiflow_story = MultiflowStories(**story)
+                multiflow_story.bot = bot
+                multiflow_story.user = user
+                multiflow_story.clean()
+                yield multiflow_story
+
+    def __save_multiflow_stories(self, multiflow_stories, bot: Text, user: Text):
+        if multiflow_stories:
+            new_multiflow_stories = list(self.__extract_multiflow_story_step(multiflow_stories, bot, user))
+            if new_multiflow_stories:
+                MultiflowStories.objects.insert(new_multiflow_stories)
+
     def __prepare_training_multiflow_story_events(self, events, metadata, timestamp):
         roots = []
         leaves = []
@@ -1191,6 +1321,16 @@ class MongoProcessor:
         :return: list of stories
         """
         return list(Stories.objects(bot=bot, status=status))
+
+    def fetch_multiflow_stories(self, bot: Text, status=True):
+        """
+        fetches stories
+
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of stories
+        """
+        return list(MultiflowStories.objects(bot=bot, status=status))
 
     def __prepare_training_story_step(self, bot: Text):
         for story in Stories.objects(bot=bot, status=True):
@@ -3773,7 +3913,6 @@ class MongoProcessor:
         if os.path.exists(chat_client_config_path):
             chat_client_config = Utility.read_yaml(chat_client_config_path)
             chat_client_config = chat_client_config["config"]
-
         if not validation_failed and not error_summary.get('config'):
             files_to_save = set()
             if actions and set(actions.keys()).intersection({a_type.value for a_type in ActionType}):

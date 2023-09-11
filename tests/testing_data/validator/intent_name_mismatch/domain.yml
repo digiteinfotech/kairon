@@ -1,6 +1,9 @@
 intents:
 - greet
 - affirm
+- more_info
+- query
+- performance_feedback
 
 responses:
   utter_greet:
@@ -8,6 +11,10 @@ responses:
   utter_offer_help:
   - text: "I am CITTA BOT, your virtual assistant from IT Dept!! \nMy team ensures
               that the network runs smoothly. We also address all hardware/software requests."
+  utter_query:
+    - text: Yes I know what AI is!
+  utter_feedback:
+    - text: We would love to hear what you have to say.
 
 actions:
 - utter_greet

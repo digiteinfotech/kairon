@@ -109,7 +109,7 @@ def train_model_for_bot(bot: str):
         raise AppException("Training data does not exists!")
     domain = processor.load_domain(bot)
     stories = processor.load_stories(bot)
-    multiflow_stories = processor.load_multiflow_stories(bot)
+    multiflow_stories = processor.load_linear_flows_from_multiflow_stories(bot)
     stories = stories.merge(multiflow_stories[0])
     config = processor.load_config(bot)
     rules = processor.get_rules_for_training(bot)
