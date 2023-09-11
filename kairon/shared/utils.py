@@ -1986,18 +1986,27 @@ class StoryValidator:
         return errors
 
     @staticmethod
-    def get_names_for_events(graph: DiGraph, event_type: str):
+    def create_multiflow_story_graphs(multiflow_stories: dict):
+        graphs = []
+        if multiflow_stories:
+            for events in multiflow_stories['multiflow_story']:
+                graph = StoryValidator.get_graph(events['events'])
+                graphs.append(graph)
+            return graphs
+
+    @staticmethod
+    def get_names_for_events(graph: DiGraph, step_type: str):
         name = set()
         for story_node in graph.nodes():
-            if story_node.step_type == event_type:
+            if story_node.step_type == step_type:
                 name.add(story_node.name)
         return name
 
     @staticmethod
-    def get_step_name_for_multiflow_stories(story_graph: list, event_type: str):
+    def get_step_name_for_multiflow_stories(story_graph: list, step_type: str):
         name = set()
         for graph in story_graph:
-            name = StoryValidator.get_names_for_events(graph, event_type)
+            name = StoryValidator.get_names_for_events(graph, step_type)
         return name
 
 

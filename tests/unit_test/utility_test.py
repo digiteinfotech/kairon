@@ -283,7 +283,8 @@ class TestUtility:
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         config = processor.load_config("test_load_from_path_yml_training_files")
         http_action = processor.load_http_action("test_load_from_path_yml_training_files")
-        training_data_path = Utility.write_training_data(training_data, domain, config, story_graph, None, http_action)
+        multiflow_stories = processor.load_multiflow_stories_yaml("test_load_from_path_yml_training_files")
+        training_data_path = Utility.write_training_data(training_data, domain, config, story_graph, None, http_action, None, multiflow_stories)
         assert os.path.exists(training_data_path)
 
     def test_write_training_data_with_rules(self):
@@ -302,6 +303,11 @@ class TestUtility:
         path = 'tests/testing_data/yml_training_files/actions.yml'
         content = Utility.read_yaml(path)
         assert len(content['http_action']) == 5
+
+    def test_read_yaml_multiflow_story(self):
+        path = 'tests/testing_data/yml_training_files/multiflow_stories.yml'
+        content = Utility.read_yaml(path)
+        assert len(content['multiflow_story']) == 1
 
     def test_read_yaml_not_found_exception(self):
         path = 'tests/testing_data/yml_training_files/path_not_found.yml'

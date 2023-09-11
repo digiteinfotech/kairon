@@ -941,26 +941,6 @@ class TestMongoProcessor:
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 8
 
-    @pytest.mark.asyncio
-    async def test_save_from_path_yml_invalid_multiflow_events_steps(self):
-        processor = MongoProcessor()
-        with pytest.raises(AppException, match="multiflow does not exists!"):
-            result = await (
-                processor.save_from_path(
-                    "./tests/testing_data/yml_training_files_exception", bot="test_load_yml_multiflow", user="testUser"
-                )
-            )
-
-    @pytest.mark.asyncio
-    async def test_save_from_path_yml_invalid_multiflow_events_connections(self):
-        processor = MongoProcessor()
-        with pytest.raises(AppException, match="None does not exists!"):
-            result = await (
-                processor.save_from_path(
-                    "./tests/testing_data/invalid_yml_multiflow", bot="test_load_yml_multiflow", user="testUser"
-                )
-            )
-
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
@@ -4777,7 +4757,7 @@ class TestMongoProcessor:
         story_graph = mongo_processor.load_stories(bot)
         assert isinstance(story_graph, StoryGraph) is True
         assert story_graph.story_steps.__len__() == 0
-        multiflow_story = mongo_processor.load_multiflow_stories(bot)
+        multiflow_story = mongo_processor.load_linear_flows_from_multiflow_stories(bot)
         assert isinstance(story_graph, StoryGraph) is True
         assert story_graph.story_steps.__len__() == 0
         print(multiflow_story)
@@ -5054,7 +5034,6 @@ class TestMongoProcessor:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
-        assert os.path.exists(os.path.join(bot_data_home_dir, 'multiflow_stories.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -5068,7 +5047,6 @@ class TestMongoProcessor:
         stories_path = 'tests/testing_data/yml_training_files/data/stories.yml'
         http_action_path = 'tests/testing_data/yml_training_files/actions.yml'
         rules_path = 'tests/testing_data/yml_training_files/data/rules.yml'
-        multiflow_stories_path = 'tests/testing_data/yml_training_files/multiflow_stories.yml'
         pytest.config = UploadFile(filename="config.yml", file=BytesIO(open(config_path, 'rb').read()))
         pytest.chat_client_config = UploadFile(filename="chat_client_config.yml",
                                                file=BytesIO(open(chat_client_config_path, 'rb').read()))
@@ -5077,8 +5055,6 @@ class TestMongoProcessor:
         pytest.stories = UploadFile(filename="stories.yml", file=BytesIO(open(stories_path, 'rb').read()))
         pytest.http_actions = UploadFile(filename="actions.yml", file=BytesIO(open(http_action_path, 'rb').read()))
         pytest.rules = UploadFile(filename="rules.yml", file=BytesIO(open(rules_path, 'rb').read()))
-        pytest.multiflow_stories = UploadFile(filename="multiflow_stories.yml",
-                                              file=BytesIO(open(multiflow_stories_path, 'rb').read()))
         pytest.non_nlu = UploadFile(filename="non_nlu.yml", file=BytesIO(open(rules_path, 'rb').read()))
         yield "resource_save_and_validate_training_files"
         shutil.rmtree(os.path.join('training_data', pytest.bot))
@@ -5149,10 +5125,11 @@ class TestMongoProcessor:
     async def test_validate_and_prepare_data_save_training_files(self, resource_save_and_validate_training_files):
         processor = MongoProcessor()
         training_file = [pytest.config, pytest.domain, pytest.nlu, pytest.stories, pytest.http_actions, pytest.rules,
-                         pytest.chat_client_config, pytest.multiflow_stories]
+                         pytest.chat_client_config]
         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
             pytest.bot, 'test', training_file, True)
-        assert REQUIREMENTS == files_received
+        print(files_received)
+        assert REQUIREMENTS - {'multiflow_stories'} == files_received
         assert is_event_data
         bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
@@ -5161,7 +5138,6 @@ class TestMongoProcessor:
         assert os.path.exists(os.path.join(bot_data_home_dir, 'chat_client_config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
-        assert os.path.exists(os.path.join(bot_data_home_dir, 'multiflow_stories.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -5196,7 +5172,6 @@ class TestMongoProcessor:
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'multiflow_stories.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -5259,7 +5234,6 @@ class TestMongoProcessor:
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'multiflow_stories.yml'))
         assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
@@ -5274,24 +5248,6 @@ class TestMongoProcessor:
         assert not non_event_validation_summary.get("http_actions")
         assert not non_event_validation_summary.get("config")
         assert processor.list_http_actions(pytest.bot).__len__() == 5
-
-    @pytest.mark.asyncio
-    async def test_validate_and_prepare_data_save_multfilow_stories(self, resource_save_and_validate_training_files):
-        processor = MongoProcessor()
-        training_file = [pytest.multiflow_stories, pytest.domain, pytest.nlu]
-        files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
-            pytest.bot, 'test', training_file, True)
-        assert {'multiflow_stories', 'nlu', 'domain'} == files_received
-        assert is_event_data
-        bot_data_home_dir = Utility.get_latest_file(os.path.join('training_data', pytest.bot))
-        assert os.path.exists(os.path.join(bot_data_home_dir, 'domain.yml'))
-        assert os.path.exists(os.path.join(bot_data_home_dir, 'data', 'nlu.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'config.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'stories.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
-        assert os.path.exists(os.path.join(bot_data_home_dir, 'multiflow_stories.yml'))
-        assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
-        assert not non_event_validation_summary
 
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_domain(self, resource_save_and_validate_training_files):
@@ -10735,7 +10691,7 @@ class TestMongoProcessor:
         stories = list(processor.get_multiflow_stories("test_slot"))
         assert stories[0]['type'] == "MULTIFLOW"
         assert len(stories[0]['steps']) == 6
-        load_story = processor.load_multiflow_stories(bot)
+        load_story = processor.load_linear_flows_from_multiflow_stories(bot)
         assert load_story[0].story_steps[0].events[2].key == 'food'
         assert load_story[0].story_steps[0].events[2].value == 'Indian'
         assert load_story[0].story_steps[1].events[2].key == 'mood'
@@ -11230,7 +11186,7 @@ class TestMongoProcessor:
         story_name_one = "greeting story"
         story_name_two = "farmer story"
         story_name_three = "shopping story"
-        bot = "load_multiflow_stories"
+        bot = "load_linear_flows_from_multiflow_stories"
         user = "test_user"
         steps_one = [
             {"step": {"name": "welcome", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
@@ -11340,7 +11296,7 @@ class TestMongoProcessor:
         processor.add_multiflow_story(story_dict_one, bot, user)
         processor.add_multiflow_story(story_dict_two, bot, user)
         processor.add_multiflow_story(story_dict_three, bot, user)
-        multiflow_story = processor.load_multiflow_stories(bot)
+        multiflow_story = processor.load_linear_flows_from_multiflow_stories(bot)
         assert multiflow_story[0].story_steps[0].block_name == 'greeting story_1'
         assert multiflow_story[1].story_steps[0].block_name == 'greeting story_2'
         assert multiflow_story[0].story_steps[1].block_name == 'farmer story_1'

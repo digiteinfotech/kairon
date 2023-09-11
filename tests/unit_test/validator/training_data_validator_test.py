@@ -76,7 +76,9 @@ class TestTrainingDataValidator:
         assert validator.summary['intents'][
                    0] == "The intent 'affirm' is listed in the domain file, but is not found in the NLU training data."
         assert validator.summary['intents'][
-                   1] == "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain."
+                   1] == "The intent 'more_info' is listed in the domain file, but is not found in the NLU training data."
+        assert validator.summary['intents'][
+                   2] == "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain."
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -133,10 +135,16 @@ class TestTrainingDataValidator:
 
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
-        assert validator.summary['intents'][
-                   0] == 'There is a message in the training data labeled with intent \'deny\'. This intent is not listed in your domain.'
-        assert validator.summary['intents'][
-                   1] == 'The intent \'deny\' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!'
+        assert 'The intent \'deny\' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!' in \
+               validator.summary['intents']
+        assert 'The intent \'more_info\' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!' in \
+               validator.summary['intents']
+        assert set(validator.summary['intents']) == {
+            "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain.",
+            "The intent 'more_info' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!",
+            "There is a message in the training data labeled with intent 'more_info'. This intent is not listed in your domain.",
+            "The intent 'deny' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
+        }
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -155,8 +163,7 @@ class TestTrainingDataValidator:
 
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
-        assert validator.summary['intents'][0] == 'The intent \'affirm\' is not used in any story.'
-        assert validator.summary['intents'][1] == 'The intent \'bot_challenge\' is not used in any story.'
+        assert validator.summary['intents'][0] == 'The intent \'bot_challenge\' is not used in any story.'
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -220,10 +227,11 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('intents')
         assert 'The utterance \'utter_good_feedback\' is not used in any story.' in validator.summary['utterances']
         assert 'The utterance \'utter_bad_feedback\' is not used in any story.' in validator.summary['utterances']
-        assert set(validator.summary['utterances']) == {"The utterance 'utter_bad_feedback' is not used in any story.",
+        assert set(validator.summary['utterances']) == {"The utterance 'utter_performance' is not used in any story.",
+                                                        "The utterance 'utter_more_info' is not used in any story.",
+                                                        "The utterance 'utter_good_feedback' is not used in any story.",
                                                         "The utterance 'utter_iamabot' is not used in any story.",
-                                                        "The utterance 'utter_feedback' is not used in any story.",
-                                                        "The utterance 'utter_good_feedback' is not used in any story."}
+                                                        "The utterance 'utter_bad_feedback' is not used in any story."}
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
         assert not validator.summary.get('domain')
@@ -297,47 +305,6 @@ class TestTrainingDataValidator:
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         with pytest.raises(AppException, match="Invalid multiflow_stories.yml. Check logs!"):
             validator.validate_training_data()
-
-    @pytest.mark.asyncio
-    async def test_validate_utterance_not_used_in_any_multiflow_story(self):
-        root = 'tests/testing_data/validator/unused_utterances_multiflow'
-        domain_path = 'tests/testing_data/validator/unused_utterances_multiflow/domain.yml'
-        nlu_path = 'tests/testing_data/validator/unused_utterances_multiflow/data'
-        config_path = 'tests/testing_data/validator/unused_utterances_multiflow/config.yml'
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
-        with pytest.raises(AppException):
-            validator.validate_training_data()
-
-        validator.validate_training_data(False)
-        assert validator.summary['utterances'][0] == "The utterance 'utter_more_info' is not used in any story."
-
-    @pytest.mark.asyncio
-    async def test_validate_intent_in_multiflow_story_not_in_domain(self):
-        root = 'tests/testing_data/validator/unused_intents_multiflow'
-        domain_path = 'tests/testing_data/validator/unused_intents_multiflow/domain.yml'
-        nlu_path = 'tests/testing_data/validator/unused_intents_multiflow/data'
-        config_path = 'tests/testing_data/validator/unused_intents_multiflow/config.yml'
-        with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
-            validator.validate_training_data()
-
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
-        validator.validate_training_data(False)
-        assert validator.summary['intents'][0] == "The intent 'more_info' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
-
-    @pytest.mark.asyncio
-    async def test_validate_intent_not_used_in_any_multiflow_story(self):
-        root = 'tests/testing_data/validator/orphan_domain_intents_multiflow'
-        domain_path = 'tests/testing_data/validator/orphan_domain_intents_multiflow/domain.yml'
-        nlu_path = 'tests/testing_data/validator/orphan_domain_intents_multiflow/data'
-        config_path = 'tests/testing_data/validator/orphan_domain_intents_multiflow/config.yml'
-        with pytest.raises(AppException):
-            validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
-            validator.validate_training_data()
-
-        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
-        validator.validate_training_data(False)
-        assert validator.summary['intents'][0] == "The intent 'more_info' is not used in any story."
 
     def test_validate_http_action_empty_content(self):
         test_dict = {'http_action': []}

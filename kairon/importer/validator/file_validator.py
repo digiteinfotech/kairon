@@ -76,7 +76,7 @@ class TrainingDataValidator(Validator):
             cls.chat_client_config = chat_client_config if chat_client_config else {}
             multiflow_stories = Utility.read_yaml(os.path.join(root_dir, 'multiflow_stories.yml'))
             cls.multiflow_stories = multiflow_stories if multiflow_stories else {}
-            cls.multiflow_stories_graph = TrainingDataValidator.multiflow_story_graphs(multiflow_stories)
+            cls.multiflow_stories_graph = StoryValidator.create_multiflow_story_graphs(multiflow_stories)
 
             return await TrainingDataValidator.from_importer(file_importer)
         except YamlValidationException as e:
@@ -87,15 +87,6 @@ class TrainingDataValidator(Validator):
             raise AppException(exc)
         except Exception as e:
             raise AppException(e)
-
-    @staticmethod
-    def multiflow_story_graphs(multiflow_stories: dict):
-        graphs = []
-        if multiflow_stories:
-            for events in multiflow_stories['multiflow_story']:
-                graph = StoryValidator.get_graph(events['events'])
-                graphs.append(graph)
-            return graphs
 
     def verify_example_repetition_in_intents(self, raise_exception: bool = True):
         """
@@ -211,15 +202,6 @@ class TrainingDataValidator(Validator):
                 if raise_exception:
                     raise AppException(msg)
                 intents_mismatched.append(msg)
-
-        # if multiflow_stories_intent:
-        #     for intent in multiflow_stories_intent:
-        #         if intent not in self.domain.intents and intent not in DEFAULT_INTENTS:
-        #             msg = f"The intent '{intent}' is used in your multiflow_stories, but it is not listed in " \
-        #                   f"the domain file. You should add it to your domain file!"
-        #             if raise_exception:
-        #                 raise AppException(msg)
-        #             intents_mismatched.append(msg)
 
         unused_intents = set(self.domain.intents) - all_intents - set(DEFAULT_INTENTS)
 
