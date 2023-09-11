@@ -43,6 +43,8 @@ RUN python -m pip install timeout-decorator==0.5.0
 RUN python -m pip install RestrictedPython==6.1
 RUN python -m pip install AccessControl==6.1
 
+COPY kairon /app/kairon
+
 EXPOSE 8087
 
 CMD ["uvicorn", "kairon.evaluator.main:app","--host","0.0.0.0","--port","8087", "--no-server-header"]
