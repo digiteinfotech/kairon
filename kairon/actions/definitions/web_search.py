@@ -66,7 +66,7 @@ class ActionWebSearch(ActionsBase):
                                                            topn=action_config.get("topn"),
                                                            website=action_config.get("website"))
                 if results:
-                    bot_response = '\n'.join([entry['description'] for entry in results])
+                    bot_response = ActionUtility.format_search_result(results)
                     if not ActionUtility.is_empty(action_config.get('set_slot')):
                         slots_set.update({action_config['set_slot']: bot_response})
         except Exception as e:

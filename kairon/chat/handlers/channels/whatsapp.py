@@ -2,7 +2,6 @@ from typing import Optional, Dict, Text, Any, List, Union
 
 from rasa.core.channels import OutputChannel, UserMessage
 from starlette.requests import Request
-from tornado.ioloop import IOLoop
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
@@ -12,7 +11,8 @@ import logging
 
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
-from kairon.shared.constants import ChannelTypes
+from kairon.shared.concurrency.actors.factory import ActorFactory
+from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.models import User
 
 logger = logging.getLogger(__name__)
@@ -80,7 +80,8 @@ class Whatsapp:
                 msg = "not validated"
                 return msg
 
-        IOLoop.current().spawn_callback(self.__handle_meta_payload, payload, metadata, bot)
+        actor = ActorFactory.get_instance(ActorType.callable_runner.value)
+        actor.execute(self.__handle_meta_payload, payload, metadata, bot)
         return msg
 
     def get_business_phone_number_id(self) -> Text:

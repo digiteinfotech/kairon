@@ -1,5 +1,6 @@
 import ujson as json
 import os
+import mock
 import re
 from unittest import mock
 
@@ -15,6 +16,7 @@ from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
 from kairon.actions.definitions.pipedrive import ActionPipedriveLeads
 from kairon.actions.definitions.prompt import ActionPrompt
+from kairon.actions.definitions.pyscript import ActionPyscript
 from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.web_search import ActionWebSearch
@@ -35,7 +37,7 @@ from kairon.shared.actions.models import ActionType, HttpRequestContentType
 from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpActionConfig, ActionServerLogs, SlotSetAction, \
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
-    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, WebSearchAction
+    KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -1009,6 +1011,565 @@ class TestActions:
         domain: Dict[Text, Any] = None
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is None
+
+    def test_get_pyscript_action_config_bot_empty(self):
+        with pytest.raises(ActionFailure, match="No pyscript action found for given action and bot"):
+            ActionPyscript(' ', 'test_get_pyscript_action_config_bot_empty').retrieve_config()
+
+    def test_get_pyscript_action_config_action_empty(self):
+        with pytest.raises(ActionFailure, match="No pyscript action found for given action and bot"):
+            ActionPyscript('test_get_pyscript_action_config_action_empty', ' ').retrieve_config()
+
+    def test_get_pyscript_action_no_bot(self):
+        try:
+            ActionPyscript(bot=None, name="http_action").retrieve_config()
+            assert False
+        except ActionFailure as ex:
+            assert str(ex) == "No pyscript action found for given action and bot"
+
+    def test_get_pyscript_action_no_pyscript_action(self):
+        try:
+            ActionPyscript(bot="bot", name=None).retrieve_config()
+            assert False
+        except ActionFailure as ex:
+            assert str(ex) == "No pyscript action found for given action and bot"
+
+    def test_get_pyscript_action_config(self):
+        import textwrap
+
+        action_name = "test_get_pyscript_action_config"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        expected = PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            user="user"
+        ).save().to_mongo().to_dict()
+
+        actual = ActionPyscript("5f50fd0a56b698ca10d35d2z", action_name).retrieve_config()
+        assert actual is not None
+        assert expected['name'] == actual['name']
+        assert expected['source_code'] == actual['source_code']
+        assert expected['dispatch_response'] == actual['dispatch_response']
+        assert actual['status']
+
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_without_action(self, mock_get_action):
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_exception"
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="FAILURE").get()
+        assert log['exception'] == "No pyscript action found for given action and bot"
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action"
+        script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                                            "slots": {'param2': 'param2value'}},
+                  "message": None, "error_code": 0},
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': script,
+                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
+                                        'intent': 'pyscript_action', 'chat_log': [],
+                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="SUCCESS").get()
+        assert len(actual) == 2
+        assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                          {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                           'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}]
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_bot_response_none(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_bot_response_none"
+        script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            dispatch_response=True,
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"bot_response": None, "slots": {'param2': 'param2value'}},
+                  "message": None, "error_code": 0},
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': script,
+                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
+                                        'intent': 'pyscript_action', 'chat_log': [],
+                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="SUCCESS").get()
+        assert len(actual) == 2
+        assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                          {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_type_json_bot_response_none(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_type_json_bot_response_none"
+        script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            dispatch_response=True,
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"bot_response": None,
+                                            "slots": {'param2': 'param2value'}, "type": "json"},
+                  "message": None, "error_code": 0},
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': script,
+                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
+                                        'intent': 'pyscript_action', 'chat_log': [],
+                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="SUCCESS").get()
+        assert len(actual) == 2
+        assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                          {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_type_json_bot_response_str(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_type_json_bot_response_str"
+        script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            dispatch_response=True,
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
+                                            "slots": {'param2': 'param2value'}, "type": "json"},
+                  "message": None, "error_code": 0},
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': script,
+                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
+                                        'intent': 'pyscript_action', 'chat_log': [],
+                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="SUCCESS").get()
+        assert len(actual) == 2
+        assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                          {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                           'value': "Successfully Evaluated the pyscript"}]
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_with_other_type(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_with_other_type"
+        script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            dispatch_response=True,
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
+                                            "slots": {'param2': 'param2value'}, "type": "data"},
+                  "message": None, "error_code": 0},
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': script,
+                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
+                                        'intent': 'pyscript_action', 'chat_log': [],
+                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="SUCCESS").get()
+        assert len(actual) == 2
+        assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                          {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                           'value': "Successfully Evaluated the pyscript"}]
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_with_slot_not_dict_type(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_with_slot_not_dict_type"
+        script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            dispatch_response=True,
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
+                                            "slots": "invalid slots values", "type": "text"},
+                  "message": None, "error_code": 0},
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': script,
+                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
+                                        'intent': 'pyscript_action', 'chat_log': [],
+                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})])
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="SUCCESS").get()
+        assert len(actual) == 1
+        assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                           'value': "Successfully Evaluated the pyscript"}]
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_without_pyscript_evaluator_url(self, mock_get_action, mock_trigger_lambda):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2a", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_without_pyscript_evaluator_url"
+        script = """
+        numbers = [1, 2, 3, 4, 5]
+        total = 0
+        for i in numbers:
+            total += i
+        print(total)
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2a",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+
+        with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+            mock_trigger_lambda.return_value = \
+                {"Payload": {"body": {"bot_response": "Successfully Evaluated the pyscript",
+                                      "slots": {"param2": "param2value"}}}, "StatusCode": 200}
+            mock_get_action.return_value = _get_action()
+            dispatcher: CollectingDispatcher = CollectingDispatcher()
+            tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                              followup_action=None, active_loop=None, latest_action_name=None)
+            domain: Dict[Text, Any] = None
+            actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+            log = ActionServerLogs.objects(sender="sender1",
+                                           action=action_name,
+                                           bot="5f50fd0a56b698ca10d35d2a",
+                                           status="SUCCESS").get()
+            assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                              {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                               'value': 'Successfully Evaluated the pyscript'}]
+            called_args = mock_trigger_lambda.call_args
+            assert called_args.args[1] == \
+                   {'source_code': script,
+                    'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                           'slot': {'bot': '5f50fd0a56b698ca10d35d2a',
+                                                    'param2': 'param2value'}, 'intent': 'pyscript_action',
+                                           'chat_log': [], 'key_vault': {}, 'kairon_user_msg': None,
+                                           'session_started': None}}
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_invalid_response(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_invalid_response"
+        script = """
+        for i in 10
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        responses.reset()
+        responses.add(
+            "POST", Utility.environment['evaluator']['pyscript']['url'],
+            json={"success": False, "data": None,
+                  "message": 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)',
+                  "error_code": 422},
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': script,
+                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
+                                        'intent': 'pyscript_action', 'chat_log': [],
+                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+        )
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="FAILURE").get()
+        assert log['bot_response'] == 'I have failed to process your request'
+        assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_run_pyscript_action_with_interpreter_error(self, mock_get_action):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_interpreter_error"
+        script = """
+        import requests
+        response = requests.get('http://localhost')
+        value = response.json()
+        data = value['data']
+        """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=action_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d2z",
+            user="user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        def raise_custom_exception(request):
+            import requests
+            raise requests.exceptions.ConnectionError(f"Failed to connect to service: localhost")
+
+        responses.add_callback(
+            "POST", Utility.environment['evaluator']['pyscript']['url'], callback=raise_custom_exception,
+            match=[responses.matchers.json_params_matcher(
+                {'source_code': script,
+                 'predefined_objects': {'sender_id': 'sender1', 'user_message': 'get intents',
+                                        'slot': {'param2': 'param2value', 'bot': '5f50fd0a56b698ca10d35d2z'},
+                                        'intent': 'pyscript_action', 'chat_log': [],
+                                        'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+        )
+
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        log = ActionServerLogs.objects(sender="sender1",
+                                       action=action_name,
+                                       bot="5f50fd0a56b698ca10d35d2z",
+                                       status="FAILURE").get()
+        assert log['exception'].__contains__('Failed to execute the url: Failed to connect to service: localhost')
 
     @pytest.mark.asyncio
     async def test_run(self, monkeypatch):
@@ -2571,8 +3132,8 @@ class TestActions:
         result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
         assert result == [{
             'title': 'Data Science Introduction - W3Schools',
-            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
-            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+            'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'link': 'https://www.w3schools.com/datascience/ds_introduction.asp'
         }]
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is data science?', 'site': 'https://www.w3schools.com/', 'topn': 1}
@@ -2625,11 +3186,11 @@ class TestActions:
         result = ActionUtility.perform_web_search(search_term, topn=topn)
         assert result == [
             {'title': 'Artificial intelligence - Wikipedia',
-             'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
-             'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence',},
+             'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+             'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence',},
             {'title': 'Artificial intelligence (AI) - Britannica',
-             'description': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.',
-             'url': 'https://www.britannica.com/technology/artificial-intelligence'}
+             'text': 'artificial intelligence (AI), the ability of a digital computer or computer-controlled robot to perform tasks commonly associated with intelligent beings.',
+             'link': 'https://www.britannica.com/technology/artificial-intelligence'}
         ]
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2}
@@ -2705,8 +3266,8 @@ class TestActions:
             result = ActionUtility.perform_web_search(search_term, topn=topn)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
-                 'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
-                 'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+                 'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
             ]
 
     @responses.activate
@@ -2734,8 +3295,8 @@ class TestActions:
             result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
-                 'description': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
-                 'url': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
+                 'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
+                 'link': 'https://en.wikipedia.org/wiki/Artificial_intelligence'}
             ]
 
     @responses.activate

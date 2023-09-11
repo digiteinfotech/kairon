@@ -8,6 +8,7 @@ from RestrictedPython import PrintCollector
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
 
@@ -90,3 +91,41 @@ class TestActors:
     def test_invalid_actor(self):
         with pytest.raises(AppException, match="custom actor not implemented!"):
             ActorOrchestrator.run("custom")
+
+    def test_actor_callable(self):
+        def add(a, b):
+            return a + b
+
+        value = ActorOrchestrator.run(ActorType.callable_runner, add, a=1, b=4)
+        assert value == 5
+
+    def test_actor_async_callable(self):
+        async def add(a, b):
+            return a + b
+
+        value = ActorOrchestrator.run(ActorType.callable_runner, add, a=1, b=4)
+        assert value == 5
+
+    def test_actor_callable_failure(self):
+        def add(a, b):
+            raise Exception("Failed to perform operation!")
+
+        with pytest.raises(Exception, match="Failed to perform operation!"):
+            ActorOrchestrator.run(ActorType.callable_runner, add, a=1, b=4)
+
+    def test_actor_async_callable_failure(self):
+        async def add(a, b):
+            raise Exception("Failed to perform operation!")
+
+        with pytest.raises(Exception, match="Failed to perform operation!"):
+            ActorOrchestrator.run(ActorType.callable_runner, add, a=1, b=4)
+
+    def test_actor_dead(self):
+        def add(a, b):
+            return a + b
+
+        actor_proxy = ActorFactory._ActorFactory__actors[ActorType.callable_runner.value][1]
+        actor_proxy.stop()
+
+        value = ActorOrchestrator.run(ActorType.callable_runner, add, a=1, b=4)
+        assert value == 5

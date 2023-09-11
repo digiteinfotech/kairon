@@ -317,4 +317,4 @@ class HangoutsHandler(InputChannel, ChannelHandlerBase):
                 f"text: {text}"
             )
 
-        return dumps(collector.messages)
+        return collector.messages

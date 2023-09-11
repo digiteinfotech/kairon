@@ -16,7 +16,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbOperation, DbQuery, WebSearchAction
+    DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
@@ -49,6 +49,748 @@ def test_index():
     result = response.json()
     assert response.status_code == 200
     assert result["message"] == "Kairon Action Server Up and Running"
+
+
+@responses.activate
+def test_pyscript_action_execution():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}]
+    assert response_json['responses'][0]['custom'] == {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}
+
+
+@responses.activate
+def test_pyscript_action_execution_with_bot_response_none():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_bot_response_none"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        dispatch_response=True,
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": None,
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
+    assert response_json['responses'][0]['text'] is None
+
+
+@responses.activate
+def test_pyscript_action_execution_with_type_json_bot_response_none():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_type_json_bot_response_none"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        dispatch_response=True,
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": None,
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
+    assert response_json['responses'][0]['text'] is None
+
+
+@responses.activate
+def test_pyscript_action_execution_with_type_json_bot_response_str():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_type_json_bot_response_str"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        dispatch_response=True,
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': "Successfully Evaluated the pyscript"}]
+    assert response_json['responses'][0]['text'] == "Successfully Evaluated the pyscript"
+
+
+@responses.activate
+def test_pyscript_action_execution_with_other_type():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_other_type"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        dispatch_response=True,
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
+                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "data"},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': "Successfully Evaluated the pyscript"}]
+    assert response_json['responses'][0]['text'] == "Successfully Evaluated the pyscript"
+
+
+@responses.activate
+def test_pyscript_action_execution_with_slots_not_dict_type():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_slots_not_dict_type"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
+                                        "slots": "invalid slots values"}, "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                                        'value': 'Successfully Evaluated the pyscript'}]
+
+
+@responses.activate
+@mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_lambda):
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_without_pyscript_evaluator_url"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+    mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+        mock_trigger_lambda.return_value = \
+            {"Payload": {"body": {"bot_response": "Successfully Evaluated the pyscript",
+                                  "slots": {"location": "Bangalore", "langauge": "Kannada"}}}, "StatusCode": 200}
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json['events']) == 3
+        assert len(response_json['responses']) == 1
+        assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': "Successfully Evaluated the pyscript"}]
+        assert response_json['responses'][0]['text'] == "Successfully Evaluated the pyscript"
+        called_args = mock_trigger_lambda.call_args
+        assert called_args.args[1] == \
+               {'source_code': script,
+                'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                       'slot': {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore",
+                                                "langauge": "Kannada"},
+                                       'intent': 'pyscript_action', 'chat_log': [], 'key_vault': {},
+                                       'kairon_user_msg': None, 'session_started': None}}
+
+
+@responses.activate
+@mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
+def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exception(mock_trigger_lambda):
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exception"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    print(total)
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+    mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+        mock_trigger_lambda.return_value = {"Payload": {"body": "Failed to evaluated the pyscript"}, "StatusCode": 422}
+        response = client.post("/webhook", json=request_object)
+        response_json = response.json()
+        assert response.status_code == 200
+        assert len(response_json['events']) == 1
+        assert len(response_json['responses']) == 1
+        assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': "I have failed to process your request"}]
+        log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+        assert log['exception'] == "{'Payload': {'body': 'Failed to evaluated the pyscript'}, 'StatusCode': 422}"
+
+
+@responses.activate
+def test_pyscript_action_execution_with_error():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_error"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    import requests
+    response = requests.get('http://localhost')
+    value = response.json()
+    data = value['data']
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        dispatch_response=False,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    def raise_custom_exception(request):
+        import requests
+        raise requests.exceptions.ConnectionError(f"Failed to connect to service: localhost")
+
+    responses.add_callback(
+        "POST", Utility.environment['evaluator']['pyscript']['url'], callback=raise_custom_exception,
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore",  "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'I have failed to process your request'}]
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    assert log['exception'] == 'Failed to execute the url: Failed to connect to service: localhost'
+
+
+@responses.activate
+def test_pyscript_action_execution_with_invalid_response():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_with_script_errors"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    for i in 10
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        dispatch_response=False,
+        bot="5f50fd0a56b698ca10d35d2z",
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": False, "data": None,
+              "message": 'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)',
+              "error_code": 422},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+         'value': 'I have failed to process your request'}]
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
 
 
 @responses.activate
@@ -5575,8 +6317,8 @@ def test_process_web_search_action():
         assert kwargs == {'topn': 1, 'website': 'https://www.w3schools.com/'}
         return [{
             'title': 'Data Science Introduction - W3Schools',
-            'description': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
-            'url': 'https://www.w3schools.com/datascience/ds_introduction.asp'
+            'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
+            'link': 'https://www.w3schools.com/datascience/ds_introduction.asp'
         }]
 
     request_object = {
@@ -5664,16 +6406,16 @@ def test_process_web_search_action():
         assert response.status_code == 200
         assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
-             'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'},
+             'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'}],
+             'value': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'}],
             'responses': [
                 {
-                    'text': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.',
+                    'text': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>',
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
                     'attachment': None}]}
     log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
-    assert log['bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.'
+    assert log['bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'
 
 
 @responses.activate
@@ -5690,7 +6432,7 @@ def test_process_web_search_action_with_search_engine_url():
     responses.add(
         method=responses.POST,
         url=search_engine_url,
-        json={"success": True, "data": [{"title": "Data Science: Definition, Lifecycle, Skills and Tools | IBM", "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
+        json={"success": True, "data": [{"title": 'Data Science: Definition, Lifecycle, Skills and Tools | IBM', "description": "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
                         "url": "https://www.ibm.com/topics/data-science"}], "error_code": 0},
         status=200,
         match=[
@@ -5782,10 +6524,10 @@ def test_process_web_search_action_with_search_engine_url():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning."},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning."}],
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>"},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>"}],
             'responses': [
-                {'text': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.",
+                {'text': "What is data science? Data science combines math and statistics, specialized programming, advanced analytics, artificial intelligence (AI), and machine learning with specific subject matter expertise to uncover actionable insights hidden in an organization's data. These insights can be used to guide decision making and strategic planning.\nTo know more, please visit: <a href = \"https://www.ibm.com/topics/data-science\" target=\"_blank\" >Data Science: Definition, Lifecycle, Skills and Tools | IBM</a>",
                  'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
 
 
@@ -5802,11 +6544,11 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
         assert kwargs == {'topn': 2, 'website': None}
         return [
             {'title': 'What is Data Science? | IBM',
-             'description': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
-             'url': 'https://www.ibm.com/topics/data-science'},
+             'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
+             'link': 'https://www.ibm.com/topics/data-science'},
             {'title': 'What Is Data Science? Definition, Examples, Jobs, and More',
-             'description': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-             'url': 'https://www.coursera.org/articles/what-is-data-science'}]
+             'text': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
+             'link': 'https://www.coursera.org/articles/what-is-data-science'}]
 
     request_object = {
         "next_action": action_name,
@@ -5898,15 +6640,11 @@ def test_process_web_search_action_with_kairon_user_msg_entity():
         response_json = response.json()
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
-             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'}],
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'}],
             'responses': [
-                {
-                    'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
-                    'attachment': None}]}
+                {'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
+                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
 
 
 def test_process_web_search_action_without_kairon_user_msg_entity():
@@ -5922,11 +6660,11 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
         assert kwargs == {'topn': 2, 'website': None}
         return [
             {'title': 'What is Data Science? | IBM',
-             'description': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
-             'url': 'https://www.ibm.com/topics/data-science'},
+             'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.',
+             'link': 'https://www.ibm.com/topics/data-science'},
             {'title': 'What Is Data Science? Definition, Examples, Jobs, and More',
-             'description': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-             'url': 'https://www.coursera.org/articles/what-is-data-science',}]
+             'text': 'Data science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
+             'link': 'https://www.coursera.org/articles/what-is-data-science',}]
 
     request_object = {
         "next_action": action_name,
@@ -6015,17 +6753,13 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
         mocked.side_effect = _perform_web_search
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
+        print(response_json)
         assert response.status_code == 200
         assert response_json == {'events': [
-            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response',
-             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'},
-            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.'}],
-            'responses': [
-                {
-                    'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.',
-                    'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
-                    'attachment': None}]}
+            {'event': 'slot', 'timestamp': None, 'name': 'public_search_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'},
+            {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>'}],
+            'responses': [{'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
+                           'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]}
     log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
     assert log['user_msg'] == '/action_public_search'
 
@@ -6043,8 +6777,8 @@ def test_process_web_search_action_dispatch_false():
         assert kwargs == {'topn': 1, 'website': None}
         return [
             {'title': 'Python.org - What is Python? Executive Summary',
-             'description': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.',
-             'url': 'https://www.python.org/doc/essays/blurb/'}
+             'text': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.',
+             'link': 'https://www.python.org/doc/essays/blurb/'}
         ]
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -6060,9 +6794,9 @@ def test_process_web_search_action_dispatch_false():
         assert response.status_code == 200
         assert response_json == {'events': [
             {'event': 'slot', 'timestamp': None, 'name': 'public_response',
-             'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.'},
+             'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.\nTo know more, please visit: <a href = "https://www.python.org/doc/essays/blurb/" target="_blank" >Python.org - What is Python? Executive Summary</a>'},
             {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-             'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.'}],
+             'value': 'Python is an interpreted, object-oriented, high-level programming language with dynamic semantics. Its high-level built in data structures, combined with dynamic typing and dynamic binding, make it very attractive for Rapid Application Development, as well as for use as a scripting or glue language to connect existing components together.\nTo know more, please visit: <a href = "https://www.python.org/doc/essays/blurb/" target="_blank" >Python.org - What is Python? Executive Summary</a>'}],
             'responses': []}
 
 

@@ -36,14 +36,14 @@ from starlette.requests import Request
 
 from kairon.api import models
 from kairon.api.models import HttpActionParameters, HttpActionConfigRequest, ActionResponseEvaluation, \
-    SetSlotsUsingActionResponse, PromptActionConfigRequest, DatabaseActionRequest
+    SetSlotsUsingActionResponse, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLogs, Actions, SlotSetAction, \
     FormValidationAction, GoogleSearchAction, JiraAction, PipedriveLeadsAction, HubspotFormsAction, HttpActionResponse, \
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
-    DatabaseAction, SetSlotsFromResponse, WebSearchAction
+    DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -939,6 +939,230 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
+
+    def test_add_pyscript_action_empty_name(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action_empty_name"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        pyscript_config_dict = pyscript_config.dict()
+        pyscript_config_dict['name'] = ''
+        with pytest.raises(ValidationError, match="Action name cannot be empty"):
+            processor.add_pyscript_action(pyscript_config_dict, user, bot)
+
+    def test_add_pyscript_action_empty_source_code(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action_empty_source_code"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        pyscript_config_dict = pyscript_config.dict()
+        pyscript_config_dict['source_code'] = ''
+        with pytest.raises(ValidationError, match="Source code cannot be empty"):
+            processor.add_pyscript_action(pyscript_config_dict, user, bot)
+
+    def test_add_pyscript_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        pyscript_config_action = PyscriptActionConfig.objects(name=action, bot=bot, status=True).get()
+        assert str(pyscript_config_action.id) == action_id
+        assert pyscript_config_action.name == action
+        assert pyscript_config_action.source_code == script
+        assert not pyscript_config_action.dispatch_response
+
+    def test_add_pyscript_action_with_name_already_exist(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+
+    def test_add_pyscript_action_case_insensitivity(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY"
+        script = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+        assert Actions.objects(name="test_add_pyscript_action_case_insensitivity", status=True, bot=bot).get()
+        pyscript_config_action = PyscriptActionConfig.objects(name="test_add_pyscript_action_case_insensitivity",
+                                                              bot=bot, status=True).get()
+        assert str(pyscript_config_action.id) == action_id
+        assert pyscript_config_action.name == "test_add_pyscript_action_case_insensitivity"
+        assert pyscript_config_action.source_code == script
+        assert not pyscript_config_action.dispatch_response
+
+    def test_update_pyscript_action_doesnot_exist(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_update_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5, 6, 7]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=False,
+        )
+        with pytest.raises(AppException, match='Action with name "test_update_pyscript_action" not found'):
+            processor.update_pyscript_action(pyscript_config.dict(), user, bot)
+
+    def test_update_pyscript_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        action = "test_add_pyscript_action"
+        script = """
+        data = [1, 2, 3, 4, 5, 6, 7]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        pyscript_config = PyscriptActionRequest(
+            name=action,
+            source_code=script,
+            dispatch_response=True,
+        )
+        action_id = processor.update_pyscript_action(pyscript_config.dict(), user, bot)
+        assert Actions.objects(name=action, status=True, bot=bot).get()
+        pyscript_config_action = PyscriptActionConfig.objects(name=action, bot=bot, status=True).get()
+        assert pyscript_config_action.name == action
+        assert pyscript_config_action.source_code == script
+        assert pyscript_config_action.dispatch_response
+
+    def test_list_pyscript_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        script1 = """
+        data = [1, 2, 3, 4, 5, 6, 7]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        script2 = """
+        data = [1, 2, 3, 4, 5]
+        total = 0
+        for i in data:
+            total += i
+        print(total)
+        """
+        processor = MongoProcessor()
+        actions = list(processor.list_pyscript_actions(bot, True))
+        assert len(actions) == 2
+        assert actions[0]['name'] == 'test_add_pyscript_action'
+        assert actions[0]['source_code'] == script1
+        assert actions[0]['dispatch_response']
+        assert actions[1]['name'] == 'test_add_pyscript_action_case_insensitivity'
+        assert actions[1]['source_code'] == script2
+        assert not actions[1]['dispatch_response']
+
+    def test_delete_pyscript_action(self):
+        name = 'test_add_pyscript_action'
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+        processor.delete_action(name, bot, user)
+        actions = list(processor.list_pyscript_actions(bot, True))
+        assert len(actions) == 1
+
+    def test_delete_pyscript_action_already_deleted(self):
+        name = 'test_add_pyscript_action'
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match='Action with name "test_add_pyscript_action" not found'):
+            processor.delete_action(name, bot, user)
+
+    def test_add_pyscript_action_with_story(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        steps = [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "test_add_pyscript_action_case_insensitivity", "type": "PYSCRIPT_ACTION"},
+        ]
+        story_dict = {'name': "story with pyscript action", 'steps': steps, 'type': 'STORY', 'template_type': 'CUSTOM'}
+        story_id = processor.add_complex_story(story_dict, bot, user)
+        story = Stories.objects(block_name="story with pyscript action", bot=bot,
+                                events__name='test_add_pyscript_action_case_insensitivity', status=True).get()
+        assert story.events[1].type == 'action'
+        stories = list(processor.get_stories(bot))
+        story_with_form = [s for s in stories if s['name'] == "story with pyscript action"]
+        assert story_with_form[0]['steps'] == [
+            {"name": "greet", "type": "INTENT"},
+            {"name": "test_add_pyscript_action_case_insensitivity", "type": "PYSCRIPT_ACTION"},
+        ]
+        processor.delete_complex_story(story_id, 'STORY', bot, user)
 
     def test_add_or_overwrite_config_no_existing_config(self):
         bot = 'test_config'
@@ -10129,7 +10353,7 @@ class TestMongoProcessor:
             'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
-            'database_action': [], 'web_search_action': []
+            'database_action': [], 'pyscript_action': [], 'web_search_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -10151,7 +10375,8 @@ class TestMongoProcessor:
             'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [], 'web_search_action': []
+            'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
+            'pyscript_action': [], 'web_search_action': []
         }
 
     def test_add_complex_story(self):
@@ -10175,7 +10400,7 @@ class TestMongoProcessor:
                            'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                            'kairon_bot_response': [],
                            'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
-                           'database_action': [], 'web_search_action': [],
+                           'database_action': [], 'pyscript_action': [], 'web_search_action': [],
                            'utterances': ['utter_greet',
                                           'utter_cheer_up',
                                           'utter_did_that_help',
@@ -11918,6 +12143,7 @@ class TestMongoProcessor:
             'http_action': ['action_performanceuser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
+            'pyscript_action': [], 'web_search_action': [],
             'utterances': ['utter_offer_help', 'utter_default', 'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
 
     def test_delete_non_existing_complex_story(self):
@@ -12025,7 +12251,7 @@ class TestMongoProcessor:
             'http_action': [], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
-            'database_action': [], 'web_search_action': [],
+            'database_action': [], 'pyscript_action': [], 'web_search_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',

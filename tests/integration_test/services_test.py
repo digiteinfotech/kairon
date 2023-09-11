@@ -999,6 +999,250 @@ def test_content_upload_api_with_gpt_feature_disabled():
     assert actual["error_code"] == 422
 
 
+def test_add_pyscript_action_empty_name():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": '',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_pyscript_action_empty_source_code():
+    request_body = {
+        "name": 'test_add_pyscript_action_empty_source_code',
+        "source_code": '',
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'source_code'],
+                                  'msg': 'source_code is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_pyscript_action():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_add_pyscript_action_name_already_exist():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action exists!"
+    assert not actual["success"]
+
+
+def test_add_pyscript_action_case_insensitivity():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY',
+        "source_code": script,
+        "dispatch_response": True,
+        "set_slots": [{"name": "data", "value": "${data.data}", "evaluation_type": "expression"}]
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_update_pyscript_action_does_not_exist():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_update_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "test_update_pyscript_action" not found'
+    assert not actual["success"]
+
+
+def test_update_pyscript_action():
+    script = """
+    data = [1, 2, 3, 4, 5, 6, 7]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": True,
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated!'
+    assert actual["success"]
+
+
+def test_list_pyscript_actions():
+    script1 = """
+    data = [1, 2, 3, 4, 5, 6, 7]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    script2 = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert len(actual['data']) == 2
+    assert actual['data'][0]['name'] == 'test_add_pyscript_action'
+    assert actual['data'][0]['source_code'] == script1
+    assert actual['data'][0]['dispatch_response']
+    assert actual['data'][1]['name'] == 'test_add_pyscript_action_case_insensitivity'
+    assert actual['data'][1]['source_code'] == script2
+    assert actual['data'][1]['dispatch_response']
+
+
+def test_delete_pyscript_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/test_delete_pyscript_action_not_exists",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "test_delete_pyscript_action_not_exists" not found'
+
+
+def test_delete_pyscript_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/test_add_pyscript_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
+def test_list_pyscript_actions_after_action_deleted():
+    script2 = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert len(actual['data']) == 1
+    assert actual['data'][0]['name'] == 'test_add_pyscript_action_case_insensitivity'
+    assert actual['data'][0]['source_code'] == script2
+    assert actual['data'][0]['dispatch_response']
+
+
 def test_get_client_config_url_with_ip_info(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo_location:
@@ -3468,9 +3712,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3727,11 +3971,12 @@ def test_add_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', "
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
+                        "'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
                  'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
+                 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
                  }]
     )
 
@@ -3797,9 +4042,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3935,12 +4180,12 @@ def test_update_multiflow_story_invalid_event_type():
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                         "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
-                        "'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                        "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
                         'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                        'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
+                        'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
                  }]
     )
 
@@ -4102,14 +4347,14 @@ def test_train_on_updated_data(monkeypatch):
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    
+
     actual = response.json()
     assert "data" in actual
     assert actual["message"] == "Slot added successfully!"
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    
+
     response = client.post(
         f"/api/bot/{pytest.bot}/slots",
         json={
@@ -7688,7 +7933,7 @@ def test_list_actions():
                                              'utter_goodbye', 'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
                               'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
                               'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],'hubspot_forms_action': [],
-                              'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'web_search_action': []}
+                              'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'pyscript_action': [], 'web_search_action': []}
 
     assert actual["success"]
 
@@ -8368,9 +8613,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -8433,9 +8678,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -12896,7 +13141,8 @@ def test_add_bot_with_template_name(monkeypatch):
                               'utterances': ['utter_please_rephrase', 'utter_default'], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
                               'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
                               'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-                              'kairon_bot_response': [], 'razorpay_action': [], 'database_action': [], 'actions': []}, ignore_order=True)
+                              'kairon_bot_response': [], 'razorpay_action': [], 'database_action': [], 'actions': [],
+                              'pyscript_action': []}, ignore_order=True)
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
@@ -15394,7 +15640,7 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         match=[
             responses.matchers.json_params_matcher(
                 {"data": {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'}, 
+                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'},
                  "cron_exp": None, "timezone": None})],
     )
 
