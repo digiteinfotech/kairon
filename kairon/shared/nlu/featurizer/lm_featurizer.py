@@ -28,6 +28,7 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.utils import train_utils
 from rasa.engine.recipes.default_recipe import DefaultV1Recipe
 from kairon.shared.nlu.featurizer.lm_models.factory import ModelFactory
+from rasa.utils.tensorflow.model_data import ragged_array_to_ndarray
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,16 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         """Packages needed to be installed."""
         return [Tokenizer]
 
+    def __init__(
+        self, config: Dict[Text, Any], execution_context: ExecutionContext
+    ) -> None:
+        """Initializes the featurizer with the model in the config."""
+        super(LanguageModelFeaturizer, self).__init__(
+            execution_context.node_name, config
+        )
+        self._load_model_metadata()
+        self._load_model_instance()
+
     @staticmethod
     def get_default_config() -> Dict[Text, Any]:
         """Returns LanguageModelFeaturizer's default config."""
@@ -62,32 +73,32 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
             # an optional path to a specific directory to download
             # and cache the pre-trained model weights.
             "cache_dir": None,
-            "from_pt": False
+            "from_pt": False,
         }
 
-    def __init__(
-        self, config: Dict[Text, Any], execution_context: ExecutionContext
-    ) -> None:
-        """Initializes the featurizer with the model in the config."""
-        super(LanguageModelFeaturizer, self).__init__(
-            execution_context.node_name, config
-        )
-        self._load_model_metadata()
-        self._load_model_instance()
+    @classmethod
+    def validate_config(cls, config: Dict[Text, Any]) -> None:
+        """Validates the configuration."""
+        pass
 
     @classmethod
     def create(
-            cls,
-            config: Dict[Text, Any],
-            model_storage: ModelStorage,
-            resource: Resource,
-            execution_context: ExecutionContext,
+        cls,
+        config: Dict[Text, Any],
+        model_storage: ModelStorage,
+        resource: Resource,
+        execution_context: ExecutionContext,
     ) -> "LanguageModelFeaturizer":
         """Creates a LanguageModelFeaturizer.
 
-                Loads the model specified in the config.
-                """
+        Loads the model specified in the config.
+        """
         return cls(config, execution_context)
+
+    @staticmethod
+    def required_packages() -> List[Text]:
+        """Returns the extra python dependencies required."""
+        return ["transformers"]
 
     def _load_model_metadata(self) -> None:
         """Load the metadata for the specified model and sets these properties.
@@ -112,11 +123,13 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         """Try loading the model instance."""
 
         logger.debug(f"Loading Tokenizer and Model for {self.model_name}")
-        self.model_factory = ModelFactory.get_instance(self.model_name,
-                                                       self.model_weights,
-                                                       getenv("TRANSFORMER_CACHE", self.cache_dir),
-                                                       self.from_pt,
-                                                       getenv("LOCAL_MODEL", False))
+        self.model_factory = ModelFactory.get_instance(
+            self.model_name,
+            self.model_weights,
+            getenv("TRANSFORMER_CACHE", self.cache_dir),
+            self.from_pt,
+            getenv("LOCAL_MODEL", False),
+        )
         # Use a universal pad token since all transformer architectures do not have a
         # consistent token. Instead of pad_token_id we use unk_token_id because
         # pad_token_id is not set for all architectures. We can't add a new token as
@@ -126,11 +139,6 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         self.pad_token_id = self.model_factory.tokenizer.unk_token_id
         self.max_model_sequence_length = self.model_factory.MAX_SEQUENCE_LENGTHS
 
-    @classmethod
-    def required_packages(cls) -> List[Text]:
-        """Packages needed to be installed."""
-        return ["transformers"]
-
     def _lm_tokenize(self, text: Text) -> Tuple[List[int], List[Text]]:
         """Pass the text through the tokenizer of the language model.
 
@@ -139,9 +147,13 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
 
         Returns: List of token ids and token strings.
         """
-        split_token_ids = self.model_factory.tokenizer.encode(text, add_special_tokens=False)
+        split_token_ids = self.model_factory.tokenizer.encode(
+            text, add_special_tokens=False
+        )
 
-        split_token_strings = self.model_factory.tokenizer.convert_ids_to_tokens(split_token_ids)
+        split_token_strings = self.model_factory.tokenizer.convert_ids_to_tokens(
+            split_token_ids
+        )
 
         return split_token_ids, split_token_strings
 
@@ -209,11 +221,11 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
 
         return (
             np.array(sentence_embeddings),
-            np.array(post_processed_sequence_embeddings),
+            ragged_array_to_ndarray(post_processed_sequence_embeddings),
         )
 
     def _tokenize_example(
-            self, message: Message, attribute: Text
+        self, message: Message, attribute: Text
     ) -> Tuple[List[Token], List[int]]:
         """Tokenizes a single message example.
 
@@ -260,7 +272,7 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         return tokens_out, token_ids_out
 
     def _get_token_ids_for_batch(
-            self, batch_examples: List[Message], attribute: Text
+        self, batch_examples: List[Message], attribute: Text
     ) -> Tuple[List[List[Token]], List[List[int]]]:
         """Computes token ids and token strings for each example in batch.
 
@@ -287,7 +299,7 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
 
     @staticmethod
     def _compute_attention_mask(
-            actual_sequence_lengths: List[int], max_input_sequence_length: int
+        actual_sequence_lengths: List[int], max_input_sequence_length: int
     ) -> np.ndarray:
         """Computes a mask for padding tokens.
 
@@ -315,15 +327,15 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
             padded_sequence = [1] * min(
                 actual_sequence_length, max_input_sequence_length
             ) + [0] * (
-                                      max_input_sequence_length
-                                      - min(actual_sequence_length, max_input_sequence_length)
-                              )
+                max_input_sequence_length
+                - min(actual_sequence_length, max_input_sequence_length)
+            )
             attention_mask.append(padded_sequence)
 
         return np.array(attention_mask).astype(np.float32)
 
     def _extract_sequence_lengths(
-            self, batch_token_ids: List[List[int]]
+        self, batch_token_ids: List[List[int]]
     ) -> Tuple[List[int], int]:
         """Extracts the sequence length for each example and maximum sequence length.
 
@@ -356,7 +368,7 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         return actual_sequence_lengths, max_input_sequence_length
 
     def _add_padding_to_batch(
-            self, batch_token_ids: List[List[int]], max_sequence_length_model: int
+        self, batch_token_ids: List[List[int]], max_sequence_length_model: int
     ) -> List[List[int]]:
         """Adds padding so that all examples in the batch are of the same length.
 
@@ -390,7 +402,7 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
 
     @staticmethod
     def _extract_nonpadded_embeddings(
-            embeddings: np.ndarray, actual_sequence_lengths: List[int]
+        embeddings: np.ndarray, actual_sequence_lengths: List[int]
     ) -> np.ndarray:
         """Extracts embeddings for actual tokens.
 
@@ -409,10 +421,10 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
             unmasked_embedding = embedding[: actual_sequence_lengths[index]]
             nonpadded_sequence_embeddings.append(unmasked_embedding)
 
-        return np.array(nonpadded_sequence_embeddings)
+        return ragged_array_to_ndarray(nonpadded_sequence_embeddings)
 
     def _compute_batch_sequence_features(
-            self, batch_attention_mask: np.ndarray, padded_token_ids: List[List[int]]
+        self, batch_attention_mask: np.ndarray, padded_token_ids: List[List[int]]
     ) -> np.ndarray:
         """Feeds the padded batch to the language model.
 
@@ -437,11 +449,11 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         return sequence_hidden_states
 
     def _validate_sequence_lengths(
-            self,
-            actual_sequence_lengths: List[int],
-            batch_examples: List[Message],
-            attribute: Text,
-            inference_mode: bool = False,
+        self,
+        actual_sequence_lengths: List[int],
+        batch_examples: List[Message],
+        attribute: Text,
+        inference_mode: bool = False,
     ) -> None:
         """Validates sequence length.
 
@@ -482,7 +494,7 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
                 )
 
     def _add_extra_padding(
-            self, sequence_embeddings: np.ndarray, actual_sequence_lengths: List[int]
+        self, sequence_embeddings: np.ndarray, actual_sequence_lengths: List[int]
     ) -> np.ndarray:
         """Adds extra zero padding to match the original sequence length.
 
@@ -519,15 +531,15 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
                 )
             reshaped_sequence_embeddings.append(embedding)
 
-        return np.array(reshaped_sequence_embeddings)
+        return ragged_array_to_ndarray(reshaped_sequence_embeddings)
 
     def _get_model_features_for_batch(
-            self,
-            batch_token_ids: List[List[int]],
-            batch_tokens: List[List[Token]],
-            batch_examples: List[Message],
-            attribute: Text,
-            inference_mode: bool = False,
+        self,
+        batch_token_ids: List[List[int]],
+        batch_tokens: List[List[Token]],
+        batch_examples: List[Message],
+        attribute: Text,
+        inference_mode: bool = False,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Computes dense features of each example in the batch.
 
@@ -616,13 +628,13 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         for embeddings, tokens in zip(sequence_embeddings, batch_tokens):
             sequence_final_embeddings.append(embeddings[: len(tokens)])
 
-        return sentence_embeddings, np.array(sequence_final_embeddings)
+        return sentence_embeddings, ragged_array_to_ndarray(sequence_final_embeddings)
 
     def _get_docs_for_batch(
-            self,
-            batch_examples: List[Message],
-            attribute: Text,
-            inference_mode: bool = False,
+        self,
+        batch_examples: List[Message],
+        attribute: Text,
+        inference_mode: bool = False,
     ) -> List[Dict[Text, Any]]:
         """Computes language model docs for all examples in the batch.
 
@@ -717,7 +729,7 @@ class LanguageModelFeaturizer(DenseFeaturizer, GraphComponent, ABC):
         return message
 
     def _set_lm_features(
-            self, doc: Dict[Text, Any], message: Message, attribute: Text = TEXT
+        self, doc: Dict[Text, Any], message: Message, attribute: Text = TEXT
     ) -> None:
         """Adds the precomputed word vectors to the messages features."""
         sequence_features = doc[SEQUENCE_FEATURES]
