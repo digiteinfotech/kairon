@@ -1245,8 +1245,8 @@ class TestActions:
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
 
-    @responses.activate
     @pytest.mark.asyncio
+    @responses.activate
     @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
     async def test_run_pyscript_action_with_type_json_bot_response_str(self, mock_get_action):
         import textwrap
@@ -1294,7 +1294,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS").get()
+                                       status="SUCCESS")
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',

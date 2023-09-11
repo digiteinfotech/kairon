@@ -504,17 +504,16 @@ class ActionUtility:
 
     @staticmethod
     def handle_utter_bot_response(dispatcher: CollectingDispatcher, dispatch_type: str, bot_response: Any):
-        from json import JSONDecodeError
-
         message = None
         if dispatch_type == DispatchType.json.value:
             try:
                 if isinstance(bot_response, str):
+                    print(bot_response)
                     bot_response = json.loads(bot_response)
                 dispatcher.utter_message(json_message=bot_response)
-            except JSONDecodeError as e:
+            except json.JSONDecodeError as e:
                 message = f'Failed to convert http response to json: {str(e)}'
-                logger.exception(e)
+                logger.info(e)
                 dispatcher.utter_message(bot_response)
         else:
             dispatcher.utter_message(bot_response)

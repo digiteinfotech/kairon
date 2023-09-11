@@ -1671,7 +1671,6 @@ def test_add_prompt_action_with_invalid_top_results():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'top_results'],
                                   'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1727,7 +1726,6 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'num_bot_responses'],
                                   'msg': 'num_bot_responses should not be greater than 5', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1758,7 +1756,6 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
                                   'msg': 'System prompt must have static source!', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1792,7 +1789,6 @@ def test_add_prompt_action_with_multiple_system_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
                                   'msg': 'Only one system prompt can be present!', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1822,7 +1818,6 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
                                   'msg': 'Name cannot be empty!', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1851,7 +1846,6 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
                                   'msg': 'data is required for static prompts!', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1879,7 +1873,6 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
                                   'msg': 'Only one history source can be present!', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1910,7 +1903,6 @@ def test_add_prompt_action_with_multiple_bot_content_source_prompts():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'],
                                   'msg': 'Only one bot_content source can be present!', 'type': 'value_error'}]
     assert not actual["data"]
@@ -1973,7 +1965,6 @@ def test_add_prompt_action(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == "Action Added Successfully"
     assert actual["data"]["_id"]
     pytest.action_id = actual["data"]["_id"]
@@ -2007,7 +1998,6 @@ def test_add_prompt_action_already_exist(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == "Action exists!"
     assert not actual["data"]
     assert not actual["success"]
@@ -2036,7 +2026,6 @@ def test_update_prompt_action_does_not_exist():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == "Action not found"
     assert not actual["data"]
     assert not actual["success"]
@@ -2065,7 +2054,6 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'similarity_threshold'],
                                   'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
@@ -2091,7 +2079,6 @@ def test_update_prompt_action_with_invalid_top_results():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'top_results'],
                                   'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
@@ -2117,7 +2104,7 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == [
         {'loc': ['body', 'num_bot_responses'], 'msg': 'num_bot_responses should not be greater than 5',
          'type': 'value_error'},
@@ -2148,7 +2135,7 @@ def test_update_prompt_action_with_invalid_query_prompt():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'], 'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
     assert not actual["success"]
 
@@ -2176,7 +2163,7 @@ def test_update_prompt_action_with_query_prompt_with_false():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == [{'loc': ['body', 'llm_prompts'], 'msg': 'Query prompt must have static source!', 'type': 'value_error'}]
     assert not actual["success"]
 
@@ -2204,7 +2191,7 @@ def test_update_prompt_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == 'Action updated!'
     assert not actual["data"]
     assert actual["success"]
@@ -2221,7 +2208,7 @@ def test_get_prompt_action():
     assert actual["error_code"] == 0
     assert not actual["message"]
     actual['data'][0].pop("_id")
-    print(actual["data"])
+
     assert actual["data"] == [
         {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
          'enable_response_cache': False, 'failure_message': 'updated_failure_message',
@@ -3749,7 +3736,7 @@ def test_add_multiflow_story():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == "Story flow added successfully"
     assert actual["data"]["_id"]
     pytest.multiflow_story_id = actual["data"]["_id"]
@@ -3787,7 +3774,7 @@ def test_add_multiflow_story_with_slot_values():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == "Story flow added successfully"
     assert actual["data"]["_id"]
     assert actual["success"]
@@ -3825,7 +3812,7 @@ def test_add_multiflow_story_with_path():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == "Story flow added successfully"
     assert actual["data"]["_id"]
     assert actual["success"]
@@ -3878,7 +3865,7 @@ def test_add_multiflow_story_no_steps():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == [{'loc': ['body', 'steps'], 'msg': 'Steps are required to form Flow', 'type': 'value_error'}]
     assert actual["data"] is None
     assert not actual["success"]
@@ -3911,7 +3898,7 @@ def test_add_multiflow_story_lone_intent():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    print(actual["message"])
+
     assert actual["message"] == "Leaf nodes cannot be intent"
 
 
@@ -3940,7 +3927,7 @@ def test_add_multiflow_story_missing_event_type():
     )
     actual = response.json()
     assert not actual["success"]
-    print(actual["message"])
+
     assert actual["error_code"] == 422
     assert (
             actual["message"]
@@ -3964,7 +3951,7 @@ def test_add_multiflow_story_invalid_event_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    print(actual["message"])
+
     assert (
             actual["message"]
             == [{'loc': ['body', 'steps', 0, 'step', 'type'],
@@ -4079,7 +4066,7 @@ def test_update_multiflow_story():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual["message"])
+
     assert actual["message"] == "Story flow updated successfully"
     assert actual["data"]["_id"]
     assert actual["success"]
@@ -4172,7 +4159,7 @@ def test_update_multiflow_story_invalid_event_type():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    print(actual["message"])
+
     assert (
             actual["message"]
             == [{'loc': ['body', 'steps', 0, 'step', 'type'],
@@ -4196,7 +4183,7 @@ def test_get_multiflow_stories():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    # print(actual["data"])
+    #
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
@@ -6590,7 +6577,7 @@ def test_add_vectordb_action_empty_name():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
     assert not actual["success"]
@@ -6610,7 +6597,7 @@ def test_add_vectordb_action_empty_operation_value():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'query', 'value'],
                                   'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
@@ -6635,7 +6622,7 @@ def test_add_vectordb_action_empty_operation_type():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'query', 'type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
@@ -6659,7 +6646,7 @@ def test_add_vectordb_action_empty_payload_type():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', 'payload', 'type'],
                                   'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
@@ -6683,7 +6670,7 @@ def test_add_vectordb_action_empty_payload_value():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"] ==  [{'loc': ['body', 'payload', '__root__'], 'msg': 'value is required', 'type': 'value_error'}]
     assert not actual["success"]
@@ -6710,7 +6697,7 @@ def test_add_vectordb_action():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 0
     assert actual["message"] == 'Action added!'
     assert actual["success"]
@@ -6755,7 +6742,7 @@ def test_add_vectordb_action_case_insensitivity():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 0
     assert actual['data']
     assert actual["success"]
@@ -6785,7 +6772,7 @@ def test_add_vectordb_action_existing():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action exists!'
     assert not actual["success"]
@@ -6818,7 +6805,7 @@ def test_add_vectordb_action_with_slots():
     )
 
     actual = response.json()
-    print(actual)
+
     assert actual["error_code"] == 0
     assert actual["message"]
     assert actual["success"]
