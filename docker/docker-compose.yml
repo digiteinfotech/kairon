@@ -104,6 +104,17 @@ services:
     networks:
       - chatbotnetwork
 
+  kairon-script-runner:
+    image: digite/kairon-script-runner:latest
+    container_name: kairon-script-runner
+    hostname: kairon-script-runner
+    ports:
+      - 8087:8087
+    environment:
+      TRACKER_URL: "mongodb://mongo:27017/kairon"
+    networks:
+      - chatbotnetwork
+
   kairon-history-server:
     image: digite/kairon-history-server:latest
     container_name: kairon-history-server

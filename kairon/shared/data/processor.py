@@ -980,14 +980,16 @@ class MongoProcessor:
                 "influence_conversation": False}, bot, user, raise_exception_if_exists=False
             )
 
-        for slot in [s for s in KaironSystemSlots if s.value == KaironSystemSlots.kairon_action_response.value]:
+        for slot in [s for s in KaironSystemSlots if s.value in {KaironSystemSlots.kairon_action_response.value,
+                                                                 KaironSystemSlots.order.value}]:
             self.add_slot({
                 "name": slot, "type": "any", "initial_value": None, "auto_fill": False,
                 "influence_conversation": False}, bot, user, raise_exception_if_exists=False
             )
 
         for slot in [s for s in KaironSystemSlots if s.value not in {KaironSystemSlots.bot.value,
-                                                                     KaironSystemSlots.kairon_action_response.value}]:
+                                                                     KaironSystemSlots.kairon_action_response.value,
+                                                                     KaironSystemSlots.order.value}]:
             self.add_slot({
                 "name": slot, "type": "text", "auto_fill": True,
                 "initial_value": None, "influence_conversation": True}, bot, user, raise_exception_if_exists=False

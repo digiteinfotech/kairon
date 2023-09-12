@@ -48,6 +48,8 @@ class Whatsapp:
             if message['type'] == "voice":
                 message['type'] = "audio"
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
+        elif message.get("order"):
+            text = f"/k_order_msg{{\"{message['type']}\": \"{message['order']}\"}}"
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return

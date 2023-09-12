@@ -2259,7 +2259,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 7
+    assert len(actual['data']) == 8
     assert actual["success"]
 
 
@@ -2384,7 +2384,7 @@ def test_list_entities():
     assert actual["error_code"] == 0
     assert not DeepDiff({e['name'] for e in actual["data"]}, {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
-                                                   'audio', 'image', 'doc_url', 'document', 'video', 'name'}, ignore_order=True)
+                                                   'audio', 'image', 'doc_url', 'document', 'video', 'name', 'order'}, ignore_order=True)
     assert actual["success"]
 
 
@@ -2773,7 +2773,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 14
+    assert len(actual["data"]) == 15
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
