@@ -2,7 +2,7 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import Any, List, Text
+from typing import Any, List, Text, Dict
 
 import requests
 from loguru import logger
@@ -603,14 +603,13 @@ class ActionUtility:
         return conversation_mail_template
 
     @staticmethod
-    def prepare_email_text(custom_text_mail: str, tracker_data: dict, subject: str, user_email: str = None):
-        text, _ = ActionUtility.evaluate_script(custom_text_mail, tracker_data)
+    def prepare_email_text(custom_text_mail: Dict, subject: str, user_email: str = None):
         custom_text_mail_template = Utility.email_conf['email']['templates']['custom_text_mail']
         custom_text_mail_template = custom_text_mail_template.replace('SUBJECT', subject)
         if not ActionUtility.is_empty(user_email):
             custom_text_mail_template = custom_text_mail_template.replace('USER_EMAIL', user_email)
         custom_text_mail_template.replace('This email was sent to USER_EMAIL', '')
-        custom_text_mail_template = custom_text_mail_template.replace('CUSTOM_TEXT', text)
+        custom_text_mail_template = custom_text_mail_template.replace('CUSTOM_TEXT', custom_text_mail)
         return custom_text_mail_template
 
     @staticmethod

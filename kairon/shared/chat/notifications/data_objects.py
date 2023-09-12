@@ -2,6 +2,7 @@ from mongoengine import Document, StringField, DateTimeField, DynamicDocument, E
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField
 
 from kairon import Utility
+from kairon.shared.data.base_data import Auditlog
 from kairon.shared.data.signals import push_notification
 from datetime import datetime
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType
@@ -79,7 +80,7 @@ class TemplateConfiguration(EmbeddedDocument):
 
 
 @push_notification.apply
-class MessageBroadcastSettings(Document):
+class MessageBroadcastSettings(Auditlog):
     name = StringField(required=True)
     connector_type = StringField(required=True)
     broadcast_type = StringField(required=True, choices=[MessageBroadcastType.static.value, MessageBroadcastType.dynamic.value])

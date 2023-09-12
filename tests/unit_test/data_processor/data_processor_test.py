@@ -12605,6 +12605,23 @@ class TestMongoProcessor:
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.add_email_action(email_config, "TEST", "tests") is not None
 
+    def test_add_email_action_with_custom_text(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config_with_custom_text",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": {'value': "test"},
+                        "from_email": "test@demo.com",
+                        "to_email": ["test@test.com", "test1@test.com"],
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "tls": False,
+                        "custom_text": {"value": "Hello from kairon!"}
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            assert processor.add_email_action(email_config, "TEST", "tests") is not None
+
     def test_add_email_action_with_story(self):
         processor = MongoProcessor()
         bot = 'TEST'
@@ -12667,7 +12684,11 @@ class TestMongoProcessor:
             email_config['to_email'] = "test@test"
             with pytest.raises(ValidationError, match="Invalid From or To email address"):
                 processor.add_email_action(email_config, "TEST", "tests")
-            email_config['to_email'] = temp
+            email_config['to_email'] = ["test@demo.com"]
+            email_config["custom_text"] = {"value": "custom_text_slot", "parameter_type": "sender_id"}
+            with pytest.raises(ValidationError, match="custom_text can only be of type value or slot!"):
+                processor.add_email_action(email_config, "TEST", "tests")
+
 
     def test_add_email_action_duplicate(self):
         processor = MongoProcessor()
@@ -12716,6 +12737,10 @@ class TestMongoProcessor:
                         "response": "Test Response",
                         "tls": False
                         }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            assert processor.edit_email_action(email_config, "TEST", "tests") is None
+
+        email_config["custom_text"] = {"value": "custom_text_slot", "parameter_type": "slot"}
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.edit_email_action(email_config, "TEST", "tests") is None
 
@@ -12781,7 +12806,7 @@ class TestMongoProcessor:
 
     def test_list_email_actions(self):
         processor = MongoProcessor()
-        assert len(list(processor.list_email_action("TEST"))) == 1
+        assert len(list(processor.list_email_action("TEST"))) == 2
 
     def test_list_email_actions_with_default_value(self):
         processor = MongoProcessor()
