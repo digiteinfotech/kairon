@@ -6,15 +6,13 @@ from pymongo.collection import Collection
 from rasa.core.brokers.broker import EventBroker
 from rasa.core.tracker_store import TrackerStore
 from rasa.shared.core.domain import Domain
-from rasa.shared.core.trackers import (
-    DialogueStateTracker,
-    EventVerbosity
-)
+from rasa.shared.core.trackers import DialogueStateTracker, EventVerbosity
 from uuid6 import uuid7
 from kairon.shared.utils import Utility
+from rasa.core.tracker_store import SerializedTrackerAsText
 
 
-class KMongoTrackerStore(TrackerStore):
+class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
     def __init__(
         self,
         domain: Domain,
@@ -112,14 +110,18 @@ class KMongoTrackerStore(TrackerStore):
                 if event["event"] == "user":
                     flattened_conversation["timestamp"] = event.get("timestamp")
                     flattened_conversation["data"]["user_input"] = event.get("text")
-                    flattened_conversation["data"]["intent"] = event["parse_data"]["intent"]["name"]
-                    flattened_conversation["data"]["confidence"] = event["parse_data"]["intent"][
-                        "confidence"
-                    ]
+                    flattened_conversation["data"]["intent"] = event["parse_data"][
+                        "intent"
+                    ]["name"]
+                    flattened_conversation["data"]["confidence"] = event["parse_data"][
+                        "intent"
+                    ]["confidence"]
                 elif event["event"] == "action":
                     actions_predicted.append(event.get("name"))
                 elif event["event"] == "bot":
-                    bot_responses.append({"text": event.get("text"), "data": event.get("data")})
+                    bot_responses.append(
+                        {"text": event.get("text"), "data": event.get("data")}
+                    )
             flattened_conversation["data"]["action"] = actions_predicted
             flattened_conversation["data"]["bot_response"] = bot_responses
             data.append(flattened_conversation)
@@ -156,7 +158,9 @@ class KMongoTrackerStore(TrackerStore):
     async def retrieve_full_tracker(
         self, conversation_id: Text
     ) -> Optional[DialogueStateTracker]:
-        events = await self._retrieve(conversation_id, fetch_events_from_all_sessions=True)
+        events = await self._retrieve(
+            conversation_id, fetch_events_from_all_sessions=True
+        )
 
         if not events:
             return None
@@ -208,8 +212,42 @@ class KMongoTrackerStore(TrackerStore):
             return None
         return stored[0]["events"]
 
+    def get_latest_session_events_count(self, sender_id: Text):
+        filter_query = {"sender_id": sender_id}
+
+        last_session = list(
+            self.conversations.aggregate(
+                [
+                    {
+                        "$match": {
+                            "sender_id": sender_id,
+                            "event.event": "session_started",
+                        }
+                    },
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "event": {"$last": "$event"}}},
+                ]
+            )
+        )
+        filter_query["event.event"] = {"$ne": "session_started"}
+
+        if last_session:
+            filter_query["event.timestamp"] = {
+                "$gte": last_session[0]["event"]["timestamp"]
+            }
+
+        stored = list(
+            self.conversations.aggregate(
+                [
+                    {"$match": filter_query},
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "count": {"$sum": 1}}},
+                    {"$project": {"sender_id": "$_id", "count": 1, "_id": 0}},
+                ]
+            )
+        )
+        return stored[0]["count"]
+
     def _additional_events(self, tracker: DialogueStateTracker) -> Iterator:
-        stored = self.get_stored_events(tracker.sender_id, False)
-        if stored:
-            return itertools.islice(tracker.events, len(stored), len(tracker.events))
-        return tracker.events
+        count = self.get_latest_session_events_count(tracker.sender_id)
+        return itertools.islice(tracker.events, count, len(tracker.events))

@@ -19,3 +19,6 @@ coverage_html
 /models/
 /enable_gpt.py
 /sample.py
+/testing_data/
+/training_data/
+/.rasa/
