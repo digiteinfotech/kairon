@@ -115,6 +115,7 @@ class TestMongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
+            multiflow_stories = Utility.read_yaml(multiflow_story_path)
             chat_client_config = Utility.read_yaml(chat_client_config_path)
             multiflow_stories = Utility.read_yaml(multiflow_story_path)
             return nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config

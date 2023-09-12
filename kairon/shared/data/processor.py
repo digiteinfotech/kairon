@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import networkx as nx
 import yaml
 from fastapi import File
-from loguru import logger as logging, logger
+from loguru import logger as logging
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
