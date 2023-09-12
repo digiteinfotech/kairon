@@ -1,17 +1,6 @@
 ARG BASE_IMAGE=kairon-base:latest
 FROM $BASE_IMAGE
 
-RUN mkdir -p /home/cache
-RUN chmod -R 777 /home/cache
-
-ENV HF_HOME="/home/cache"
-
-COPY kairon/ /app/kairon
-COPY metadata /app/metadata
-COPY system.yaml /app/
-COPY email.yaml /app/
-COPY augmentation /app/augmentation
-
 USER 1001
 EXPOSE 5056
 
