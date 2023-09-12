@@ -227,11 +227,15 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('intents')
         assert 'The utterance \'utter_good_feedback\' is not used in any story.' in validator.summary['utterances']
         assert 'The utterance \'utter_bad_feedback\' is not used in any story.' in validator.summary['utterances']
-        assert set(validator.summary['utterances']) == {"The utterance 'utter_performance' is not used in any story.",
-                                                        "The utterance 'utter_more_info' is not used in any story.",
-                                                        "The utterance 'utter_good_feedback' is not used in any story.",
-                                                        "The utterance 'utter_iamabot' is not used in any story.",
-                                                        "The utterance 'utter_bad_feedback' is not used in any story."}
+        assert set(validator.summary['utterances']) == {
+            "The action 'action_performanceUser1001@digite.com' is used in multiflow stories but not listed in domain. You should add it to your domain file",
+            "The utterance 'utter_bad_feedback' is not used in any story.",
+            "The utterance 'utter_iamabot' is not used in any story.",
+            "The utterance 'utter_query' is not used in any story.",
+            "The utterance 'utter_good_feedback' is not used in any story.",
+            "The utterance 'utter_performance' is not used in any story.",
+            "The utterance 'utter_more_info' is not used in any story."
+        }
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
         assert not validator.summary.get('domain')
@@ -1067,6 +1071,8 @@ class TestTrainingDataValidator:
         test_dict = {'multiflow_story': []}
         assert TrainingDataValidator.validate_multiflow_stories(test_dict)
         assert TrainingDataValidator.validate_multiflow_stories([{}])
+        test = {None}
+        assert TrainingDataValidator.validate_multiflow_stories(test)
 
     def test_validate_multiflow_stories(self):
         steps_mf_one = [

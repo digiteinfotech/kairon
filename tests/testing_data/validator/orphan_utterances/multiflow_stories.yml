@@ -7,13 +7,13 @@ multiflow_story:
         node_id: "1"
         component_id: "61m96mPGu2VexybDeVg1dLyH"
       connections:
-        - name: utter_query
-          type: BOT
+        - name: action_performanceUser1001@digite.com
+          type: HTTP_ACTION
           node_id: "2"
           component_id: "61uaImwNrsJI1pVphl8mZh20"
     - step:
-        name: utter_query
-        type: BOT
+        name: action_performanceUser1001@digite.com
+        type: HTTP_ACTION
         node_id: "2"
         component_id: "61uaImwNrsJI1pVphl8mZh20"
       connections:

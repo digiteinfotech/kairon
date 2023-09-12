@@ -116,6 +116,7 @@ class TestMongoProcessor:
             nlu = await importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
             chat_client_config = Utility.read_yaml(chat_client_config_path)
+            multiflow_stories = Utility.read_yaml(multiflow_story_path)
             return nlu, story_graph, domain, config, http_actions, multiflow_stories, chat_client_config
 
         return _read_and_get_data
@@ -939,6 +940,13 @@ class TestMongoProcessor:
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 7
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 9
+        multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
+        print(multiflow_stories['multiflow_story'][0]['events'][0])
+        step_data = multiflow_stories['multiflow_story'][0]['events'][0]['step']
+        assert step_data['component_id'] is not None
+        fields = ['block_name', 'start_checkpoints', 'end_checkpoints', 'events', 'metadata', 'template_type']
+        for item in fields:
+            assert item in multiflow_stories['multiflow_story'][0].keys()
 
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
@@ -2802,6 +2810,66 @@ class TestMongoProcessor:
         assert file_content_rules == b'version: "2.0"\n'
         zip_file.close()
 
+    def test_download_data_files_multiflow_stories_with_action(self, monkeypatch):
+        from zipfile import ZipFile
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        processor = MongoProcessor()
+        story_name = "multiflow_story_STORY_download_data_files_with_actions"
+        steps = [
+            {"step": {"name": "asking", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+             "connections": [
+                 {"name": "utter_asking", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+             },
+            {"step": {"name": "utter_asking", "type": "BOT", "node_id": "2",
+                      "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+             "connections": [
+                 {"name": "moodyy", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+                 {"name": "foodyy", "type": "HTTP_ACTION", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+             },
+            {"step": {"name": "foodyy", "type": "HTTP_ACTION", "node_id": "4",
+                      "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+             "connections": [
+                 {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+             },
+            {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                      "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+             "connections": None
+             },
+            {"step": {"name": "utter_moodyy", "type": "BOT", "node_id": "6",
+                      "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+             "connections": None
+             },
+            {"step": {"name": "moodyy", "type": "INTENT", "node_id": "3",
+                      "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             "connections": [{"name": "utter_moodyy", "type": "BOT", "node_id": "6",
+                              "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+             }
+        ]
+        metadata = [{"node_id": '6', "flow_type": 'STORY'}, {"node_id": "5", "flow_type": 'RULE'}]
+        story_dict = {'name': story_name, 'steps': steps, "metadata": metadata, 'type': 'MULTIFLOW',
+                      'template_type': 'CUSTOM'}
+        processor.add_multiflow_story(story_dict, "tests_download_again", "user@integration.com")
+        file = processor.download_files("tests_download_again", "user@integration.com", True)
+        assert file.endswith(".zip")
+        zip_file = ZipFile(file, mode='r')
+        assert zip_file.getinfo('data/stories.yml')
+        assert zip_file.getinfo('data/rules.yml')
+        file_info_stories = zip_file.getinfo('data/stories.yml')
+        file_info_rules = zip_file.getinfo('data/rules.yml')
+        file_content_stories = zip_file.read(file_info_stories)
+        file_content_rules = zip_file.read(file_info_rules)
+        print(file_content_stories)
+        print(file_content_rules)
+        assert file_content_stories == b'version: "2.0"\nstories:\n- story: multiflow_story_story_download_data_files_with_actions_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_content_rules == b'version: "2.0"\nrules:\n- rule: multiflow_story_story_download_data_files_with_actions_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foody\n'
+        zip_file.close()
 
     def test_download_data_files_with_actions(self, monkeypatch):
         from zipfile import ZipFile
@@ -4457,6 +4525,8 @@ class TestMongoProcessor:
         assert isinstance(actions, dict) is True
         assert len(actions['http_action']) == 5
         assert len(Actions.objects(type='http_action', bot=bot)) == 5
+        multiflow_stories = mongo_processor.load_multiflow_stories_yaml(bot)
+        assert isinstance(multiflow_stories, dict) is True
 
     @pytest.mark.asyncio
     async def test_save_training_data_no_rules_and_http_actions(self, get_training_data, monkeypatch):
@@ -4731,7 +4801,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.templates.keys().__len__() == 31
-        assert domain.entities.__len__() == 16
+        assert domain.entities.__len__() == 17
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 53
         assert domain.intents.__len__() == 33
@@ -4767,9 +4837,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 17
+        assert domain.slots.__len__() == 18
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 10
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27

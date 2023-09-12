@@ -24,6 +24,7 @@ from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRI
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories
 from kairon.shared.data.utils import DataUtility
+from kairon.shared.models import StoryStepType
 from kairon.shared.utils import Utility, StoryValidator
 
 
@@ -257,12 +258,43 @@ class TrainingDataValidator(Validator):
         self.verify_utterances(raise_exception)
 
         utterance_actions = self.validator._gather_utterance_actions()
+        user_actions = set(self.domain.user_actions)
+        all_utterances_with_actions = user_actions.union(utterance_actions)
         fallback_action = DataUtility.parse_fallback_action(self.config)
         system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES).union(KAIRON_TWO_STAGE_FALLBACK)
         stories_utterances = set()
-        multiflow_stories_utterances = set()
+        multiflow_utterance = set()
         if self.multiflow_stories:
             multiflow_stories_utterances = StoryValidator.get_step_name_for_multiflow_stories(self.multiflow_stories_graph, "BOT")
+            multiflow_stories_actions = {
+                StoryStepType.http_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'HTTP_ACTION'),
+                StoryStepType.email_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'EMAIL_ACTION'),
+                StoryStepType.google_search_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'GOOGLE_SEARCH_ACTION'),
+                StoryStepType.slot_set_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'SLOT_SET_ACTION'),
+                StoryStepType.jira_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'JIRA_ACTION'),
+                StoryStepType.form_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'FORM_ACTION'),
+                StoryStepType.zendesk_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'ZENDESK_ACTION'),
+                StoryStepType.pipedrive_leads_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'PIPEDRIVE_LEADS_ACTION'),
+                StoryStepType.hubspot_forms_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'HUBSPOT_FORMS_ACTION'),
+                StoryStepType.two_stage_fallback_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'TWO_STAGE_FALLBACK_ACTION'),
+                StoryStepType.razorpay_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'RAZORPAY_ACTION'),
+                StoryStepType.prompt_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'PROMPT_ACTION'),
+                StoryStepType.web_search_action.value: StoryValidator.get_step_name_for_multiflow_stories(
+                    self.multiflow_stories_graph, 'WEB_SEARCH_ACTION'),
+            }
+            multiflow_utterance = set(multiflow_stories_utterances.union(value for values in multiflow_stories_actions.values() for value in values))
 
         for story in self.story_graph.story_steps:
             for event in story.events:
@@ -292,7 +324,14 @@ class TrainingDataValidator(Validator):
                 form_utterances.add(f"utter_ask_{form}_{slot}")
         utterance_actions = utterance_actions.difference(form_utterances)
 
-        unused_utterances = set(utterance_actions) - stories_utterances - multiflow_stories_utterances - system_triggered_actions.union(fallback_action)
+        for utterance in multiflow_utterance:
+            if utterance not in all_utterances_with_actions:
+                msg = f"The action '{utterance}' is used in multiflow stories but not listed in domain. You should add it to your domain file"
+                if raise_exception:
+                    raise AppException(msg)
+                utterance_mismatch_summary.append(msg)
+
+        unused_utterances = set(utterance_actions) - stories_utterances - multiflow_utterance - system_triggered_actions.union(fallback_action)
 
         for utterance in sorted(unused_utterances):
             msg = f"The utterance '{utterance}' is not used in any story."
@@ -404,7 +443,7 @@ class TrainingDataValidator(Validator):
         if not isinstance(multiflow_stories, dict):
             story_errors = {'multiflow_story': ['Invalid multiflow story configuration format. Dictionary expected.']}
             return story_errors
-        if multiflow_stories['multiflow_story'] or []:
+        if multiflow_stories['multiflow_story'] or [] or None:
             count['multiflow_stories'] = len(multiflow_stories['multiflow_story'])
             errors = TrainingDataValidator.verify_multiflow_story_structure(multiflow_stories['multiflow_story'])
         return errors, count

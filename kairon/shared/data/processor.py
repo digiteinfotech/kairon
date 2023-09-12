@@ -263,21 +263,10 @@ class MongoProcessor:
         ]
 
     def load_multiflow_stories_yaml(self, bot: Text):
-        multiflow = list(MultiflowStories.objects(bot=bot, status=True))
-        fields = []
-        multiflow_stories = {}
-        for value in multiflow:
-            final = {}
-            item = value.to_mongo().to_dict()
-            final['block_name'] = item.get('block_name')
-            final['events'] = item.get('events')
-            final['metadata'] = item.get('metadata', [])
-            final['template_type'] = item.get('template_type')
-            final['start_checkpoints'] = item.get('start_checkpoints')
-            final['end_checkpoints'] = item.get('end_checkpoints', [])
-            fields.append(final)
-        multiflow_stories['multiflow_story'] = fields
-        return multiflow_stories
+        multiflow = MultiflowStories.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp',
+                                                                           'status').to_json()
+        multiflow = json.loads(multiflow)
+        return {'multiflow_story': multiflow}
 
     def delete_bot_data(self, bot: Text, user: Text, what=REQUIREMENTS.copy()):
         """
@@ -1185,39 +1174,28 @@ class MongoProcessor:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
     def __retrieve_existing_components(self, bot):
-        intents = {}
-        slots = {}
-        utterances = {}
-        actions = {}
-        intents['intents'] = dict(Intents.objects(bot=bot, status=True).values_list('name', 'id'))
-        slots['slots'] = dict(Slots.objects(bot=bot, status=True).values_list('name', 'id'))
-        utterances['utterances'] = dict(Utterances.objects(bot=bot, status=True).values_list('name', 'id'))
         component_dict = {
-            StoryStepType.intent.value: intents['intents'],
-            StoryStepType.slot.value: slots['slots'],
-            StoryStepType.bot.value: utterances['utterances']
+            StoryStepType.intent.value: dict(Intents.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.slot.value: dict(Slots.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.bot.value: dict(Utterances.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.http_action.value: dict(HttpActionConfig.objects(bot=bot, status=True).values_list('action_name', 'id')),
+            StoryStepType.email_action.value: dict(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name', 'id')),
+            StoryStepType.google_search_action.value: dict(GoogleSearchAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.slot_set_action.value: dict(SlotSetAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.jira_action.value: dict(JiraAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.form_action.value: dict(FormValidationAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.zendesk_action.value: dict(ZendeskAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.pipedrive_leads_action.value: dict(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.hubspot_forms_action.value: dict(HubspotFormsAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.two_stage_fallback_action.value: dict(KaironTwoStageFallbackAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.razorpay_action.value: dict(RazorpayAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.prompt_action.value: dict(PromptAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.web_search_action.value: dict(WebSearchAction.objects(bot=bot, status=True).values_list('name', 'id')),
         }
-        http_action = dict(HttpActionConfig.objects(bot=bot, status=True).values_list('action_name', 'id'))
-        email_action = dict(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name', 'id'))
-        google_search_action = dict(GoogleSearchAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        slot_set_action = dict(SlotSetAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        jira_action = dict(JiraAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        form_action = dict(FormValidationAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        zendesk_action = dict(ZendeskAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        pipedrive_leads_action = dict(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        hubspot_forms_action = dict(HubspotFormsAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        two_stage_fallback_action = dict(KaironTwoStageFallbackAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        prompt_action = dict(PromptAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        web_search_action = dict(WebSearchAction.objects(bot=bot, status=True).values_list('name', 'id'))
-        all_actions = [http_action, google_search_action, email_action, slot_set_action, jira_action, form_action,
-                       zendesk_action, pipedrive_leads_action, hubspot_forms_action, two_stage_fallback_action,
-                       prompt_action, web_search_action]
-        combined_actions = {key: value for action in all_actions for key, value in action.items()}
-        actions['actions'] = combined_actions
-        return component_dict, actions
+        return component_dict
 
     def __updated_events(self, bot, events):
-        component_dict, actions = self.__retrieve_existing_components(bot)
+        component_dict = self.__retrieve_existing_components(bot)
         for event in events:
             step = event['step']
             connections = event.get('connections', [])
@@ -1226,16 +1204,12 @@ class MongoProcessor:
 
             if step_type in component_dict:
                 step['component_id'] = str(component_dict[step_type].get(step_name_lower))
-            elif step_name_lower in actions['actions']:
-                step['component_id'] = str(actions['actions'].get(step_name_lower))
             if connections:
                 for connection in connections:
                     connection_type = connection['type']
                     connection_name_lower = connection['name'].lower()
                     if connection_type in component_dict:
                         connection['component_id'] = str(component_dict[connection_type].get(connection_name_lower))
-                    elif connection_name_lower in actions['actions']:
-                        connection['component_id'] = str(actions['actions'].get(connection_name_lower))
         return events
 
     def __fetch_multiflow_story_block_names(self, bot: Text):
@@ -1248,9 +1222,9 @@ class MongoProcessor:
         existing_multiflow_stories = self.__fetch_multiflow_story_block_names(bot)
         existing_stories = self.__fetch_story_block_names(bot)
         existing_rules = self.fetch_rule_block_names(bot)
-        collection = set(existing_multiflow_stories + existing_stories + existing_rules)
+        existing_flows = set(existing_multiflow_stories + existing_stories + existing_rules)
         for story in multiflow_stories:
-            if story['block_name'].strip().lower() not in collection:
+            if story['block_name'].strip().lower() not in existing_flows:
                 story['events'] = self.__updated_events(bot, story['events'])
                 multiflow_story = MultiflowStories(**story)
                 multiflow_story.bot = bot
