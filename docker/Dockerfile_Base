@@ -18,7 +18,7 @@ RUN yum update -y && yum -y install wget make gcc zlib-devel tar xz gzip openssl
     mkdir data_generator training_data testing_data models /home/cache .rasa
 
 
-COPY . .
+COPY requirements requirements
 RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
     python -m spacy download en_core_web_md && \
     python -m nltk.downloader averaged_perceptron_tagger && \
@@ -28,6 +28,8 @@ RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
     python -m nltk.downloader wordnet && \
     rm -rf requirements
 
+
+COPY . .
 
 ENV HF_HOME="/home/cache" SENTENCE_TRANSFORMERS_HOME="/home/cache"
 
