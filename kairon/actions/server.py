@@ -36,7 +36,7 @@ from kairon.exceptions import AppException
 from ..shared.account.processor import AccountProcessor
 from ..shared.utils import Utility
 
-logging.basicConfig(level="DEBUG")
+logging.basicConfig(level="ERROR")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (

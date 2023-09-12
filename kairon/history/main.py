@@ -29,7 +29,7 @@ from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.history.router import metrics, conversations, trends
 
-logging.basicConfig(level="DEBUG")
+logging.basicConfig(level="ERROR")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (
