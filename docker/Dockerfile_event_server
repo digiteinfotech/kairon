@@ -49,6 +49,7 @@ RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install RestrictedPython
 RUN python -m pip install AccessControl
 RUN python -m pip install pykka
+RUN python -m pip install timeout-decorator
 RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install secure
 
