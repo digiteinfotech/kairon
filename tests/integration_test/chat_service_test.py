@@ -1336,6 +1336,81 @@ def test_whatsapp_valid_attachment_message_request():
 
 
 @responses.activate
+def test_whatsapp_valid_order_message_request():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    with patch.object(MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature):
+        with mock.patch("kairon.chat.handlers.channels.whatsapp.Whatsapp._handle_user_message",
+                        autospec=True) as whatsapp_msg_handler:
+            response = client.post(
+                f"/api/bot/whatsapp/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "object": "whatsapp_business_account",
+                    "entry": [{
+                        "id": "108103872212677",
+                        "changes": [{
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                    "display_phone_number": "919876543210",
+                                    "phone_number_id": "108578266683441"
+                                },
+                                "contacts": [{
+                                    "profile": {
+                                        "name": "Hitesh"
+                                    },
+                                    "wa_id": "919876543210"
+                                }],
+                                "messages": [{
+                                    "from": "919876543210",
+                                    "id": "wamid.HBgMOTE5NjU3DMU1MDIyQFIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA",
+                                    "timestamp": "1691598412",
+                                    "type": "order",
+                                    "order": {
+                                        "catalog_id": "538971028364699",
+                                        "product_items": [{
+                                            "product_retailer_id": "akuba13e44",
+                                            "quantity": 1,
+                                            "item_price": 200,
+                                            "currency": "INR"
+                                        }, {
+                                            "product_retailer_id": "0z10aj0bmq",
+                                            "quantity": 1,
+                                            "item_price": 600,
+                                            "currency": "INR"
+                                        }]
+                                    }
+                                }]
+                            },
+                            "field": "messages"
+                        }]
+                    }]
+                })
+    actual = response.json()
+    assert actual == 'success'
+    assert len(whatsapp_msg_handler.call_args[0]) == 5
+    assert whatsapp_msg_handler.call_args[0][1] == '/k_order_msg{"order": "{\'catalog_id\': \'538971028364699\', \'product_items\': [{\'product_retailer_id\': \'akuba13e44\', \'quantity\': 1, \'item_price\': 200, \'currency\': \'INR\'}, {\'product_retailer_id\': \'0z10aj0bmq\', \'quantity\': 1, \'item_price\': 600, \'currency\': \'INR\'}]}"}'
+    assert whatsapp_msg_handler.call_args[0][2] == '919876543210'
+    metadata = whatsapp_msg_handler.call_args[0][3]
+    metadata.pop("timestamp")
+    assert metadata == {'from': '919876543210',
+                        'id': 'wamid.HBgMOTE5NjU3DMU1MDIyQFIAEhggNzg5MEYwNEIyNDA1Q0IxMzU2QkI0NDc3RTVGMzYxNUEA',
+                        'type': 'order', 'order': {'catalog_id': '538971028364699',
+                                                   'product_items': [{'product_retailer_id': 'akuba13e44',
+                                                                      'quantity': 1, 'item_price': 200,
+                                                                      'currency': 'INR'},
+                                                                     {'product_retailer_id': '0z10aj0bmq',
+                                                                      'quantity': 1, 'item_price': 600,
+                                                                      'currency': 'INR'}]},
+                        'is_integration_user': True, 'bot': bot, 'account': 1,
+                        'channel_type': 'whatsapp', 'bsp_type': 'meta', 'tabname': 'default',
+                        'display_phone_number': '919876543210', 'phone_number_id': '108578266683441'}
+    assert whatsapp_msg_handler.call_args[0][4] == bot
+
+
+@responses.activate
 def test_whatsapp_valid_unsupported_message_request():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -1511,6 +1586,62 @@ def test_whatsapp_bsp_valid_attachment_message_request():
                             "timestamp": "21-09-2022 12:05:00",
                             "document": {"id": "sdfghj567"},
                             "type": "document"
+                        }]
+                    },
+                    "field": "messages"
+                }]
+            }]
+        })
+    actual = response.json()
+    assert actual == 'success'
+    responses.reset()
+
+
+@responses.activate
+def test_whatsapp_bsp_valid_order_message_request():
+    responses.add(
+        "POST", "https://waba-v2.360dialog.io/messages", json={}
+    )
+
+    response = client.post(
+        f"/api/bot/whatsapp/{bot2}/{token}",
+        headers={"hub.verify_token": "valid"},
+        json={
+            "object": "whatsapp_business_account",
+            "entry": [{
+                "id": "108103872212677",
+                "changes": [{
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": {
+                            "display_phone_number": "919876543210",
+                            "phone_number_id": "108578266683441"
+                        },
+                        "contacts": [{
+                            "profile": {
+                                "name": "Hitesh"
+                            },
+                            "wa_id": "919876543210"
+                        }],
+                        "messages": [{
+                            "from": "919876543210",
+                            "id": "wamid.HBoMOTE5NjU3MDU1MDIyFQIAEhggNzg5MEYwNEIyNDA1Q0IxMzU4QkI0NDc3RTVGMzYxNUEA",
+                            "timestamp": "1691598412",
+                            "type": "order",
+                            "order": {
+                                "catalog_id": "538971028364699",
+                                "product_items": [{
+                                    "product_retailer_id": "akuba13e44",
+                                    "quantity": 1,
+                                    "item_price": 200,
+                                    "currency": "INR"
+                                }, {
+                                    "product_retailer_id": "0z10aj0bmq",
+                                    "quantity": 1,
+                                    "item_price": 600,
+                                    "currency": "INR"
+                                }]
+                            }
                         }]
                     },
                     "field": "messages"
