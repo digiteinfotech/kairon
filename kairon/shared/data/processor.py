@@ -4802,8 +4802,9 @@ class MongoProcessor:
         email_action = EmailActionConfig.objects(action_name=action.get('action_name'), bot=bot, status=True).get()
         email_action.smtp_url = action['smtp_url']
         email_action.smtp_port = action['smtp_port']
-        email_action.smtp_userid = CustomActionRequestParameters(**action['smtp_userid']) if action['smtp_userid'] else None
+        email_action.smtp_userid = CustomActionRequestParameters(**action['smtp_userid']) if action.get('smtp_userid') else None
         email_action.smtp_password = CustomActionRequestParameters(**action['smtp_password'])
+        email_action.custom_text = CustomActionRequestParameters(**action['custom_text']) if action.get('custom_text') else None
         email_action.from_email = action['from_email']
         email_action.subject = action['subject']
         email_action.to_email = action['to_email']

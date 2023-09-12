@@ -876,6 +876,7 @@ class EmailActionRequest(BaseModel):
     smtp_password: CustomActionParameter
     from_email: str
     subject: str
+    custom_text: CustomActionParameter = None
     to_email: List[str]
     response: str
     tls: bool = False

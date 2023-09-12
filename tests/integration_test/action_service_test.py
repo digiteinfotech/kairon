@@ -4693,8 +4693,6 @@ def test_form_validation_action_with_is_required_true_and_semantics():
 @patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
 @patch("kairon.shared.utils.SMTP", autospec=True)
 def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config, mock_action):
-    mock_env = mock.patch.dict(Utility.environment['evaluator'], {'url': 'http://kairon:8080/format'})
-    mock_env.start()
     Utility.email_conf['email']['templates']['custom_text_mail'] = open('template/emails/custom_text_mail.html',
                                                                         'rb').read().decode()
 
@@ -4713,7 +4711,8 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
         subject="test script",
         to_email=["test@test.com"],
         response="Email Triggered",
-        custom_text="The user has id ${sender_id}",
+        custom_text=CustomActionRequestParameters(key="custom_text", value="custom_mail_text",
+                                                  parameter_type=ActionParameterType.slot.value),
         bot=bot,
         user=user
     )
@@ -4726,6 +4725,7 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
+    request_object["tracker"]["slots"]["custom_mail_text"] = "The user has id udit.pandey"
     request_object["next_action"] = action_name
     request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = 'hello'
@@ -4740,7 +4740,6 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
     mock_action.side_effect = _get_action
     mock_action_config.side_effect = _get_action_config
     response = client.post("/webhook", json=request_object)
-    mock_env.stop()
     response_json = response.json()
     assert response.status_code == 200
     assert len(response_json['events']) == 1
@@ -4774,66 +4773,6 @@ def test_email_action_execution_script_evaluation(mock_smtp, mock_action_config,
     assert str(args[2]).__contains__(action_config.subject)
     assert str(args[2]).__contains__("Content-Type: text/html")
 
-
-@responses.activate
-@patch("kairon.shared.actions.utils.ActionUtility.get_action")
-@patch("kairon.actions.definitions.email.ActionEmail.retrieve_config")
-def test_email_action_execution_script_evaluation_failure(mock_action_config, mock_action):
-    Utility.email_conf['email']['templates']['custom_text_mail'] = open(
-        'template/emails/custom_text_mail.html', 'rb').read().decode()
-
-    bot = "5c89fd0a65b698ca10d35d2e"
-    user = "test_user"
-
-    action_name = "test_run_email_script_action_failure"
-    action = Actions(name=action_name, type=ActionType.email_action.value, bot="5c89fd0a65b698ca10d35d2e",
-                     user="test_user")
-    action_config = EmailActionConfig(
-        action_name=action_name,
-        smtp_url="test.localhost",
-        smtp_port=293,
-        smtp_password=CustomActionRequestParameters(key='smtp_password', value="test"),
-        from_email="test@demo.com",
-        subject="test script",
-        to_email=["test@test.com"],
-        response="Email Triggered",
-        custom_text="The user has message ${message}",
-        bot=bot,
-        user=user
-    )
-
-    def _get_action(*arge, **kwargs):
-        return action.to_mongo().to_dict()
-
-    def _get_action_config(*arge, **kwargs):
-        return action_config.to_mongo().to_dict()
-
-    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
-    request_object["tracker"]["slots"]["bot"] = bot
-    request_object["next_action"] = action_name
-    request_object["tracker"]["sender_id"] = user
-    request_object["tracker"]["latest_message"]['text'] = 'hello'
-    Actions(name=action_name, type=ActionType.email_action.value, bot='5c89fd0a65b698ca10d35d2e',
-            user='test_user').save()
-
-    responses.add(
-        method=responses.POST,
-        url=Utility.environment['evaluator']['url'],
-        json={"success": False, "data": "The user has message ${message}"},
-        status=200,
-    )
-
-    mock_action.side_effect = _get_action
-    mock_action_config.side_effect = _get_action_config
-    response = client.post("/webhook", json=request_object)
-    response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 1
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I have failed to process your request"}]
-    assert response_json['responses'][0]['text'] == "I have failed to process your request"
 
 
 @patch("kairon.shared.actions.utils.ActionUtility.get_action")

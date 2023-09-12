@@ -35,6 +35,7 @@ class ActionPyscript(ActionsBase):
             pyscript_action_config_dict = PyscriptActionConfig.objects().get(bot=self.bot, name=self.name,
                                                                              status=True).to_mongo().to_dict()
             logger.debug("pyscript_action_config: " + str(pyscript_action_config_dict))
+            pyscript_action_config_dict.pop('_id', None)
             return pyscript_action_config_dict
         except DoesNotExist as e:
             logger.exception(e)

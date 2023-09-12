@@ -428,7 +428,7 @@ class EmailActionConfig(Auditlog):
     subject = StringField(required=True)
     to_email = ListField(StringField(), required=True)
     response = StringField(required=True)
-    custom_text = StringField(required=False)
+    custom_text = EmbeddedDocumentField(CustomActionRequestParameters)
     tls = BooleanField(default=False)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -456,12 +456,17 @@ class EmailActionConfig(Auditlog):
                 if isinstance(email(to_email), ValidationFailure):
                     raise ValidationError("Invalid From or To email address")
 
+        if self.custom_text and self.custom_text.parameter_type not in {ActionParameterType.value, ActionParameterType.slot}:
+            raise ValidationError("custom_text can only be of type value or slot!")
+
     def clean(self):
         self.action_name = self.action_name.strip().lower()
         if self.smtp_userid:
             self.smtp_userid.key = "smtp_userid"
         if self.smtp_password:
             self.smtp_password.key = "smtp_password"
+        if self.custom_text:
+            self.custom_text.key = "custom_text"
 
 
 @auditlogger.log
