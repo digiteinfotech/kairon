@@ -3,7 +3,8 @@ FROM $BASE_IMAGE
 
 WORKDIR ${KAIRON_HOME}
 
-ENV APP_MODULE=kairon.chat.server:app
+ENV APP_MODULE=kairon.chat.server:app TIMEOUT=120
+
 EXPOSE 5000
-CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5000 --no-server-header --no-access-log --timeout-keep-alive 120
+CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5000 --no-server-header --no-access-log --timeout-keep-alive ${TIMEOUT}
 
