@@ -75,7 +75,7 @@ def test_pyscript_action_execution():
     responses.add(
         "POST", Utility.environment['evaluator']['pyscript']['url'],
         json={"success": True, "data": {"bot_response": {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5},
-                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+                                        "slot": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -152,7 +152,7 @@ def test_pyscript_action_execution_with_bot_response_none():
     responses.add(
         "POST", Utility.environment['evaluator']['pyscript']['url'],
         json={"success": True, "data": {"bot_response": None,
-                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}},
+                                        "slot": {"location": "Bangalore", "langauge": "Kannada"}},
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -228,7 +228,7 @@ def test_pyscript_action_execution_with_type_json_bot_response_none():
     responses.add(
         "POST", Utility.environment['evaluator']['pyscript']['url'],
         json={"success": True, "data": {"bot_response": None,
-                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+                                        "slot": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -304,7 +304,7 @@ def test_pyscript_action_execution_with_type_json_bot_response_str():
     responses.add(
         "POST", Utility.environment['evaluator']['pyscript']['url'],
         json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
-                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
+                                        "slot": {"location": "Bangalore", "langauge": "Kannada"}, "type": "json"},
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -356,6 +356,156 @@ def test_pyscript_action_execution_with_type_json_bot_response_str():
 
 
 @responses.activate
+def test_pyscript_action_execution_with_type_json_bot_response_integer():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_type_json_bot_response_integer"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    bot_response = total
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        dispatch_response=True,
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": 15, "slot": {"location": "Bangalore", "langauge": "Kannada"}},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 15}]
+    assert response_json['responses'][0]['text'] == 15
+
+
+@responses.activate
+def test_pyscript_action_execution_with_type_json_bot_response_boolean():
+    import textwrap
+
+    action_name = "test_pyscript_action_execution_with_type_json_bot_response_boolean"
+    Actions(name=action_name, type=ActionType.pyscript_action.value,
+            bot="5f50fd0a56b698ca10d35d2z", user="user").save()
+    script = """
+    numbers = [1, 2, 3, 4, 5]
+    total = 0
+    for i in numbers:
+        total += i
+    bot_response = total > 0
+    """
+    script = textwrap.dedent(script)
+    PyscriptActionConfig(
+        name=action_name,
+        source_code=script,
+        bot="5f50fd0a56b698ca10d35d2z",
+        dispatch_response=True,
+        user="user"
+    ).save()
+
+    responses.add(
+        "POST", Utility.environment['evaluator']['pyscript']['url'],
+        json={"success": True, "data": {"bot_response": True, "slot": {"location": "Bangalore", "langauge": "Kannada"}},
+              "message": None, "error_code": 0},
+        match=[responses.matchers.json_params_matcher(
+            {'source_code': script,
+             'predefined_objects': {'sender_id': 'default', 'user_message': 'get intents',
+                                    'slot': {'bot': '5f50fd0a56b698ca10d35d2z', 'location': 'Bangalore',
+                                             'langauge': 'Kannada'}, 'intent': 'pyscript_action', 'chat_log': [],
+                                    'key_vault': {}, 'kairon_user_msg': None, 'session_started': None}})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z", "location": "Bangalore", "langauge": "Kannada"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2z"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+    response = client.post("/webhook", json=request_object)
+    response_json = response.json()
+    assert response.status_code == 200
+    assert len(response_json['events']) == 3
+    assert len(response_json['responses']) == 1
+    assert response_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
+        {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': True}]
+    assert response_json['responses'][0]['text'] is True
+
+
+@responses.activate
 def test_pyscript_action_execution_with_other_type():
     import textwrap
 
@@ -381,7 +531,7 @@ def test_pyscript_action_execution_with_other_type():
     responses.add(
         "POST", Utility.environment['evaluator']['pyscript']['url'],
         json={"success": True, "data": {"bot_response": "Successfully Evaluated the pyscript",
-                                        "slots": {"location": "Bangalore", "langauge": "Kannada"}, "type": "data"},
+                                        "slot": {"location": "Bangalore", "langauge": "Kannada"}, "type": "data"},
               "message": None, "error_code": 0},
         match=[responses.matchers.json_params_matcher(
             {'source_code': script,
@@ -558,7 +708,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_l
     with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
         mock_trigger_lambda.return_value = \
             {"Payload": {"body": {"bot_response": "Successfully Evaluated the pyscript",
-                                  "slots": {"location": "Bangalore", "langauge": "Kannada"}}}, "StatusCode": 200}
+                                  "slot": {"location": "Bangalore", "langauge": "Kannada"}}}, "StatusCode": 200}
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200

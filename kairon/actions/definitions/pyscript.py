@@ -67,7 +67,7 @@ class ActionPyscript(ActionsBase):
             response = ActionUtility.run_pyscript(source_code, tracker_data)
             dispatch_type = response.get('type')
             bot_response = response.get('bot_response')
-            slot_values = ActionUtility.filter_out_kairon_system_slots(response.get('slots', {}))
+            slot_values = ActionUtility.filter_out_kairon_system_slots(response.get('slot', {}))
             filled_slots.update(slot_values)
             logger.info("response: " + str(bot_response))
         except Exception as e:
