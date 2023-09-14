@@ -3421,6 +3421,7 @@ class TestActions:
 
     @responses.activate
     def test_create_zendesk_ticket_valid_credentials(self):
+        responses.reset()
         responses.add(
             'POST',
             'https://digite751.zendesk.com/api/v2/tickets.json',

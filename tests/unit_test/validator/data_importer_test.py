@@ -161,7 +161,7 @@ class TestDataImporter:
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 6
-        assert len(processor.fetch_actions(bot)) == 4
+        assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 4
 
     @pytest.mark.asyncio
@@ -185,7 +185,7 @@ class TestDataImporter:
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 6
-        assert len(processor.fetch_actions(bot)) == 4
+        assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 4
 
         assert len(processor.fetch_intents(bot_2)) == 0

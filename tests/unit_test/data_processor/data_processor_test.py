@@ -4750,7 +4750,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 17
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 53
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4800,7 +4800,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 17
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 53
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4857,7 +4857,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 17
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 53
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
         assert not Utility.check_empty_string(
             domain.templates["utter_cheer_up"][0]["image"]
@@ -4902,7 +4902,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 17
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 53
+        assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
 
     @pytest.mark.asyncio
@@ -4950,7 +4950,7 @@ class TestMongoProcessor:
         assert domain.templates.keys().__len__() == 31
         assert domain.entities.__len__() == 17
         assert domain.form_names.__len__() == 2
-        assert domain.user_actions.__len__() == 46
+        assert domain.user_actions.__len__() == 43
         assert domain.intents.__len__() == 33
         rules = mongo_processor.fetch_rule_block_names(bot)
         assert len(rules) == 4
