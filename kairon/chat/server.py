@@ -258,3 +258,7 @@ def index():
 
 app.include_router(web_client.router, prefix="/api/bot/{bot}", tags=["Web client"])
 app.include_router(channels.router, prefix="/api/bot", tags=["Channels"])
+
+
+async def main(scope, receive, send):
+    await app.__call__(scope=scope, receive=receive, send=send)

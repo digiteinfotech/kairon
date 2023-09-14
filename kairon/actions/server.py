@@ -297,3 +297,7 @@ async def webhook(request_json: dict):
         logger.error(e)
         body = {"error": e.message, "action_name": e.action_name}
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content=body)
+
+
+async def main(scope, receive, send):
+    await action.__call__(scope=scope, receive=receive, send=send)
