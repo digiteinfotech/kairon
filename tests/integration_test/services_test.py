@@ -2404,6 +2404,7 @@ def test_list_entities():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
@@ -2620,7 +2621,7 @@ def test_get_data_importer_logs():
     del actual['data']["logs"][1]['files_received']
     assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
-                                 'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
+                                 'domain': {'intents_count': 19, 'actions_count': 23, 'slots_count': 10,
                                             'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
                                  'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
                                  'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
@@ -2636,8 +2637,6 @@ def test_get_data_importer_logs():
                                  'exception': '',
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
-
-
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][2]['status'] == 'Failure'
     assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
@@ -2657,7 +2656,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][3]['intents']['count'] == 19
     assert len(actual['data']["logs"][3]['intents']['data']) == 21
     assert actual['data']["logs"][3]['utterances']['count'] == 27
-    assert len(actual['data']["logs"][3]['utterances']['data']) == 12
+    assert len(actual['data']["logs"][3]['utterances']['data']) == 11
     assert actual['data']["logs"][3]['stories']['count'] == 16
     assert len(actual['data']["logs"][3]['stories']['data']) == 1
     assert actual['data']["logs"][3]['rules']['count'] == 3
@@ -2929,6 +2928,7 @@ def test_get_intents():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual['data'])
     assert "data" in actual
     assert len(actual["data"]) == 19
     assert actual["success"]
@@ -2942,6 +2942,7 @@ def test_get_all_intents():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual['data'])
     assert "data" in actual
     assert len(actual["data"]) == 19
     assert actual["success"]
@@ -8960,9 +8961,11 @@ def test_upload_multiflow_stories(mock_is_limit_exceeded, mock_event_server):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-
+    assert set(actual['data']["logs"][0]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
+                                                                'actions', 'chat_client_config', 'multiflow_stories'}
 
 def test_get_editable_config():
     response = client.get(f"/api/bot/{pytest.bot}/config/properties",

@@ -62,7 +62,7 @@ class DataUtility:
                     path = os.path.join(data_path, file.filename)
                     Utility.write_to_file(path, await file.read())
                 elif file.filename in ALLOWED_CONFIG_FORMATS.union(ALLOWED_DOMAIN_FORMATS).union(
-                        ALLOWED_ACTIONS_FORMATS, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS):
+                        ALLOWED_ACTIONS_FORMATS, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS):
                     path = os.path.join(bot_data_home_dir, file.filename)
                     Utility.write_to_file(path, await file.read())
 
@@ -181,8 +181,6 @@ class DataUtility:
             rules_path = os.path.join(data_path, rules.filename)
             Utility.write_to_file(rules_path, await rules.read())
             return rules_path
-        else:
-            return None
 
     @staticmethod
     async def write_http_data(temp_path: str, http_action: File = None):
@@ -197,13 +195,11 @@ class DataUtility:
             http_path = os.path.join(temp_path, http_action.filename)
             Utility.write_to_file(http_path, await http_action.read())
             return http_path
-        else:
-            return None
 
     @staticmethod
     async def write_multiflow_stories_data(data_path: str, multiflow_stories: File = None):
         """
-        writes the rule data to file and returns the file path
+        writes the multiflow stories data to file and returns the file path
         :param data_path: path of the data files
         :param multiflow_stories: multiflow_stories data
         :return: rule file path
@@ -212,8 +208,6 @@ class DataUtility:
             multiflow_stories_path = os.path.join(data_path, multiflow_stories.filename)
             Utility.write_to_file(multiflow_stories_path, await multiflow_stories.read())
             return multiflow_stories_path
-        else:
-            return None
 
     @staticmethod
     def extract_text_and_entities(text: Text):

@@ -288,7 +288,7 @@ class TestEventExecution:
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 6
-        assert len(processor.fetch_actions(bot)) == 4
+        assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 4
 
     def test_trigger_data_importer_validate_and_save_overwrite_same_user(self, monkeypatch):
@@ -501,10 +501,10 @@ class TestEventExecution:
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         nlu_path = os.path.join(test_data_path, 'data')
         Utility.make_dirs(nlu_path)
-        shutil.copy2('tests/testing_data/validator/valid_with_multiflow/data/nlu.yml', nlu_path)
-        shutil.copy2('tests/testing_data/validator/valid_with_multiflow/multiflow_stories.yml', test_data_path)
+        shutil.copy2('tests/testing_data/multiflow_stories/valid_with_multiflow/data/nlu.yml', nlu_path)
+        shutil.copy2('tests/testing_data/multiflow_stories/valid_with_multiflow/multiflow_stories.yml', test_data_path)
         nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(
-            get_training_data('tests/testing_data/validator/valid_with_multiflow'))
+            get_training_data('tests/testing_data/multiflow_stories/valid_with_multiflow'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_nlu(nlu, bot, user)
         mongo_processor.save_domain(domain, bot, user)
@@ -746,15 +746,15 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
-        assert len(mongo_processor.fetch_stories(bot)) == 3
-        assert len(list(mongo_processor.fetch_training_examples(bot))) == 21
-        assert len(list(mongo_processor.fetch_responses(bot))) == 15
-        assert len(mongo_processor.fetch_actions(bot)) == 1
-        assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
+        assert len(mongo_processor.fetch_stories(bot)) == 0
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 0
+        assert len(list(mongo_processor.fetch_responses(bot))) == 0
+        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 0
 
     def test_trigger_data_importer_import_with_intent_issues(self, monkeypatch):
         bot = 'test_trigger_data_importer_import_with_intent_issues'
@@ -824,8 +824,8 @@ class TestEventExecution:
         mongo_processor = MongoProcessor()
         assert len(mongo_processor.fetch_stories(bot)) == 3
         assert len(list(mongo_processor.fetch_training_examples(bot))) == 21
-        assert len(list(mongo_processor.fetch_responses(bot))) == 15
-        assert len(mongo_processor.fetch_actions(bot)) == 1
+        assert len(list(mongo_processor.fetch_responses(bot))) == 14
+        assert len(mongo_processor.fetch_actions(bot)) == 4
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
 
     def test_trigger_faq_importer_validate_only(self, monkeypatch):

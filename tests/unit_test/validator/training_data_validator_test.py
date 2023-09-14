@@ -216,7 +216,7 @@ class TestTrainingDataValidator:
     async def test_validate_utterance_not_used_in_any_story(self):
         root = 'tests/testing_data/validator/orphan_utterances'
         domain_path = 'tests/testing_data/validator/orphan_utterances/domain.yml'
-        nlu_path = 'tests/testing_data/validator/orphan_utterances/data'
+        nlu_path = 'tests/testing_data/validator/orphan_utterances/data_2'
         config_path = 'tests/testing_data/validator/orphan_utterances/config.yml'
         with pytest.raises(AppException):
             validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
@@ -227,14 +227,23 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('intents')
         assert 'The utterance \'utter_good_feedback\' is not used in any story.' in validator.summary['utterances']
         assert 'The utterance \'utter_bad_feedback\' is not used in any story.' in validator.summary['utterances']
+        print(set(validator.summary['utterances']))
         assert set(validator.summary['utterances']) == {
-            "The action 'action_performanceUser1001@digite.com' is used in multiflow stories but not listed in domain. You should add it to your domain file",
             "The utterance 'utter_bad_feedback' is not used in any story.",
-            "The utterance 'utter_iamabot' is not used in any story.",
+            "The action 'utter_feedback' is used in the multiflow_stories, but is not a valid utterance action. Please make sure the action is listed in your domain and there is a template defined with its name.",
+            "The action 'utter_offer_help' is used in the multiflow_stories, but is not a valid utterance action. Please make sure the action is listed in your domain and there is a template defined with its name.",
+            "The utterance 'utter_more_info' is not used in any story.",
             "The utterance 'utter_query' is not used in any story.",
-            "The utterance 'utter_good_feedback' is not used in any story.",
             "The utterance 'utter_performance' is not used in any story.",
-            "The utterance 'utter_more_info' is not used in any story."
+            "The utterance 'utter_iamabot' is not used in any story.",
+            "The utterance 'utter_good_feedback' is not used in any story."
+        }
+        print("\n\n")
+        print(set(validator.summary['user_actions']))
+        assert set(validator.summary['user_actions']) == {
+            "The action 'email_action_one' is a user defined action used in the stories. Please make sure the action is listed in your domain file.",
+            "The action 'action_performanceUser1001@digite.com' is a user defined action used in the multiflow_stories, Please make sure the action is listed in your domain file.",
+            "The action 'google_search_action' is not used in any story."
         }
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -258,10 +267,10 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_valid_training_data_with_multiflow_stories(self):
-        root = 'tests/testing_data/validator/valid_with_multiflow'
-        domain_path = 'tests/testing_data/validator/valid_with_multiflow/domain.yml'
-        nlu_path = 'tests/testing_data/validator/valid_with_multiflow/data'
-        config_path = 'tests/testing_data/validator/valid_with_multiflow/config.yml'
+        root = 'tests/testing_data/multiflow_stories/valid_with_multiflow'
+        domain_path = 'tests/testing_data/multiflow_stories/valid_with_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/multiflow_stories/valid_with_multiflow/data'
+        config_path = 'tests/testing_data/multiflow_stories/valid_with_multiflow/config.yml'
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data()
         assert not validator.summary.get('intents')
@@ -302,10 +311,10 @@ class TestTrainingDataValidator:
 
     @pytest.mark.asyncio
     async def test_validate_invalid_multiflow_stories(self):
-        root = 'tests/testing_data/invalid_yml_multiflow'
-        domain_path = 'tests/testing_data/invalid_yml_multiflow/domain.yml'
-        nlu_path = 'tests/testing_data/invalid_yml_multiflow/data'
-        config_path = 'tests/testing_data/invalid_yml_multiflow/config.yml'
+        root = 'tests/testing_data/multiflow_stories/invalid_yml_multiflow'
+        domain_path = 'tests/testing_data/multiflow_stories/invalid_yml_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/multiflow_stories/invalid_yml_multiflow/data'
+        config_path = 'tests/testing_data/multiflow_stories/invalid_yml_multiflow/config.yml'
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         with pytest.raises(AppException, match="Invalid multiflow_stories.yml. Check logs!"):
             validator.validate_training_data()
@@ -1419,7 +1428,7 @@ class TestTrainingDataValidator:
             [{"block_name": "mf_thirteen"}]]}
         errors, count = TrainingDataValidator.validate_multiflow_stories(test_dict)
         assert len(errors) == 23
-        assert count['multiflow_stories'] == 16
+        assert count == 16
 
     def test_validate_multiflow_stories_empty_content(self):
         test_dict = {'multiflow_story': []}

@@ -1,0 +1,35 @@
+version: '2.0'
+config:
+  store_entities_as_slots: true
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true
+intents:
+- goodbye:
+    use_entities: true
+- greet:
+    use_entities: true
+- performance_feedback:
+    use_entities: true
+- query:
+    use_entities: true
+- more_info:
+    use_entities: true
+
+responses:
+  utter_goodbye:
+  - text: Bye
+  utter_query:
+    - text: Yes I know what AI is!
+  utter_more_info:
+    - text: Okay we will proceed with this!
+  utter_feedback:
+    - text: We would love to hear what you have to say.
+  utter_offer_help:
+    - text: I can offer you help.
+actions:
+- utter_goodbye
+- utter_feedback
+- utter_query
+- utter_more_info
+- utter_offer_help

@@ -438,7 +438,7 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        if multiflow_stories and multiflow_stories['multiflow_story']:
+        if multiflow_stories and multiflow_stories.get('multiflow_story'):
             self.__save_multiflow_stories(multiflow_stories['multiflow_story'], bot, user)
 
     def load_linear_flows_from_multiflow_stories(self, bot: Text) -> (StoryGraph, StoryGraph):
@@ -1206,22 +1206,18 @@ class MongoProcessor:
         }
         return component_dict
 
-    def __updated_events(self, bot, events):
-        component_dict = self.__retrieve_existing_components(bot)
+    def __updated_events(self, bot, events, existing_components):
         for event in events:
             step = event['step']
             connections = event.get('connections', [])
             step_type = step.get('type')
             step_name_lower = step.get('name').lower()
 
-            if step_type in component_dict:
-                step['component_id'] = str(component_dict[step_type].get(step_name_lower))
+            step['component_id'] = existing_components.get(step_type, {}).get(step_name_lower).__str__()
             if connections:
                 for connection in connections:
-                    connection_type = connection['type']
                     connection_name_lower = connection['name'].lower()
-                    if connection_type in component_dict:
-                        connection['component_id'] = str(component_dict[connection_type].get(connection_name_lower))
+                    connection['component_id'] = existing_components.get(connection['type'], {}).get(connection_name_lower).__str__()
         return events
 
     def __fetch_multiflow_story_block_names(self, bot: Text):
@@ -1235,9 +1231,10 @@ class MongoProcessor:
         existing_stories = self.__fetch_story_block_names(bot)
         existing_rules = self.fetch_rule_block_names(bot)
         existing_flows = set(existing_multiflow_stories + existing_stories + existing_rules)
+        existing_components = self.__retrieve_existing_components(bot)
         for story in multiflow_stories:
             if story['block_name'].strip().lower() not in existing_flows:
-                story['events'] = self.__updated_events(bot, story['events'])
+                story['events'] = self.__updated_events(bot, story['events'], existing_components)
                 multiflow_story = MultiflowStories(**story)
                 multiflow_story.bot = bot
                 multiflow_story.user = user
@@ -1245,10 +1242,9 @@ class MongoProcessor:
                 yield multiflow_story
 
     def __save_multiflow_stories(self, multiflow_stories, bot: Text, user: Text):
-        if multiflow_stories:
-            new_multiflow_stories = list(self.__extract_multiflow_story_step(multiflow_stories, bot, user))
-            if new_multiflow_stories:
-                MultiflowStories.objects.insert(new_multiflow_stories)
+        new_multiflow_stories = list(self.__extract_multiflow_story_step(multiflow_stories, bot, user))
+        if new_multiflow_stories:
+            MultiflowStories.objects.insert(new_multiflow_stories)
 
     def __prepare_training_multiflow_story_events(self, events, metadata, timestamp):
         roots = []

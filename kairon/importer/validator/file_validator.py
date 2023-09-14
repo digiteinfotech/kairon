@@ -194,7 +194,6 @@ class TrainingDataValidator(Validator):
         if self.multiflow_stories:
             multiflow_stories_intent = StoryValidator.get_step_name_for_multiflow_stories(self.multiflow_stories_graph,
                                                                                           "INTENT")
-
         all_intents = stories_intents.union(multiflow_stories_intent)
 
         for story_intent in all_intents:
@@ -207,7 +206,7 @@ class TrainingDataValidator(Validator):
 
         unused_intents = set(self.domain.intents) - all_intents - set(DEFAULT_INTENTS)
 
-        for intent in sorted(unused_intents):
+        for intent in unused_intents:
             msg = f"The intent '{intent}' is not used in any story."
             if raise_exception:
                 raise AppException(msg)
@@ -256,62 +255,33 @@ class TrainingDataValidator(Validator):
         """
         utterance_mismatch_summary = []
         story_utterance_not_found_in_domain = []
+        action_mismatch_summary = []
         self.verify_utterances(raise_exception)
-
-        utterance_actions = self.validator._gather_utterance_actions()
         user_actions = set(self.domain.user_actions)
-        all_utterances_with_actions = user_actions.union(utterance_actions)
+        utterance_in_domain = self.validator._gather_utterance_actions()
         fallback_action = DataUtility.parse_fallback_action(self.config)
         system_triggered_actions = DEFAULT_ACTIONS.union(SYSTEM_TRIGGERED_UTTERANCES).union(KAIRON_TWO_STAGE_FALLBACK)
+        story_actions = set()
         stories_utterances = set()
         multiflow_utterance = set()
+        multiflow_actions = set()
         if self.multiflow_stories:
-            multiflow_stories_utterances = StoryValidator.get_step_name_for_multiflow_stories(
-                self.multiflow_stories_graph, "BOT")
-            multiflow_stories_actions = {
-                StoryStepType.http_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'HTTP_ACTION'),
-                StoryStepType.email_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'EMAIL_ACTION'),
-                StoryStepType.google_search_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'GOOGLE_SEARCH_ACTION'),
-                StoryStepType.slot_set_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'SLOT_SET_ACTION'),
-                StoryStepType.jira_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'JIRA_ACTION'),
-                StoryStepType.form_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'FORM_ACTION'),
-                StoryStepType.zendesk_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'ZENDESK_ACTION'),
-                StoryStepType.pipedrive_leads_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'PIPEDRIVE_LEADS_ACTION'),
-                StoryStepType.hubspot_forms_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'HUBSPOT_FORMS_ACTION'),
-                StoryStepType.two_stage_fallback_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'TWO_STAGE_FALLBACK_ACTION'),
-                StoryStepType.razorpay_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'RAZORPAY_ACTION'),
-                StoryStepType.prompt_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'PROMPT_ACTION'),
-                StoryStepType.web_search_action.value: StoryValidator.get_step_name_for_multiflow_stories(
-                    self.multiflow_stories_graph, 'WEB_SEARCH_ACTION'),
-            }
-            multiflow_utterance = set(multiflow_stories_utterances.union(
-                value for values in multiflow_stories_actions.values() for value in values))
+            multiflow_utterance, multiflow_actions = self.verify_utterance_and_actions_in_multiflow_stories(raise_exception)
 
         for story in self.story_graph.story_steps:
             for event in story.events:
                 if not isinstance(event, ActionExecuted):
                     continue
                 if not event.action_name.startswith(UTTER_PREFIX):
-                    # we are only interested in utter actions
+                    if event.action_name != 'action_restart' and event.action_name != '...' and not event.action_name.startswith('intent'):
+                        story_actions.add(event.action_name)
                     continue
 
                 if event.action_name in stories_utterances:
                     # we already processed this one before, we only want to warn once
                     continue
 
-                if event.action_name not in utterance_actions and event.action_name not in system_triggered_actions:
+                if event.action_name not in utterance_in_domain and event.action_name not in system_triggered_actions:
                     msg = f"The action '{event.action_name}' is used in the stories, " \
                           f"but is not a valid utterance action. Please make sure " \
                           f"the action is listed in your domain and there is a " \
@@ -321,26 +291,33 @@ class TrainingDataValidator(Validator):
                     story_utterance_not_found_in_domain.append(msg)
                 stories_utterances.add(event.action_name)
 
+        for action in story_actions - {name for name in self.domain.form_names}:
+            if action not in user_actions:
+                msg = f"The action '{action}' is a user defined action used in the stories. " \
+                      f"Please make sure the action is listed in your domain file."
+                if raise_exception:
+                    raise AppException(msg)
+                action_mismatch_summary.append(msg)
+
         form_utterances = set()
         for form, form_data in self.domain.forms.items():
             for slot in form_data.get('required_slots', {}):
                 form_utterances.add(f"utter_ask_{form}_{slot}")
-        utterance_actions = utterance_actions.difference(form_utterances)
 
-        for utterance in multiflow_utterance:
-            if utterance not in all_utterances_with_actions:
-                msg = f"The action '{utterance}' is used in multiflow stories but not listed in domain. You should add it to your domain file"
-                if raise_exception:
-                    raise AppException(msg)
-                utterance_mismatch_summary.append(msg)
-
-        unused_utterances = set(utterance_actions) - stories_utterances - multiflow_utterance - system_triggered_actions.union(fallback_action)
-
-        for utterance in sorted(unused_utterances):
+        unused_utterances = set(utterance_in_domain) - form_utterances.union(set(self.domain.form_names)) - stories_utterances - multiflow_utterance - system_triggered_actions.union(fallback_action)
+        for utterance in unused_utterances:
             msg = f"The utterance '{utterance}' is not used in any story."
             if raise_exception:
                 raise AppException(msg)
             utterance_mismatch_summary.append(msg)
+
+        unused_actions = user_actions - utterance_in_domain - set(story_actions) - set(multiflow_actions) - {f'validate_{name}' for name in self.domain.form_names}
+        for action in unused_actions:
+            if action not in system_triggered_actions.union(fallback_action):
+                msg = f"The action '{action}' is not used in any story."
+                if raise_exception:
+                    raise AppException(msg)
+                action_mismatch_summary.append(msg)
 
         if not self.summary.get('utterances'):
             self.summary['utterances'] = []
@@ -349,6 +326,48 @@ class TrainingDataValidator(Validator):
         if not self.summary.get('stories'):
             self.summary['stories'] = []
         self.summary['stories'] = self.summary['stories'] + story_utterance_not_found_in_domain
+
+        if not self.summary.get('user_actions'):
+            self.summary['user_actions'] = []
+        self.summary['user_actions'] = self.summary['user_actions'] + action_mismatch_summary
+
+    def verify_utterance_and_actions_in_multiflow_stories(self, raise_exception: bool = True):
+        utterance_mismatch_summary = []
+        action_not_found_in_domain = []
+        user_actions = set(self.domain.user_actions)
+        actions = []
+        utterances = []
+        for step_type in StoryStepType:
+            events = StoryValidator.get_step_name_for_multiflow_stories(self.multiflow_stories_graph,
+                                                                        step_type.value)
+            if step_type == StoryStepType.bot.value:
+                utterances = events
+            elif step_type != StoryStepType.intent.value and step_type != StoryStepType.slot.value:
+                actions.extend(events)
+
+        for utterance in utterances:
+            if utterance not in user_actions:
+                msg = f"The action '{utterance}' is used in the multiflow_stories, " \
+                          f"but is not a valid utterance action. Please make sure " \
+                          f"the action is listed in your domain and there is a " \
+                          f"template defined with its name."
+                if raise_exception:
+                    raise AppException(msg)
+                utterance_mismatch_summary.append(msg)
+
+        for action in actions:
+            if action not in user_actions:
+                msg = f"The action '{action}' is a user defined action used in the multiflow_stories, " \
+                      f"Please make sure the action is listed in your domain file."
+                if raise_exception:
+                    raise AppException(msg)
+                action_not_found_in_domain.append(msg)
+
+        if not self.summary.get('utterances'):
+            self.summary['utterances'] = []
+        self.summary['utterances'] = self.summary['utterances'] + utterance_mismatch_summary
+        self.summary['user_actions'] = action_not_found_in_domain
+        return utterances, actions
 
     def verify_nlu(self, raise_exception: bool = True):
         """
@@ -443,13 +462,13 @@ class TrainingDataValidator(Validator):
     @staticmethod
     def validate_multiflow_stories(multiflow_stories: Dict):
         errors = None
-        count = {'multiflow_stories': 0}
+        count = 0
         if not isinstance(multiflow_stories, dict):
             story_errors = {'multiflow_story': ['Invalid multiflow story configuration format. Dictionary expected.']}
             return story_errors
-        if multiflow_stories['multiflow_story'] or [] or None:
-            count['multiflow_stories'] = len(multiflow_stories['multiflow_story'])
+        if multiflow_stories['multiflow_story']:
             errors = TrainingDataValidator.verify_multiflow_story_structure(multiflow_stories['multiflow_story'])
+            count = len(multiflow_stories['multiflow_story'])
         return errors, count
 
     def validate_multiflow(self, raise_exception: bool = True):
@@ -459,11 +478,10 @@ class TrainingDataValidator(Validator):
         @return:
         """
         if self.multiflow_stories:
-            multiflow_errors, component_count = TrainingDataValidator.validate_multiflow_stories(self.multiflow_stories)
-            self.component_count['multiflow_stories'] = len(self.multiflow_stories)
-            self.summary['multiflow_stories'] = multiflow_errors
-            self.component_count.update(component_count)
-            if multiflow_errors and raise_exception:
+            errors, count = TrainingDataValidator.validate_multiflow_stories(self.multiflow_stories)
+            self.component_count['multiflow_stories'] = count
+            self.summary['multiflow_stories'] = errors
+            if errors and raise_exception:
                 raise AppException("Invalid multiflow_stories.yml. Check logs!")
 
     @staticmethod

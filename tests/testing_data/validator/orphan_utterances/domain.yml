@@ -13,8 +13,6 @@ responses:
   - text: Bye
   utter_iamabot:
   - text: I am a Jarvis, powered by Citta.ai .
-  utter_feedback:
-  - text: We would love to hear what you have to say.
   utter_good_feedback:
   - text: Thanks you for loving us. Keep using.
   utter_bad_feedback:
@@ -27,26 +25,27 @@ responses:
   - text: enter ur age
   utter_query:
     - text: Yes I know what AI is!
-  utter_offer_help:
-    - text: "I am CITTA BOT, your virtual assistant from IT Dept!! \nMy team ensures
-               that the network runs smoothly. We also address all hardware/software requests."
   utter_more_info:
     - text: Okay we will proceed with this!
   utter_performance:
     - text: Good performance!
+  utter_slot_details:
+    - text: These are slot details!
 
 actions:
 - utter_greet
 - utter_goodbye
 - utter_iamabot
-- utter_feedback
 - utter_good_feedback
 - utter_bad_feedback
 - validate_job_apply
 - utter_query
-- utter_offer_help
 - utter_more_info
 - utter_performance
+- job_apply
+- reset slots
+- utter_slot_details
+- google_search_action
 
 forms:
   job_apply:

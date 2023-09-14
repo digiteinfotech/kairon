@@ -121,7 +121,7 @@ class TestDataImporter:
 
     @pytest.mark.asyncio
     async def test_import_data_with_multiflow(self):
-        path = 'tests/testing_data/validator/valid_with_multiflow'
+        path = 'tests/testing_data/multiflow_stories/valid_with_multiflow'
         bot = 'test_data_import_multiflow'
         user = 'test'
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
