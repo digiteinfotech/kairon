@@ -70,6 +70,7 @@ secure_headers = Secure(
 
 action = FastAPI()
 Utility.load_environment()
+Utility.load_email_configuration()
 allowed_origins = Utility.environment['cors']['origin']
 action.add_middleware(
     CORSMiddleware,
@@ -123,7 +124,7 @@ async def startup():
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
-    await AccountProcessor.default_account_setup()
+    AccountProcessor.load_system_properties()
 
 
 @action.on_event("shutdown")

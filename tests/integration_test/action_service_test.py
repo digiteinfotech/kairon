@@ -194,12 +194,11 @@ def test_pyscript_action_execution_with_bot_response_none():
     response_json = response.json()
     assert response.status_code == 200
     assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 1
+    assert len(response_json['responses']) == 0
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
         {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
-    assert response_json['responses'][0]['text'] is None
 
 
 @responses.activate
@@ -270,12 +269,11 @@ def test_pyscript_action_execution_with_type_json_bot_response_none():
     response_json = response.json()
     assert response.status_code == 200
     assert len(response_json['events']) == 3
-    assert len(response_json['responses']) == 1
+    assert len(response_json['responses']) == 0
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'location', 'value': 'Bangalore'},
         {'event': 'slot', 'timestamp': None, 'name': 'langauge', 'value': 'Kannada'},
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
-    assert response_json['responses'][0]['text'] is None
 
 
 @responses.activate
