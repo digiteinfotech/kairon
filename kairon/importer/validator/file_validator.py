@@ -331,6 +331,11 @@ class TrainingDataValidator(Validator):
             self.summary['user_actions'] = []
         self.summary['user_actions'] = self.summary['user_actions'] + action_mismatch_summary
 
+        story_actions = story_actions - {name for name in self.domain.form_names}
+        if not self.component_count.get('user_actions'):
+            self.component_count['user_actions'] = []
+        self.component_count['user_actions'] = len(multiflow_actions) + len(story_actions)
+
     def verify_utterance_and_actions_in_multiflow_stories(self, raise_exception: bool = True):
         utterance_mismatch_summary = []
         action_not_found_in_domain = []

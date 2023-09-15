@@ -31,6 +31,7 @@ class ValidationLogs(DynamicDocument):
     rules = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     actions = ListField()
     multiflow_stories = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
+    user_actions = EmbeddedDocumentField(TrainingComponentLog, default=TrainingComponentLog)
     exception = StringField(default="")
     is_data_uploaded = BooleanField(default=False)
     files_received = ListField(default=None)

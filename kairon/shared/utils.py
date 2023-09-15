@@ -948,7 +948,7 @@ class Utility:
     @staticmethod
     def write_training_data(nlu, domain, config: dict,
                             stories, rules=None, actions: dict = None, chat_client_config: dict = None,
-                            multiflow_stories=None):
+                            multiflow_stories: dict = None):
         """
         convert mongo data  to individual files
 
@@ -1006,7 +1006,7 @@ class Utility:
     def create_zip_file(
             nlu, domain, stories, config: Dict, bot: Text,
             rules=None,
-            actions: Dict = None, multiflow_stories=None, chat_client_config: Dict = None
+            actions: Dict = None, multiflow_stories: Dict = None, chat_client_config: Dict = None
     ):
         """
         adds training files to zip
@@ -1029,8 +1029,8 @@ class Utility:
             stories,
             rules,
             actions,
-            multiflow_stories,
-            chat_client_config
+            chat_client_config,
+            multiflow_stories
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)
