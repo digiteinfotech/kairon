@@ -64,8 +64,8 @@ class ActionEmail(ActionsBase):
             userid = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, smtp_userid, self.bot)
             for mail in to_email:
                 if custom_text:
-                    custom_text = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, custom_text, self.bot)
-                    body = ActionUtility.prepare_email_text(custom_text, action_config['subject'], mail)
+                    text = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, custom_text, self.bot)
+                    body = ActionUtility.prepare_email_text(text, action_config['subject'], mail)
                 else:
                     body = ActionUtility.prepare_email_body(tracker_data[ActionParameterType.chat_log.value],
                                                         action_config['subject'], mail)
