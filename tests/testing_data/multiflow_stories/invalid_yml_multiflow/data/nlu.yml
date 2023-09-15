@@ -1,0 +1,41 @@
+version: "2.0"
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - good morning
+    - good evening
+    - hey there
+    - watsup
+    - howdy
+- intent: query
+  examples: |
+    - What is AI?
+    - Tell me about AI?
+    - Do you know about AI
+- intent: more_info
+  examples: |
+    - Let us continue on another topic
+    - Can we discuss another on another topic
+    - I want to ask more questions
+- intent: goodbye
+  examples: |
+    - good afternoon
+    - cu
+    - good by
+    - cee you later
+    - good night
+    - bye
+    - goodbye
+    - have a nice day
+    - see you around
+    - bye bye
+    - see you later
+- intent: performance_feedback
+  examples: |
+    - i would like to give some feedback for the bot
+    - i want to give feedback for bot
+    - can i give some feedback?
+    - can i say something regarding the bot performance?

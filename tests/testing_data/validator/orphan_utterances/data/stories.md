@@ -7,6 +7,7 @@
 * deny
   - utter_goodbye
   - action_restart
+  - google_search_action
 
 ## apply
 * apply

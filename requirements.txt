@@ -53,7 +53,7 @@ google-api-python-client
 nltk==3.6.6
 blinker
 jira
-zenpy
+zenpy==2.0.36
 pipedrive-python-lib
 openapi_spec_validator
 google-cloud-translate

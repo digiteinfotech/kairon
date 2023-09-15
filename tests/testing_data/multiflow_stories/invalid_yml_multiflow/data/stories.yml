@@ -3,12 +3,10 @@ stories:
 - story: greet
   steps:
   - intent: greet
-  - action: utter_greet
-  - action: action_say_hello
+  - action: utter_offer_help
   - action: action_restart
 - story: say goodbye
   steps:
-  - intent: deny
+  - intent: goodbye
   - action: utter_goodbye
-  - action: action_say_goodbye
   - action: action_restart

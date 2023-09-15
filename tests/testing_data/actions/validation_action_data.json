@@ -1,0 +1,782 @@
+{
+   "http_action":[
+      {
+         "action_name":"rain_today",
+         "http_url":"http://f2724.kairon.io/",
+         "params_list":[
+            {
+               "key":"location",
+               "parameter_type":"sender_id",
+               "value":""
+            }
+         ],
+         "request_method":"GET",
+         "response":"${RESPONSE}"
+      },
+      {
+         "action_name":"rain_today1",
+         "http_url":"http://f2724.kairon.io/",
+         "params_list":[
+            {
+               "key":"location",
+               "parameter_type":"local",
+               "value":""
+            }
+         ],
+         "request_method":"GET",
+         "response":"${RESPONSE}"
+      },
+      {
+         "action_name":"rain_today2",
+         "http_url":"http://f2724.kairon.io/",
+         "params_list":[
+            {
+               "key":"location",
+               "parameter_type":"slot",
+               "value":""
+            }
+         ],
+         "request_method":"OPTIONS",
+         "response":"${RESPONSE}"
+      },
+      {
+         "action_name":"rain_today3",
+         "http_url":"http://f2724.kairon.io/",
+         "params_list":[
+            {
+               "key":"location",
+               "parameter_type":"intent",
+               "value":""
+            }
+         ],
+         "request_method":"GET",
+         "response":"${RESPONSE}"
+      },
+      {
+         "action_name":"rain_today4",
+         "http_url":"http://f2724.kairon.io/",
+         "params_list":[
+            {
+               "key":"location",
+               "parameter_type":"chat_log",
+               "value":""
+            }
+         ],
+         "request_method":"GET",
+         "response":"${RESPONSE}"
+      },
+      {
+         "name":"rain_today",
+         "http_url":"http://f2724.kairon.io/",
+         "params_list":[
+            {
+               "key":"location",
+               "parameter_type":"chat_log",
+               "value":""
+            }
+         ],
+         "request_method":"GET",
+         "response":"${RESPONSE}"
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
+   ],
+   "slot_set_action":[
+      {
+         "name":"set_cuisine",
+         "set_slots":[
+            {
+               "name":"cuisine",
+               "type":"from_value",
+               "value":"100"
+            }
+         ]
+      },
+      {
+         "name":"set_num_people",
+         "set_slots":[
+            {
+               "name":"num_people",
+               "type":"reset_slot"
+            }
+         ]
+      },
+      {
+         "":"action",
+         "set_slots":[
+            {
+               "name":"outside_seat",
+               "type":"slot",
+               "value":"yes"
+            }
+         ]
+      },
+      {
+         "name":"action",
+         "set_slots":[
+            {
+               "name":"outside_seat",
+               "type":"slot"
+            }
+         ]
+      },
+      {
+         "name":"set_num_people",
+         "set_slots":[
+            {
+               "name":"num_people",
+               "type":"reset_slot",
+               "value":{
+                  "resp":1
+               }
+            }
+         ]
+      },
+      {
+         "name":"set_multiple",
+         "set_slots":[
+            {
+               "name":"num_p",
+               "type":"reset_slot"
+            },
+            {
+               "name":"num_people",
+               "type":"from_value",
+               "value":{
+                  "resp":1
+               }
+            }
+         ]
+      },
+      {
+         "name":"set_none",
+         "set_slots":"None"
+      },
+      {
+         "name":"set_no_name",
+         "set_slots":[
+            {
+               " ":"num_people",
+               "type":"reset_slot",
+               "value":{
+                  "resp":1
+               }
+            }
+         ]
+      },
+      {
+         "name":"set_none_name",
+         "set_slots":[
+            {
+               "None":"num_people",
+               "type":"reset_slot",
+               "value":{
+                  "resp":1
+               }
+            }
+         ]
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
+   ],
+   "form_validation_action":[
+      {
+         "name":"validate_action",
+         "slot":"cuisine",
+         "validation_semantic":"None",
+         "valid_response":"valid slot value",
+         "invalid_response":"invalid slot value",
+         "slot_set":{
+            "type":"current",
+            "value":""
+         }
+      },
+      {
+         "name":"validate_action",
+         "slot":"num_people",
+         "validation_semantic":"if(size(slot[num_people])<10) { return true; } else { return false; }",
+         "valid_response":"valid value",
+         "invalid_response":"invalid value",
+         "slot_set":{
+            "type":"",
+            "value":""
+         }
+      },
+      {
+         "slot":"outside_seat"
+      },
+      {
+         "name":"validate_action",
+         "slot":"num_people",
+         "slot_set":{
+            "type":"slot",
+            "value":""
+         }
+      },
+      {
+         "name":"validate_action_one",
+         "slot":"num_people"
+      },
+      {
+         "name":"validate_action",
+         "slot":"num_people",
+         "slot_set":{
+            "type":"current",
+            "value":"Khare"
+         }
+      },
+      {
+         "":"validate_action",
+         "slot":"preference",
+         "slot_set":{
+            "type":"form",
+            "value":""
+         }
+      },
+      {
+         "name":"validate_action_again",
+         "slot":"num_people",
+         "slot_set":{
+            "type":"custom",
+            "value":""
+         }
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
+   ],
+   "email_action":[
+      {
+         "action_name":"send_mail",
+         "smtp_url":"smtp.gmail.com",
+         "smtp_port":"587",
+         "smtp_password":"234567890",
+         "from_email":"test@digite.com",
+         "subject":"bot falled back",
+         "to_email":"test@digite.com",
+         "response":"mail sent"
+      },
+      {
+         "action_name":"send_mail1",
+         "smtp_url":"smtp.gmail.com",
+         "smtp_port":"587",
+         "smtp_userid":"asdfghjkl",
+         "smtp_password":"asdfghjkl",
+         "from_email":"test@digite.com",
+         "subject":"bot fallback",
+         "to_email":"test@digite.com",
+         "response":"mail sent",
+         "tls":false
+      },
+      {
+         "action_name":"send_mail",
+         "smtp_url":"smtp.gmail.com",
+         "smtp_port":"587",
+         "smtp_password":"234567890",
+         "from_email":"test@digite.com",
+         "subject":"bot falled back",
+         "to_email":"test@digite.com",
+         "response":"mail sent"
+      },
+      {
+         "name":"send_mail",
+         "smtp_url":"smtp.gmail.com",
+         "smtp_port":"587",
+         "smtp_password":"234567890",
+         "from_email":"test@digite.com",
+         "subject":"bot falled back",
+         "to_email":"test@digite.com",
+         "response":"mail sent"
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
+   ],
+   "jira_action":[
+      {
+         "name":"jira",
+         "url":"http://domain.atlassian.net",
+         "user_name":"test@digite.com",
+         "api_token":"123456",
+         "project_key":"KAI",
+         "issue_type":"Subtask",
+         "parent_key":"HEL",
+         "summary":"demo request",
+         "response":"issue created"
+      },
+      {
+         "name":"jira1",
+         "url":"http://domain.atlassian.net",
+         "user_name":"test@digite.com",
+         "api_token":"234567",
+         "project_key":"KAI",
+         "issue_type":"Bug",
+         "summary":"demo request",
+         "response":"issue created"
+      },
+      {
+         "name":"jira2",
+         "url":"http://domain.atlassian.net",
+         "user_name":"test@digite.com",
+         "api_token":"234567",
+         "project_key":"KAI",
+         "issue_type":"Subtask",
+         "summary":"demo request",
+         "response":"ticket created"
+      },
+      {
+         "name":"jira",
+         "url":"http://domain.atlassian.net",
+         "user_name":"test@digite.com",
+         "api_token":"24567",
+         "project_key":"KAI",
+         "issue_type":"Task",
+         "summary":"demo request",
+         "response":"ticket created"
+      },
+      {
+         "action_name":"jira",
+         "url":"http://domain.atlassian.net",
+         "user_name":"test@digite.com",
+         "api_token":"24567",
+         "project_key":"KAI",
+         "issue_type":"Task",
+         "summary":"demo request",
+         "response":"ticket created"
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
+   ],
+   "zendesk_action":[
+      {
+         "name":"zendesk",
+         "subdomain":"digite",
+         "user_name":"test@digite.com",
+         "api_token":"123456",
+         "subject":"demo request",
+         "response":"ticket created"
+      },
+      {
+         "action_name":"zendesk1",
+         "subdomain":"digite",
+         "user_name":"test@digite.com",
+         "api_token":"123456",
+         "subject":"demo request",
+         "response":"ticket created"
+      },
+      {
+         "name":"zendesk2",
+         "subdomain":"digite",
+         "user_name":"test@digite.com",
+         "api_token":"123456",
+         "subject":"demo request",
+         "response":"ticket created"
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
+   ],
+   "google_search_action":[
+      {
+         "name":"google_search",
+         "api_key":"1231234567",
+         "search_engine_id":"2345678"
+      },
+      {
+         "name":"google_search1",
+         "api_key":"1231234567",
+         "search_engine_id":"2345678",
+         "failure_response":"failed",
+         "num_results":10
+      },
+      {
+         "name":"google_search2",
+         "api_key":"1231234567",
+         "search_engine_id":"2345678",
+         "failure_response":"failed to search",
+         "num_results":"1"
+      },
+      {
+         "name":"google_search",
+         "api_key":"1231234567",
+         "search_engine_id":"2345678",
+         "failure_response":"failed to search",
+         "num_results":""
+      },
+      [
+         {
+            "action_name":"",
+            "smtp_url":"",
+            "smtp_port":"",
+            "smtp_userid":""
+         }
+      ]
+   ],
+   "pipedrive_leads_action":[
+      {
+         "name":"action_pipedrive_leads",
+         "domain":"https://digite751.pipedrive.com",
+         "api_token":"2345678dfghj",
+         "metadata":{
+            "name":"name",
+            "org_name":"organization",
+            "email":"email",
+            "phone":"phone"
+         },
+         "title":"new lead detected",
+         "response":"lead_created"
+      },
+      {
+         "name":"action_create_lead",
+         "domain":"https://digite75.pipedrive.com",
+         "api_token":"2345678dfghj",
+         "metadata":{
+            "name":"name"
+         },
+         "title":"new lead detected",
+         "response":"lead_created"
+      },
+      {
+         "name":"pipedrive_leads_action",
+         "domain":"https://digite751.pipedrive.com",
+         "api_token":"2345678dfghj",
+         "metadata":{
+            "org_name":"organization",
+            "email":"email",
+            "phone":"phone"
+         },
+         "title":"new lead detected",
+         "response":"lead_created"
+      },
+      {
+         "domain":"https://digite751.pipedrive.com",
+         "api_token":"2345678dfghj",
+         "metadata":{
+            "name":"name",
+            "org_name":"organization",
+            "email":"email",
+            "phone":"phone"
+         },
+         "title":"new lead detected",
+         "response":"lead_created"
+      },
+      {
+         "name":"action_pipedrive_leads",
+         "domain":"https://digite751.pipedrive.com",
+         "api_token":"2345678dfghj",
+         "metadata":{
+            "name":"name",
+            "org_name":"organization",
+            "email":"email",
+            "phone":"phone"
+         },
+         "title":"new lead detected",
+         "response":"lead_created"
+      }
+   ],
+   "prompt_action":[
+      {
+         "name":"prompt_action_invalid_query_prompt",
+         "llm_prompts":[
+            {
+               "name":"Similarity Prompt",
+               "instructions":"Answer question based on the context above, if answer is not in the context go check previous logs.",
+               "type":"user",
+               "source":"bot_content",
+               "is_enabled":true
+            },
+            {
+               "name":"",
+               "data":"A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+               "instructions":"Answer according to the context",
+               "type":"query",
+               "source":"history",
+               "is_enabled":true
+            }
+         ],
+         "failure_message":"DEFAULT_NLU_FALLBACK_RESPONSE",
+         "top_results":40,
+         "similarity_threshold":2,
+         "num_bot_responses":5
+      },
+      {
+         "name":"prompt_action_invalid_num_bot_responses",
+         "llm_prompts":[
+            {
+               "name":"System Prompt",
+               "data":"You are a personal assistant.",
+               "type":"system",
+               "source":"static",
+               "is_enabled":true
+            },
+            {
+               "name":"Similarity Prompt",
+               "instructions":"Answer question based on the context above, if answer is not in the context go check previous logs.",
+               "type":"user",
+               "source":"bot_content",
+               "is_enabled":true
+            },
+            {
+               "name":"Query Prompt",
+               "data":100,
+               "instructions":"",
+               "type":"query",
+               "source":"static",
+               "is_enabled":true
+            },
+            {
+               "name":"Query Prompt three",
+               "data":"",
+               "instructions":"",
+               "type":"query",
+               "source":"static",
+               "is_enabled":true
+            }
+         ],
+         "failure_message":"DEFAULT_NLU_FALLBACK_RESPONSE",
+         "top_results":10,
+         "similarity_threshold":0.70,
+         "num_bot_responses":15
+      },
+      {
+         "name":"prompt_action_with_invalid_system_prompt_source",
+         "llm_prompts":[
+            {
+               "name":"System Prompt",
+               "data":"You are a personal assistant.",
+               "type":"system",
+               "source":"history",
+               "is_enabled":true
+            },
+            {
+               "name":"Similarity Prompt",
+               "instructions":"Answer question based on the context above, if answer is not in the context go check previous logs.",
+               "type":"user",
+               "source":"bot_content",
+               "is_enabled":true
+            },
+            {
+               "name":"Similarity Prompt two",
+               "instructions":"Answer question based on the context above, if answer is not in the context go check previous logs.",
+               "type":"user",
+               "source":"bot_content",
+               "is_enabled":true
+            }
+         ],
+         "failure_message":"DEFAULT_NLU_FALLBACK_RESPONSE",
+         "top_results":10,
+         "similarity_threshold":0.70,
+         "num_bot_responses":5,
+         "hyperparameters":{
+            "temperature":3.0,
+            "max_tokens":5000,
+            "model":"gpt - 3.5 - turbo",
+            "top_p":4,
+            "n":10,
+            "stream":false,
+            "stop":{
+
+            },
+            "presence_penalty":5,
+            "frequency_penalty":5,
+            "logit_bias":[
+
+            ]
+         }
+      },
+      {
+         "name":"prompt_action_with_no_llm_prompts",
+         "failure_message":"DEFAULT_NLU_FALLBACK_RESPONSE",
+         "top_results":10,
+         "similarity_threshold":0.70,
+         "num_bot_responses":5,
+         "hyperparameters":{
+            "temperature":3.0,
+            "max_tokens":300,
+            "model":"gpt - 3.5 - turbo",
+            "top_p":0.0,
+            "n":1,
+            "stream":false,
+            "stop":"None",
+            "presence_penalty":0.0,
+            "frequency_penalty":0.0,
+            "logit_bias":{
+
+            }
+         }
+      },
+      {
+         "name":"test_add_prompt_action_one",
+         "llm_prompts":[
+            {
+               "name":"System Prompt",
+               "data":"You are a personal assistant.",
+               "type":"system",
+               "source":"static",
+               "is_enabled":true
+            },
+            {
+               "name":"History Prompt",
+               "type":"user",
+               "source":"history",
+               "is_enabled":true
+            }
+         ],
+         "dispatch_response":false
+      },
+      {
+         "name":"test_add_prompt_action_one",
+         "llm_prompts":[
+            {
+               "name":"System Prompt",
+               "data":"You are a personal assistant.",
+               "type":"system",
+               "source":"static",
+               "is_enabled":true
+            },
+            {
+               "name":"History Prompt",
+               "type":"user",
+               "source":"history",
+               "is_enabled":true
+            }
+         ],
+         "dispatch_response":false
+      },
+      [
+         {
+            "name":"test_add_prompt_action_faq_action_in_list",
+            "llm_prompts":[
+               {
+                  "name":"System Prompt",
+                  "data":"You are a personal assistant.",
+                  "type":"system",
+                  "source":"static",
+                  "is_enabled":true
+               },
+               {
+                  "name":"History Prompt",
+                  "type":"user",
+                  "source":"history",
+                  "is_enabled":true
+               }
+            ],
+            "dispatch_response":false
+         }
+      ],
+      {
+         "name":"test_add_prompt_action_three",
+         "llm_prompts":[
+            {
+               "name":"System Prompt",
+               "data":"You are a personal assistant.",
+               "type":"system",
+               "source":"static",
+               "is_enabled":true
+            },
+            {
+               "name":"System Prompt two",
+               "data":"You are a personal assistant.",
+               "type":"system",
+               "source":"static",
+               "is_enabled":true
+            },
+            {
+               "name":"Test Prompt",
+               "type":"test",
+               "source":"test",
+               "is_enabled":true
+            },
+            {
+               "name":"Similarity Prompt",
+               "instructions":50,
+               "type":1,
+               "source":2,
+               "is_enabled":true
+            },
+            {
+               "name":"Http action Prompt",
+               "data":"",
+               "instructions":"Answer according to the context",
+               "type":"user",
+               "source":"action",
+               "is_enabled":true
+            },
+            {
+               "name":"Identification Prompt",
+               "data":"",
+               "instructions":"Answer according to the context",
+               "type":"user",
+               "source":"slot",
+               "is_enabled":true
+            },
+            {
+               "name":"History Prompt one",
+               "type":"user",
+               "source":"history",
+               "is_enabled":true
+            },
+            {
+               "name":"History Prompt two",
+               "type":"user",
+               "source":"history",
+               "is_enabled":true
+            }
+         ],
+         "dispatch_response":false,
+         "hyperparameters":{
+            "temperature":3.0,
+            "max_tokens":5000,
+            "model":"gpt - 3.5 - turbo",
+            "top_p":4,
+            "n":10,
+            "stream":false,
+            "stop":[
+               "a",
+               "b",
+               "c",
+               "d",
+               "e"
+            ],
+            "presence_penalty":5,
+            "frequency_penalty":5,
+            "logit_bias":[
+
+            ]
+         }
+      }
+   ]
+}

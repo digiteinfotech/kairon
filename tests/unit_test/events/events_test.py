@@ -61,6 +61,7 @@ class TestEventExecution:
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             http_actions_path = os.path.join(path, 'actions.yml')
+            multiflow_stories_path = os.path.join(path, 'multiflow_stories.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -69,7 +70,8 @@ class TestEventExecution:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             http_actions = Utility.read_yaml(http_actions_path)
-            return nlu, story_graph, domain, config, http_actions
+            multiflow_stories = Utility.read_yaml(multiflow_stories_path)
+            return nlu, story_graph, domain, config, http_actions, multiflow_stories
 
         return _read_and_get_data
 
@@ -286,7 +288,7 @@ class TestEventExecution:
         assert len(processor.fetch_stories(bot)) == 4
         assert len(list(processor.fetch_training_examples(bot))) == 13
         assert len(list(processor.fetch_responses(bot))) == 6
-        assert len(processor.fetch_actions(bot)) == 4
+        assert len(processor.fetch_actions(bot)) == 2
         assert len(processor.fetch_rule_block_names(bot)) == 4
 
     def test_trigger_data_importer_validate_and_save_overwrite_same_user(self, monkeypatch):
@@ -454,7 +456,7 @@ class TestEventExecution:
         nlu_path = os.path.join(test_data_path, 'data')
         Utility.make_dirs(nlu_path)
         shutil.copy2('tests/testing_data/validator/valid/data/nlu.yml', nlu_path)
-        nlu, story_graph, domain, config, http_actions = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
@@ -493,6 +495,58 @@ class TestEventExecution:
         assert len(mongo_processor.fetch_actions(bot)) == 2
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
 
+    def test_trigger_data_importer_multiflow_stories_only(self, monkeypatch, get_training_data):
+        bot = 'test_trigger_data_importer_multiflow_stories_only'
+        user = 'test'
+        test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
+        nlu_path = os.path.join(test_data_path, 'data')
+        Utility.make_dirs(nlu_path)
+        shutil.copy2('tests/testing_data/multiflow_stories/valid_with_multiflow/data/nlu.yml', nlu_path)
+        shutil.copy2('tests/testing_data/multiflow_stories/valid_with_multiflow/multiflow_stories.yml', test_data_path)
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(
+            get_training_data('tests/testing_data/multiflow_stories/valid_with_multiflow'))
+        mongo_processor = MongoProcessor()
+        mongo_processor.save_nlu(nlu, bot, user)
+        mongo_processor.save_domain(domain, bot, user)
+        mongo_processor.save_stories(story_graph.story_steps, bot, user)
+        config["bot"] = bot
+        config["user"] = user
+        config_obj = Configs._from_son(config)
+        config_obj.save()
+        mongo_processor.save_rules(story_graph.story_steps, bot, user)
+        mongo_processor.save_integrated_actions(http_actions, bot, user)
+        mongo_processor.save_multiflow_stories(http_actions, bot, user)
+
+        def _path(*args, **kwargs):
+            return test_data_path
+
+        monkeypatch.setattr(Utility, "get_latest_file", _path)
+
+        DataImporterLogProcessor.add_log(bot, user, files_received=["multiflow_stories"])
+        TrainingDataImporterEvent(bot, user, import_data=True, overwrite=False).execute()
+        logs = list(DataImporterLogProcessor.get_logs(bot))
+        assert len(logs) == 1
+        print(logs)
+        assert not logs[0].get('intents').get('data')
+        assert not logs[0].get('stories').get('data')
+        assert not logs[0].get('utterances').get('data')
+        assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions'] == [[]]
+        assert not logs[0].get('training_examples').get('data')
+        assert not logs[0].get('domain').get('data')
+        assert not logs[0].get('config').get('data')
+        assert not logs[0].get('exception')
+        assert logs[0]['start_timestamp']
+        assert logs[0]['end_timestamp']
+        assert logs[0]['status'] == 'Success'
+        assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+
+        assert len(mongo_processor.fetch_stories(bot)) == 2
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 10
+        assert len(list(mongo_processor.fetch_responses(bot))) == 4
+        assert len(mongo_processor.fetch_actions(bot)) == 2
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 3
+        assert len(mongo_processor.fetch_multiflow_stories(bot)) == 1
+
     def test_trigger_data_importer_stories_only(self, monkeypatch, get_training_data):
         bot = 'test_trigger_data_importer_stories_only'
         user = 'test'
@@ -500,7 +554,7 @@ class TestEventExecution:
         data_path = os.path.join(test_data_path, 'data')
         Utility.make_dirs(data_path)
         shutil.copy2('tests/testing_data/validator/valid/data/stories.yml', data_path)
-        nlu, story_graph, domain, config, http_actions = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
@@ -546,7 +600,7 @@ class TestEventExecution:
         data_path = os.path.join(test_data_path, 'data')
         Utility.make_dirs(data_path)
         shutil.copy2('tests/testing_data/validator/valid/data/rules.yml', data_path)
-        nlu, story_graph, domain, config, http_actions = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_domain(domain, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
@@ -591,7 +645,7 @@ class TestEventExecution:
         test_data_path = os.path.join(pytest.tmp_dir, str(uuid.uuid4()))
         Utility.make_dirs(test_data_path)
         shutil.copy2('tests/testing_data/validator/valid/domain.yml', test_data_path)
-        nlu, story_graph, domain, config, http_actions = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
+        nlu, story_graph, domain, config, http_actions, multiflow_stories = asyncio.run(get_training_data('tests/testing_data/validator/valid'))
         mongo_processor = MongoProcessor()
         mongo_processor.save_stories(story_graph.story_steps, bot, user)
         mongo_processor.save_nlu(nlu, bot, user)
@@ -692,15 +746,15 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == 'Failure'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
-        assert len(mongo_processor.fetch_stories(bot)) == 3
-        assert len(list(mongo_processor.fetch_training_examples(bot))) == 12
-        assert len(list(mongo_processor.fetch_responses(bot))) == 11
-        assert len(mongo_processor.fetch_actions(bot)) == 1
-        assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
+        assert len(mongo_processor.fetch_stories(bot)) == 0
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 0
+        assert len(list(mongo_processor.fetch_responses(bot))) == 0
+        assert len(mongo_processor.fetch_actions(bot)) == 0
+        assert len(mongo_processor.fetch_rule_block_names(bot)) == 0
 
     def test_trigger_data_importer_import_with_intent_issues(self, monkeypatch):
         bot = 'test_trigger_data_importer_import_with_intent_issues'
@@ -769,9 +823,9 @@ class TestEventExecution:
 
         mongo_processor = MongoProcessor()
         assert len(mongo_processor.fetch_stories(bot)) == 3
-        assert len(list(mongo_processor.fetch_training_examples(bot))) == 12
-        assert len(list(mongo_processor.fetch_responses(bot))) == 11
-        assert len(mongo_processor.fetch_actions(bot)) == 1
+        assert len(list(mongo_processor.fetch_training_examples(bot))) == 21
+        assert len(list(mongo_processor.fetch_responses(bot))) == 14
+        assert len(mongo_processor.fetch_actions(bot)) == 4
         assert len(mongo_processor.fetch_rule_block_names(bot)) == 1
 
     def test_trigger_faq_importer_validate_only(self, monkeypatch):
