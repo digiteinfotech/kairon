@@ -2634,6 +2634,7 @@ def test_get_data_importer_logs():
                                              {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                              {'type': 'prompt_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
+                                         'user_actions': {'count': 7, 'data': []},
                                  'exception': '',
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
