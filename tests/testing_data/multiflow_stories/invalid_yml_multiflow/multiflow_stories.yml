@@ -1,0 +1,61 @@
+multiflow_story:
+- block_name: mf_one_1
+  events:
+    - step:
+        name: query
+        type: INTENT
+        node_id:
+      connections:
+        - name:
+          type:
+          node_id:
+          component_id:
+    - step:
+        name: utter_query
+        type: BOT
+        node_id: "2"
+      connections:
+        - name: performance_feedback
+          type: INTENT
+          node_id: "3"
+        - name: more_info
+          type: INTENT
+          node_id: "4"
+    - step:
+        name: more_info
+        type: INTENT
+        node_id: "4"
+      connections:
+        - name: utter_more_info
+          type: BOT
+          node_id: "5"
+    - step:
+        name: utter_more_info
+        type: BOT
+        node_id: "5"
+      connections:
+        - name: utter_feedback
+          type: BOT
+          node_id: "6"
+    - step:
+        name: utter_feedback
+        type: BOT
+        node_id: "6"
+      connections:
+        - name: utter_more_info
+          type: BOT
+          node_id: "5"
+    - step:
+        name: performance_feedback
+        type: INTENT
+        node_id: "3"
+      connections:
+        - name: utter_feedback
+          type: BOT
+          node_id: "6"
+  metadata:
+    - node_id: "6"
+      flow_type: STORY
+  start_checkpoints: [STORY_START]
+  end_checkpoints: []
+  template_type: CUSTOM

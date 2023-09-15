@@ -1,6 +1,8 @@
 intents:
 - greet
 - affirm
+- query
+- performance_feedback
 
 responses:
   utter_greet:
@@ -9,8 +11,19 @@ responses:
   - text: Great, carry on!
   utter_goodbye:
   - text: Bye
+  utter_query:
+  - text: Yes I know what AI is!
+  utter_feedback:
+  - text: We would love to hear what you have to say.
+  utter_offer_help:
+  - text: "I am CITTA BOT, your virtual assistant from IT Dept!! \nMy team ensures
+               that the network runs smoothly. We also address all hardware/software requests."
+
 
 actions:
 - utter_greet
 - utter_affirm
 - utter_goodbye
+- utter_query
+- utter_offer_help
+- utter_feedback

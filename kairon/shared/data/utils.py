@@ -14,7 +14,7 @@ from pandas import DataFrame
 
 from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
-    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS
+    REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS
 from .constant import RESPONSE
 from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
@@ -62,7 +62,7 @@ class DataUtility:
                     path = os.path.join(data_path, file.filename)
                     Utility.write_to_file(path, await file.read())
                 elif file.filename in ALLOWED_CONFIG_FORMATS.union(ALLOWED_DOMAIN_FORMATS).union(
-                        ALLOWED_ACTIONS_FORMATS, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS):
+                        ALLOWED_ACTIONS_FORMATS, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS):
                     path = os.path.join(bot_data_home_dir, file.filename)
                     Utility.write_to_file(path, await file.read())
 
@@ -117,6 +117,8 @@ class DataUtility:
             requirements.add('actions')
         if ALLOWED_CHAT_CLIENT_CONFIG_FORMATS.intersection(files_received).__len__() < 1:
             requirements.add('chat_client_config')
+        if ALLOWED_MULTIFLOW_STORIES_FORMATS.intersection(files_received).__len__() < 1:
+            requirements.add('multiflow_stories')
 
         if requirements == REQUIREMENTS:
             if delete_dir_on_exception:
@@ -126,7 +128,7 @@ class DataUtility:
 
     @staticmethod
     async def save_training_files(nlu: File, domain: File, config: File, stories: File, rules: File = None,
-                                  http_action: File = None):
+                                  http_action: File = None, multiflow_stories: File = None):
         """
         convert mongo data  to individual files
 
@@ -136,6 +138,7 @@ class DataUtility:
         :param config: config data
         :param rules: rules data
         :param http_action: http actions data
+        param multiflow_stories: multiflow_stories data
         :return: files path
         """
         from rasa.shared.constants import DEFAULT_DATA_PATH
@@ -156,6 +159,8 @@ class DataUtility:
 
         training_file_loc['rules'] = await DataUtility.write_rule_data(data_path, rules)
         training_file_loc['http_action'] = await DataUtility.write_http_data(tmp_dir, http_action)
+        training_file_loc['multiflow_stories'] = await DataUtility.write_multiflow_stories_data(tmp_dir,
+                                                                                                multiflow_stories)
         training_file_loc['nlu'] = nlu_path
         training_file_loc['config'] = config_path
         training_file_loc['stories'] = stories_path
@@ -176,8 +181,6 @@ class DataUtility:
             rules_path = os.path.join(data_path, rules.filename)
             Utility.write_to_file(rules_path, await rules.read())
             return rules_path
-        else:
-            return None
 
     @staticmethod
     async def write_http_data(temp_path: str, http_action: File = None):
@@ -192,8 +195,19 @@ class DataUtility:
             http_path = os.path.join(temp_path, http_action.filename)
             Utility.write_to_file(http_path, await http_action.read())
             return http_path
-        else:
-            return None
+
+    @staticmethod
+    async def write_multiflow_stories_data(data_path: str, multiflow_stories: File = None):
+        """
+        writes the multiflow stories data to file and returns the file path
+        :param data_path: path of the data files
+        :param multiflow_stories: multiflow_stories data
+        :return: rule file path
+        """
+        if multiflow_stories and multiflow_stories.filename:
+            multiflow_stories_path = os.path.join(data_path, multiflow_stories.filename)
+            Utility.write_to_file(multiflow_stories_path, await multiflow_stories.read())
+            return multiflow_stories_path
 
     @staticmethod
     def extract_text_and_entities(text: Text):
