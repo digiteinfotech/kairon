@@ -3,9 +3,9 @@ from typing import Text
 
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
 
-from .validator.file_validator import TrainingDataValidator
 from kairon.shared.data.constant import REQUIREMENTS
 from kairon.shared.data.processor import MongoProcessor
+from .validator.file_validator import TrainingDataValidator
 
 
 class DataImporter:
@@ -53,5 +53,6 @@ class DataImporter:
                                                           self.validator.story_graph,
                                                           self.validator.intents,
                                                           self.validator.actions,
+                                                          self.validator.multiflow_stories,
                                                           self.validator.chat_client_config.get('config'),
                                                           self.overwrite, self.files_to_save)

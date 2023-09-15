@@ -85,6 +85,27 @@ class HttpActionResponse(EmbeddedDocument):
 
 @auditlogger.log
 @push_notification.apply
+class PyscriptActionConfig(Auditlog):
+    name = StringField(required=True)
+    source_code = StringField(required=True)
+    dispatch_response = BooleanField(default=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if Utility.check_empty_string(self.source_code):
+            raise ValidationError("Source code cannot be empty")
+
+
+@auditlogger.log
+@push_notification.apply
 class HttpActionConfig(Auditlog):
     action_name = StringField(required=True)
     http_url = StringField(required=True)
@@ -337,7 +358,7 @@ class EmailActionConfig(Auditlog):
     subject = StringField(required=True)
     to_email = ListField(StringField(), required=True)
     response = StringField(required=True)
-    custom_text = StringField(required=False)
+    custom_text = EmbeddedDocumentField(CustomActionRequestParameters)
     tls = BooleanField(default=False)
     bot = StringField(required=True)
     user = StringField(required=True)
@@ -365,12 +386,17 @@ class EmailActionConfig(Auditlog):
                 if isinstance(email(to_email), ValidationFailure):
                     raise ValidationError("Invalid From or To email address")
 
+        if self.custom_text and self.custom_text.parameter_type not in {ActionParameterType.value, ActionParameterType.slot}:
+            raise ValidationError("custom_text can only be of type value or slot!")
+
     def clean(self):
         self.action_name = self.action_name.strip().lower()
         if self.smtp_userid:
             self.smtp_userid.key = "smtp_userid"
         if self.smtp_password:
             self.smtp_password.key = "smtp_password"
+        if self.custom_text:
+            self.custom_text.key = "custom_text"
 
 
 @auditlogger.log
@@ -405,6 +431,36 @@ class GoogleSearchAction(Auditlog):
             self.num_results = int(self.num_results)
         except ValueError:
             self.num_results = 1
+
+
+@auditlogger.log
+@push_notification.apply
+class WebSearchAction(Auditlog):
+    name = StringField(required=True)
+    website = StringField(default=None)
+    failure_response = StringField(default='I have failed to process your request.')
+    topn = IntField(default=1)
+    dispatch_response = BooleanField(default=True)
+    set_slot = StringField()
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+        if Utility.check_empty_string(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if self.topn < 1:
+            raise ValidationError("topn must be greater than or equal to 1!")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        if Utility.check_empty_string(self.failure_response):
+            self.failure_response = 'I have failed to process your request.'
 
 
 @auditlogger.log

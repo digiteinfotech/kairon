@@ -38,7 +38,9 @@ class ActionType(str, Enum):
     kairon_bot_response = "kairon_bot_response"
     razorpay_action = "razorpay_action"
     prompt_action = "prompt_action"
+    pyscript_action = "pyscript_action"
     database_action = "database_action"
+    web_search_action = "web_search_action"
 
 
 class HttpRequestContentType(str, Enum):

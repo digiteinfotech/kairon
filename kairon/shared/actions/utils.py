@@ -2,20 +2,22 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import Any, List, Text
+from typing import Any, List, Text, Dict
 
 import requests
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa.shared.constants import UTTER_PREFIX
 from rasa_sdk import Tracker
+from rasa_sdk.executor import CollectingDispatcher
 
 from .data_objects import HttpActionRequestBody, Actions
 from .exception import ActionFailure
-from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType
+from .models import ActionParameterType, HttpRequestContentType, EvaluationType, ActionType, DispatchType
 from ..admin.constants import BotSecretType
 from ..admin.processor import Sysadmin
-from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes
+from ..cloud.utils import CloudUtility
+from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
 from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
@@ -397,6 +399,32 @@ class ActionUtility:
         return results
 
     @staticmethod
+    def perform_web_search(search_term: str, **kwargs):
+        search_engine_url = Utility.environment['web_search_url']['url']
+        results = []
+        try:
+            website = kwargs.get('website') if kwargs.get('website') else ''
+            request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
+            if not ActionUtility.is_empty(search_engine_url):
+                response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
+                if response.get('error_code') != 0:
+                    raise ActionFailure(f"{response}")
+                search_results = response.get('data')
+            else:
+                lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
+                if lambda_response['StatusCode'] != 200:
+                    raise ActionFailure(f"{lambda_response}")
+                search_results = lambda_response["Payload"].get('body')
+            if not search_results:
+                raise ActionFailure("No response retrieved!")
+            for item in search_results:
+                results.append({'title': item['title'], 'text': item['description'], 'link': item['url']})
+        except Exception as e:
+            logger.exception(e)
+            raise ActionFailure(e)
+        return results
+
+    @staticmethod
     def format_search_result(results: list):
         formatted_result = ""
         for result in results:
@@ -475,6 +503,50 @@ class ActionUtility:
         return parsed_output
 
     @staticmethod
+    def handle_utter_bot_response(dispatcher: CollectingDispatcher, dispatch_type: str, bot_response: Any):
+        from json import JSONDecodeError
+
+        message = None
+        if bot_response:
+            if dispatch_type == DispatchType.json.value:
+                try:
+                    if isinstance(bot_response, str):
+                        bot_response = json.loads(bot_response)
+                    dispatcher.utter_message(json_message=bot_response)
+                except JSONDecodeError as e:
+                    message = f'Failed to convert http response to json: {str(e)}'
+                    logger.exception(e)
+                    dispatcher.utter_message(str(bot_response))
+            else:
+                dispatcher.utter_message(str(bot_response))
+        return bot_response, message
+
+    @staticmethod
+    def filter_out_kairon_system_slots(slots: dict):
+        from kairon.shared.constants import KaironSystemSlots
+
+        slots = {} if not isinstance(slots, dict) else slots
+        slot_values = {slot: value for slot, value in slots.items() if slot not in {KaironSystemSlots.bot.value}}
+        return slot_values
+
+    @staticmethod
+    def run_pyscript(source_code: Text, context: dict):
+        pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
+        request_body = {"source_code": source_code, "predefined_objects": context}
+        if not ActionUtility.is_empty(pyscript_evaluator_url):
+            resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
+            if resp.get('error_code') != 0:
+                raise ActionFailure(f'Pyscript evaluation failed: {resp}')
+            result = resp.get('data')
+        else:
+            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body)
+            if lambda_response['StatusCode'] != 200:
+                raise ActionFailure(f"{lambda_response}")
+            result = lambda_response["Payload"].get('body')
+
+        return result
+
+    @staticmethod
     def compose_response(response_config: dict, http_response: Any):
         log = []
         response = response_config.get('value')
@@ -532,14 +604,13 @@ class ActionUtility:
         return conversation_mail_template
 
     @staticmethod
-    def prepare_email_text(custom_text_mail: str, tracker_data: dict, subject: str, user_email: str = None):
-        text, _ = ActionUtility.evaluate_script(custom_text_mail, tracker_data)
+    def prepare_email_text(custom_text_mail: Dict, subject: str, user_email: str = None):
         custom_text_mail_template = Utility.email_conf['email']['templates']['custom_text_mail']
         custom_text_mail_template = custom_text_mail_template.replace('SUBJECT', subject)
         if not ActionUtility.is_empty(user_email):
             custom_text_mail_template = custom_text_mail_template.replace('USER_EMAIL', user_email)
         custom_text_mail_template.replace('This email was sent to USER_EMAIL', '')
-        custom_text_mail_template = custom_text_mail_template.replace('CUSTOM_TEXT', text)
+        custom_text_mail_template = custom_text_mail_template.replace('CUSTOM_TEXT', custom_text_mail)
         return custom_text_mail_template
 
     @staticmethod

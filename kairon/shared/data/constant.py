@@ -1,4 +1,5 @@
 from enum import Enum
+
 from rasa.shared.core.slots import (
     CategoricalSlot,
     FloatSlot,
@@ -7,7 +8,6 @@ from rasa.shared.core.slots import (
     TextSlot,
     BooleanSlot, AnySlot,
 )
-
 
 TRAINING_DATA_GENERATOR_DIR = 'data_generator'
 
@@ -177,7 +177,8 @@ ALLOWED_CONFIG_FORMATS = {'config.yaml', 'config.yml'}
 ALLOWED_RULES_FORMATS = {'rules.yaml', 'rules.yml'}
 ALLOWED_ACTIONS_FORMATS = {'actions.yaml', 'actions.yml'}
 ALLOWED_CHAT_CLIENT_CONFIG_FORMATS = {'chat_client_config.yml', 'chat_client_config.yaml'}
-REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions', 'chat_client_config'}
+ALLOWED_MULTIFLOW_STORIES_FORMATS = {'multiflow_stories.yaml', 'multiflow_stories.yml'}
+REQUIREMENTS = {'nlu', 'domain', 'config', 'stories', 'rules', 'actions', 'chat_client_config', 'multiflow_stories'}
 COMPONENT_COUNT = {'intents': 0, 'utterances': 0, 'stories': 0, 'training_examples': 0,
                    'http_actions': 0, 'jira_actions': 0, 'google_search_actions': 0, 'zendesk_actions': 0,
                    'email_actions': 0, 'slot_set_actions': 0, 'form_validation_actions': 0, 'rules': 0,

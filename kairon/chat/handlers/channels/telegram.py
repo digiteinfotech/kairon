@@ -6,6 +6,7 @@ from rasa.core.channels.channel import InputChannel, UserMessage, OutputChannel
 from rasa.shared.constants import INTENT_MESSAGE_PREFIX
 from rasa.shared.core.constants import USER_INTENT_RESTART
 from rasa.shared.exceptions import RasaException
+from starlette.requests import Request
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
 from telebot.types import (
@@ -16,11 +17,11 @@ from telebot.types import (
     ReplyKeyboardMarkup,
     Message,
 )
-from tornado.escape import json_decode, json_encode
 
+from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.tornado.handlers.base import BaseHandler
+from kairon.shared.models import User
 from kairon.chat.agent_processor import AgentProcessor
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
@@ -164,8 +165,14 @@ class TelegramOutput(TeleBot, OutputChannel):
             raise Exception(f"Error in telegram send_custom_json {str(ap)}")
 
 
-class TelegramHandler(InputChannel, BaseHandler):
+class TelegramHandler(InputChannel, ChannelHandlerBase):
+
     """Telegram input channel"""
+
+    def __init__(self, bot: Text, user: User, request: Request):
+        self.bot = bot
+        self.user = user
+        self.request = request
 
     @staticmethod
     def _is_location(message: Message) -> bool:
@@ -183,19 +190,17 @@ class TelegramHandler(InputChannel, BaseHandler):
     def _is_button(message: Update) -> bool:
         return message.callback_query is not None
 
-    async def get(self, bot: str, token: str):
-        self.write(json_encode({"status": "ok"}))
+    async def validate(self):
+        return {"status": "ok"}
 
-    async def post(self, bot: str, token: str):
-        user = super().authenticate_channel(token, bot, self.request)
-        telegram = ChatDataProcessor.get_channel_config("telegram", bot, mask_characters=False)
+    async def handle_message(self):
+        telegram = ChatDataProcessor.get_channel_config("telegram", self.bot, mask_characters=False)
         out_channel = TelegramOutput(telegram['config']['access_token'])
-        request_dict = json_decode(self.request.body)
+        request_dict = await self.request.json()
         update = Update.de_json(request_dict)
         if not out_channel.get_me().username == telegram['config'].get("username_for_bot"):
             logger.debug("Invalid access token, check it matches Telegram")
-            self.write("failed")
-            return
+            return "failed"
 
         if self._is_button(update):
             msg = update.callback_query.message
@@ -212,21 +217,20 @@ class TelegramHandler(InputChannel, BaseHandler):
                     msg.location.longitude, msg.location.latitude
                 )
             else:
-                self.write("success")
-                return
+                return "success"
         sender_id = msg.chat.id
-        metadata = {"out_channel": out_channel.name(), "is_integration_user": True, "bot": bot, "account": user.account,
+        metadata = {"out_channel": out_channel.name(), "is_integration_user": True, "bot": self.bot, "account": self.user.account,
                     "channel_type": "telegram", "tabname": "default"}
         try:
             if text == (INTENT_MESSAGE_PREFIX + USER_INTENT_RESTART):
-                await self.process_message(bot, UserMessage(
+                await self.process_message(self.bot, UserMessage(
                         text,
                         out_channel,
                         sender_id,
                         input_channel=self.name(),
                         metadata=metadata,
                     ))
-                await self.process_message(bot, UserMessage(
+                await self.process_message(self.bot, UserMessage(
                         "/start",
                         out_channel,
                         sender_id,
@@ -234,7 +238,7 @@ class TelegramHandler(InputChannel, BaseHandler):
                         metadata=metadata,
                     ))
             else:
-                await self.process_message(bot, UserMessage(
+                await self.process_message(self.bot, UserMessage(
                         text,
                         out_channel,
                         sender_id,
@@ -244,8 +248,7 @@ class TelegramHandler(InputChannel, BaseHandler):
         except Exception as e:
             logger.error(f"Exception when trying to handle message.{e}")
             logger.debug(e, exc_info=True)
-        self.write("success")
-        return
+        return "success"
 
     @staticmethod
     async def process_message(bot: str, user_message: UserMessage):

@@ -43,11 +43,14 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery
+    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.importer.processor import DataImporterLogProcessor
+from kairon.shared.metering.constants import MetricType
+from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, HttpContentType, StoryType, \
     LlmPromptSource, CognitionDataType
+from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
 from .base_data import AuditLogData
 from .constant import (
@@ -92,9 +95,6 @@ from .data_objects import (
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
 from ..custom_widgets.data_objects import CustomWidgets
-from kairon.shared.metering.metering_processor import MeteringProcessor
-from kairon.shared.metering.constants import MetricType
-from kairon.shared.plugins.factory import PluginFactory
 
 
 class MongoProcessor:
@@ -110,6 +110,7 @@ class MongoProcessor:
             config: File,
             rules: File,
             http_action: File,
+            multiflow_stories: File,
             bot: Text,
             user: Text,
             overwrite: bool = True,
@@ -123,21 +124,24 @@ class MongoProcessor:
         :param rules: rules data
         :param http_action: http_actions data
         :param config: config data
+        :param multiflow_stories: multiflow_stories data
         :param bot: bot id
         :param user: user id
         :param overwrite: whether to append or overwrite, default is overwite
         :return: None
         """
-        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action)
+        training_file_loc = await DataUtility.save_training_files(nlu, domain, config, stories, rules, http_action,
+                                                                  multiflow_stories)
         await self.save_from_path(training_file_loc['root'], bot, overwrite, user)
         Utility.delete_directory(training_file_loc['root'])
 
-    def download_files(self, bot: Text, user: Text):
+    def download_files(self, bot: Text, user: Text, download_multiflow: bool = False):
         """
         create zip file containing download data
 
         :param bot: bot id
         :param user: user id
+        :param download_multiflow: flag to download multiflow stories.
         :return: zip file path
         """
         nlu = self.load_nlu(bot)
@@ -146,11 +150,13 @@ class MongoProcessor:
         config = self.load_config(bot)
         chat_client_config = self.load_chat_client_config(bot, user)
         rules = self.get_rules_for_training(bot)
-        multiflow_stories = self.load_multiflow_stories(bot)
-        stories = stories.merge(multiflow_stories[0])
-        rules = rules.merge(multiflow_stories[1])
+        if download_multiflow:
+            multiflow_stories = self.load_linear_flows_from_multiflow_stories(bot)
+            stories = stories.merge(multiflow_stories[0])
+            rules = rules.merge(multiflow_stories[1])
+        multiflow_stories = self.load_multiflow_stories_yaml(bot)
         actions = self.load_action_configurations(bot)
-        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, chat_client_config)
+        return Utility.create_zip_file(nlu, domain, stories, config, bot, rules, actions, multiflow_stories, chat_client_config)
 
     async def apply_template(self, template: Text, bot: Text, user: Text):
         """
@@ -159,6 +165,7 @@ class MongoProcessor:
         :param template: use-case template name
         :param bot: bot id
         :param user: user id
+
         :return: None
         :raises: raise AppException
         """
@@ -187,6 +194,7 @@ class MongoProcessor:
             training_data_path = os.path.join(path, DEFAULT_DATA_PATH)
             config_path = os.path.join(path, DEFAULT_CONFIG_PATH)
             actions_yml = os.path.join(path, 'actions.yml')
+            multiflow_stories_yml = os.path.join(path, 'multiflow_stories.yml')
             importer = RasaFileImporter.load_from_config(config_path=config_path,
                                                          domain_path=domain_path,
                                                          training_data_paths=training_data_path)
@@ -195,9 +203,10 @@ class MongoProcessor:
             config = await importer.get_config()
             nlu = await importer.get_nlu_data(config.get('language'))
             actions = Utility.read_yaml(actions_yml)
+            multiflow_stories = Utility.read_yaml(multiflow_stories_yml) if multiflow_stories_yml else None
             TrainingDataValidator.validate_custom_actions(actions)
 
-            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, overwrite=overwrite,
+            self.save_training_data(bot, user, config, domain, story_graph, nlu, actions, multiflow_stories, overwrite=overwrite,
                                     what=REQUIREMENTS.copy()-{"chat_client_config"})
         except Exception as e:
             logging.exception(e)
@@ -205,7 +214,7 @@ class MongoProcessor:
 
     def save_training_data(self, bot: Text, user: Text, config: dict = None, domain: Domain = None,
                            story_graph: StoryGraph = None, nlu: TrainingData = None, actions: dict = None,
-                           chat_client_config: dict = None,
+                           multiflow_stories: dict = None, chat_client_config: dict = None,
                            overwrite: bool = False, what: set = REQUIREMENTS.copy()):
         if overwrite:
             self.delete_bot_data(bot, user, what)
@@ -224,6 +233,8 @@ class MongoProcessor:
             self.add_or_overwrite_config(config, bot, user)
         if 'chat_client_config' in what:
             self.save_chat_client_config(chat_client_config, bot, user)
+        if 'multiflow_stories' in what:
+            self.save_multiflow_stories(multiflow_stories, bot, user)
 
     def apply_config(self, template: Text, bot: Text, user: Text):
         """
@@ -240,6 +251,12 @@ class MongoProcessor:
             self.save_config(read_config_file(config_path), bot=bot, user=user)
         else:
             raise AppException("Invalid config!")
+
+    def load_multiflow_stories_yaml(self, bot: Text):
+        multiflow = MultiflowStories.objects(bot=bot, status=True).exclude('id', 'bot', 'user', 'timestamp',
+                                                                           'status').to_json()
+        multiflow = json.loads(multiflow)
+        return {'multiflow_story': multiflow}
 
     def get_config_templates(self):
         """
@@ -274,6 +291,8 @@ class MongoProcessor:
             self.delete_rules(bot, user)
         if 'actions' in what:
             self.delete_bot_actions(bot, user)
+        if 'multiflow_stories' in what:
+            self.delete_multiflow_stories(bot, user)
 
     def save_nlu(self, nlu: TrainingData, bot: Text, user: Text):
         """
@@ -402,7 +421,27 @@ class MongoProcessor:
         """
         return self.__prepare_training_story(bot)
 
-    def load_multiflow_stories(self, bot: Text) -> (StoryGraph, StoryGraph):
+    def delete_multiflow_stories(self, bot: Text, user: Text):
+        """
+        soft deletes stories
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        Utility.hard_delete_document([MultiflowStories], bot=bot)
+
+    def save_multiflow_stories(self, multiflow_stories: dict, bot: Text, user: Text):
+        """
+        saves multiflow stories data
+        :param multiflow_stories: multiflow stories data
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if multiflow_stories and multiflow_stories.get('multiflow_story'):
+            self.__save_multiflow_stories(multiflow_stories['multiflow_story'], bot, user)
+
+    def load_linear_flows_from_multiflow_stories(self, bot: Text) -> (StoryGraph, StoryGraph):
         """
         loads multiflow stories for training.
         Each multiflow story is divided into linear stories and segregated into either story or rule.
@@ -981,14 +1020,16 @@ class MongoProcessor:
                 "influence_conversation": False}, bot, user, raise_exception_if_exists=False
             )
 
-        for slot in [s for s in KaironSystemSlots if s.value == KaironSystemSlots.kairon_action_response.value]:
+        for slot in [s for s in KaironSystemSlots if s.value in {KaironSystemSlots.kairon_action_response.value,
+                                                                 KaironSystemSlots.order.value}]:
             self.add_slot({
                 "name": slot, "type": "any", "initial_value": None, "auto_fill": False,
                 "influence_conversation": False}, bot, user, raise_exception_if_exists=False
             )
 
         for slot in [s for s in KaironSystemSlots if s.value not in {KaironSystemSlots.bot.value,
-                                                                     KaironSystemSlots.kairon_action_response.value}]:
+                                                                     KaironSystemSlots.kairon_action_response.value,
+                                                                     KaironSystemSlots.order.value}]:
             self.add_slot({
                 "name": slot, "type": "text", "auto_fill": True,
                 "initial_value": None, "influence_conversation": True}, bot, user, raise_exception_if_exists=False
@@ -1132,6 +1173,79 @@ class MongoProcessor:
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
+    def __retrieve_existing_components(self, bot):
+        component_dict = {
+            StoryStepType.intent.value: dict(Intents.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.slot.value: dict(Slots.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.bot.value: dict(Utterances.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.http_action.value: dict(
+                HttpActionConfig.objects(bot=bot, status=True).values_list('action_name', 'id')),
+            StoryStepType.email_action.value: dict(
+                EmailActionConfig.objects(bot=bot, status=True).values_list('action_name', 'id')),
+            StoryStepType.google_search_action.value: dict(
+                GoogleSearchAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.slot_set_action.value: dict(
+                SlotSetAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.jira_action.value: dict(JiraAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.form_action.value: dict(
+                FormValidationAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.zendesk_action.value: dict(
+                ZendeskAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.pipedrive_leads_action.value: dict(
+                PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.hubspot_forms_action.value: dict(
+                HubspotFormsAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.two_stage_fallback_action.value: dict(
+                KaironTwoStageFallbackAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.razorpay_action.value: dict(
+                RazorpayAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.prompt_action.value: dict(
+                PromptAction.objects(bot=bot, status=True).values_list('name', 'id')),
+            StoryStepType.web_search_action.value: dict(
+                WebSearchAction.objects(bot=bot, status=True).values_list('name', 'id')),
+        }
+        return component_dict
+
+    def __updated_events(self, bot, events, existing_components):
+        for event in events:
+            step = event['step']
+            connections = event.get('connections', [])
+            step_type = step.get('type')
+            step_name_lower = step.get('name').lower()
+
+            step['component_id'] = existing_components.get(step_type, {}).get(step_name_lower).__str__()
+            if connections:
+                for connection in connections:
+                    connection_name_lower = connection['name'].lower()
+                    connection['component_id'] = existing_components.get(connection['type'], {}).get(connection_name_lower).__str__()
+        return events
+
+    def __fetch_multiflow_story_block_names(self, bot: Text):
+        multiflow_stories = list(
+            MultiflowStories.objects(bot=bot, status=True).values_list('block_name')
+        )
+        return multiflow_stories
+
+    def __extract_multiflow_story_step(self, multiflow_stories, bot: Text, user: Text):
+        existing_multiflow_stories = self.__fetch_multiflow_story_block_names(bot)
+        existing_stories = self.__fetch_story_block_names(bot)
+        existing_rules = self.fetch_rule_block_names(bot)
+        existing_flows = set(existing_multiflow_stories + existing_stories + existing_rules)
+        existing_components = self.__retrieve_existing_components(bot)
+        for story in multiflow_stories:
+            if story['block_name'].strip().lower() not in existing_flows:
+                story['events'] = self.__updated_events(bot, story['events'], existing_components)
+                multiflow_story = MultiflowStories(**story)
+                multiflow_story.bot = bot
+                multiflow_story.user = user
+                multiflow_story.clean()
+                yield multiflow_story
+
+    def __save_multiflow_stories(self, multiflow_stories, bot: Text, user: Text):
+        new_multiflow_stories = list(self.__extract_multiflow_story_step(multiflow_stories, bot, user))
+        if new_multiflow_stories:
+            MultiflowStories.objects.insert(new_multiflow_stories)
+
     def __prepare_training_multiflow_story_events(self, events, metadata, timestamp):
         roots = []
         leaves = []
@@ -1181,6 +1295,15 @@ class MongoProcessor:
             if flow_type == StoryType.rule.value:
                 story_events.insert(0, ActionExecuted(action_name=RULE_SNIPPET_ACTION_NAME, timestamp=timestamp))
             yield story_events, flow_type
+
+    def fetch_multiflow_stories(self, bot: Text, status=True):
+        """
+        fetches stories
+        :param bot: bot id
+        :param status: active or inactive, default is active
+        :return: list of stories
+        """
+        return list(MultiflowStories.objects(bot=bot, status=status))
 
     def fetch_stories(self, bot: Text, status=True):
         """
@@ -2466,9 +2589,11 @@ class MongoProcessor:
         zendesk_actions = set(ZendeskAction.objects(bot=bot, status=True).values_list('name'))
         pipedrive_leads_actions = set(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name'))
         hubspot_forms_actions = set(HubspotFormsAction.objects(bot=bot, status=True).values_list('name'))
+        pyscript_actions = set(PyscriptActionConfig.objects(bot=bot, status=True).values_list('name'))
         razorpay_actions = set(RazorpayAction.objects(bot=bot, status=True).values_list('name'))
         email_actions = set(EmailActionConfig.objects(bot=bot, status=True).values_list('action_name'))
         prompt_actions = set(PromptAction.objects(bot=bot, status=True).values_list('name'))
+        web_search_actions = set(WebSearchAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -2519,10 +2644,14 @@ class MongoProcessor:
                         step['type'] = StoryStepType.hubspot_forms_action.value
                     elif event["name"] in razorpay_actions:
                         step['type'] = StoryStepType.razorpay_action.value
+                    elif event["name"] in pyscript_actions:
+                        step['type'] = StoryStepType.pyscript_action.value
                     elif event['name'] == KAIRON_TWO_STAGE_FALLBACK:
                         step['type'] = StoryStepType.two_stage_fallback_action.value
                     elif event['name'] in prompt_actions:
                         step['type'] = StoryStepType.prompt_action.value
+                    elif event['name'] in web_search_actions:
+                        step['type'] = StoryStepType.web_search_action.value
                     elif str(event['name']).startswith("utter_"):
                         step['type'] = StoryStepType.bot.value
                     else:
@@ -3007,6 +3136,64 @@ class MongoProcessor:
         actions = HttpActionConfig.objects(bot=bot, status=True)
         return list(self.__prepare_document_list(actions, "action_name"))
 
+    def add_pyscript_action(self, pyscript_config: Dict, user: str, bot: str):
+        """
+        Adds a new PyscriptActionConfig action.
+        :param pyscript_config: dict object containing configuration for the Http action
+        :param user: user id
+        :param bot: bot id
+        :return: Pyscript configuration id for saved Pyscript action config
+        """
+        Utility.is_valid_action_name(pyscript_config.get("name"), bot, PyscriptActionConfig)
+        action_id = PyscriptActionConfig(
+            name=pyscript_config['name'],
+            source_code=pyscript_config['source_code'],
+            dispatch_response=pyscript_config['dispatch_response'],
+            bot=bot,
+            user=user,
+        ).save().id.__str__()
+        self.add_action(pyscript_config['name'], bot, user, action_type=ActionType.pyscript_action.value,
+                        raise_exception=False)
+        return action_id
+
+    def update_pyscript_action(self, request_data: Dict, user: str, bot: str):
+        """
+        Updates Pyscript configuration.
+        :param request_data: Dict containing configuration to be modified
+        :param user: user id
+        :param bot: bot id
+        :return: Pyscript configuration id for updated Pyscript action config
+        """
+
+        if not Utility.is_exist(PyscriptActionConfig, raise_error=False, name=request_data.get('name'),
+                                bot=bot, status=True):
+            raise AppException(f'Action with name "{request_data.get("name")}" not found')
+        action = PyscriptActionConfig.objects(name=request_data.get('name'), bot=bot, status=True).get()
+        action.update(
+            source_code=request_data['source_code'], set__dispatch_response=request_data['dispatch_response'],
+            set__user=user, set__timestamp=datetime.utcnow()
+        )
+        return action.id.__str__()
+
+    def list_pyscript_actions(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches all Pyscript actions from collection
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of Pyscript actions.
+        """
+        for action in PyscriptActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('status')
+            action.pop('timestamp')
+            yield action
+
     def update_db_action(self, request_data: Dict, user: str, bot: str):
         """
         Updates VectorDb configuration.
@@ -3195,6 +3382,71 @@ class MongoProcessor:
             action.pop('status')
             yield action
 
+    def add_web_search_action(self, action_config: dict, bot: Text, user: Text):
+        """
+        Add a new public search action
+
+        :param action_config: public search action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        Utility.is_valid_action_name(action_config.get("name"), bot, WebSearchAction)
+        action = WebSearchAction(
+            name=action_config['name'],
+            website=action_config.get('website', None),
+            failure_response=action_config.get('failure_response'),
+            topn=action_config.get('topn'),
+            dispatch_response=action_config.get('dispatch_response', True),
+            set_slot=action_config.get('set_slot'),
+            bot=bot,
+            user=user,
+        ).save().id.__str__()
+        self.add_action(
+            action_config['name'], bot, user, action_type=ActionType.web_search_action.value,
+            raise_exception=False
+        )
+        return action
+
+    def edit_web_search_action(self, action_config: dict, bot: Text, user: Text):
+        """
+        Update public search action with new values.
+        :param action_config: public search action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(WebSearchAction, raise_error=False, name=action_config.get('name'), bot=bot,
+                                status=True):
+            raise AppException(f'Public search action with name "{action_config.get("name")}" not found')
+        action = WebSearchAction.objects(name=action_config.get('name'), bot=bot, status=True).get()
+        action.website = action_config.get('website', None)
+        action.failure_response = action_config.get('failure_response')
+        action.topn = action_config.get('topn')
+        action.dispatch_response = action_config.get('dispatch_response', True)
+        action.set_slot = action_config.get('set_slot')
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        action.save()
+
+    def list_web_search_actions(self, bot: Text, with_doc_id: bool = True):
+        """
+        List public search actions
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        for action in WebSearchAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action['_id'] = action['_id'].__str__()
+            else:
+                action.pop('_id')
+            action.pop('user')
+            action.pop('bot')
+            action.pop('timestamp')
+            action.pop('status')
+            yield action
+
     def add_slot(self, slot_value: Dict, bot, user, raise_exception_if_exists=True):
         """
         Adds slot if it doesn't exist, updates slot if it exists
@@ -3257,6 +3509,7 @@ class MongoProcessor:
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
             forms_with_slot = Forms.objects(bot=bot, status=True, required_slots__contains=slot_name)
             action_with_slot = GoogleSearchAction.objects(bot=bot, status=True, set_slot=slot_name)
+            web_search_action_with_slot = WebSearchAction.objects(bot=bot, status=True, set_slot=slot_name)
             stories = Stories.objects(bot=bot, status=True, events__name=slot_name, events__type__ = SlotSet.type_name)
             training_examples = TrainingExamples.objects(bot=bot, status=True, entities__entity= slot_name)
             multi_stories = MultiflowStories.objects(bot=bot, status=True, events__connections__type__=StoryStepType.slot, events__connections__name=slot_name)
@@ -3265,6 +3518,8 @@ class MongoProcessor:
                 raise AppException(f'Slot is attached to form: {[form["name"] for form in forms_with_slot]}')
             elif len(action_with_slot) > 0:
                 raise AppException(f'Slot is attached to action: {[action["name"] for action in action_with_slot]}')
+            elif len(web_search_action_with_slot) > 0:
+                raise AppException(f'Slot is attached to action: {[action["name"] for action in web_search_action_with_slot]}')
             elif len(stories) > 0:
                 raise AppException(f'Slot is attached to story: {[story["block_name"] for story in stories]}')
             elif len(training_examples) > 0:
@@ -3420,7 +3675,8 @@ class MongoProcessor:
             ActionType.jira_action.value: JiraAction, ActionType.form_validation_action.value: FormValidationAction,
             ActionType.slot_set_action.value: SlotSetAction, ActionType.google_search_action.value: GoogleSearchAction,
             ActionType.pipedrive_leads_action.value: PipedriveLeadsAction,
-            ActionType.prompt_action.value: PromptAction
+            ActionType.prompt_action.value: PromptAction,
+            ActionType.web_search_action.value: WebSearchAction
         }
         saved_actions = set(Actions.objects(bot=bot, status=True, type__ne=None).values_list('name'))
         for action_type, actions_list in actions.items():
@@ -4050,9 +4306,8 @@ class MongoProcessor:
         url = urljoin(url, access_token)
         return url
 
-    def get_client_config_using_uid(self, bot: str, uid: str):
-        decoded_uid = Utility.validate_bot_specific_token(bot, uid)
-        config = self.get_chat_client_config(bot, decoded_uid["sub"], is_client_live=True)
+    def get_client_config_using_uid(self, bot: Text, token_claims: Dict):
+        config = self.get_chat_client_config(bot, token_claims["sub"], is_client_live=True)
         return config.to_mongo().to_dict()
 
     def get_chat_client_config(self, bot: Text, user: Text, is_client_live: bool = False):
@@ -4619,8 +4874,12 @@ class MongoProcessor:
                 Utility.delete_document([RazorpayAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.database_action.value:
                 Utility.delete_document([DatabaseAction], name__iexact=name, bot=bot, user=user)
+            elif action.type == ActionType.web_search_action.value:
+                Utility.delete_document([WebSearchAction], name__iexact=name, bot=bot, user=user)
             elif action.type == ActionType.prompt_action.value:
                 PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
+            elif action.type == ActionType.pyscript_action.value:
+                Utility.delete_document([PyscriptActionConfig], name__iexact=name, bot=bot, user=user)
             action.status = False
             action.user = user
             action.timestamp = datetime.utcnow()
@@ -4657,8 +4916,9 @@ class MongoProcessor:
         email_action = EmailActionConfig.objects(action_name=action.get('action_name'), bot=bot, status=True).get()
         email_action.smtp_url = action['smtp_url']
         email_action.smtp_port = action['smtp_port']
-        email_action.smtp_userid = CustomActionRequestParameters(**action['smtp_userid']) if action['smtp_userid'] else None
+        email_action.smtp_userid = CustomActionRequestParameters(**action['smtp_userid']) if action.get('smtp_userid') else None
         email_action.smtp_password = CustomActionRequestParameters(**action['smtp_password'])
+        email_action.custom_text = CustomActionRequestParameters(**action['custom_text']) if action.get('custom_text') else None
         email_action.from_email = action['from_email']
         email_action.subject = action['subject']
         email_action.to_email = action['to_email']

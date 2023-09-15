@@ -49,6 +49,9 @@ RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install RestrictedPython
 RUN python -m pip install AccessControl
 RUN python -m pip install pykka
+RUN python -m pip install timeout-decorator
+RUN python -m pip install uvicorn>=0.18.2
+RUN python -m pip install secure
 
 RUN mkdir -p /home/cache
 RUN chmod -R 777 /home/cache
@@ -63,4 +66,6 @@ COPY augmentation /app/augmentation
 
 USER 1001
 EXPOSE 5056
-CMD ["python","-m", "kairon.events.server", "--logging=debug"]
+
+ENV APP_MODULE=kairon.events.server:app
+CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5056 --no-server-header

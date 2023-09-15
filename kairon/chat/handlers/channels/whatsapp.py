@@ -1,21 +1,19 @@
 from typing import Optional, Dict, Text, Any, List, Union
 
 from rasa.core.channels import OutputChannel, UserMessage
-from tornado.ioloop import IOLoop
+from starlette.requests import Request
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 from kairon.chat.handlers.channels.messenger import MessengerHandler
-import json
 import logging
-from http import HTTPStatus
-import html
-from tornado.escape import json_decode
 
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
-from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, KaironSystemSlots
+from kairon.shared.concurrency.actors.factory import ActorFactory
+from kairon.shared.constants import ChannelTypes, ActorType
+from kairon.shared.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +48,8 @@ class Whatsapp:
             if message['type'] == "voice":
                 message['type'] = "audio"
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
+        elif message.get("order"):
+            text = f"/k_order_msg{{\"{message['type']}\": \"{message['order']}\"}}"
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
@@ -72,17 +72,18 @@ class Whatsapp:
 
     async def handle_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
         msg = "success"
-        payload = json_decode(request.body)
+        payload = await request.json()
         provider = self.config.get("bsp_type", "meta")
         metadata.update({"channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": provider, "tabname": "default"})
         signature = request.headers.get("X-Hub-Signature") or ""
         if provider == "meta":
-            if not MessengerHandler.validate_hub_signature(self.config["app_secret"], request.body, signature):
+            if not MessengerHandler.validate_hub_signature(self.config["app_secret"], payload, signature):
                 logger.warning("Wrong app secret secret! Make sure this matches the secret in your whatsapp app settings.")
                 msg = "not validated"
                 return msg
 
-        IOLoop.current().spawn_callback(self.__handle_meta_payload, payload, metadata, bot)
+        actor = ActorFactory.get_instance(ActorType.callable_runner.value)
+        actor.execute(self.__handle_meta_payload, payload, metadata, bot)
         return msg
 
     def get_business_phone_number_id(self) -> Text:
@@ -181,29 +182,28 @@ class WhatsappBot(OutputChannel):
 class WhatsappHandler(MessengerHandler):
     """Whatsapp input channel implementation. Based on the HTTPInputChannel."""
 
-    async def get(self, bot: str, token: str):
-        super().authenticate_channel(token, bot, self.request)
-        self.set_status(HTTPStatus.OK)
-        messenger_conf = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+    def __init__(self, bot: Text, user: User, request: Request):
+        super().__init__(bot, user, request)
+        self.bot = bot
+        self.user = user
+        self.request = request
+
+    async def validate(self):
+        messenger_conf = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
 
         verify_token = messenger_conf["config"]["verify_token"]
 
-        if (self.request.query_arguments.get("hub.verify_token")[0]).decode() == verify_token:
-            hub_challenge = (self.request.query_arguments.get("hub.challenge")[0]).decode()
-            self.write(html.escape(hub_challenge))
-            return
+        if (self.request.query_params.get("hub.verify_token")[0]).decode() == verify_token:
+            hub_challenge = (self.request.query_params.get("hub.challenge")[0]).decode()
+            return hub_challenge
         else:
             logger.warning("Invalid verify token! Make sure this matches your webhook settings on the whatsapp app.")
-            self.write(json.dumps({"status": "failure, invalid verify_token"}))
-            return
+            return {"status": "failure, invalid verify_token"}
 
-    async def post(self, bot: str, token: str):
-        user = super().authenticate_channel(token, bot, self.request)
-        channel_conf = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+    async def handle_message(self):
+        channel_conf = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
         whatsapp_channel = Whatsapp(channel_conf["config"])
         metadata = self.get_metadata(self.request) or {}
-        metadata.update({"is_integration_user": True, "bot": bot, "account": user.account})
-        msg = await whatsapp_channel.handle_payload(self.request, metadata, bot)
-        self.set_status(HTTPStatus.OK)
-        self.write(msg)
-        return
+        metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account})
+        msg = await whatsapp_channel.handle_payload(self.request, metadata, self.bot)
+        return msg

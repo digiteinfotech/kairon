@@ -997,6 +997,250 @@ def test_content_upload_api_with_gpt_feature_disabled():
     assert actual["error_code"] == 422
 
 
+def test_add_pyscript_action_empty_name():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": '',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_pyscript_action_empty_source_code():
+    request_body = {
+        "name": 'test_add_pyscript_action_empty_source_code',
+        "source_code": '',
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'source_code'],
+                                  'msg': 'source_code is required', 'type': 'value_error'}]
+    assert not actual["success"]
+
+
+def test_add_pyscript_action():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_add_pyscript_action_name_already_exist():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action exists!"
+    assert not actual["success"]
+
+
+def test_add_pyscript_action_case_insensitivity():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'TEST_ADD_PYSCRIPT_ACTION_CASE_INSENSITIVITY',
+        "source_code": script,
+        "dispatch_response": True,
+        "set_slots": [{"name": "data", "value": "${data.data}", "evaluation_type": "expression"}]
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_update_pyscript_action_does_not_exist():
+    script = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_update_pyscript_action',
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "test_update_pyscript_action" not found'
+    assert not actual["success"]
+
+
+def test_update_pyscript_action():
+    script = """
+    data = [1, 2, 3, 4, 5, 6, 7]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    request_body = {
+        "name": 'test_add_pyscript_action',
+        "source_code": script,
+        "dispatch_response": True,
+    }
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated!'
+    assert actual["success"]
+
+
+def test_list_pyscript_actions():
+    script1 = """
+    data = [1, 2, 3, 4, 5, 6, 7]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    script2 = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert len(actual['data']) == 2
+    assert actual['data'][0]['name'] == 'test_add_pyscript_action'
+    assert actual['data'][0]['source_code'] == script1
+    assert actual['data'][0]['dispatch_response']
+    assert actual['data'][1]['name'] == 'test_add_pyscript_action_case_insensitivity'
+    assert actual['data'][1]['source_code'] == script2
+    assert actual['data'][1]['dispatch_response']
+
+
+def test_delete_pyscript_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/test_delete_pyscript_action_not_exists",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "test_delete_pyscript_action_not_exists" not found'
+
+
+def test_delete_pyscript_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/test_add_pyscript_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
+def test_list_pyscript_actions_after_action_deleted():
+    script2 = """
+    data = [1, 2, 3, 4, 5]
+    total = 0
+    for i in data:
+        total += i
+    print(total)
+    """
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert len(actual['data']) == 1
+    assert actual['data'][0]['name'] == 'test_add_pyscript_action_case_insensitivity'
+    assert actual['data'][0]['source_code'] == script2
+    assert actual['data'][0]['dispatch_response']
+
+
 def test_get_client_config_url_with_ip_info(monkeypatch):
     monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://localhost")
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo_location:
@@ -2038,7 +2282,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 7
+    assert len(actual['data']) == 8
     assert actual["success"]
 
 
@@ -2160,10 +2404,11 @@ def test_list_entities():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
-                                                   'audio', 'image', 'doc_url', 'document', 'video'}
+                                                   'audio', 'image', 'doc_url', 'document', 'video', 'order'}
     assert actual["success"]
 
 
@@ -2263,7 +2508,8 @@ def test_upload_using_event_append(monkeypatch):
         status=200,
         match=[
             responses.matchers.json_params_matcher(
-                {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '', 'event_type': EventClass.data_importer})],
+                {"data": {'bot': pytest.bot, 'user': pytest.username, 'import_data': '--import-data', 'overwrite': '',
+                          'event_type': EventClass.data_importer}, "cron_exp": None, "timezone": None})],
     )
 
     response = client.post(
@@ -2373,10 +2619,9 @@ def test_get_data_importer_logs():
     del actual['data']["logs"][1]['start_timestamp']
     del actual['data']["logs"][1]['end_timestamp']
     del actual['data']["logs"][1]['files_received']
-    print(actual['data']["logs"][1])
     assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                  'stories': {'count': 16, 'data': []}, 'training_examples': {'count': 192, 'data': []},
-                                 'domain': {'intents_count': 19, 'actions_count': 27, 'slots_count': 10,
+                                 'domain': {'intents_count': 19, 'actions_count': 23, 'slots_count': 10,
                                             'utterances_count': 14, 'forms_count': 2, 'entities_count': 8, 'data': []},
                                  'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
                                  'actions': [{'type': 'http_actions', 'count': 5, 'data': []},
@@ -2388,10 +2633,11 @@ def test_get_data_importer_logs():
                                              {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                              {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                              {'type': 'prompt_actions', 'count': 0, 'data': []}],
+                                         'multiflow_stories': {'count': 0, 'data': []},
+                                         'user_actions': {'count': 7, 'data': []},
                                  'exception': '',
                                  'is_data_uploaded': True,
                                  'status': 'Success', 'event_status': 'Completed'}
-
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][2]['status'] == 'Failure'
     assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
@@ -2400,38 +2646,39 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][2]['start_timestamp']
     assert actual['data']["logs"][2]['end_timestamp']
 
+    print(actual['data']["logs"][3])
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][3]['status'] == 'Failure'
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
-                                                                'actions', 'chat_client_config'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories'}
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert actual['data']["logs"][3]['start_timestamp']
     assert actual['data']["logs"][3]['end_timestamp']
-    assert actual['data']["logs"][3]['intents']['count'] == 16
+    assert actual['data']["logs"][3]['intents']['count'] == 19
     assert len(actual['data']["logs"][3]['intents']['data']) == 21
-    assert actual['data']["logs"][3]['utterances']['count'] == 25
-    assert len(actual['data']["logs"][3]['utterances']['data']) == 13
+    assert actual['data']["logs"][3]['utterances']['count'] == 27
+    assert len(actual['data']["logs"][3]['utterances']['data']) == 11
     assert actual['data']["logs"][3]['stories']['count'] == 16
     assert len(actual['data']["logs"][3]['stories']['data']) == 1
     assert actual['data']["logs"][3]['rules']['count'] == 3
     assert len(actual['data']["logs"][3]['rules']['data']) == 0
-    assert actual['data']["logs"][3]['training_examples']['count'] == 292
+    assert actual['data']["logs"][3]['training_examples']['count'] == 305
     assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
-    assert actual['data']["logs"][3]['domain'] == {'intents_count': 29, 'actions_count': 38, 'slots_count': 10,
-                                           'utterances_count': 25, 'forms_count': 2, 'entities_count': 8, 'data': []}
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 41, 'slots_count': 10,
+                                           'utterances_count': 27, 'forms_count': 2, 'entities_count': 8, 'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
     assert actual['data']["logs"][3]['actions'] == [{'type': 'http_actions', 'count': 5, 'data': []},
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
-                                            {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                            {'type': 'google_search_actions', 'count': 1, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                             {'type': 'prompt_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
-                                                                'actions', 'chat_client_config'}
+                                                                'actions', 'chat_client_config', 'multiflow_stories'}
 
 
 @responses.activate
@@ -2538,11 +2785,12 @@ def test_download_data_with_chat_client_config():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__() == 8
+    assert zip_file.filelist.__len__() == 9
     assert zip_file.getinfo('chat_client_config.yml')
     assert zip_file.getinfo('config.yml')
     assert zip_file.getinfo('domain.yml')
     assert zip_file.getinfo('actions.yml')
+    assert zip_file.getinfo('multiflow_stories.yml')
     assert zip_file.getinfo('data/stories.yml')
     assert zip_file.getinfo('data/rules.yml')
     assert zip_file.getinfo('data/nlu.yml')
@@ -2555,7 +2803,7 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 14
+    assert len(actual["data"]) == 15
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -2681,6 +2929,7 @@ def test_get_intents():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual['data'])
     assert "data" in actual
     assert len(actual["data"]) == 19
     assert actual["success"]
@@ -2694,6 +2943,7 @@ def test_get_all_intents():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual['data'])
     assert "data" in actual
     assert len(actual["data"]) == 19
     assert actual["success"]
@@ -3488,9 +3738,9 @@ def test_add_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3747,11 +3997,12 @@ def test_add_multiflow_story_invalid_event_type():
                  'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', "
                         "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
                         "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
-                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                        "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
+                        "'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT',
                  'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION',
                  'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']}
+                 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
                  }]
     )
 
@@ -3817,9 +4068,9 @@ def test_update_story_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -3955,12 +4206,12 @@ def test_update_multiflow_story_invalid_event_type():
                         "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
                         "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                         "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
-                        "'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                        "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum', 'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END',
                         'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION',
                         'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION',
                         'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION',
-                        'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']}
+                        'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']}
                  }]
     )
 
@@ -4732,7 +4983,7 @@ def test_download_data():
     )
     file_bytes = BytesIO(response.content)
     zip_file = ZipFile(file_bytes, mode='r')
-    assert zip_file.filelist.__len__() == 8
+    assert zip_file.filelist.__len__() == 9
     zip_file.close()
     file_bytes.close()
 
@@ -7701,7 +7952,8 @@ def test_list_actions():
                                              'utter_goodbye', 'utter_iamabot', 'utter_default', 'utter_please_rephrase'],
                               'slot_set_action': [], 'form_validation_action': [], 'email_action': [], 'google_search_action': [],
                               'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],'hubspot_forms_action': [],
-                              'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': []}
+                              'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [],
+                              'pyscript_action': [], 'web_search_action': []}
 
     assert actual["success"]
 
@@ -8381,9 +8633,9 @@ def test_add_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -8446,9 +8698,9 @@ def test_update_rule_invalid_event_type():
     assert actual["error_code"] == 422
     assert (
             actual["message"]
-            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION']},
+            == [{'ctx': {'enum_values': ['INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION']},
                  'loc': ['body', 'steps', 0, 'type'],
-                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PROMPT_ACTION'",
+                 'msg': "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'WEB_SEARCH_ACTION'",
                  'type': 'type_error.enum'}]
     )
 
@@ -8653,7 +8905,7 @@ def test_upload_actions_and_config():
                                             {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                             {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                             {'type': 'email_actions', 'count': 0, 'data': []},
-                                            {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                            {'type': 'google_search_actions', 'count': 1, 'data': []},
                                             {'type': 'jira_actions', 'count': 0, 'data': []},
                                             {'type': 'zendesk_actions', 'count': 0, 'data': []},
                                             {'type': 'pipedrive_leads_actions', 'data': [], 'count': 0},
@@ -8669,6 +8921,52 @@ def test_upload_actions_and_config():
     assert actual["error_code"] == 0
     assert len(actual["data"]) == 5
 
+
+@patch("kairon.shared.importer.processor.DataImporterLogProcessor.is_limit_exceeded", autospec=True)
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_upload_multiflow_stories(mock_is_limit_exceeded, mock_event_server):
+    event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
+    responses.add(
+        "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
+    )
+    files = (('training_files', ("domain.yml", open("tests/testing_data/yml_training_files/domain.yml", "rb"))),
+             ('training_files',
+              ("nlu.yml", open("tests/testing_data/yml_training_files/data/nlu.yml", "rb"))),
+             ('training_files',
+              ("stories.yml", open("tests/testing_data/yml_training_files/data/stories.yml", "rb"))),
+             ('training_files',
+              ("rules.yml", open("tests/testing_data/yml_training_files/data/rules.yml", "rb"))),
+             ('training_files',
+              ("actions.yml", open("tests/testing_data/yml_training_files/actions.yml", "rb"))),
+             ('training_files',
+              ("chat_client_config.yml", open("tests/testing_data/yml_training_files/chat_client_config.yml", "rb"))),
+             ('training_files',
+              ("config.yml", open("tests/testing_data/yml_training_files/config.yml", "rb"))),
+             ('training_files',
+              ("multiflow_stories.yml", open("tests/testing_data/yml_training_files/multiflow_stories.yml", "rb"))))
+    mock_is_limit_exceeded.return_value = False
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(pytest.bot, "test_user", EventClass.data_importer)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert set(actual['data']["logs"][0]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
+                                                                'actions', 'chat_client_config', 'multiflow_stories'}
 
 def test_get_editable_config():
     response = client.get(f"/api/bot/{pytest.bot}/config/properties",
@@ -11917,7 +12215,7 @@ def test_delete_email_action():
     assert actual["message"] == 'Action deleted'
 
 
-def test_list_google_search_action_no_actions():
+def test_list_google_search_action_one():
     response = client.get(
         f"/api/bot/{pytest.bot}/action/googlesearch",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -11925,7 +12223,7 @@ def test_list_google_search_action_no_actions():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 0
+    assert len(actual["data"]) == 1
 
 
 def test_add_google_search_action():
@@ -12132,17 +12430,17 @@ def test_list_google_search_action():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]) == 3
+    assert len(actual["data"]) == 4
     print(actual["data"])
     actual["data"][0].pop("_id")
-    assert actual["data"][0]['name'] == 'google_custom_search'
-    assert actual["data"][0]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
-    assert actual["data"][0]['search_engine_id'] == 'asdfg:12345689'
-    assert actual["data"][0]['failure_response'] == 'Failed to perform search'
-    assert actual['data'][0]['website'] == 'https://nimblework.com'
-    assert actual["data"][0]['num_results'] == 1
-    assert actual["data"][0]['dispatch_response']
-    assert not actual["data"][0].get('set_slot')
+    assert actual["data"][1]['name'] == 'google_custom_search'
+    assert actual["data"][1]['api_key'] == {'_cls': 'CustomActionRequestParameters', 'encrypt': False, 'key': 'api_key', 'parameter_type': 'value', "value": '1234567889'}
+    assert actual["data"][1]['search_engine_id'] == 'asdfg:12345689'
+    assert actual["data"][1]['failure_response'] == 'Failed to perform search'
+    assert actual['data'][1]['website'] == 'https://nimblework.com'
+    assert actual["data"][1]['num_results'] == 1
+    assert actual["data"][1]['dispatch_response']
+    assert not actual["data"][1].get('set_slot')
 
 
 def test_delete_google_search_action():
@@ -12165,6 +12463,159 @@ def test_delete_google_search_action_not_exists():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == 'Action with name "google_custom_search" not found'
+
+
+def test_add_web_search_action():
+    action = {
+        'name': 'public_custom_search',
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_web_search_exists():
+    action = {
+        'name': 'public_custom_search',
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action exists!'
+
+
+def test_add_web_search_invalid_parameters_top_n():
+    action = {
+        'name': 'public_custom_search_two',
+        "topn": 0,
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'topn'], 'msg': 'topn must be greater than or equal to 1!', 'type': 'value_error'}]
+
+
+def test_add_web_search_invalid_parameters_name():
+    action = {
+        'name': '',
+        "topn": 1,
+        "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'I have failed to process your request',
+        'website': 'https://www.google.com',
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [
+        {'loc': ['body', 'name'], 'msg': 'name is required', 'type': 'value_error'}]
+
+
+def test_edit_web_search_action_not_exists():
+
+    action = {
+        'name': 'custom_search',
+        'failure_response': 'I have failed to process your request',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Public search action with name "custom_search" not found'
+
+
+def test_edit_web_search_action():
+    action = {
+        'name': 'public_custom_search',
+         "dispatch_response": False, "set_slot": "public_search_result",
+        'failure_response': 'Failed to perform public search',
+        'website': 'https://nimblework.com',
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action updated'
+
+
+def test_list_web_search_action():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/websearch",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]) == 1
+    print(actual["data"])
+    actual["data"][0].pop("_id")
+    assert actual["data"][0]['name'] == 'public_custom_search'
+    assert actual["data"][0]['failure_response'] == 'Failed to perform public search'
+    assert actual['data'][0]['website'] == 'https://nimblework.com'
+    assert actual["data"][0]['topn'] == 1
+    assert not actual["data"][0]['dispatch_response']
+    assert actual["data"][0].get('set_slot')
+
+
+def test_delete_web_search_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/public_custom_search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == 'Action deleted'
+
+
+def test_delete_web_search_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/public_custom_search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == 'Action with name "public_custom_search" not found'
 
 
 def test_list_hubspot_forms_action_no_actions():
@@ -12757,11 +13208,13 @@ def test_add_bot_with_template_name(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual['data'] == {'google_search_action': ['google_search_action'], 'prompt_action': ['kairon_faq_action'],
+    print(actual['data'])
+    assert actual['data'] == {'prompt_action': ['kairon_faq_action'], 'web_search_action': ['google_search_action'],
                               'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
-                              'email_action': [], 'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
-                              'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [],
-                              'razorpay_action': [], 'database_action': [], 'actions': []}
+                              'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
+                              'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
+                              'kairon_bot_response': [], 'razorpay_action': [], 'database_action': [], 'actions': [],
+                              'pyscript_action': []}
     bot_secret = BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
     assert bot_secret['secret_type'] == 'gpt_key'
     assert Utility.decrypt_message(bot_secret['value']) == 'secret_value'
@@ -13231,7 +13684,7 @@ def test_list_broadcast_config():
             {'template_id': 'brochure_pdf', "language": "en"}], 'status': True, "template_config": [{'template_id': 'brochure_pdf', "language": "en"}]}]}
 
 
-@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+@patch("kairon.shared.utils.Utility.delete_scheduled_event", autospec=True)
 def test_delete_broadcast(mock_event_server):
     response = client.delete(
         f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
@@ -15068,7 +15521,7 @@ def test_generate_limited_access_temporary_token():
         f"/api/bot/{bot_2}/chat/client/config/{token}",
     )
     actual = response.json()
-    assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 422}
+    assert actual == {"success": False, "message": "Invalid token", "data": None, "error_code": 401}
 
 
 def test_get_client_config_using_uid_invalid_domains(monkeypatch):
@@ -15162,8 +15615,8 @@ def test_multilingual_translate():
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.matchers.json_params_matcher(
-                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': "", 'translate_actions': ""})],
+                {"data": {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                  'translate_responses': "", 'translate_actions': ""}, "cron_exp": None, "timezone": None})],
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/multilingual/translate",
@@ -15258,8 +15711,9 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
         json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.matchers.json_params_matcher(
-                {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
-                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'})],
+                {"data": {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'dest_lang': 'es',
+                  'translate_responses': '--translate-responses', 'translate_actions': '--translate-actions'},
+                 "cron_exp": None, "timezone": None})],
     )
 
     response = client.post(
@@ -15338,10 +15792,10 @@ def test_data_generation_from_website(monkeypatch):
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
-            responses.matchers.json_params_matcher({
+            responses.matchers.json_params_matcher({"data": {
                 'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
                 'website_url': 'website.com', 'depth': 1
-            })],
+            }, "cron_exp": None, "timezone": None})],
     )
     response = client.post(
         f"/api/bot/{pytest.bot}/data/generator/website?website_url=website.com&depth=1",
@@ -15423,8 +15877,8 @@ def test_data_generation_in_progress(monkeypatch):
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"},
         match=[
             responses.matchers.json_params_matcher({
-                'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
-                'website_url': 'website.com', 'depth': 0
+                "data": {'bot': pytest.bot, 'user': 'integ1@gmail.com', 'type': '--from-website',
+                'website_url': 'website.com', 'depth': 0}, "cron_exp": None, "timezone": None
             })],
     )
     response = client.post(

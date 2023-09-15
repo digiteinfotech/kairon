@@ -74,6 +74,16 @@ action:
   url: ${ACTION_SERVER_URL:"http://kairon.localhost:5055/webhook"}
   request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:2}
 
+web_search_url:
+  url: ${WEB_SEARCH_URL}
+
+lock_store:
+  type: ${LOCK_STORE_TYPE:"redis"}
+  url: ${LOCK_STORE_HOST}
+  port: ${LOCK_STORE_PORT}
+  password: ${LOCK_STORE_PASSWORD}
+  db: ${LOCK_STORE_DB}
+
 data_generation:
   limit_per_day: ${TRAIN_LIMIT_PER_DAY:3}
   kairon_url: ${KAIRON_URL}
@@ -112,6 +122,8 @@ events:
     multilingual: ${MULTILINGUAL_TASK_DEFINITION}
     data_generator: ${DATA_GENERATION_TASK_DEFINITION}
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
+    web_search: ${WEB_SEARCH_TASK_DEFINITION}
+    pyscript: ${PYSCRIPT_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
   scheduler:
@@ -121,6 +133,8 @@ events:
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://localhost:8080/format"}
+  pyscript:
+    url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://localhost:8080/evaluate"}
 
 multilingual:
   enable: ${ENABLE_MULTILINGUAL_BOTS:false}

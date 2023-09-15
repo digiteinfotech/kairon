@@ -122,6 +122,14 @@ class TestUtility:
         shutil.rmtree(bot_data_home_dir)
 
     @pytest.fixture()
+    def resource_validate_only_multiflow_stories(self):
+        bot_data_home_dir = tempfile.mkdtemp()
+        shutil.copy2('tests/testing_data/yml_training_files/multiflow_stories.yml', bot_data_home_dir)
+        pytest.bot_data_home_dir = bot_data_home_dir
+        yield "resource_validate_only_multiflow_stories"
+        shutil.rmtree(bot_data_home_dir)
+
+    @pytest.fixture()
     def resource_validate_only_domain(self):
         bot_data_home_dir = tempfile.mkdtemp()
         shutil.copy2('tests/testing_data/yml_training_files/domain.yml', bot_data_home_dir)
@@ -276,6 +284,9 @@ class TestUtility:
         config = processor.load_config("test_load_from_path_yml_training_files")
         http_action = processor.load_http_action("test_load_from_path_yml_training_files")
         training_data_path = Utility.write_training_data(training_data, domain, config, story_graph, None, http_action)
+        multiflow_stories = processor.load_multiflow_stories_yaml("test_load_from_path_yml_training_files")
+        training_data_path = Utility.write_training_data(training_data, domain, config, story_graph, None, http_action,
+                                                         None, multiflow_stories)
         assert os.path.exists(training_data_path)
 
     def test_write_training_data_with_rules(self):
@@ -294,6 +305,11 @@ class TestUtility:
         path = 'tests/testing_data/yml_training_files/actions.yml'
         content = Utility.read_yaml(path)
         assert len(content['http_action']) == 5
+
+    def test_read_yaml_multiflow_story(self):
+        path = 'tests/testing_data/yml_training_files/multiflow_stories.yml'
+        content = Utility.read_yaml(path)
+        assert len(content['multiflow_story']) == 1
 
     def test_read_yaml_not_found_exception(self):
         path = 'tests/testing_data/yml_training_files/path_not_found.yml'
@@ -418,19 +434,23 @@ class TestUtility:
 
     def test_validate_only_stories_and_nlu(self, resource_validate_only_stories_and_nlu):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'actions', 'config', 'domain', 'chat_client_config'} == requirements
+        assert {'actions', 'config', 'domain', 'chat_client_config', 'multiflow_stories'} == requirements
 
     def test_validate_only_http_actions(self, resource_validate_only_http_actions):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'domain', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
+        assert {'rules', 'domain', 'config', 'stories', 'nlu', 'chat_client_config', 'multiflow_stories'} == requirements
+
+    def test_validate_only_multiflow_stories(self, resource_validate_only_multiflow_stories):
+        requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
+        assert {'actions', 'config', 'stories', 'chat_client_config', 'nlu', 'rules', 'domain'} == requirements
 
     def test_validate_only_domain(self, resource_validate_only_domain):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'config', 'stories', 'nlu', 'chat_client_config'} == requirements
+        assert {'rules', 'actions', 'config', 'stories', 'nlu', 'chat_client_config', 'multiflow_stories'} == requirements
 
     def test_validate_only_config(self, resource_validate_only_config):
         requirements = DataUtility.validate_and_get_requirements(pytest.bot_data_home_dir, True)
-        assert {'rules', 'actions', 'domain', 'stories', 'nlu', 'chat_client_config'} == requirements
+        assert {'rules', 'actions', 'domain', 'stories', 'nlu', 'chat_client_config', 'multiflow_stories'} == requirements
 
     @pytest.mark.asyncio
     async def test_unzip_and_validate(self, resource_unzip_and_validate):
@@ -2693,3 +2713,11 @@ data: [DONE]\n\n"""
         response = whatsapp.dropdown_transformer(input_json)
         expected_output = json_data.get("whatsapp_drop_down_header_output")
         assert expected_output == response
+
+    def test_is_picklable_for_mongo(self):
+        assert Utility.is_picklable_for_mongo({"bot": "test_bot"})
+
+    def test_is_picklable_for_mongo_failure(self):
+        assert not Utility.is_picklable_for_mongo({"requests": requests})
+        assert not Utility.is_picklable_for_mongo({"utility": Utility})
+        assert not Utility.is_picklable_for_mongo({"is_picklable_for_mongo": Utility.is_picklable_for_mongo})

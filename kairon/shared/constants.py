@@ -64,7 +64,9 @@ class EventClass(str, Enum):
     multilingual = "multilingual"
     data_generator = "data_generator"
     faq_importer = "faq_importer"
+    pyscript_evaluator = "pyscript_evaluator"
     message_broadcast = "message_broadcast"
+    web_search = "web_search"
 
 
 class EventRequestType(str, Enum):
@@ -97,10 +99,11 @@ class PluginTypes(str, Enum):
 class ChannelTypes(str, Enum):
     MSTEAMS = "msteams"
     WHATSAPP = "whatsapp"
-    HANGOUT = "hangout"
+    HANGOUTS = "hangouts"
     MESSENGER = "messenger"
     SLACK = "slack"
     TELEGRAM = "telegram"
+    INSTAGRAM = "instagram"
 
 
 class ElementTypes(str, Enum):
@@ -133,6 +136,7 @@ class KaironSystemSlots(str, Enum):
     video = "video"
     document = "document"
     doc_url = "doc_url"
+    order = "order"
 
 
 class VectorEmbeddingsDatabases(str, Enum):
@@ -141,3 +145,4 @@ class VectorEmbeddingsDatabases(str, Enum):
 
 class ActorType(str, Enum):
     pyscript_runner = "pyscript_runner"
+    callable_runner = "callable_runner"

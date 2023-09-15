@@ -1,12 +1,12 @@
 from datetime import datetime
 
 from croniter import croniter
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, validator
 
 from kairon.shared.chat.notifications.constants import MessageBroadcastType
 from kairon.shared.utils import Utility
 
-from typing import List
+from typing import List, Text, Dict
 import validators
 from kairon.exceptions import AppException
 
@@ -83,3 +83,14 @@ class MessageBroadcastRequest(BaseModel):
             raise ValueError("pyscript is required for dynamic broadcasts!")
 
         return values
+
+
+class ChatRequest(BaseModel):
+    data: Text
+    metadata: Dict = None
+
+    @validator("data")
+    def validate_data(cls, v, values, **kwargs):
+        if Utility.check_empty_string(v):
+            raise ValueError("data cannot be empty!")
+        return v

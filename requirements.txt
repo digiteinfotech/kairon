@@ -40,7 +40,6 @@ pymongo==3.12.0
 cryptography
 pyparsing==2.4.7
 nlpaug
-tornado
 websockets==10.1
 aiohttp==3.8.0
 networkx==2.6
@@ -53,7 +52,7 @@ google-api-python-client
 nltk==3.6.6
 blinker
 jira
-zenpy
+zenpy==2.0.36
 pipedrive-python-lib
 openapi_spec_validator
 google-cloud-translate
@@ -78,3 +77,4 @@ RestrictedPython
 AccessControl
 pykka
 timeout-decorator
+anyio==3.7.1

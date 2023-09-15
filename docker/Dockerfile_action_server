@@ -29,7 +29,7 @@ RUN python -m pip install google-api-python-client
 RUN python -m pip install googlesearch-python
 RUN python -m pip install cryptography
 RUN python -m pip install jira
-RUN python -m pip install zenpy
+RUN python -m pip install zenpy==2.0.36
 RUN python -m pip install pipedrive-python-lib
 RUN python -m pip install fastapi>=0.68.1
 RUN python -m pip install protobuf==3.20.2
@@ -41,12 +41,13 @@ RUN python -m pip install pandas
 RUN python -m pip install openai==0.27.0
 RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install tiktoken
+RUN python -m pip install uvicorn>=0.18.2
+RUN python -m pip install secure
 
 COPY kairon/ /app/kairon/
 COPY metadata /app/metadata
 COPY kairon/shared/actions /app/kairon/shared/actions
 COPY kairon/shared/account /app/kairon/shared/account
-COPY kairon/shared/tornado /app/kairon/shared/tornado
 COPY kairon/shared/authorization /app/kairon/shared/authorization
 COPY kairon/shared/utils.py /app/kairon/shared/
 COPY kairon/shared/models.py /app/kairon/shared/
@@ -61,6 +62,9 @@ COPY email.yaml /app/
 COPY template /app/template
 
 USER 1001
+
+ENV APP_MODULE=kairon.actions.server:action
+
 EXPOSE 5055
-CMD ["python","-m", "kairon.actions.server", "--logging=debug"]
+CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5055 --no-server-header
 

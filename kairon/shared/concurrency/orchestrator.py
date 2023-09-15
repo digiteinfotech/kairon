@@ -10,11 +10,11 @@ from kairon.shared.concurrency.actors.factory import ActorFactory
 class ActorOrchestrator:
 
     @staticmethod
-    def run(actor_type: Text, **kwargs):
+    def run(actor_type: Text, *args, **kwargs):
         actor = ActorFactory.get_instance(actor_type)
-        actor_timeout = kwargs.get("timeout", Utility.environment["actors"]["default_timeout"])
+        actor_timeout = kwargs.get("timeout")
         try:
-            future = actor.execute(**kwargs)
+            future = actor.execute(*args, **kwargs)
             result = future.get(actor_timeout)
             return result
         except pykka._exceptions.Timeout as e:

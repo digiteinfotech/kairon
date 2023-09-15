@@ -1,4 +1,4 @@
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Text
 
 import validators
 from fastapi.param_functions import Form
@@ -91,6 +91,14 @@ class Response(BaseModel):
     message: Any = None
     data: Any
     error_code: int = 0
+
+class ActionResponse(BaseModel):
+    success: bool = True
+    error: str = None
+    action_name: str = None
+    events: List[Dict[Text, Any]] = None
+    responses: List[Dict[Text, Any]] = None
+    error_code: int = 200
 
 
 class RequestData(BaseModel):
@@ -387,6 +395,28 @@ class PayloadConfig(BaseModel):
             raise ValueError("value is required")
 
         return values
+
+
+class PyscriptActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    source_code: str
+    dispatch_response: bool = True
+
+    @validator("name")
+    def validate_action_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("name is required")
+        return v
+
+    @validator("source_code")
+    def validate_source_code(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("source_code is required")
+        return v
 
 
 class DatabaseActionRequest(BaseModel):
@@ -725,6 +755,29 @@ class GoogleSearchActionRequest(BaseModel):
         return v
 
 
+class WebSearchActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    website: str = None
+    failure_response: str = 'I have failed to process your request.'
+    topn: int = 1
+    dispatch_response: bool = True
+    set_slot: str = None
+
+    @validator("name")
+    def validate_action_name(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+
+        if Utility.check_empty_string(v):
+            raise ValueError("name is required")
+        return v
+
+    @validator("topn")
+    def validate_top_n(cls, v, values, **kwargs):
+        if not v or v < 1:
+            raise ValueError("topn must be greater than or equal to 1!")
+        return v
+
+
 class EmailActionRequest(BaseModel):
     action_name: constr(to_lower=True, strip_whitespace=True)
     smtp_url: str
@@ -733,6 +786,7 @@ class EmailActionRequest(BaseModel):
     smtp_password: CustomActionParameter
     from_email: str
     subject: str
+    custom_text: CustomActionParameter = None
     to_email: List[str]
     response: str
     tls: bool = False

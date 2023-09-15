@@ -4,21 +4,21 @@ import json
 import logging
 import re
 import time
-from abc import ABC
-from http import HTTPStatus
 from typing import Any, Dict, List, Optional, Text
-from urllib.parse import parse_qs
 
 import rasa.shared.utils.io
+from fastapi import HTTPException
 from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
 from slack import WebClient
-from tornado.escape import json_decode
-from tornado.httputil import HTTPServerRequest
+from starlette import status
+from starlette.requests import Request
+from starlette.responses import RedirectResponse
 
 from kairon.chat.agent_processor import AgentProcessor
+from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.tornado.handlers.base import BaseHandler
+from kairon.shared.models import User
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 
@@ -138,8 +138,14 @@ class SlackBot(OutputChannel):
             raise Exception(f"Error in slack send_custom_json {str(ap)}")
 
 
-class SlackHandler(InputChannel, BaseHandler, ABC):
+class SlackHandler(InputChannel, ChannelHandlerBase):
+
     """Slack input channel implementation. Based on the HTTPInputChannel."""
+
+    def __init__(self, bot: Text, user: User, request: Request):
+        self.bot = bot
+        self.user = user
+        self.request = request
 
     @staticmethod
     def _is_app_mention(slack_event: Dict) -> bool:
@@ -265,7 +271,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
 
     async def process_message(
             self,
-            request: HTTPServerRequest,
+            request: Request,
             bot: Text,
             text: Text,
             sender_id: Optional[Text],
@@ -284,9 +290,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
                 f"Received retry #{retry_count} request from slack"
                 f" due to {retry_reason}."
             )
-            self.set_status(HTTPStatus.CREATED)
-            self.write('')
-            self.set_header("X-Slack-No-Retry", 1)
+            return ""
         if metadata is not None:
             output_channel = metadata.get("out_channel")
             if use_threads:
@@ -309,10 +313,9 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
         except Exception as e:
             logger.error(f"Exception when trying to handle message.{e}")
             logger.error(str(e), exc_info=True)
-            self.write("")
-        self.set_status(HTTPStatus.OK)
+            return ""
 
-    def get_metadata(self, request: HTTPServerRequest) -> Dict[Text, Any]:
+    def get_metadata(self, request: Request) -> Dict[Text, Any]:
         """Extracts the metadata from a slack API event.
 
         Slack Documentation: https://api.slack.com/types/event
@@ -330,7 +333,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
         # content
         if content_type == "application/json":
             # if JSON-encoded message is received
-            slack_event = json_decode(request.body)
+            slack_event = self.decoded_request_body
             event = slack_event.get("event", {})
             thread_id = event.get("thread_ts", event.get("ts"))
 
@@ -351,7 +354,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
 
         if content_type == "application/x-www-form-urlencoded":
             # if URL-encoded message is received
-            output = request.body
+            output = self.decoded_request_body
             payload = json.loads(output["payload"][0])
             message = payload.get("message", {})
             thread_id = message.get("thread_ts", message.get("ts"))
@@ -368,7 +371,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
 
         return {}
 
-    def is_request_from_slack_authentic(self, request: HTTPServerRequest, slack_signing_secret: Text = "") -> bool:
+    def is_request_from_slack_authentic(self, request: Request, slack_signing_secret: Text = "") -> bool:
         """Validate a request from Slack for its authenticity.
 
         Checks if the signature matches the one we expect from Slack. Ensures
@@ -396,7 +399,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
                 return False
 
             prefix = f"v0:{slack_request_timestamp}:".encode("utf-8")
-            basestring = prefix + request.body
+            basestring = prefix + self.decoded_request_body
             digest = hmac.new(
                 slack_signing_secret, basestring, hashlib.sha256
             ).hexdigest()
@@ -410,8 +413,7 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
             )
             return False
 
-    def install_slack_to_workspace(self, bot: Text, token: Text, code: Text):
-        user = super().authenticate_channel(token, bot, self.request)
+    def install_slack_to_workspace(self, bot: Text, code: Text):
         slack_config = ChatDataProcessor.get_channel_config("slack", bot, False, config__is_primary=True)
         client_id = slack_config['config']['client_id']
         client_secret = slack_config['config']['client_secret']
@@ -424,43 +426,44 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
         slack_config['config']['is_primary'] = False
         slack_config['config']['team'] = response.data['team']
         slack_config['connector_type'] = "slack"
-        ChatDataProcessor.save_channel_config(slack_config, bot, user.get_user())
-        self.redirect(f"https://app.slack.com/client/{response.data['team']['id']}")
+        ChatDataProcessor.save_channel_config(slack_config, bot, self.user.get_user())
+        return RedirectResponse(
+            url=f"https://app.slack.com/client/{response.data['team']['id']}", status_code=303
+        )
 
-    async def get(self, bot: Text = None, token: Text = None):
-        code = self.get_argument('code', None)
-        if not Utility.check_empty_string(bot) and not Utility.check_empty_string(token) and not Utility.check_empty_string(code):
-            self.install_slack_to_workspace(bot, token, code)
-            return
-        self.set_status(HTTPStatus.OK)
-        self.write(json.dumps({"status": "ok"}))
+    async def validate(self):
+        code = self.request.query_params.get('code', None)
+        if not Utility.check_empty_string(code):
+            return self.install_slack_to_workspace(self.bot, code)
 
-    async def post(self, bot: Text, token: Text):
-        user = super().authenticate_channel(token, bot, self.request)
+        return {"status": "ok"}
+
+    async def handle_message(self):
         content_type = self.request.headers.get("content-type")
         conversation_granularity = "sender"
-        primary_slack_config = ChatDataProcessor.get_channel_config("slack", bot, False, config__is_primary=True)
+        primary_slack_config = ChatDataProcessor.get_channel_config("slack", self.bot, False, config__is_primary=True)
         slack_signing_secret = primary_slack_config['config']['slack_signing_secret']
         slack_channel = primary_slack_config['config'].get('slack_channel')
-        self.set_status(HTTPStatus.OK)
         if 'x-slack-retry-num' in self.request.headers:
             return
+        self.decoded_request_body = await self.request.json()
         if not self.is_request_from_slack_authentic(self.request, slack_signing_secret=slack_signing_secret):
-            self.set_status(HTTPStatus.BAD_REQUEST)
-            self.write("Message is not properly signed with a valid "
-                       "X-Slack-Signature header")
-            return
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Message is not properly signed with a valid X-Slack-Signature header",
+            )
         # Slack API sends either a JSON-encoded or a URL-encoded body
         # depending on the content
 
         if content_type == "application/json":
             # if JSON-encoded message is received
-            output = json_decode(self.request.body)
+            output = await self.request.json()
+            self.decoded_request_body = output
             event = output.get("event", {})
             user_message = event.get("text", "")
             sender_id = event.get("user", "")
             metadata = self.get_metadata(self.request) or {}
-            metadata.update({"is_integration_user": True, "bot": bot, "account": user.account, "channel_type": "slack",
+            metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "slack",
                              "tabname": "default"})
             channel_id = metadata.get("out_channel")
             thread_id = metadata.get("thread_id")
@@ -469,30 +472,27 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
             )
 
             if "challenge" in output:
-                self.write(output.get("challenge"))
-                return
+                return output.get("challenge")
 
             if not self._is_user_message(output):
                 logger.debug(
                     "Received message from Slack which doesn't look like "
                     "a user message. Skipping message."
                 )
-                self.write("Bot message delivered.")
-                return
+                return "Bot message delivered."
 
             if not self._is_supported_channel(output, metadata, slack_channel):
                 logger.warning(
                     f"Received message on unsupported "
                     f"channel: {metadata['out_channel']}"
                 )
-                self.write("channel not supported.")
-                return
+                return "channel not supported."
 
-            slack_config = ChatDataProcessor.get_channel_config("slack", bot, False, config__team__id=output.get('team_id'))
+            slack_config = ChatDataProcessor.get_channel_config("slack", self.bot, False, config__team__id=output.get('team_id'))
             slack_token = slack_config['config']['bot_user_oAuth_token']
             await self.process_message(
                 self.request,
-                bot,
+                self.bot,
                 text=self._sanitize_user_message(user_message, metadata["users"]),
                 sender_id=conversation_id,
                 metadata=metadata,
@@ -501,7 +501,8 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
             return
         elif content_type == "application/x-www-form-urlencoded":
             # if URL-encoded message is received
-            output = parse_qs(self.request.body)
+            output = self.request.query_params
+            self.decoded_request_body = output
             payload = json.loads(output["payload"][0])
 
             if self._is_interactive_message(payload):
@@ -516,22 +517,21 @@ class SlackHandler(InputChannel, BaseHandler, ABC):
                         conversation_granularity, sender_id, channel_id, thread_id
                     )
 
-                    slack_config = ChatDataProcessor.get_channel_config("slack", bot, False, config__team__id=output.get('team_id'))
+                    slack_config = ChatDataProcessor.get_channel_config("slack", self.bot, False, config__team__id=output.get('team_id'))
                     slack_token = slack_config['config']['bot_user_oAuth_token']
                     await self.process_message(
-                        self.request, bot, text, conversation_id, metadata, slack_token=slack_token
+                        self.request, self.bot, text, conversation_id, metadata, slack_token=slack_token
                     )
                     return
                 if payload["actions"][0]["type"] == "button":
                     # link buttons don't have "value", don't send their clicks to
                     # bot
-                    self.write("User clicked link button")
-                    return
-            self.set_status(HTTPStatus.INTERNAL_SERVER_ERROR)
-            self.write("The input message could not be processed.")
-            return
-        self.write("Bot message delivered.")
-        return
+                    return "User clicked link button"
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="The input message could not be processed.",
+            )
+        return "Bot message delivered."
 
     def _get_conversation_id(
             self,

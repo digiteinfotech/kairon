@@ -25,9 +25,6 @@ responses:
   utter_please_rephrase:
     - text: 'Im sorry, I didnt quite understand that. Could you rephrase?'
 actions:
-- action_say_hello
-- action_say_bye
-- action_say_location
 - utter_greet
 - utter_goodbye
 - utter_affirm

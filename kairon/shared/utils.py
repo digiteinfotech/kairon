@@ -54,6 +54,8 @@ from pymongo.uri_parser import (
 from pymongo.uri_parser import _BAD_DB_CHARS, split_options
 from requests.adapters import HTTPAdapter, Retry
 from smart_config import ConfigLoader
+from starlette import status
+from starlette.exceptions import HTTPException
 from urllib3.util import parse_url
 from validators import ValidationFailure
 from validators import email as mail_check
@@ -866,19 +868,6 @@ class Utility:
             raise PyJWTError("Invalid token")
 
     @staticmethod
-    def validate_bot_specific_token(bot: Text, token: Text):
-        from kairon.shared.account.processor import AccountProcessor
-
-        claims = Utility.decode_limited_access_token(token)
-        bot_config = AccountProcessor.get_bot(bot)
-        multilingual_bots = list(AccountProcessor.get_multilingual_bots(bot))
-        multilingual_bots = set(map(lambda bot_info: bot_info["id"], multilingual_bots))
-
-        if bot_config['account'] != claims['account'] or bot not in multilingual_bots:
-            raise AppException("Invalid token")
-        return claims
-
-    @staticmethod
     def load_json_file(path: Text, raise_exc: bool = True):
         if not os.path.exists(path) and raise_exc:
             raise AppException('file not found')
@@ -928,6 +917,22 @@ class Utility:
             return None
 
     @staticmethod
+    def get_lock_store_url(bot: Text):
+        from rasa.utils.endpoints import EndpointConfig
+
+        config = None
+        if not Utility.check_empty_string(Utility.environment['lock_store'].get('url')):
+            lock_store_config = Utility.environment['lock_store'].copy()
+            lock_store_config["key_prefix"] = bot
+            for param in ["url", "port", "password", "db"]:
+                if not lock_store_config.get(param):
+                    lock_store_config.pop(param)
+
+            config = EndpointConfig(**lock_store_config)
+
+        return config
+
+    @staticmethod
     def is_data_import_allowed(summary: dict, bot: Text, user: Text):
         from ..shared.data.processor import MongoProcessor
 
@@ -942,7 +947,8 @@ class Utility:
 
     @staticmethod
     def write_training_data(nlu, domain, config: dict,
-                            stories, rules=None, actions: dict = None, chat_client_config: dict = None):
+                            stories, rules=None, actions: dict = None, chat_client_config: dict = None,
+                            multiflow_stories: dict = None):
         """
         convert mongo data  to individual files
 
@@ -953,6 +959,7 @@ class Utility:
         :param chat_client_config: chat_client_config data
         :param rules: rules data
         :param actions: action configuration data
+        :param multiflow_stories: multiflow_stories configurations
         :return: files path
         """
         from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
@@ -969,6 +976,7 @@ class Utility:
         rules_path = os.path.join(data_path, "rules.yml")
         actions_path = os.path.join(temp_path, "actions.yml")
         chat_client_config_path = os.path.join(temp_path, "chat_client_config.yml")
+        multiflow_stories_config_path = os.path.join(temp_path, "multiflow_stories.yml")
 
         nlu_as_str = nlu.nlu_as_yaml().encode()
         config_as_str = yaml.dump(config).encode()
@@ -989,13 +997,16 @@ class Utility:
         if chat_client_config:
             chat_client_config_as_str = yaml.dump(chat_client_config).encode()
             Utility.write_to_file(chat_client_config_path, chat_client_config_as_str)
+        if multiflow_stories:
+            multiflow_stories_as_str = yaml.dump(multiflow_stories).encode()
+            Utility.write_to_file(multiflow_stories_config_path, multiflow_stories_as_str)
         return temp_path
 
     @staticmethod
     def create_zip_file(
             nlu, domain, stories, config: Dict, bot: Text,
             rules=None,
-            actions: Dict = None,  chat_client_config: Dict = None
+            actions: Dict = None, multiflow_stories: Dict = None, chat_client_config: Dict = None
     ):
         """
         adds training files to zip
@@ -1008,6 +1019,7 @@ class Utility:
         :param bot: bot id
         :param rules: rules data
         :param actions: action configurations
+        :param multiflow_stories: multiflow_stories configurations
         :return: None
         """
         directory = Utility.write_training_data(
@@ -1017,7 +1029,8 @@ class Utility:
             stories,
             rules,
             actions,
-            chat_client_config
+            chat_client_config,
+            multiflow_stories
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)
@@ -1059,14 +1072,6 @@ class Utility:
             return json.loads(response)
         else:
             raise AppException("Agent config not found!")
-
-    @staticmethod
-    def initiate_tornado_apm_client(app):
-        from elasticapm.contrib.tornado import ElasticAPM
-        config = Utility.initiate_apm_client_config()
-        if config:
-            app.settings['ELASTIC_APM'] = config
-            ElasticAPM(app)
 
     @staticmethod
     def initiate_fastapi_apm_client():
@@ -1447,18 +1452,35 @@ class Utility:
         return Utility.environment['events']['server_url']
 
     @staticmethod
-    def request_event_server(event_class: EventClass, payload: dict, method: Text = "POST", is_scheduled: bool = False):
+    def request_event_server(event_class: EventClass, payload: dict, method: Text = "POST", is_scheduled: bool = False,
+                             cron_exp: Text = None, timezone: Text = None):
         """
         Trigger request to event server along with payload.
         """
         event_server_url = Utility.get_event_server_url()
-        logger.debug(payload)
+        request_body = {
+            "data": payload, "cron_exp": cron_exp, "timezone": timezone
+        }
+        logger.debug(request_body)
         resp = Utility.execute_http_request(
             method, urljoin(event_server_url, f'/api/events/execute/{event_class}?is_scheduled={is_scheduled}'),
-            payload, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
+            request_body, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
         )
         if not resp['success']:
             raise AppException(f"Failed to trigger {event_class} event: {resp.get('message', '')}")
+
+    @staticmethod
+    def delete_scheduled_event(event_id: Text):
+        """
+        Trigger request to delete scheduled event.
+        """
+        event_server_url = Utility.get_event_server_url()
+        resp = Utility.execute_http_request(
+            "DELETE", urljoin(event_server_url, f'/api/events/{event_id}'),
+            err_msg=f"Failed to delete scheduled event {event_id}: ", validate_status=True
+        )
+        if not resp['success']:
+            raise AppException(f"Failed to delete scheduled event {event_id}: {resp.get('message', '')}")
 
     @staticmethod
     def validate_recaptcha(recaptcha_response: str = None, remote_ip: str = None):
@@ -1492,6 +1514,18 @@ class Utility:
             if result > 0:
                 break
         return True if result == 0 else False
+
+    @staticmethod
+    def validate_domain(request, config):
+        if not Utility.validate_request(request, config):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Domain not registered for kAIron client",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        config['config'].pop("whitelist")
+        return config
 
     @staticmethod
     def validate_request(request, config):
@@ -1722,14 +1756,6 @@ class Utility:
         return html.escape(value)
 
     @staticmethod
-    def is_valid_event_request(event_class: Text, body: Dict):
-        if event_class not in {EventClass.message_broadcast.value}:
-            raise AppException(f"Scheduling is not allowed for '{event_class}' event")
-        if {"event_id", "bot", "user", "cron_exp"}.difference(set(body.keys())):
-            raise AppException(f'Missing {"event_id", "bot", "user", "cron_exp"} all or any from request body!')
-        return True
-
-    @staticmethod
     def verify_email(email: Text):
         from kairon.shared.verification.email import EmailVerficationFactory
 
@@ -1835,6 +1861,7 @@ class Utility:
             logger.exception(e)
             return False
 
+
 class StoryValidator:
 
     @staticmethod
@@ -1909,6 +1936,78 @@ class StoryValidator:
                             raise AppException('Path tagged as RULE can have only one intent!')
             if any(value['node_id'] not in leaf_node_ids for value in flow_metadata):
                 raise ValidationError("Only leaf nodes can be tagged with a flow")
+
+    @staticmethod
+    def validate_multiflow_story_steps_file_validator(steps: list, metadata: list):
+        errors = []
+        story_graph = StoryValidator.get_graph(steps)
+        leaf_nodes = StoryValidator.get_leaf_nodes(story_graph)
+        leaf_node_ids = [value.node_id for value in leaf_nodes]
+        source = StoryValidator.get_source_node(story_graph)
+
+        if not is_connected(Graph(story_graph)):
+            errors.append("All steps must be connected!")
+
+        if len(source) > 1:
+            errors.append("Story cannot have multiple sources!")
+
+        if source[0].step_type != StoryStepType.intent:
+            errors.append("First step should be an intent")
+
+        if recursive_simple_cycles(story_graph):
+            errors.append("Story cannot contain cycle!")
+
+        for story_node in story_graph.nodes():
+            if story_node.step_type == "INTENT":
+                if [successor for successor in story_graph.successors(story_node) if successor.step_type == "INTENT"]:
+                    errors.append("Intent should be followed by an Action or Slot type event")
+                if len(list(story_graph.successors(story_node))) > 1:
+                    errors.append("Intent can only have one connection of action type or slot type")
+            if story_node.step_type == 'SLOT' and story_node.value:
+                if story_node.value is not None and not isinstance(story_node.value, (str, int, bool)):
+                    errors.append("slot values in multiflow story must be either None or of type int, str or boolean")
+            if story_node.step_type != 'SLOT' and story_node.value is not None:
+                errors.append("Value is allowed only for slot events in multiflow story")
+            if story_node.step_type == 'SLOT' and story_node.node_id in leaf_node_ids:
+                errors.append("Slots cannot be leaf nodes!")
+            if story_node.step_type == 'INTENT' and story_node.node_id in leaf_node_ids:
+                errors.append("Leaf nodes cannot be intent")
+        if metadata:
+            for value in metadata:
+                if value.get('flow_type') == 'RULE':
+                    if any(leaf.node_id == value.get('node_id') for leaf in leaf_nodes):
+                        paths = list(all_simple_paths(story_graph, source[0], next(
+                            leaf for leaf in leaf_nodes if leaf.node_id == value.get('node_id'))))
+                        if any(len([node.step_type for node in path if node.step_type == 'INTENT']) > 1 for path in
+                               paths):
+                            errors.append('Path tagged as RULE can have only one intent!')
+            if any(value['node_id'] not in leaf_node_ids for value in metadata):
+                errors.append("Only leaf nodes can be tagged with a flow")
+        return errors
+
+    @staticmethod
+    def create_multiflow_story_graphs(multiflow_stories: dict):
+        graphs = []
+        if multiflow_stories:
+            for events in multiflow_stories['multiflow_story']:
+                graph = StoryValidator.get_graph(events['events'])
+                graphs.append(graph)
+            return graphs
+
+    @staticmethod
+    def get_names_for_events(graph: DiGraph, step_type: str):
+        name = set()
+        for story_node in graph.nodes():
+            if story_node.step_type == step_type:
+                name.add(story_node.name)
+        return name
+
+    @staticmethod
+    def get_step_name_for_multiflow_stories(story_graph: list, step_type: str):
+        name = set()
+        for graph in story_graph:
+            name = StoryValidator.get_names_for_events(graph, step_type)
+        return name
 
 
 class MailUtility:
