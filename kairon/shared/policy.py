@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import functools
-import ujson as json
+import json
 import logging
 from collections import defaultdict
 from typing import Any, List, DefaultDict, Dict, Text, Optional, Set, Tuple, cast
@@ -15,13 +15,11 @@ from rasa.core.constants import (
     DEFAULT_CORE_FALLBACK_THRESHOLD,
     RULE_POLICY_PRIORITY,
     POLICY_PRIORITY,
+    POLICY_MAX_HISTORY
 )
 from rasa.core.featurizers.tracker_featurizers import TrackerFeaturizer
-from rasa.core.policies.memoization import MemoizationPolicy
 from rasa.core.policies.policy import SupportedData, PolicyPrediction
-from rasa.core.policies.rule_policy import DO_NOT_PREDICT_LOOP_ACTION, LOOP_RULES, LOOP_RULES_SEPARATOR, \
-    RULES_NOT_IN_STORIES, RULES, DEFAULT_RULES, LOOP_WAS_INTERRUPTED, RULES_FOR_LOOP_UNHAPPY_PATH, InvalidRule, \
-    DEFAULT_ACTION_MAPPINGS
+from rasa.core.policies.rule_policy import InvalidRule, RulePolicy
 from rasa.core.training.training import create_action_fingerprints, ActionFingerprint
 from rasa.engine.graph import ExecutionContext
 from rasa.engine.recipes.default_recipe import DefaultV1Recipe
@@ -49,6 +47,17 @@ from rasa.shared.core.trackers import (
 )
 from rasa.shared.nlu.constants import ACTION_NAME, INTENT_NAME_KEY
 from tqdm import tqdm
+from rasa.core.policies.rule_policy import (
+    RULES,
+    DEFAULT_ACTION_MAPPINGS,
+    RULES_FOR_LOOP_UNHAPPY_PATH,
+    RULES_NOT_IN_STORIES,
+    LOOP_WAS_INTERRUPTED,
+    DO_NOT_PREDICT_LOOP_ACTION,
+    DEFAULT_RULES,
+    LOOP_RULES,
+    LOOP_RULES_SEPARATOR
+)
 
 logger = logging.getLogger(__name__)
 structlogger = structlog.get_logger()
@@ -57,7 +66,7 @@ structlogger = structlog.get_logger()
 @DefaultV1Recipe.register(
     DefaultV1Recipe.ComponentType.POLICY_WITHOUT_END_TO_END_SUPPORT, is_trainable=True
 )
-class RulePolicy(MemoizationPolicy):
+class RulePolicy(RulePolicy):
     """Policy which handles all the rules."""
 
     # rules use explicit json strings
@@ -99,6 +108,7 @@ class RulePolicy(MemoizationPolicy):
             # the policy will use the confidence of NLU on the latest
             # user message to set the confidence of the action
             "use_nlu_confidence_as_score": False,
+            POLICY_MAX_HISTORY: 5
         }
 
     def __init__(
@@ -224,7 +234,7 @@ class RulePolicy(MemoizationPolicy):
 
             # Since rule snippets and stories inside the loop contain
             # only unhappy paths, notify the loop that
-            # it was predicted after an answer to a different question and
+            # it was predicted after an answer to a different question, and
             # therefore it should not validate user input
             if (
                 # loop is predicted after action_listen in unhappy path,
@@ -666,7 +676,7 @@ class RulePolicy(MemoizationPolicy):
              Rules that are not present in the stories.
         """
         logger.debug("Started checking rules and stories for contradictions.")
-        # during training we run `predict_action_probabilities` to check for
+        # during training, we run `predict_action_probabilities` to check for
         # contradicting rules.
         # We silent prediction debug to avoid too many logs during these checks.
         logger_level = logger.level
@@ -805,7 +815,7 @@ class RulePolicy(MemoizationPolicy):
                     and value_from_conversation != value_from_rules
                 ) or (
                     # value shouldn't be set, therefore
-                    # it should be None or non existent in the state
+                    # it should be None or non-existent in the state
                     value_from_rules == SHOULD_NOT_BE_SET
                     and value_from_conversation
                     # during training `SHOULD_NOT_BE_SET` is provided. Hence, we also
@@ -1091,7 +1101,7 @@ class RulePolicy(MemoizationPolicy):
         ) = self._find_action_from_default_actions(tracker)
 
         # text has priority over intents including default,
-        # however loop happy path has priority over rules prediction
+        # however loop happy path has priority overrules prediction
         if default_action_name and not rules_action_name_from_text:
             return (
                 self._rule_prediction(

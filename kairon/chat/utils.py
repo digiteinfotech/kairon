@@ -122,10 +122,10 @@ class ChatUtils:
                     {"$project": {"_id": 0, "tabname": "$_id.tabname", "events": "$events"}}
                 ]))
         except ServerSelectionTimeoutError as e:
-            logger.error(e)
+            logger.info(e)
             message = f'Failed to retrieve conversation: {e}'
         except Exception as e:
-            logger.error(e)
+            logger.info(e)
             message = f'Failed to retrieve conversation: {e}'
         return events, message
 

@@ -1,4 +1,3 @@
-import logging
 from typing import Text
 
 from elasticapm.contrib.starlette import ElasticAPM
@@ -18,7 +17,6 @@ from kairon.events.utility import EventUtility
 from kairon.shared.constants import EventClass
 from kairon.shared.utils import Utility
 
-logging.basicConfig(level="ERROR")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (

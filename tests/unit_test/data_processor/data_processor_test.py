@@ -1174,7 +1174,7 @@ class TestMongoProcessor:
         assert config['language'] == 'fr'
         assert len(config['pipeline']) == 9
         assert len(config['policies']) == 3
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
         assert rule_policy['core_fallback_threshold'] == 0.75
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1185,14 +1185,14 @@ class TestMongoProcessor:
         user = 'test_config'
         processor = MongoProcessor()
         config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
-        idx = next((idx for idx, comp in enumerate(config["policies"]) if comp['name'] == 'RulePolicy'), {})
+        idx = next((idx for idx, comp in enumerate(config["policies"]) if 'RulePolicy' in comp['name']), {})
         del config['policies'][idx]
         processor.add_or_overwrite_config(config, bot, user)
         config = Configs.objects().get(bot=bot).to_mongo().to_dict()
         assert config['language'] == 'fr'
         assert len(config['pipeline']) == 9
         assert len(config['policies']) == 3
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1206,7 +1206,7 @@ class TestMongoProcessor:
         config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
         comp = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
         comp['epoch'] = 200
-        comp = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        comp = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         comp['core_fallback_action_name'] = 'action_error'
         comp['core_fallback_threshold'] = 0.5
         processor.add_or_overwrite_config(config, bot, user)
@@ -1216,7 +1216,7 @@ class TestMongoProcessor:
         assert len(config['policies']) == 3
         diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
         assert diet_classifier['epoch'] == 200
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_error'
         assert rule_policy['core_fallback_threshold'] == 0.5
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1228,7 +1228,7 @@ class TestMongoProcessor:
         user = 'test_config'
         processor = MongoProcessor()
         config = Utility.read_yaml('./tests/testing_data/valid_yml/config.yml')
-        comp = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        comp = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         del comp['core_fallback_action_name']
         del comp['core_fallback_threshold']
         processor.add_or_overwrite_config(config, bot, user)
@@ -1236,7 +1236,7 @@ class TestMongoProcessor:
         assert config['language'] == 'fr'
         assert len(config['pipeline']) == 9
         assert len(config['policies']) == 3
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1256,7 +1256,7 @@ class TestMongoProcessor:
         assert len(config['policies']) == 3
         diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
         assert diet_classifier['epochs'] == 5
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
         assert rule_policy['core_fallback_threshold'] == 0.75
         assert Rules.objects(block_name__iexact=DEFAULT_NLU_FALLBACK_RULE, bot=bot, status=True).get()
@@ -1276,7 +1276,7 @@ class TestMongoProcessor:
         assert len(config['policies']) == 3
         diet_classifier = next((comp for comp in config["pipeline"] if comp['name'] == 'DIETClassifier'), {})
         assert diet_classifier['epochs'] == 5
-        rule_policy = next((comp for comp in config["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config["policies"] if 'RulePolicy' in comp['name']), {})
         assert rule_policy['core_fallback_action_name'] == 'action_small_talk'
         assert rule_policy['core_fallback_threshold'] == 0.75
         assert not next((comp for comp in config["policies"] if comp['name'] == 'FallbackPolicy'), None)
@@ -1296,7 +1296,8 @@ class TestMongoProcessor:
         assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
                                       {'core_fallback_action_name': 'action_default_fallback',
                                        'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
-                                       'name': 'RulePolicy'}]
+                                       'max_history': 5,
+                                       'name': 'kairon.shared.policy.RulePolicy'}]
 
     def test_add_or_overwrite_gpt_featurizer_config_with_bot_id(self):
         bot = 'test_config'
@@ -1315,7 +1316,8 @@ class TestMongoProcessor:
         assert config['policies'] == [{'name': 'MemoizationPolicy'}, {'epochs': 200, 'name': 'TEDPolicy'},
                                       {'core_fallback_action_name': 'action_default_fallback',
                                        'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
-                                       'name': 'RulePolicy'}]
+                                       'max_history': 5,
+                                       'name': 'kairon.shared.policy.RulePolicy'}]
 
     @pytest.mark.asyncio
     async def test_upload_case_insensitivity(self):
@@ -5402,8 +5404,8 @@ class TestMongoProcessor:
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.6
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
         expected = {'recipe': 'default.v1','language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
@@ -5421,7 +5423,8 @@ class TestMongoProcessor:
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
-                                  'name': 'RulePolicy'}]}
+                                  'max_history': 5,
+                                  'name': 'kairon.shared.policy.RulePolicy'}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_get_config_properties(self):
@@ -5469,8 +5472,8 @@ class TestMongoProcessor:
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.6
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.6
 
@@ -5516,7 +5519,8 @@ class TestMongoProcessor:
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 400, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
-                                  'name': 'RulePolicy'}]}
+                                  'max_history': 5,
+                                  'name': 'kairon.shared.policy.RulePolicy'}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_get_config_properties_epoch_only(self):
@@ -5563,7 +5567,7 @@ class TestMongoProcessor:
         processor.save_config(configs, 'test_list_component_not_exists', 'test')
 
         expected = {'nlu_confidence_threshold': 0.7, 'action_fallback': 'action_default_fallback',
-                    'action_fallback_threshold': 0.3, 'ted_epochs': None, 'nlu_epochs': 5, 'response_epochs': 5}
+                    'action_fallback_threshold': 0.5, 'ted_epochs': None, 'nlu_epochs': 5, 'response_epochs': 5}
         processor = MongoProcessor()
         actual = processor.list_epoch_and_fallback_config('test_list_component_not_exists')
         assert actual == expected
@@ -5619,7 +5623,7 @@ class TestMongoProcessor:
                                                    {'name': 'FallbackClassifier', 'threshold': 0.8},
                                                    {'epochs': 5, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 5, 'name': 'TEDPolicy'},
-                                 {'name': 'RulePolicy', 'core_fallback_action_name': 'action_say_bye',
+                                 {'name': 'kairon.shared.policy.RulePolicy', 'max_history': 5, 'core_fallback_action_name': 'action_say_bye',
                                   'core_fallback_threshold': 0.3}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
@@ -5631,8 +5635,8 @@ class TestMongoProcessor:
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.75
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         expected = {'recipe': 'default.v1', 'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
                                                    {'model_name': 'bert', 'from_pt': True,
                                                     'model_weights': 'google/bert_uncased_L-2_H-128_A-2',
@@ -5648,7 +5652,8 @@ class TestMongoProcessor:
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
-                                  'name': 'RulePolicy'}]}
+                                  'max_history': 5,
+                                  'name': 'kairon.shared.policy.RulePolicy'}]}
         assert not DeepDiff(config, expected)
 
     def test_save_component_properties_all_nlu_fallback_update_threshold(self):
@@ -5659,8 +5664,8 @@ class TestMongoProcessor:
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
         assert nlu_fallback['name'] == 'FallbackClassifier'
         assert nlu_fallback['threshold'] == 0.7
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
 
     def test_save_component_properties_action_fallback_only(self):
         nlu_fallback = {'action_fallback': 'action_say_bye'}
@@ -5669,8 +5674,8 @@ class TestMongoProcessor:
         processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
         expected = {'recipe': 'default.v1', 'language': 'en', 'pipeline': [{'name': 'WhitespaceTokenizer'}, {'name': 'RegexEntityExtractor'},
@@ -5687,7 +5692,7 @@ class TestMongoProcessor:
                                                    {'epochs': 10, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_say_bye', 'core_fallback_threshold': 0.3,
-                                  'enable_fallback_prediction': True, 'name': 'RulePolicy'}]}
+                                  'enable_fallback_prediction': True, 'max_history': 5,'name': 'kairon.shared.policy.RulePolicy'}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_save_component_properties_all_action_fallback_update(self):
@@ -5697,8 +5702,8 @@ class TestMongoProcessor:
         processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -5710,8 +5715,8 @@ class TestMongoProcessor:
         assert str(e).__contains__("Action fallback action_say_hello does not exists")
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -5724,8 +5729,8 @@ class TestMongoProcessor:
         assert str(e).__contains__("Utterance utter_default not defined")
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_say_bye_bye'
         assert rule_policy['core_fallback_threshold'] == 0.3
 
@@ -5737,8 +5742,8 @@ class TestMongoProcessor:
         processor.save_component_properties(nlu_fallback, 'test_action_fallback_only', 'test')
         config = processor.load_config('test_action_fallback_only')
         assert next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), None)
-        rule_policy = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
-        assert len(rule_policy) == 4
+        rule_policy = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
+        assert len(rule_policy) == 5
         assert rule_policy['core_fallback_action_name'] == 'action_default_fallback'
         assert rule_policy['core_fallback_threshold'] == 0.3
 

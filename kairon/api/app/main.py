@@ -1,13 +1,10 @@
-import logging
-from time import time
-
 from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security.utils import get_authorization_scheme_param
+from jwt import PyJWTError
 from loguru import logger
 from mongoengine import connect, disconnect
 from mongoengine.errors import (
@@ -32,9 +29,7 @@ from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
-from jwt import PyJWTError
 
-logging.basicConfig(level="ERROR")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (

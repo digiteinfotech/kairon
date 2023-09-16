@@ -1,13 +1,9 @@
-import logging
-from time import time
-
 from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security.utils import get_authorization_scheme_param
 from loguru import logger
 from mongoengine.errors import (
     DoesNotExist,
@@ -24,12 +20,11 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
     CacheControl, Secure, PermissionsPolicy
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from kairon.shared.utils import Utility
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.history.router import metrics, conversations, trends
+from kairon.shared.utils import Utility
 
-logging.basicConfig(level="ERROR")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (

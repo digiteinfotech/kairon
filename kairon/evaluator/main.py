@@ -1,21 +1,16 @@
-import logging
-from time import time
-
 from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security.utils import get_authorization_scheme_param
 from loguru import logger
 from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolicy, XContentTypeOptions, Server, \
     CacheControl, Secure, PermissionsPolicy
 
-from kairon.shared.utils import Utility
 from kairon.api.models import Response
 from kairon.evaluator.router import pyscript
+from kairon.shared.utils import Utility
 
-logging.basicConfig(level="ERROR")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (

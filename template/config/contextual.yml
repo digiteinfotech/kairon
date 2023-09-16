@@ -20,10 +20,14 @@ pipeline:
 # Configuration for Rasa Core.
 # https://rasa.com/docs/rasa/core/policies/
 policies:
-  - name: MemoizationPolicy
-  - name: TEDPolicy
-    epochs: 200
-  - max_history: 5
-    name: kairon.shared.policy.RulePolicy
-    core_fallback_action_name: "action_default_fallback"
-    core_fallback_threshold: 0.3
+- name: MemoizationPolicy
+  max_history: 10
+- epochs: 100
+  name: TEDPolicy
+  max_history: 10
+  constrain_similarities: True
+- core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.5
+  enable_fallback_prediction: false
+  max_history: 10
+  name: kairon.shared.policy.RulePolicy

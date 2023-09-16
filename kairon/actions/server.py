@@ -1,4 +1,4 @@
-import logging
+from loguru import logger as logging
 from time import time
 
 from elasticapm.contrib.starlette import ElasticAPM
@@ -33,10 +33,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from kairon.actions.handlers.action import ActionHandler
 from kairon.api.models import Response
 from kairon.exceptions import AppException
-from ..shared.account.processor import AccountProcessor
 from ..shared.utils import Utility
 
-logging.basicConfig(level="ERROR")
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
 csp = (
@@ -294,7 +292,7 @@ async def webhook(request_json: dict):
         body = {"error": e.message, "action_name": e.action_name}
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content=body)
     except ActionNotFoundException as e:
-        logger.error(e)
+        logger.info(e)
         body = {"error": e.message, "action_name": e.action_name}
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content=body)
 

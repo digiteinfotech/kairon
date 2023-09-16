@@ -17,7 +17,6 @@ from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 
-
 def train_model_for_bot(bot: str):
     """
     loads bot data from mongo into individual files for training
@@ -76,7 +75,6 @@ def start_training(bot: str, user: str, token: str = None):
     prevents training of the bot,
     if the training session is in progress otherwise start training
 
-    :param reload: whether to reload model in the cache
     :param bot: bot id
     :param token: JWT token for remote model reload
     :param user: user id

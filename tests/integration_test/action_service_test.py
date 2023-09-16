@@ -8795,10 +8795,10 @@ def test_bot_response_action():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -8914,10 +8914,10 @@ def test_bot_response_action_empty_response_in_domain():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -9053,10 +9053,10 @@ def test_bot_response_action_rephrase_enabled():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -9202,10 +9202,10 @@ def test_bot_response_action_rephrase_failure():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],
@@ -9341,10 +9341,10 @@ def test_bot_response_action_failure():
                                {"session_start": {"use_entities": True}}, {"nlu_fallback": {"use_entities": True}},
                                {"callapi": {"use_entities": []}}], "entities": ["bot", "kairon_action_response"],
                    "slots": {"bot": {"type": "rasa.shared.core.slots.AnySlot",
-                                     "initial_value": "637f1b92df3b90588a30073e", "auto_fill": True,
+                                     "initial_value": "637f1b92df3b90588a30073e",
                                      "influence_conversation": True},
                              "kairon_action_response": {"type": "rasa.shared.core.slots.AnySlot",
-                                                        "initial_value": None, "auto_fill": False,
+                                                        "initial_value": None,
                                                         "influence_conversation": False}}, "responses": {
                 "utter_please_rephrase": [
                     {"text": "I\'m sorry, I didn\'t quite understand that. Could you rephrase?"}],

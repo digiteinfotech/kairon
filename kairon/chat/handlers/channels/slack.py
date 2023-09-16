@@ -311,8 +311,8 @@ class SlackHandler(InputChannel, ChannelHandlerBase):
             )
             await AgentProcessor.get_agent(bot).handle_message(user_msg)
         except Exception as e:
-            logger.error(f"Exception when trying to handle message.{e}")
-            logger.error(str(e), exc_info=True)
+            logger.info(f"Exception when trying to handle message.{e}")
+            logger.info(str(e), exc_info=True)
             return ""
 
     def get_metadata(self, request: Request) -> Dict[Text, Any]:

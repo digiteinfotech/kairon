@@ -94,6 +94,7 @@ class TestAccountProcessor:
         bot_response = AccountProcessor.add_bot("test", pytest.account, "fshaikh@digite.com", True)
         bot = Bot.objects(name="test").get().to_mongo().to_dict()
         assert bot['_id'].__str__() == bot_response['_id'].__str__()
+        pytest.bot = bot_response["_id"].__str__()
         config = Configs.objects(bot=bot['_id'].__str__()).get().to_mongo().to_dict()
         expected_config = Utility.read_yaml(Utility.environment["model"]["train"]["default_model_training_config_path"])
         assert config['language'] == expected_config['language']
@@ -103,7 +104,7 @@ class TestAccountProcessor:
         assert len(rules) == 3
         assert Responses.objects(name__iexact='utter_please_rephrase', bot=bot['_id'].__str__(), status=True).get()
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()
-        pytest.bot = bot_response['_id'].__str__()
+
 
     def test_list_bots(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
@@ -163,9 +164,10 @@ class TestAccountProcessor:
         assert config['language'] == expected_config['language']
         assert config['pipeline'] == expected_config['pipeline']
         assert config['policies'] == expected_config['policies']
-        assert config['policies'][2]['name'] == 'RulePolicy'
+        assert config['policies'][2]['name'] == 'kairon.shared.policy.RulePolicy'
         assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
         assert config['policies'][2]['core_fallback_threshold'] == 0.5
+        assert config["policies"][2]["max_history"] == 5
         rules = Rules.objects.filter(bot=bot['_id'].__str__())
         assert len(rules) == 3
         assert Responses.objects(name='utter_default', bot=bot['_id'].__str__(), status=True).get()

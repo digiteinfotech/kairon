@@ -61,7 +61,6 @@ class SESSION_CONFIG(str, Enum):
 class SLOTS(str, Enum):
     INITIAL_VALUE = "initial_value"
     VALUE_RESET_DELAY = "value_reset_delay"
-    AUTO_FILL = "auto_fill"
     MIN_VALUE = "min_value"
     MAX_VALUE = "max_value"
     VALUES = "values"

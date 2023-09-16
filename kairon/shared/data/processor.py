@@ -976,14 +976,14 @@ class MongoProcessor:
     def add_system_required_slots(self, bot: Text, user: Text):
         for slot in [s for s in KaironSystemSlots if s.value == KaironSystemSlots.bot.value]:
             self.add_slot({
-                "name": slot, "type": "any", "initial_value": bot, "auto_fill": False,
+                "name": slot, "type": "any", "initial_value": bot,
                 "influence_conversation": False}, bot, user, raise_exception_if_exists=False
             )
 
         for slot in [s for s in KaironSystemSlots if s.value in {KaironSystemSlots.kairon_action_response.value,
                                                                  KaironSystemSlots.order.value}]:
             self.add_slot({
-                "name": slot, "type": "any", "initial_value": None, "auto_fill": False,
+                "name": slot, "type": "any", "initial_value": None,
                 "influence_conversation": False}, bot, user, raise_exception_if_exists=False
             )
 
@@ -991,7 +991,7 @@ class MongoProcessor:
                                                                      KaironSystemSlots.kairon_action_response.value,
                                                                      KaironSystemSlots.order.value}]:
             self.add_slot({
-                "name": slot, "type": "text", "auto_fill": True,
+                "name": slot, "type": "text",
                 "initial_value": None, "influence_conversation": True}, bot, user, raise_exception_if_exists=False
             )
 
@@ -1283,6 +1283,9 @@ class MongoProcessor:
         :param user: user id
         :return: config unique id
         """
+        for custom_component in Utility.environment['model']['pipeline']['custom']:
+            self.__insert_bot_id(configs, bot, custom_component)
+        self.add_default_fallback_config(configs, bot, user)
         try:
             config_obj = Configs.objects().get(bot=bot)
             config_obj.pipeline = configs["pipeline"]
@@ -1292,9 +1295,6 @@ class MongoProcessor:
             configs["bot"] = bot
             configs["user"] = user
             config_obj = Configs._from_son(configs)
-        for custom_component in Utility.environment['model']['pipeline']['custom']:
-            self.__insert_bot_id(config_obj, bot, custom_component)
-        self.add_default_fallback_config(config_obj, bot, user)
         return config_obj.save().id.__str__()
 
     def __insert_bot_id(self, config_obj: dict, bot: Text, component_name: Text):
@@ -1319,6 +1319,7 @@ class MongoProcessor:
         nlu_epochs = configs.get("nlu_epochs")
         response_epochs = configs.get("response_epochs")
         ted_epochs = configs.get("ted_epochs")
+        max_history = configs.get("ted_epochs") if 'max_history' in configs else 5
 
         if not nlu_epochs and not response_epochs and not ted_epochs and not nlu_confidence_threshold and not action_fallback:
             raise AppException("At least one field is required")
@@ -1334,10 +1335,12 @@ class MongoProcessor:
                 (idx for idx, comp in enumerate(present_config['pipeline']) if comp["name"] == "DIETClassifier"), None)
             fallback = {'name': 'FallbackClassifier', 'threshold': nlu_confidence_threshold}
             present_config['pipeline'].insert(diet_classifier_idx + 1, fallback)
-            rule_policy = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
+            rule_policy = next((comp for comp in present_config['policies'] if "RulePolicy" in comp["name"]), {})
+
             if not rule_policy:
-                rule_policy['name'] = 'RulePolicy'
                 present_config['policies'].append(rule_policy)
+            rule_policy["name"] = "kairon.shared.policy.RulePolicy"
+
 
         if action_fallback:
             action_fallback_threshold = action_fallback_threshold if action_fallback_threshold else 0.3
@@ -1353,15 +1356,17 @@ class MongoProcessor:
                         Utility.is_exist(Actions, raise_error=False, bot=bot, status=True,
                                          name__iexact=action_fallback)):
                     raise AppException(f"Action fallback {action_fallback} does not exists")
-            fallback = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
+            fallback = next((comp for comp in present_config['policies'] if "RulePolicy" in comp["name"]), {})
+
             if not fallback:
-                fallback['name'] = 'RulePolicy'
                 present_config['policies'].append(fallback)
+            fallback["name"] = "kairon.shared.policy.RulePolicy"
             fallback['core_fallback_action_name'] = action_fallback
             fallback['core_fallback_threshold'] = action_fallback_threshold
+            fallback["max_history"] = max_history
 
         nlu_fallback = next((comp for comp in present_config['pipeline'] if comp["name"] == "FallbackClassifier"), {})
-        action_fallback = next((comp for comp in present_config['policies'] if comp["name"] == "RulePolicy"), {})
+        action_fallback = next((comp for comp in present_config['policies'] if "RulePolicy" in comp["name"]), {})
         if nlu_fallback.get('threshold') and action_fallback.get('core_fallback_threshold'):
             if nlu_fallback['threshold'] < action_fallback['core_fallback_threshold']:
                 raise AppException('Action fallback threshold should always be smaller than nlu fallback threshold')
@@ -1373,7 +1378,7 @@ class MongoProcessor:
         config = self.load_config(bot)
         selected_config = {}
         nlu_fallback = next((comp for comp in config['pipeline'] if comp["name"] == "FallbackClassifier"), {})
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), {})
+        action_fallback = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), {})
         ted_policy = next((comp for comp in config['policies'] if comp["name"] == "TEDPolicy"), {})
         diet_classifier = next((comp for comp in config['pipeline'] if comp["name"] == "DIETClassifier"), {})
         response_selector = next((comp for comp in config['pipeline'] if comp["name"] == "ResponseSelector"), {})
@@ -3835,15 +3840,19 @@ class MongoProcessor:
         idx = next((idx for idx, comp in enumerate(config_obj["policies"]) if comp['name'] == 'FallbackPolicy'), None)
         if idx:
             del config_obj["policies"][idx]
-        rule_policy = next((comp for comp in config_obj["policies"] if comp['name'] == 'RulePolicy'), {})
+        rule_policy = next((comp for comp in config_obj["policies"] if 'RulePolicy' in comp['name']), {})
+
         if not rule_policy:
-            rule_policy['name'] = 'RulePolicy'
             config_obj["policies"].append(rule_policy)
+        rule_policy["name"] = "kairon.shared.policy.RulePolicy"
+
         if not rule_policy.get('core_fallback_action_name'):
             rule_policy['core_fallback_action_name'] = 'action_default_fallback'
         if not rule_policy.get('core_fallback_threshold'):
             rule_policy['core_fallback_threshold'] = 0.3
-
+        if not rule_policy.get('max_history'):
+            rule_policy['max_history'] = 5
+        print(config_obj["policies"])
         property_idx = next(
             (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
         if not property_idx:

@@ -27,4 +27,5 @@ policies:
 - core_fallback_action_name: action_default_fallback
   core_fallback_threshold: 0.5
   enable_fallback_prediction: true
-  name: RulePolicy
+  max_history: 5
+  name: kairon.shared.policy.RulePolicy

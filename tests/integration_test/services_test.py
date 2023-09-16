@@ -6,8 +6,7 @@ import tarfile
 import tempfile
 from datetime import datetime, timedelta
 from io import BytesIO
-from unittest.mock import patch
-from urllib.parse import urlencode
+from mock import patch
 from urllib.parse import urljoin
 from zipfile import ZipFile
 
@@ -2400,12 +2399,9 @@ def test_model_testing_no_existing_models():
 
 
 @responses.activate
-def test_train(monkeypatch):
-    def _mock_training_limit(*arge, **kwargs):
-        return False
-
-    monkeypatch.setattr(ModelProcessor, "is_daily_training_limit_exceeded", _mock_training_limit)
-
+@patch.object(ModelProcessor, "is_daily_training_limit_exceeded")
+def test_train(mock_training_limit):
+    mock_training_limit.return_value = False
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
@@ -2421,7 +2417,6 @@ def test_train(monkeypatch):
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
-
 
 def test_upload_limit_exceeded(monkeypatch):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -2552,7 +2547,7 @@ def test_get_qna(monkeypatch):
     assert actual["data"] == {'qna': data, 'total': 0}
 
 
-def test_model_testing_not_trained(monkeypatch):
+def test_model_testing_not_trained():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.test_limit_per_day = 0
     bot_settings.save()
@@ -7926,7 +7921,7 @@ def test_list_actions():
 
 
 @responses.activate
-def test_train_using_event(monkeypatch):
+def test_train_using_event():
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.model_training}")
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
@@ -7941,7 +7936,6 @@ def test_train_using_event(monkeypatch):
     assert actual["data"] is None
     assert actual["message"] == "Model training started."
     complete_end_to_end_event_execution(pytest.bot, "integration@demo.ai", EventClass.model_training)
-
 
 def test_update_training_data_generator_status(monkeypatch):
     request_body = {

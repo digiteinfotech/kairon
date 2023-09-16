@@ -316,7 +316,7 @@ class DataUtility:
     @staticmethod
     def parse_fallback_action(config: Dict):
         fallback_action = "action_default_fallback"
-        action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
+        action_fallback = next((comp for comp in config['policies'] if "RulePolicy" in comp["name"]), None)
         if action_fallback:
             fallback_action = action_fallback.get("core_fallback_action_name", fallback_action)
         return fallback_action
