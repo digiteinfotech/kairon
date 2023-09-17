@@ -1,3 +1,6 @@
+import ujson as json
+import re
+
 import pytest
 
 from kairon.exceptions import AppException
@@ -80,7 +83,9 @@ class TestTrainingDataValidator:
         assert validator.summary['intents'][
                    0] == "The intent 'affirm' is listed in the domain file, but is not found in the NLU training data."
         assert validator.summary['intents'][
-                   1] == "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain."
+                   1] == "The intent 'more_info' is listed in the domain file, but is not found in the NLU training data."
+        assert validator.summary['intents'][
+                   2] == "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain."
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -137,10 +142,16 @@ class TestTrainingDataValidator:
 
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
-        assert validator.summary['intents'][
-                   0] == 'There is a message in the training data labeled with intent \'deny\'. This intent is not listed in your domain.'
-        assert validator.summary['intents'][
-                   1] == 'The intent \'deny\' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!'
+        assert 'The intent \'deny\' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!' in \
+               validator.summary['intents']
+        assert 'The intent \'more_info\' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!' in \
+               validator.summary['intents']
+        assert set(validator.summary['intents']) == {
+            "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain.",
+            "The intent 'more_info' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!",
+            "There is a message in the training data labeled with intent 'more_info'. This intent is not listed in your domain.",
+            "The intent 'deny' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
+        }
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -159,8 +170,7 @@ class TestTrainingDataValidator:
 
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
-        assert validator.summary['intents'][0] == 'The intent \'affirm\' is not used in any story.'
-        assert validator.summary['intents'][1] == 'The intent \'bot_challenge\' is not used in any story.'
+        assert validator.summary['intents'][0] == 'The intent \'bot_challenge\' is not used in any story.'
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -213,7 +223,7 @@ class TestTrainingDataValidator:
     async def test_validate_utterance_not_used_in_any_story(self):
         root = 'tests/testing_data/validator/orphan_utterances'
         domain_path = 'tests/testing_data/validator/orphan_utterances/domain.yml'
-        nlu_path = 'tests/testing_data/validator/orphan_utterances/data'
+        nlu_path = 'tests/testing_data/validator/orphan_utterances/data_2'
         config_path = 'tests/testing_data/validator/orphan_utterances/config.yml'
         with pytest.raises(AppException):
             validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
@@ -224,11 +234,25 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('intents')
         assert 'The utterance \'utter_good_feedback\' is not used in any story.' in validator.summary['utterances']
         assert 'The utterance \'utter_bad_feedback\' is not used in any story.' in validator.summary['utterances']
-        assert set(validator.summary['utterances']) == {"The utterance 'utter_bad_feedback' is not used in any story.",
-                                                        "The utterance 'utter_iamabot' is not used in any story.",
-                                                        "The utterance 'utter_feedback' is not used in any story.",
-                                                        "The utterance 'utter_good_feedback' is not used in any story."}
-        assert validator.summary.get('stories')
+        print(set(validator.summary['utterances']))
+        assert set(validator.summary['utterances']) == {
+            "The utterance 'utter_bad_feedback' is not used in any story.",
+            "The action 'utter_feedback' is used in the multiflow_stories, but is not a valid utterance action. Please make sure the action is listed in your domain and there is a template defined with its name.",
+            "The action 'utter_offer_help' is used in the multiflow_stories, but is not a valid utterance action. Please make sure the action is listed in your domain and there is a template defined with its name.",
+            "The utterance 'utter_more_info' is not used in any story.",
+            "The utterance 'utter_query' is not used in any story.",
+            "The utterance 'utter_performance' is not used in any story.",
+            "The utterance 'utter_iamabot' is not used in any story.",
+            "The utterance 'utter_good_feedback' is not used in any story."
+        }
+        print("\n\n")
+        print(set(validator.summary['user_actions']))
+        assert set(validator.summary['user_actions']) == {
+            "The action 'email_action_one' is a user defined action used in the stories. Please make sure the action is listed in your domain file.",
+            "The action 'action_performanceUser1001@digite.com' is a user defined action used in the multiflow_stories, Please make sure the action is listed in your domain file.",
+            "The action 'google_search_action' is not used in any story."
+        }
+        assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
         assert not validator.summary.get('domain')
         assert not validator.summary.get('config')
@@ -244,6 +268,22 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('intents')
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
+        assert not validator.summary.get('training_examples')
+        assert not validator.summary.get('domain')
+        assert not validator.summary.get('config')
+
+    @pytest.mark.asyncio
+    async def test_validate_valid_training_data_with_multiflow_stories(self):
+        root = 'tests/testing_data/multiflow_stories/valid_with_multiflow'
+        domain_path = 'tests/testing_data/multiflow_stories/valid_with_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/multiflow_stories/valid_with_multiflow/data'
+        config_path = 'tests/testing_data/multiflow_stories/valid_with_multiflow/config.yml'
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+        validator.validate_training_data()
+        assert not validator.summary.get('intents')
+        assert not validator.summary.get('utterances')
+        assert not validator.summary.get('stories')
+        assert not validator.summary.get('multiflow_stories')
         assert not validator.summary.get('training_examples')
         assert not validator.summary.get('domain')
         assert not validator.summary.get('config')
@@ -275,6 +315,16 @@ class TestTrainingDataValidator:
         assert not validator.summary.get('training_examples')
         assert not validator.summary.get('domain')
         assert not validator.summary['config'] == "Failed to load the component 'CountTokenizer'"
+
+    @pytest.mark.asyncio
+    async def test_validate_invalid_multiflow_stories(self):
+        root = 'tests/testing_data/multiflow_stories/invalid_yml_multiflow'
+        domain_path = 'tests/testing_data/multiflow_stories/invalid_yml_multiflow/domain.yml'
+        nlu_path = 'tests/testing_data/multiflow_stories/invalid_yml_multiflow/data'
+        config_path = 'tests/testing_data/multiflow_stories/invalid_yml_multiflow/config.yml'
+        validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
+        with pytest.raises(AppException, match="Invalid multiflow_stories.yml. Check logs!"):
+            validator.validate_training_data()
 
     def test_validate_http_action_empty_content(self):
         test_dict = {'http_action': []}
@@ -414,233 +464,9 @@ class TestTrainingDataValidator:
         assert component_count
 
     def test_validate_custom_actions_with_errors(self):
-        test_dict = {"http_action": [{"action_name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                      "params_list": [{"key": 'location', "parameter_type": 'sender_id', "value": ''}],
-                                      "request_method": "GET", "response": "${RESPONSE}"},
-                                     {"action_name": "rain_today1", "http_url": "http://f2724.kairon.io/",
-                                      "params_list": [{"key": 'location', "parameter_type": 'local', "value": ''}],
-                                      "request_method": "GET", "response": "${RESPONSE}"},
-                                     {"action_name": "rain_today2", "http_url": "http://f2724.kairon.io/",
-                                      "params_list": [{"key": 'location', "parameter_type": 'slot', "value": ''}],
-                                      "request_method": "OPTIONS", "response": "${RESPONSE}"},
-                                     {"action_name": "rain_today3", "http_url": "http://f2724.kairon.io/",
-                                      "params_list": [{"key": 'location', "parameter_type": 'intent', "value": ''}],
-                                      "request_method": "GET", "response": "${RESPONSE}"},
-                                     {"action_name": "rain_today4", "http_url": "http://f2724.kairon.io/",
-                                      "params_list": [{"key": 'location', "parameter_type": 'chat_log', "value": ''}],
-                                      "request_method": "GET", "response": "${RESPONSE}"},
-                                     {"name": "rain_today", "http_url": "http://f2724.kairon.io/",
-                                      "params_list": [{"key": 'location', "parameter_type": 'chat_log', "value": ''}],
-                                      "request_method": "GET", "response": "${RESPONSE}"},
-                                     [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]
-                                     ],
-                     'slot_set_action': [
-                         {'name': 'set_cuisine', 'set_slots': [{'name': 'cuisine', 'type': 'from_value', 'value': '100'}]},
-                         {'name': 'set_num_people', 'set_slots': [{'name': 'num_people', 'type': 'reset_slot'}]},
-                         {'': 'action', 'set_slots': [{'name': 'outside_seat', 'type': 'slot', 'value': 'yes'}]},
-                         {'name': 'action', 'set_slots': [{'name': 'outside_seat', 'type': 'slot'}]},
-                         {'name': 'set_num_people', 'set_slots': [{'name': 'num_people', 'type': 'reset_slot', 'value': {'resp': 1}}]},
-                         {'name': 'set_multiple', 'set_slots': [{'name': 'num_p', 'type': 'reset_slot'}, {'name': 'num_people', 'type': 'from_value', 'value': {'resp': 1}}]},
-                         {'name': 'set_none', 'set_slots': None},
-                         {'name': 'set_no_name', 'set_slots': [{' ': 'num_people', 'type': 'reset_slot', 'value': {'resp': 1}}]},
-                         {'name': 'set_none_name', 'set_slots': [{None: 'num_people', 'type': 'reset_slot', 'value': {'resp': 1}}]},
-                         [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
-                     'form_validation_action': [
-                         {'name': 'validate_action', 'slot': 'cuisine', 'validation_semantic': None,
-                          'valid_response': 'valid slot value', 'invalid_response': 'invalid slot value',
-                          'slot_set': {'type': 'current', 'value': ''}},
-                         {'name': 'validate_action', 'slot': 'num_people', 
-                          'validation_semantic': 'if(size(slot[''num_people''])<10) { return true; } else { return false; }',
-                          'valid_response': 'valid value', 'invalid_response': 'invalid value',
-                          'slot_set': {'type': '', 'value': ''}
-                          },
-                         {'slot': 'outside_seat'},
-                         {'name': 'validate_action', 'slot': 'num_people', 'slot_set': {'type': 'slot', 'value': ''}},
-                         {'name': 'validate_action_one', 'slot': 'num_people'},
-                         {'name': 'validate_action', 'slot': 'num_people', 'slot_set': {'type': 'current', 'value': 'Khare'}},
-                         {'': 'validate_action', 'slot': 'preference', 'slot_set': {'type': 'form', 'value': ''}},
-                         {'name': 'validate_action_again', 'slot': 'num_people', 'slot_set': {'type': 'custom', 'value': ''}},
-                         [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
-                     'email_action': [{'action_name': 'send_mail', 'smtp_url': 'smtp.gmail.com', 'smtp_port': '587',
-                                       'smtp_password': '234567890', 'from_email': 'test@digite.com',
-                                       'subject': 'bot falled back', 'to_email': 'test@digite.com',
-                                       'response': 'mail sent'},
-                                      {'action_name': 'send_mail1', 'smtp_url': 'smtp.gmail.com', 'smtp_port': '587',
-                                       'smtp_userid': 'asdfghjkl',
-                                       'smtp_password': 'asdfghjkl',
-                                       'from_email': 'test@digite.com', 'subject': 'bot fallback',
-                                       'to_email': 'test@digite.com', 'response': 'mail sent',
-                                       'tls': False},
-                                      {'action_name': 'send_mail', 'smtp_url': 'smtp.gmail.com', 'smtp_port': '587',
-                                       'smtp_password': '234567890', 'from_email': 'test@digite.com',
-                                       'subject': 'bot falled back', 'to_email': 'test@digite.com',
-                                       'response': 'mail sent'},
-                                      {'name': 'send_mail', 'smtp_url': 'smtp.gmail.com', 'smtp_port': '587',
-                                       'smtp_password': '234567890', 'from_email': 'test@digite.com',
-                                       'subject': 'bot falled back', 'to_email': 'test@digite.com',
-                                       'response': 'mail sent'},
-                                      [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]
-                                      ],
-                     'jira_action': [{'name': 'jira', 'url': 'http://domain.atlassian.net',
-                                      'user_name': 'test@digite.com', 'api_token': '123456', 'project_key': 'KAI',
-                                      'issue_type': 'Subtask', 'parent_key': 'HEL', 'summary': 'demo request',
-                                      'response': 'issue created'},
-                                     {'name': 'jira1', 'url': 'http://domain.atlassian.net',
-                                      'user_name': 'test@digite.com', 'api_token': '234567',
-                                      'project_key': 'KAI', 'issue_type': 'Bug', 'summary': 'demo request',
-                                      'response': 'issue created'},
-                                     {'name': 'jira2', 'url': 'http://domain.atlassian.net',
-                                      'user_name': 'test@digite.com', 'api_token': '234567',
-                                      'project_key': 'KAI', 'issue_type': 'Subtask', 'summary': 'demo request',
-                                      'response': 'ticket created'},
-                                     {'name': 'jira', 'url': 'http://domain.atlassian.net',
-                                      'user_name': 'test@digite.com', 'api_token': '24567',
-                                      'project_key': 'KAI', 'issue_type': 'Task', 'summary': 'demo request',
-                                      'response': 'ticket created'},
-                                     {'action_name': 'jira', 'url': 'http://domain.atlassian.net',
-                                      'user_name': 'test@digite.com', 'api_token': '24567',
-                                      'project_key': 'KAI', 'issue_type': 'Task', 'summary': 'demo request',
-                                      'response': 'ticket created'},
-                                     [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
-                     'zendesk_action': [{'name': 'zendesk', 'subdomain': 'digite', 'user_name': 'test@digite.com',
-                                         'api_token': '123456', 'subject': 'demo request',
-                                         'response': 'ticket created'},
-                                        {'action_name': 'zendesk1', 'subdomain': 'digite',
-                                         'user_name': 'test@digite.com', 'api_token': '123456',
-                                         'subject': 'demo request', 'response': 'ticket created'},
-                                        {'name': 'zendesk2', 'subdomain': 'digite', 'user_name': 'test@digite.com',
-                                         'api_token': '123456', 'subject': 'demo request',
-                                         'response': 'ticket created'},
-                                        [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
-                     'google_search_action': [
-                         {'name': 'google_search', 'api_key': '1231234567', 'search_engine_id': '2345678'},
-                         {'name': 'google_search1', 'api_key': '1231234567', 'search_engine_id': '2345678',
-                          'failure_response': 'failed', 'num_results': 10},
-                         {'name': 'google_search2', 'api_key': '1231234567', 'search_engine_id': '2345678',
-                          'failure_response': 'failed to search', 'num_results': '1'},
-                         {'name': 'google_search', 'api_key': '1231234567', 'search_engine_id': '2345678',
-                          'failure_response': 'failed to search', 'num_results': ''},
-                         [{'action_name': '', 'smtp_url': '', 'smtp_port': '', 'smtp_userid': ''}]],
-                     'pipedrive_leads_action': [
-                         {'name': 'action_pipedrive_leads', 'domain': 'https://digite751.pipedrive.com',
-                          'api_token': '2345678dfghj', 'metadata': {
-                             'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'
-                         }, 'title': 'new lead detected', 'response': 'lead_created'},
-                         {'name': 'action_create_lead', 'domain': 'https://digite75.pipedrive.com',
-                          'api_token': '2345678dfghj', 'metadata': {
-                             'name': 'name'}, 'title': 'new lead detected', 'response': 'lead_created'},
-                         {'name': 'pipedrive_leads_action', 'domain': 'https://digite751.pipedrive.com',
-                          'api_token': '2345678dfghj', 'metadata': {
-                             'org_name': 'organization', 'email': 'email', 'phone': 'phone'
-                         }, 'title': 'new lead detected', 'response': 'lead_created'},
-                         {'domain': 'https://digite751.pipedrive.com', 'api_token': '2345678dfghj', 'metadata': {
-                             'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'
-                         }, 'title': 'new lead detected', 'response': 'lead_created'},
-                         {'name': 'action_pipedrive_leads', 'domain': 'https://digite751.pipedrive.com',
-                          'api_token': '2345678dfghj', 'metadata': {
-                             'name': 'name', 'org_name': 'organization', 'email': 'email', 'phone': 'phone'
-                         }, 'title': 'new lead detected', 'response': 'lead_created'}
-                     ],
-                     'prompt_action': [
-                         {'name': 'prompt_action_invalid_query_prompt',
-                          'llm_prompts': [
-                              {'name': 'Similarity Prompt',
-                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                              {'name': '',
-                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
-                               'source': 'history', 'is_enabled': True}],
-                          "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 40,
-                          "similarity_threshold": 2,
-                          "num_bot_responses": 5},
-                         {'name': 'prompt_action_invalid_num_bot_responses',
-                          'llm_prompts': [
-                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'static', 'is_enabled': True},
-                              {'name': 'Similarity Prompt',
-                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                              {'name': 'Query Prompt',
-                               'data': 100,
-                               'instructions': '', 'type': 'query',
-                               'source': 'static', 'is_enabled': True},
-                              {'name': 'Query Prompt three',
-                               'data': '',
-                               'instructions': '', 'type': 'query',
-                               'source': 'static', 'is_enabled': True}
-                          ],
-                          "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                          "similarity_threshold": 0.70,
-                          "num_bot_responses": 15},
-                         {'name': 'prompt_action_with_invalid_system_prompt_source',
-                          'llm_prompts': [
-                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'history',
-                               'is_enabled': True},
-                              {'name': 'Similarity Prompt',
-                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                              {'name': 'Similarity Prompt two',
-                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                               'type': 'user', 'source': 'bot_content', 'is_enabled': True}
-                          ],
-                          "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                          "similarity_threshold": 0.70, "num_bot_responses": 5,
-                          'hyperparameters': {'temperature': 3.0, 'max_tokens': 5000, 'model': 'gpt - 3.5 - turbo',
-                                       'top_p': 4,
-                                       'n': 10, 'stream': False, 'stop': {}, 'presence_penalty': 5,
-                                       'frequency_penalty': 5, 'logit_bias': []}},
-                         {'name': 'prompt_action_with_no_llm_prompts',
-                          "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10,
-                          "similarity_threshold": 0.70, "num_bot_responses": 5,
-                          'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt - 3.5 - turbo',
-                                              'top_p': 0.0,
-                                              'n': 1, 'stream': False, 'stop': None, 'presence_penalty': 0.0,
-                                              'frequency_penalty': 0.0, 'logit_bias': {}}},
-                         {'name': 'test_add_prompt_action_one',
-                          'llm_prompts': [
-                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'static', 'is_enabled': True},
-                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
-                          "dispatch_response": False
-                          },
-                         {'name': 'test_add_prompt_action_one',
-                          'llm_prompts': [
-                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'static', 'is_enabled': True},
-                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
-                          "dispatch_response": False
-                          },
-                         [{'name': 'test_add_prompt_action_faq_action_in_list',
-                           'llm_prompts': [
-                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static', 'is_enabled': True},
-                               {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
-                           "dispatch_response": False
-                           }],
-                         {'name': 'test_add_prompt_action_three',
-                          'llm_prompts': [
-                              {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'static', 'is_enabled': True},
-                              {'name': 'System Prompt two', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'static', 'is_enabled': True},
-                              {'name': 'Test Prompt', 'type': 'test', 'source': 'test', 'is_enabled': True},
-                              {'name': 'Similarity Prompt', 'instructions': 50, 'type': 1, 'source': 2, 'is_enabled': True},
-                              {'name': 'Http action Prompt', 'data': '', 'instructions': 'Answer according to the context',
-                               'type': 'user', 'source': 'action', 'is_enabled': True},
-                              {'name': 'Identification Prompt', 'data': '', 'instructions': 'Answer according to the context',
-                               'type': 'user', 'source': 'slot', 'is_enabled': True},
-                              {'name': 'History Prompt one', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                              {'name': 'History Prompt two', 'type': 'user', 'source': 'history', 'is_enabled': True}
-                          ],
-                          "dispatch_response": False,
-                          'hyperparameters': {'temperature': 3.0, 'max_tokens': 5000, 'model': 'gpt - 3.5 - turbo',
-                                              'top_p': 4,
-                                              'n': 10, 'stream': False, 'stop': ['a', 'b', 'c', 'd', 'e'], 'presence_penalty': 5,
-                                              'frequency_penalty': 5, 'logit_bias': []}
-                          },
-                     ]}
+        with open('tests/testing_data/actions/validation_action_data.json', 'r') as file:
+            data = file.read()
+        test_dict = json.loads(data)
         is_data_invalid, error_summary, component_count = TrainingDataValidator.validate_custom_actions(test_dict)
         assert is_data_invalid
         assert len(error_summary['http_actions']) == 4
@@ -657,3 +483,18 @@ class TestTrainingDataValidator:
         assert component_count == {'http_actions': 7, 'slot_set_actions': 10, 'form_validation_actions': 9,
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
                                    'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8}
+
+    def test_validate_multiflow_stories(self):
+        with open('tests/testing_data/multiflow_stories/multiflow_test_data.json', 'r') as file:
+            data = file.read()
+        test_dict = json.loads(data)
+        errors, count = TrainingDataValidator.validate_multiflow_stories(test_dict)
+        assert len(errors) == 23
+        assert count == 16
+
+    def test_validate_multiflow_stories_empty_content(self):
+        test_dict = {'multiflow_story': []}
+        assert TrainingDataValidator.validate_multiflow_stories(test_dict)
+        assert TrainingDataValidator.validate_multiflow_stories([{}])
+        test = {None}
+        assert TrainingDataValidator.validate_multiflow_stories(test)

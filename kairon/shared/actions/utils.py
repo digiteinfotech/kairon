@@ -505,18 +505,18 @@ class ActionUtility:
     @staticmethod
     def handle_utter_bot_response(dispatcher: CollectingDispatcher, dispatch_type: str, bot_response: Any):
         message = None
-        if dispatch_type == DispatchType.json.value:
-            try:
-                if isinstance(bot_response, str):
-                    print(bot_response)
-                    bot_response = json.loads(bot_response)
-                dispatcher.utter_message(json_message=bot_response)
-            except json.JSONDecodeError as e:
-                message = f'Failed to convert http response to json: {str(e)}'
-                logger.info(e)
-                dispatcher.utter_message(bot_response)
-        else:
-            dispatcher.utter_message(bot_response)
+        if bot_response:
+            if dispatch_type == DispatchType.json.value:
+                try:
+                    if isinstance(bot_response, str):
+                        bot_response = json.loads(bot_response)
+                    dispatcher.utter_message(json_message=bot_response)
+                except json.JSONDecodeError as e:
+                    message = f'Failed to convert http response to json: {str(e)}'
+                    logger.error(e)
+                    dispatcher.utter_message(str(bot_response))
+            else:
+                dispatcher.utter_message(str(bot_response))
         return bot_response, message
 
     @staticmethod

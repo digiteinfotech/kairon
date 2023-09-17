@@ -1,14 +1,19 @@
-version: "3.1"
+version: "2.0"
 stories:
 - story: greet
   steps:
   - intent: greet
   - action: utter_greet
-  - action: action_say_hello
+  - action: email_action_one
   - action: action_restart
 - story: say goodbye
   steps:
   - intent: deny
   - action: utter_goodbye
-  - action: action_say_goodbye
   - action: action_restart
+- story: apply
+  steps:
+    - intent: apply
+    - action: reset slots
+    - action: job_apply
+    - action: utter_slot_details

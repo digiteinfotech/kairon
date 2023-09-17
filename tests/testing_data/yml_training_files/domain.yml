@@ -59,6 +59,12 @@ intents:
     use_entities: true
 - valid_ticketID:
     use_entities: true
+- query:
+    use_entities: false
+- feedback:
+    use_entities: false
+- more_info:
+    use_entities: false
 entities:
 - priority
 - requested_slot
@@ -310,6 +316,10 @@ responses:
       payload: Yes
     - title: No
       payload: No
+  utter_query:
+    - text: Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems.
+  utter_more_info:
+    - text: Yeah sure, go ahead!
 actions:
 - utter_greet
 - utter_cheer_up
@@ -349,6 +359,9 @@ actions:
 - utter_delete
 - validate_ticket_attributes_form
 - ticket_file_form
+- utter_query
+- utter_more_info
+- action_performanceUser1001@digite.com
 forms:
   ticket_attributes_form:
     required_slots:

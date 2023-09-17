@@ -1,0 +1,65 @@
+multiflow_story:
+- block_name: mf_one_1
+  events:
+    - step:
+        name: query
+        type: INTENT
+        node_id: "1"
+        component_id: "61m96mPGu2VexybDeVg1dLyH"
+      connections:
+        - name: action_performanceUser1001@digite.com
+          type: HTTP_ACTION
+          node_id: "2"
+          component_id: "61uaImwNrsJI1pVphl8mZh20"
+    - step:
+        name: action_performanceUser1001@digite.com
+        type: HTTP_ACTION
+        node_id: "2"
+        component_id: "61uaImwNrsJI1pVphl8mZh20"
+      connections:
+        - name: performance_feedback
+          type: INTENT
+          node_id: "3"
+          component_id: "62By0VXVLpUNDNPqkr5vRRzm"
+        - name: more_info
+          type: INTENT
+          node_id: "4"
+          component_id: "62N9BCfSKVYOKoBivGhWDRHC"
+    - step:
+        name: more_info
+        type: INTENT
+        node_id: "4"
+        component_id: "62N9BCfSKVYOKoBivGhWDRHC"
+      connections:
+        - name: utter_offer_help
+          type: BOT
+          node_id: "5"
+          component_id: "62uzXd9Pj5a9tEbVBkMuVn3o"
+    - step:
+        name: utter_offer_help
+        type: BOT
+        node_id: "5"
+        component_id: "62uzXd9Pj5a9tEbVBkMuVn3o"
+      connections: null
+    - step:
+        name: utter_feedback
+        type: BOT
+        node_id: "6"
+        component_id: "62ib6tlbgIGth8vBSwSYFvbS"
+      connections: null
+    - step:
+        name: performance_feedback
+        type: INTENT
+        node_id: "3"
+        component_id: "62By0VXVLpUNDNPqkr5vRRzm"
+      connections:
+        - name: utter_feedback
+          type: BOT
+          node_id: "6"
+          component_id: "62ib6tlbgIGth8vBSwSYFvbS"
+  metadata:
+    - node_id: "6"
+      flow_type: STORY
+  start_checkpoints: [STORY_START]
+  end_checkpoints: []
+  template_type: CUSTOM

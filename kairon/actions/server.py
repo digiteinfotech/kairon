@@ -68,6 +68,7 @@ secure_headers = Secure(
 
 action = FastAPI()
 Utility.load_environment()
+Utility.load_email_configuration()
 allowed_origins = Utility.environment['cors']['origin']
 action.add_middleware(
     CORSMiddleware,

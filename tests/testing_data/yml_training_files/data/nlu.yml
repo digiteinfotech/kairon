@@ -324,6 +324,25 @@ nlu:
     - i [like](fdResponse) this bot
     - i [hate](fdResponse) this bot
     - i [hate](fdResponse) this bot's performance
+- intent: query
+  examples: |
+    - Tell me about AI
+    - What is AI
+    - What do you mean by AI
+    - Define AI
+    - I want to know about AI
+- intent: feedback
+  examples: |
+    - The information is good
+    - I understood it pretty well
+    - You explained me so well!
+    - The explanation is nice
+    - Wow, it is clear now
+- intent: more_info
+  examples: |
+    - I have another question!
+    - Can i ask you next question
+    - I want to ask something
 - synonym: critical
   examples: |
     - urgent

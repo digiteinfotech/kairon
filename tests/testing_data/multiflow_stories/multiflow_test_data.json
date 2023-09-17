@@ -1,0 +1,347 @@
+{"multiflow_story": [
+    {"block_name": "mf_one", "events": [
+        {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+         "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+         },
+        {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
+         "connections": null
+         },
+        {"step": {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+         "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"}]
+         },
+        {"step": {"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"},
+         "connections": null
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_two", "events": [
+        {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
+         "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+         },
+        {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"},
+         "connections": null
+         },
+        {"step": {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "ksos09"},
+         "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_three", "events": [
+        {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+         "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                         {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
+         "connections": null
+         },
+        {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
+         "connections": null
+         },
+        {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
+         }
+    ]},
+    {"block_name": "mf_four", "events": [
+        {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ppooakak"},
+         "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
+         "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+                         {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "utter_thought", "type": "BOT", "node_id": "4", "component_id": "ppooakak"},
+         "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "more_queries", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"},
+         "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+         "connections": [{"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"},
+         "connections": [{"name": "utter_qoute", "type": "BOT", "node_id": "3", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "goodbye", "type": "INTENT", "node_id": "6", "component_id": "ppooakak"},
+         "connections": null
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_five", "events": [
+        {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_time", "type": "INTENT", "node_id": "2", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "utter_time", "type": "INTENT", "node_id": "2", "component_id": "NKUPKJ"},
+         "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                         {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
+         "connections": null
+         },
+        {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
+         "connections": null
+         },
+        {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "4", "component_id": "NKUPKJ"}]
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_six", "events": [
+        {"step": {"name": "heyyy", "type": "INTENT", "node_id": "1", "component_id": "ppooakak"},
+         "connections": [{"name": "utter_heyyy", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
+                         {"name": "utter_greet", "type": "BOT", "node_id": "3", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "utter_greet", "type": "BOT", "node_id": "3", "component_id": "ppooakak"},
+         "connections": [{"name": "more_queriesss", "type": "INTENT", "node_id": "4", "component_id": "ppooakak"},
+                         {"name": "goodbyeee", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "goodbyeee", "type": "INTENT", "node_id": "5", "component_id": "ppooakak"},
+         "connections": [{"name": "utter_goodbyeee", "type": "BOT", "node_id": "6", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "utter_goodbyeee", "type": "BOT", "node_id": "6", "component_id": "ppooakak"},
+         "connections": null
+         },
+        {"step": {"name": "utter_more_queriesss", "type": "BOT", "node_id": "7", "component_id": "ppooakak"},
+         "connections": null
+         },
+        {"step": {"name": "more_queriesss", "type": "INTENT", "node_id": "4", "component_id": "ppooakak"},
+         "connections": [
+             {"name": "utter_more_queriesss", "type": "BOT", "node_id": "7", "component_id": "ppooakak"}]
+         },
+        {"step": {"name": "utter_heyyy", "type": "BOT", "node_id": "2", "component_id": "ppooakak"},
+         "connections": null
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_seven", "events": [
+        {"step": {"name": "greeting", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+         "connections": [
+             {"name": "utter_greeting", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+         },
+        {"step": {"name": "utter_greeting", "type": "BOT", "node_id": "2",
+                  "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+         "connections": [
+             {"name": "mood", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+              "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+         },
+        {"step": {"name": "games", "type": "SLOT", "value": {"1": "cricket"}, "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+         "connections": [
+             {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+         },
+        {"step": {"name": "utter_games", "type": "BOT", "node_id": "5",
+                  "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+         "connections": null
+         },
+        {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                  "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+         "connections": null
+         },
+        {"step": {"name": "mood", "type": "INTENT", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+         "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                          "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_eight", "events": [
+        {"step": {"name": "hello", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+         "connections": [
+             {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+         },
+        {"step": {"name": "utter_hello", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+         "connections": [
+             {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+              "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+         },
+        {"step": {"name": "games", "type": "INTENT", "node_id": "4", "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+         "connections": [
+             {"name": "utter_games", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+         },
+        {"step": {"name": "utter_games", "type": "BOT", "node_id": "5",
+                  "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+         "connections": null
+         },
+        {"step": {"name": "utter_mood", "type": "BOT", "node_id": "6",
+                  "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+         "connections": null
+         },
+        {"step": {"name": "mood", "type": "INTENT", "value": "Good", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+         "connections": [{"name": "utter_mood", "type": "BOT", "node_id": "6",
+                          "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_nine", "events": [
+        {"step": {"name": "weathery", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+         "connections": [
+             {"name": "utter_weathery", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+         },
+        {"step": {"name": "utter_weathery", "type": "BOT", "node_id": "2",
+                  "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+         "connections": [
+             {"name": "sunny", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             {"name": "rainy", "type": "INTENT", "node_id": "4",
+              "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+         },
+        {"step": {"name": "sunny", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+         "connections": [
+             {"name": "utter_sunny", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+         },
+        {"step": {"name": "utter_sunny", "type": "BOT", "node_id": "5",
+                  "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+         "connections": null
+         },
+        {"step": {"name": "umbrella", "type": "SLOT", "value": "Yes", "node_id": "6",
+                  "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+         "connections": null
+         },
+        {"step": {"name": "rainy", "type": "INTENT", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+         "connections": [{"name": "umbrella", "type": "SLOT", "value": "Yes", "node_id": "6",
+                          "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_ten", "events": [
+        {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "MNbcg"},
+         "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"}]
+         },
+        {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "MNbcg"},
+         "connections": [{"name": "queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+                         {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"}]
+         },
+        {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "MNbcg"},
+         "connections": null
+         },
+        {"step": {"name": "queries", "type": "INTENT", "node_id": "3", "component_id": "MNbcg"},
+         "connections": null
+         }
+    ], "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_eleven", "events": [
+        {"step": {"name": "wish", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+         "connections": [
+             {"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+         },
+        {"step": {"name": "utter_greet", "type": "BOT", "node_id": "2",
+                  "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+         "connections": [
+             {"name": "moody", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             {"name": "foody_act", "type": "INTENT", "node_id": "4",
+              "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+         },
+        {"step": {"name": "foody_act", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+         "connections": [
+             {"name": "utter_foody", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+         },
+        {"step": {"name": "utter_foody", "type": "BOT", "node_id": "5",
+                  "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+         "connections": null
+         },
+        {"step": {"name": "utter_moody", "type": "BOT", "node_id": "6",
+                  "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+         "connections": null
+         },
+        {"step": {"name": "moody", "type": "INTENT", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+         "connections": [{"name": "utter_moody", "type": "BOT", "node_id": "6",
+                          "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+         }
+    ], "metadata": [{"node_id": "6", "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}],
+     "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_twelve", "events": [
+        {"step": {"name": "weather", "type": "INTENT", "node_id": "1", "component_id": "637d0j9GD059jEwt2jPnlZ7I"},
+         "connections": [
+             {"name": "utter_weather", "type": "BOT", "node_id": "2", "component_id": "63uNJw1QvpQZvIpP07dxnmFU"}]
+         },
+        {"step": {"name": "utter_weather", "type": "BOT", "node_id": "2",
+                  "component_id": "63uNJw1QvpQZvIpP07dxnmFU"},
+         "connections": [
+             {"name": "sunny", "type": "INTENT", "node_id": "3", "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+             {"name": "rainy", "type": "INTENT", "node_id": "4",
+              "component_id": "63WKbWs5K0ilkujWJQpXEXGD"}]
+         },
+        {"step": {"name": "sunny", "type": "INTENT", "node_id": "4",
+                  "component_id": "63WKbWs5K0ilkujWJQpXEXGD"},
+         "connections": [
+             {"name": "utter_sunny", "type": "BOT", "node_id": "5", "component_id": "63gm5BzYuhC1bc6yzysEnN4E"}]
+         },
+        {"step": {"name": "utter_sunny", "type": "BOT", "node_id": "5",
+                  "component_id": "63gm5BzYuhC1bc6yzysEnN4E"},
+         "connections": null
+         },
+        {"step": {"name": "utter_rainy", "type": "BOT", "node_id": "6",
+                  "component_id": "634a9bwPPj2y3zF5HOVgLiXx"},
+         "connections": null
+         },
+        {"step": {"name": "rainy", "type": "INTENT", "node_id": "3",
+                  "component_id": "633w6kSXuz3qqnPU571jZyCv"},
+         "connections": [{"name": "utter_rainy", "type": "BOT", "node_id": "6",
+                          "component_id": "634a9bwPPj2y3zF5HOVgLiXx"}]
+         }
+    ], "metadata": [{"node_id": "2", "flow_type": "RULE"}, {"node_id": "5", "flow_type": "STORY"}],
+     "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_thirteen"},
+    {"block_name": "mf_fourteen", "events": [
+        {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+         "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                         {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
+         "connections": null
+         },
+        {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
+         "connections": null
+         },
+        {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
+         }
+    ],
+     "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    {"block_name": "mf_fourteen", "events": [
+        {"step": {"name": "greet", "type": "BOT", "node_id": "1", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "utter_time", "type": "BOT", "node_id": "2", "component_id": "NKUPKJ"},
+         "connections": [{"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+                         {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "goodbye", "type": "INTENT", "node_id": "4", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"}]
+         },
+        {"step": {"name": "utter_goodbye", "type": "BOT", "node_id": "5", "component_id": "NKUPKJ"},
+         "connections": null
+         },
+        {"step": {"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"},
+         "connections": null
+         },
+        {"step": {"name": "more_queries", "type": "INTENT", "node_id": "3", "component_id": "NKUPKJ"},
+         "connections": [{"name": "utter_more_queries", "type": "BOT", "node_id": "6", "component_id": "NKUPKJ"}]
+         }
+    ],
+     "metadata": null, "start_checkpoints": ["STORY_START"],
+     "end_checkpoints": [], "template_type": "CUSTOM"},
+    [{"block_name": "mf_thirteen"}]]}
