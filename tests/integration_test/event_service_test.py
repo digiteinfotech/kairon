@@ -1,6 +1,5 @@
 import os
 import re
-from unittest import mock
 
 from dramatiq.brokers.stub import StubBroker
 from loguru import logger
@@ -43,7 +42,7 @@ def test_lambda_executor():
                 'Payload': {'response': 'task triggered'}}
 
     with patch.dict(Utility.environment, mock_env):
-        with mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda") as mock_trigger:
+        with patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda") as mock_trigger:
             mock_trigger.side_effect = __mock_lambda_execution
             request_body = {"data": {"bot": "test", "user": "test_user", "token": "asdfghjk23456789"}}
             response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false", json=request_body)
@@ -70,7 +69,7 @@ def test_lambda_executor_failed():
                 'Payload': {'response': 'Failed to trigger task'}}
 
     with patch.dict(Utility.environment, mock_env):
-        with mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda") as mock_trigger:
+        with patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda") as mock_trigger:
             mock_trigger.side_effect = __mock_lambda_execution
             request_body = {"data": {"bot": "test_bot", "user": "test_user", "token": "asdfghjk23456789"}}
             response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
@@ -135,7 +134,7 @@ def test_standalone_executor():
         assert kwargs == {"bot": "test", "user": "test_user", 'token': 'asdfghjk23456789'}
 
     with patch.dict(Utility.environment, mock_env):
-        with mock.patch("kairon.events.definitions.model_training.ModelTrainingEvent.execute") as event:
+        with patch("kairon.events.definitions.model_training.ModelTrainingEvent.execute") as event:
             event.side_effect = __mock_execute
             response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
                                    json=request_body)
@@ -155,7 +154,7 @@ def test_standalone_executor_failure():
         raise Exception("No training data found!")
 
     with patch.dict(Utility.environment, mock_env):
-        with mock.patch("kairon.events.definitions.model_training.ModelTrainingEvent.execute") as event:
+        with patch("kairon.events.definitions.model_training.ModelTrainingEvent.execute") as event:
             event.side_effect = __mock_execute
             response = client.post(f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
                                    json=request_body)

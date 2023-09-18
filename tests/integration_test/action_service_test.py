@@ -30,6 +30,7 @@ from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.utils import Utility
 from deepdiff import DeepDiff
+from urllib.parse import urlencode
 
 os.environ['ASYNC_TEST_TIMEOUT'] = "360"
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -832,12 +833,10 @@ def test_http_action_execution():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
+             "name": "udit"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-             "name": "udit", "contact": None})],
     )
 
     request_object = {
@@ -946,12 +945,10 @@ def test_http_action_execution_returns_custom_json():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
+             "name": "udit"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-             "name": "udit", "contact": None})],
     )
 
     request_object = {
@@ -1036,12 +1033,10 @@ def test_http_action_execution_custom_json_with_invalid_json_response():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
+             "name": "udit"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-             "name": "udit", "contact": None})],
     )
 
     request_object = {
@@ -1124,12 +1119,10 @@ def test_http_action_execution_return_custom_json_with_script_evaluation():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
+             "name": "udit"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-             "name": "udit", "contact": None})],
     )
     responses.add(
         method=responses.POST,
@@ -1226,11 +1219,10 @@ def test_http_action_execution_script_evaluation_with_json_response():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
+                                                       "tag": "from_bot"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
-                                                       "tag": "from_bot", "name": None, "contact": None})],
     )
     responses.add(
         method=responses.POST,
@@ -1322,11 +1314,9 @@ def test_http_action_execution_no_response_dispatch():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode( {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.urlencoded_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
     )
 
     request_object = {
@@ -1430,11 +1420,9 @@ def test_http_action_execution_script_evaluation():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
     )
     responses.add(
         method=responses.POST,
@@ -1581,11 +1569,9 @@ def test_http_action_execution_script_evaluation_with_dynamic_params():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
     )
     responses.add(
         method=responses.POST,
@@ -1764,11 +1750,9 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
     )
 
     responses.add(
@@ -1918,11 +1902,9 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
     )
     responses.add(
         method=responses.POST,
@@ -2069,11 +2051,9 @@ def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
     )
     responses.add(
         method=responses.POST,
@@ -2306,12 +2286,10 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"sender_id": "default", "user_message": "get intents", "intent": "test_run",
+             "user_details": "email"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
-             "user_details": {"email": "uditpandey@digite.com"}})],
     )
     responses.add(
         method=responses.POST,
@@ -2473,11 +2451,9 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
     )
     responses.add(
         method=responses.POST,
@@ -2590,11 +2566,9 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
     )
     responses.add(
         method=responses.POST,
@@ -2707,11 +2681,9 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2():
     })
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"}),
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
     )
     responses.add(
         method=responses.POST,
@@ -10329,12 +10301,10 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
     resp_msg = "Python is a scripting language because it uses an interpreter to translate and run its code."
     responses.add(
         method=responses.GET,
-        url=http_url,
+        url=http_url+"?"+urlencode({"bot": "5u08kd0a56b698ca10d98e6s", "user": "1011", "tag": "from_bot",
+             "name": "nupur", "contact": "9876543219"}),
         json=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5u08kd0a56b698ca10d98e6s", "user": "1011", "tag": "from_bot",
-             "name": "nupur", "contact": "9876543219"})],
     )
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -10404,7 +10374,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
         prompt_data = file.read()
     assert mock_completion.call_args.args[3] == prompt_data
 
-
+@responses.activate
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
 @mock.patch.object(ActionUtility, "perform_google_search", autospec=True)
@@ -10413,7 +10383,6 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     from openai.util import convert_to_openai_object
     from openai.openai_response import OpenAIResponse
 
-    responses.reset()
     action_name = "kairon_faq_action"
     google_action_name = "custom_search_action"
     bot = "5u08kd0a56b698ca10hgjgjkhgjks"
