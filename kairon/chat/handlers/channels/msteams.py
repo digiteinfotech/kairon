@@ -53,8 +53,8 @@ class MSTeamBot(OutputChannel):
         self.bot = bot
 
     async def _get_headers(self, refetch=False) -> Optional[Dict[Text, Any]]:
-        ms_oauthurl = ElementTransformerOps.getChannelConfig("msteams", "MICROSOFT_OAUTH2_URL")
-        ms_oauthpath = ElementTransformerOps.getChannelConfig("msteams", "MICROSOFT_OAUTH2_PATH")
+        ms_oauthurl = Utility.system_metadata["channels"][ChannelTypes.MSTEAMS.value]["MICROSOFT_OAUTH2_URL"]
+        ms_oauthpath = Utility.system_metadata["channels"][ChannelTypes.MSTEAMS.value]["MICROSOFT_OAUTH2_PATH"]
         scope = ElementTransformerOps.getChannelConfig("msteams", "scope")
         if MSTeamBot.token_expiration_date < datetime.datetime.now() or refetch:
             uri = f"{ms_oauthurl}/{ms_oauthpath}"
@@ -205,7 +205,7 @@ class MSTeamsHandler(InputChannel, ChannelHandlerBase):
 
     def _update_cached_jwk_keys(self) -> None:
         try:
-            ms_openid = ElementTransformerOps.getChannelConfig("msteams", "MICROSOFT_OPEN_ID_URI")
+            ms_openid = Utility.system_metadata["channels"][ChannelTypes.MSTEAMS.value]["MICROSOFT_OPEN_ID_URI"]
             response = requests.get(ms_openid)
             response.raise_for_status()
             conf = response.json()
@@ -284,6 +284,19 @@ class MSTeamsHandler(InputChannel, ChannelHandlerBase):
                 metadata = attachments
         return metadata
 
+    @staticmethod
+    def is_validate_hash(request: Request):
+        """
+        Validates whether the hash present as part of the msteams channel webhook URL is
+        equivalent to the one present as part of the db config.
+        """
+        bot = request.path_params.get('bot')
+        token = request.path_params.get("token")
+        messenger_conf = ChatDataProcessor.get_channel_config(ChannelTypes.MSTEAMS.value, bot, mask_characters=False)
+        hashed_token = messenger_conf["meta_config"]["secrethash"]
+        jwt_token = Utility.decrypt_message(token)
+        return hashed_token == token, jwt_token
+
     async def validate(self) :
         return {"status": "ok"}
 
@@ -291,9 +304,6 @@ class MSTeamsHandler(InputChannel, ChannelHandlerBase):
         try:
             logger.info(f"MSTeams chat initiation for bot {self.bot}")
             messenger_conf = ChatDataProcessor.get_channel_config("msteams", self.bot, mask_characters=False)
-            hashed_token = messenger_conf["meta_config"]["secrethash"]
-            if hashed_token != self.request.path_params.get("token"):
-                raise Exception("Webhook url is not updated, please check. Url on msteams still refer old hashtoken")
             app_id = messenger_conf["config"]["app_id"]
             app_password = messenger_conf["config"]["app_secret"]
             self._update_cached_jwk_keys()

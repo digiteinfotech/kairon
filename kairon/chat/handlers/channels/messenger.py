@@ -350,9 +350,9 @@ class MessengerHandler(InputChannel, ChannelHandlerBase):
 
         fb_verify = messenger_conf["config"]["verify_token"]
 
-        if (self.request.query_params.get("hub.verify_token")[0]).decode() == fb_verify:
-            hub_challenge = (self.request.query_params.get("hub.challenge")[0]).decode()
-            return hub_challenge
+        if self.request.query_params.get("hub.verify_token") == fb_verify:
+            hub_challenge = self.request.query_params.get("hub.challenge")
+            return int(hub_challenge)
         else:
             logger.warning(
                 "Invalid fb verify token! Make sure this matches "
@@ -430,9 +430,9 @@ class InstagramHandler(MessengerHandler):
 
         fb_verify = messenger_conf["config"]["verify_token"]
 
-        if (self.request.query_params.get("hub.verify_token")[0]).decode() == fb_verify:
-            hub_challenge = (self.request.query_params.get("hub.challenge")[0]).decode()
-            return hub_challenge
+        if self.request.query_params.get("hub.verify_token") == fb_verify:
+            hub_challenge = self.request.query_params.get("hub.challenge")
+            return int(hub_challenge)
         else:
             logger.warning(
                 "Invalid verify token! Make sure this matches "
