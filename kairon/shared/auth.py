@@ -13,7 +13,7 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from kairon.api.models import TokenData
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.constants import PluginTypes
+from kairon.shared.constants import PluginTypes, ChannelTypes
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
@@ -120,7 +120,16 @@ class Authentication:
 
     @staticmethod
     async def authenticate_token_in_path_param(security_scopes: SecurityScopes, request: Request):
+        from kairon.chat.handlers.channels.msteams import MSTeamsHandler
+
         token = request.path_params.get("token")
+        if request.path_params.get("channel") == ChannelTypes.MSTEAMS.value:
+            is_valid_hash, token = MSTeamsHandler.is_validate_hash(request)
+            if not is_valid_hash:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Webhook url is not updated, please check. Url on msteams still refer old hashtoken",
+                )
         user = await Authentication.get_current_user_and_bot(security_scopes, request, token)
         return user
 

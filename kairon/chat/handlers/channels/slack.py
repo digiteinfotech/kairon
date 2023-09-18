@@ -399,7 +399,7 @@ class SlackHandler(InputChannel, ChannelHandlerBase):
                 return False
 
             prefix = f"v0:{slack_request_timestamp}:".encode("utf-8")
-            basestring = prefix + self.decoded_request_body
+            basestring = prefix + self.encoded_request_body
             digest = hmac.new(
                 slack_signing_secret, basestring, hashlib.sha256
             ).hexdigest()
@@ -446,6 +446,7 @@ class SlackHandler(InputChannel, ChannelHandlerBase):
         slack_channel = primary_slack_config['config'].get('slack_channel')
         if 'x-slack-retry-num' in self.request.headers:
             return
+        self.encoded_request_body = await self.request.body()
         self.decoded_request_body = await self.request.json()
         if not self.is_request_from_slack_authentic(self.request, slack_signing_secret=slack_signing_secret):
             raise HTTPException(

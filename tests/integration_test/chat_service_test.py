@@ -414,11 +414,11 @@ def test_chat_with_user_with_metadata():
                 headers={"Authorization": token_type + " " + token},
             )
             actual = response.json()
-                assert actual['success']
-                assert actual['error_code'] == 0
-                metadata = mocked_handle_message.call_args
-                assert metadata.args[0].metadata['name'] == 'test_chat'
-                assert metadata.args[0].metadata['tabname'] == 'coaching'
+            assert actual['success']
+            assert actual['error_code'] == 0
+            metadata = mocked_handle_message.call_args
+            assert metadata.args[0].metadata['name'] == 'test_chat'
+            assert metadata.args[0].metadata['tabname'] == 'coaching'
 
 
 def test_chat_with_user_with_invalid_metadata():
