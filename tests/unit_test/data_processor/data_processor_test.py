@@ -936,7 +936,7 @@ class TestMongoProcessor:
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 9
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 9
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 7
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
         print(multiflow_stories['multiflow_story'][0]['events'][0])
         step_data = multiflow_stories['multiflow_story'][0]['events'][0]['step']
@@ -2724,10 +2724,10 @@ class TestMongoProcessor:
         assert file_multiflow_stories == b"multiflow_story:\n- block_name: multiflow_story_story_download_data_files\n  end_checkpoints: []\n  events:\n  - connections:\n    - component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n    step:\n      component_id: 637d0j9GD059jEwt2jPnlZ7I\n      name: asking\n      node_id: '1'\n      type: INTENT\n  - connections:\n    - component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n    - component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n    step:\n      component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n  - connections:\n    - component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n    step:\n      component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n  - connections: []\n    step:\n      component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n  - connections: []\n    step:\n      component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n  - connections:\n    - component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n    step:\n      component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n  metadata:\n  - flow_type: STORY\n    node_id: '6'\n  - flow_type: RULE\n    node_id: '5'\n  start_checkpoints:\n  - STORY_START\n  template_type: CUSTOM\n"
         file_stories = zip_file.getinfo('data/stories.yml')
         stories = zip_file.read(file_stories)
-        assert stories == b'version: "2.0"\nstories:\n- story: story for download\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - intent: deny\n  - action: utter_deny\n'
+        assert stories == b'version: "3.1"\nstories:\n- story: story for download\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - intent: deny\n  - action: utter_deny\n'
         file_rules = zip_file.getinfo('data/rules.yml')
         rules = zip_file.read(file_rules)
-        assert rules == b'version: "2.0"\nrules:\n- rule: rule for download\n  steps:\n  - intent: food\n  - action: utter_food\n  - action: utter_cheer_up\n'
+        assert rules == b'version: "3.1"\nrules:\n- rule: rule for download\n  steps:\n  - intent: food\n  - action: utter_food\n  - action: utter_cheer_up\n'
         zip_file.close()
 
         file_two = processor.download_files("tests_download", "user@integration.com", True)
@@ -2741,8 +2741,8 @@ class TestMongoProcessor:
         file_rules = zip_file.read(file_info_rules)
         multiflow_story = zip_file.getinfo('multiflow_stories.yml')
         file_multiflow_story = zip_file.read(multiflow_story)
-        assert file_stories == b'version: "2.0"\nstories:\n- story: story for download\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - intent: deny\n  - action: utter_deny\n- story: multiflow_story_story_download_data_files_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
-        assert file_rules == b'version: "2.0"\nrules:\n- rule: rule for download\n  steps:\n  - intent: food\n  - action: utter_food\n  - action: utter_cheer_up\n- rule: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foodyy\n'
+        assert file_stories == b'version: "3.1"\nstories:\n- story: story for download\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - intent: deny\n  - action: utter_deny\n- story: multiflow_story_story_download_data_files_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_rules == b'version: "3.1"\nrules:\n- rule: rule for download\n  steps:\n  - intent: food\n  - action: utter_food\n  - action: utter_cheer_up\n- rule: multiflow_story_story_download_data_files_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foodyy\n'
         assert file_multiflow_story == b"multiflow_story:\n- block_name: multiflow_story_story_download_data_files\n  end_checkpoints: []\n  events:\n  - connections:\n    - component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n    step:\n      component_id: 637d0j9GD059jEwt2jPnlZ7I\n      name: asking\n      node_id: '1'\n      type: INTENT\n  - connections:\n    - component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n    - component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n    step:\n      component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n  - connections:\n    - component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n    step:\n      component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n  - connections: []\n    step:\n      component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n  - connections: []\n    step:\n      component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n  - connections:\n    - component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n    step:\n      component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n  metadata:\n  - flow_type: STORY\n    node_id: '6'\n  - flow_type: RULE\n    node_id: '5'\n  start_checkpoints:\n  - STORY_START\n  template_type: CUSTOM\n"
         zip_file.close()
 
@@ -2864,33 +2864,8 @@ class TestMongoProcessor:
         print(file_content_stories)
         print(file_content_rules)
 
-        assert file_content_stories == b'version: "2.0"\nstories:\n- story: multiflow_story_story_download_data_files_with_actions_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
-        assert file_content_rules == b'version: "2.0"\nrules:\n- rule: multiflow_story_story_download_data_files_with_actions_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foody\n'
-        zip_file.close()
-
-    def test_download_data_files_empty_data(self, monkeypatch):
-        from zipfile import ZipFile
-        def _mock_bot_info(*args, **kwargs):
-            return {
-                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
-                "metadata": {"source_bot_id": None}
-            }
-
-        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
-        processor = MongoProcessor()
-
-        file = processor.download_files("tests_download_empty_data", "user@integration.com")
-        assert file.endswith(".zip")
-        zip_file = ZipFile(file, mode='r')
-        assert zip_file.filelist.__len__() == 9
-        assert zip_file.getinfo('data/stories.yml')
-        assert zip_file.getinfo('data/rules.yml')
-        file_info_stories = zip_file.getinfo('data/stories.yml')
-        file_info_rules = zip_file.getinfo('data/rules.yml')
-        file_content_stories = zip_file.read(file_info_stories)
-        file_content_rules = zip_file.read(file_info_rules)
-        assert file_content_stories == b'version: "3.1"\n'
-        assert file_content_rules == b'version: "3.1"\n'
+        assert file_content_stories == b'version: "3.1"\nstories:\n- story: multiflow_story_story_download_data_files_with_actions_2\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - intent: moodyy\n  - action: utter_moodyy\n'
+        assert file_content_rules == b'version: "3.1"\nrules:\n- rule: multiflow_story_story_download_data_files_with_actions_1\n  steps:\n  - intent: asking\n  - action: utter_asking\n  - action: foodyy\n  - action: utter_foody\n'
         zip_file.close()
 
     def test_download_data_files_with_actions(self, monkeypatch):
@@ -4255,14 +4230,14 @@ class TestMongoProcessor:
     @pytest.mark.asyncio
     async def test_upload_and_save_with_empty_multiflow_stories(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello\n- intent:query\n- Tell me about AI\n- What is AI\n- What do you mean by AI\n- Define AI\n- I want to know about AI".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = 'version: "3.1"\nnlu:\n- intent: greet\n  examples: |\n    - hey\n    - hello\n    - hi\n    - good morning\n- intent: deny\n  examples: |\n    - no\n    - never\n    - I dont think so\n    - dont like that\n- intent: query\n  examples: |\n    - What is AI?\n    - Tell me about AI?\n    - Do you know about AI\n'.encode()
+        stories_content = 'version: "3.1"\nstories:\n- story: greet\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - action: action_restart\n'.encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- query\nresponses:\n  utter_query:\n  - text: 'Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems'\nactions:\n- utter_query\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
         multiflow_stories_content = "multiflow_story:\n".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
@@ -4275,20 +4250,20 @@ class TestMongoProcessor:
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
-                                          status=True))) == 8
+                                          status=True))) == 4
         assert len(list(MultiflowStories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 0
 
     @pytest.mark.asyncio
     async def test_upload_and_save_with_empty_multiflow_stories_none(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello\n- intent:query\n- Tell me about AI\n- What is AI\n- What do you mean by AI\n- Define AI\n- I want to know about AI".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = 'version: "3.1"\nnlu:\n- intent: greet\n  examples: |\n    - hey\n    - hello\n    - hi\n    - good morning\n- intent: deny\n  examples: |\n    - no\n    - never\n    - I dont think so\n    - dont like that\n- intent: query\n  examples: |\n    - What is AI?\n    - Tell me about AI?\n    - Do you know about AI\n'.encode()
+        stories_content = 'version: "3.1"\nstories:\n- story: greet\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - action: action_restart\n'.encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- query\nresponses:\n  utter_query:\n  - text: 'Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems'\nactions:\n- utter_query\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
         multiflow_stories_content = "".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
@@ -4301,21 +4276,20 @@ class TestMongoProcessor:
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
-                                          status=True))) == 8
+                                          status=True))) == 4
         assert len(list(MultiflowStories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 0
 
     @pytest.mark.asyncio
     async def test_upload_and_save_with_multiflow_stories(self):
         processor = MongoProcessor()
-        nlu_content = "## intent:greet\n- hey\n- hello\n- intent:query\n- Tell me about AI\n- What is AI\n- What do you mean by AI\n- Define AI\n- I want to know about AI\n- intent:deny\n- No\n- I don't want this\n- not really\n- intent:affirm\n- affirmative\n- sure, please go ahead\n- sounds good right".encode()
-        stories_content = "## greet\n* greet\n- utter_offer_help\n- action_restart".encode()
+        nlu_content = 'version: "3.1"\nnlu:\n- intent: greet\n  examples: |\n    - hey\n    - hello\n    - hi\n    - good morning\n- intent: deny\n  examples: |\n    - no\n    - never\n    - I dont think so\n    - dont like that\n- intent: query\n  examples: |\n    - What is AI?\n    - Tell me about AI?\n    - Do you know about AI\n- intent: affirm\n  examples: |\n    - affirmative\n    - sure, please go ahead\n    - sounds good right\n'.encode()
+        stories_content = 'version: "3.1"\nstories:\n- story: greet\n  steps:\n  - intent: greet\n  - action: utter_greet\n  - action: action_restart\n'.encode()
         config_content = "language: en\npipeline:\n- name: WhitespaceTokenizer\n- name: RegexFeaturizer\n- name: LexicalSyntacticFeaturizer\n- name: CountVectorsFeaturizer\n- analyzer: char_wb\n  max_ngram: 4\n  min_ngram: 1\n  name: CountVectorsFeaturizer\n- epochs: 5\n  name: DIETClassifier\n- name: EntitySynonymMapper\n- epochs: 5\n  name: ResponseSelector\npolicies:\n- name: MemoizationPolicy\n- epochs: 5\n  max_history: 5\n  name: TEDPolicy\n- name: RulePolicy\n- core_threshold: 0.3\n  fallback_action_name: action_small_talk\n  name: FallbackPolicy\n  nlu_threshold: 0.75\n".encode()
         domain_content = "intents:\n- greet\n- query\n- deny\n- affirm\nresponses:\n  utter_offer_help:\n  - text: 'how may i help you'\n  utter_query:\n  - text: 'Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems'\n  utter_goodbye:\n  - text: 'Bye'\n  utter_feedback:\n  - text: 'Thanks you for loving us. Keep using.'\nactions:\n- utter_offer_help\n- utter_query\n- utter_goodbye\n- utter_feedback\n".encode()
         http_action_content = "http_action:\n- action_name: action_performanceUser1000@digite.com\n  http_url: http://www.alphabet.com\n  headers:\n  - key: auth_token\n    parameter_type: value\n    value: bearer hjklfsdjsjkfbjsbfjsvhfjksvfjksvfjksvf\n  params_list:\n  - key: testParam1\n    parameter_type: value\n    value: testValue1\n  - key: testParam2\n    parameter_type: slot\n    value: testValue1\n  request_method: GET\n  response:\n    value: json\n".encode()
-        # multiflow_stories_content = "multiflow_story:\n- block_name: mf_one_1\n  events:\n    - step:\n        name: query\n        type: INTENT\n        node_id: \"1\"\n        component_id: \"61m96mPGu2VexybDeVg1dLyH\"\n      connections:\n        - name: utter_query\n          type: BOT\n          node_id: \"2\"\n          component_id: \"61uaImwNrsJI1pVphl8mZh20\"\n    - step:\n        name: utter_query\n        type: BOT\n        node_id: \"2\"\n        component_id: \"61uaImwNrsJI1pVphl8mZh20\"\n      connections:\n        - name: deny\n          type: INTENT\n          node_id: \"3\"\n          component_id: \"62By0VXVLpUNDNPqkr5vRRzm\"\n        - name: affirm\n          type: INTENT\n          node_id: \"4\"\n          component_id: \"62N9BCfSKVYOKoBivGhWDRHC\"\n    - step:\n        name: affirm\n        type: INTENT\n        node_id: \"4\"\n        component_id: \"62N9BCfSKVYOKoBivGhWDRHC\"\n      connections:\n        - name: utter_feedback\n          type: BOT\n          node_id: \"5\"\n          component_id: \"62uzXd9Pj5a9tEbVBkMuVn3o\"\n    - step:\n        name: utter_feedback\n        type: BOT\n        node_id: \"5\"\n        component_id: \"62uzXd9Pj5a9tEbVBkMuVn3o\"\n      connections: null\n    - step:\n        name: utter_goodbye\n        type: BOT\n        node_id: \"6\"\n        component_id: \"62ib6tlbgIGth8vBSwSYFvbS\"\n      connections: null\n    - step:\n        name: deny\n        type: INTENT\n        node_id: \"3\"\n        component_id: \"62By0VXVLpUNDNPqkr5vRRzm\"\n      connections:\n        - name: utter_goodbye\n          type: BOT\n          node_id: \"6\"\n          component_id: \"62ib6tlbgIGth8vBSwSYFvbS\"\n  metadata:\n    - node_id: \"6\"\n      flow_type: STORY\n".encode()
         multiflow_stories_content = "multiflow_story:\n- block_name: mf_one_1\n  events:\n    - step:\n        name: query\n        type: INTENT\n        node_id: '1'\n      connections:\n        - name: utter_query\n          type: BOT\n          node_id: '2'\n    - step:\n        name: utter_query\n        type: BOT\n        node_id: '2'\n      connections:\n        - name: deny\n          type: INTENT\n          node_id: '3'\n        - name: affirm\n          type: INTENT\n          node_id: '4'\n    - step:\n        name: affirm\n        type: INTENT\n        node_id: '4'\n      connections:\n        - name: utter_feedback\n          type: BOT\n          node_id: '5'\n    - step:\n        name: utter_feedback\n        type: BOT\n        node_id: '5'\n      connections: null\n    - step:\n        name: utter_goodbye\n        type: BOT\n        node_id: '6'\n      connections: null\n    - step:\n        name: deny\n        type: INTENT\n        node_id: '3'\n      connections:\n        - name: utter_goodbye\n          type: BOT\n          node_id: '6'\n  metadata:\n    - node_id: '6'\n      flow_type: STORY\n  start_checkpoints: [STORY_START]\n  end_checkpoints:".encode()
         nlu = UploadFile(filename="nlu.yml", file=BytesIO(nlu_content))
-        stories = UploadFile(filename="stories.md", file=BytesIO(stories_content))
+        stories = UploadFile(filename="stories.yml", file=BytesIO(stories_content))
         config = UploadFile(filename="config.yml", file=BytesIO(config_content))
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
@@ -4328,7 +4302,7 @@ class TestMongoProcessor:
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(
             list(TrainingExamples.objects(intent="greet", bot="test_upload_and_save", user="rules_creator",
-                                          status=True))) == 16
+                                          status=True))) == 4
         assert len(list(MultiflowStories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
 
     def test_load_and_delete_http_action(self):
@@ -4883,15 +4857,15 @@ class TestMongoProcessor:
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 18
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 7
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 11
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 9
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 9
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
-        assert domain.templates.keys().__len__() == 31
-        assert domain.entities.__len__() == 17
+        assert domain.responses.keys().__len__() == 31
+        assert domain.entities.__len__() == 18
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33

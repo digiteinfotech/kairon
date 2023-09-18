@@ -3477,7 +3477,6 @@ class MongoProcessor:
         slot.type = slot_value.get('type')
         slot.initial_value = slot_value.get('initial_value')
         slot.influence_conversation = slot_value.get('influence_conversation')
-        slot.auto_fill = slot_value.get('auto_fill')
 
         if slot_value.get('type') == CategoricalSlot.type_name:
             slot.values = slot_value.get('values')
@@ -3973,7 +3972,6 @@ class MongoProcessor:
             rule_policy['core_fallback_threshold'] = 0.3
         if not rule_policy.get('max_history'):
             rule_policy['max_history'] = 5
-        print(config_obj["policies"])
         property_idx = next(
             (idx for idx, comp in enumerate(config_obj['pipeline']) if comp["name"] == "FallbackClassifier"), None)
         if not property_idx:

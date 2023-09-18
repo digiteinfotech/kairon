@@ -7,7 +7,7 @@ pipeline:
 - name: CountVectorsFeaturizer
 - analyzer: char_wb
   max_ngram: 4
-  min_ngram: 1a
+  min_ngram: 1
   name: CountVectorsFeaturizer
 - name: FallbackClassifier
   threshold: 0.75

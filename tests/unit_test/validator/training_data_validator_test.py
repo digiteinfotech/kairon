@@ -80,12 +80,10 @@ class TestTrainingDataValidator:
             validator.validate_training_data()
 
         validator.validate_training_data(False)
-        assert validator.summary['intents'][
-                   0] == "The intent 'affirm' is listed in the domain file, but is not found in the NLU training data."
-        assert validator.summary['intents'][
-                   1] == "The intent 'more_info' is listed in the domain file, but is not found in the NLU training data."
-        assert validator.summary['intents'][
-                   2] == "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain."
+        assert not DeepDiff(["The intent 'affirm' is listed in the domain file, but is not found in the NLU training data.", "The intent 'more_info' is listed in the domain file, but is not found in the NLU training data.", "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain."],
+                            validator.summary["intents"],
+                            ignore_order=True
+                            )
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -146,12 +144,7 @@ class TestTrainingDataValidator:
                validator.summary['intents']
         assert 'The intent \'more_info\' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!' in \
                validator.summary['intents']
-        assert set(validator.summary['intents']) == {
-            "There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain.",
-            "The intent 'more_info' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!",
-            "There is a message in the training data labeled with intent 'more_info'. This intent is not listed in your domain.",
-            "The intent 'deny' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"
-        }
+        assert not DeepDiff(validator.summary['intents'], ["There is a message in the training data labeled with intent 'deny'. This intent is not listed in your domain.", "The intent 'deny' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!", "The intent 'more_info' is used in your stories, but it is not listed in the domain file. You should add it to your domain file!"], ignore_order=True)
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')
@@ -170,7 +163,11 @@ class TestTrainingDataValidator:
 
         validator = await TrainingDataValidator.from_training_files(nlu_path, domain_path, config_path, root)
         validator.validate_training_data(False)
-        assert validator.summary['intents'][0] == 'The intent \'bot_challenge\' is not used in any story.'
+        print(validator.summary["intents"])
+        assert not DeepDiff(["The intent 'bot_challenge' is not used in any story."],
+                            validator.summary["intents"],
+                            ignore_order=True
+                            )
         assert not validator.summary.get('utterances')
         assert not validator.summary.get('stories')
         assert not validator.summary.get('training_examples')

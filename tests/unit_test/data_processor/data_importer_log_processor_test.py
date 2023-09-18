@@ -178,8 +178,11 @@ class TestDataImporterLogProcessor:
 
     def test_is_limit_exceeded_exception(self, monkeypatch):
         bot = 'test'
-        bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.data_importer_limit_per_day = 0
+        try:
+            bot_settings = BotSettings.objects(bot=bot).get()
+            bot_settings.data_importer_limit_per_day = 0
+        except:
+            bot_settings = BotSettings(bot=bot, data_importer_limit_per_day=0, user="test")
         bot_settings.save()
         with pytest.raises(AppException):
             assert DataImporterLogProcessor.is_limit_exceeded(bot)
@@ -187,7 +190,7 @@ class TestDataImporterLogProcessor:
     def test_is_limit_exceeded(self, monkeypatch):
         bot = 'test'
         bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.data_importer_limit_per_day = 3
+        bot_settings.data_importer_limit_per_day=3
         bot_settings.save()
         assert DataImporterLogProcessor.is_limit_exceeded(bot, False)
 

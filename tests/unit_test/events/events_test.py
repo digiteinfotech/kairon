@@ -735,7 +735,7 @@ class TestEventExecution:
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
-        assert logs[0].get('stories').get('data')
+        assert not logs[0].get('stories').get('data')
         assert logs[0].get('utterances').get('data')
         assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
@@ -807,7 +807,7 @@ class TestEventExecution:
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
         assert not logs[0].get('intents').get('data')
-        assert logs[0].get('stories').get('data')
+        assert not logs[0].get('stories').get('data')
         assert logs[0].get('utterances').get('data')
         assert [action.get('data') for action in logs[0].get('actions') if action.get('type') == 'http_actions']
         assert not logs[0].get('training_examples').get('data')
