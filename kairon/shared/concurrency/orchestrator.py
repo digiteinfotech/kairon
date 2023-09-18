@@ -2,7 +2,6 @@ from typing import Text
 
 import pykka
 
-from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.concurrency.actors.factory import ActorFactory
 

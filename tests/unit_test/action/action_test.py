@@ -43,6 +43,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.utils import Utility
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 class TestActions:
 
@@ -66,7 +67,7 @@ class TestActions:
     def test_execute_http_request_get_with_auth_token(self):
         http_url = 'http://localhost:8080/mock'
         auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
-        responses.reset()
+
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -87,7 +88,7 @@ class TestActions:
     def test_execute_http_request_url_encoded_request_empty_request_body(self):
         http_url = 'http://localhost:8080/mock'
         auth_token = "bearer jkhfhkujsfsfslfhjsfhkjsfhskhfksj"
-        responses.reset()
+
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -1491,7 +1492,7 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
 
-        responses.reset()
+
         responses.add(
             "POST", Utility.environment['evaluator']['pyscript']['url'],
             json={"success": False, "data": None,
@@ -1572,6 +1573,7 @@ class TestActions:
         assert log['exception'].__contains__('Failed to execute the url: Failed to connect to service: localhost')
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run(self, monkeypatch):
         http_url = "http://www.google.com"
         http_response = "This should be response"
@@ -1589,8 +1591,8 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
+
+
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -1623,6 +1625,7 @@ class TestActions:
         assert log['api_response']
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_params(self, monkeypatch):
         http_url = "http://www.google.com/$SENDER_ID?id=$param2"
         http_response = "This should be response"
@@ -1642,11 +1645,10 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
+
         responses.add(
             method=responses.GET,
-            url="http://www.google.com/sender_test_run_with_params?id=param2value",
+            url="http://www.google.com/sender_test_run_with_params?id=param2value&"+urlencode({'key1': 'value1', 'key2': 'value2'}),
             body=http_response,
             status=200,
         )
@@ -1678,6 +1680,7 @@ class TestActions:
         assert log['request_params'] == {'key1': 'value1', 'key2': 'value2'}
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_dynamic_params(self, monkeypatch):
         http_url = "http://localhost:8080/mock"
         http_response = "This should be response"
@@ -1697,8 +1700,8 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
+
+
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
             method=responses.POST,
@@ -1743,6 +1746,7 @@ class TestActions:
                                          'intent': 'test_run'}
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_post(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_post",
@@ -1760,8 +1764,8 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
-        responses.reset()
-        responses.start()
+
+
         responses.add(
             method=responses.POST,
             url=http_url,
@@ -1784,6 +1788,7 @@ class TestActions:
         assert actual[0]['value'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_post_and_parameters(self, monkeypatch):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
@@ -1804,8 +1809,8 @@ class TestActions:
 
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
-        responses.reset()
-        responses.start()
+
+
         responses.add(
             method=responses.POST,
             url=http_url,
@@ -1824,8 +1829,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post_and_parameters")
-        responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
@@ -1841,6 +1844,7 @@ class TestActions:
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_post_and_dynamic_params(self, monkeypatch):
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
@@ -1858,8 +1862,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
+
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
         responses.add(
             method=responses.POST,
@@ -1887,8 +1890,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post_and_dynamic_params")
-        responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
@@ -1905,6 +1906,7 @@ class TestActions:
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_get(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_get",
@@ -1921,8 +1923,8 @@ class TestActions:
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
-        responses.reset()
-        responses.start()
+
+
         resp_msg = json.dumps({
             "a": {
                 "b": {
@@ -1949,13 +1951,12 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get")
-        responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_get_dispatch_type_text_with_json_response(self, monkeypatch):
         action = HttpActionConfig(
             action_name="test_run_with_get_with_json_response",
@@ -1977,8 +1978,7 @@ class TestActions:
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
-        responses.reset()
-        responses.start()
+
         resp_msg = json.dumps({
             "a": {
                 "b": {
@@ -2022,8 +2022,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get_with_json_response")
-        responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
@@ -2039,6 +2037,7 @@ class TestActions:
         assert log['bot_response'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_with_get_with_dynamic_params(self, monkeypatch):
         dynamic_params = "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "\
                          "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
@@ -2062,8 +2061,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
+
         resp_msg = {
             "sender_id": "default_sender",
             "user_message": "get intents",
@@ -2154,7 +2152,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get_with_dynamic_params")
-        responses.stop()
         assert actual is not None
         assert str(actual[0]['name']) == 'val_d'
         assert str(actual[0]['value']) == "['red', 'buggy', 'bumpers']"
@@ -2224,7 +2221,7 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8082/mock'
         resp_msg = "This is string http response"
-        responses.start()
+
         responses.add(
             method=responses.GET,
             url=http_url,
@@ -2241,7 +2238,7 @@ class TestActions:
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
-        responses.stop()
+
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(
@@ -2304,8 +2301,8 @@ class TestActions:
         except ActionFailure as e:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''
 
-    @responses.activate
     @pytest.mark.asyncio
+    @responses.activate
     async def test_run_get_with_parameters(self, monkeypatch):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
@@ -2336,8 +2333,7 @@ class TestActions:
         }
 
         responses.add(
-            responses.GET, http_url, json=resp_msg,
-            match=[responses.matchers.urlencoded_params_matcher({'key1': 'value1', 'key2': 'value2'})],
+            responses.GET, http_url+"?"+urlencode({'key1': 'value1', 'key2': 'value2'}), json=resp_msg,
         )
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
@@ -3419,12 +3415,12 @@ class TestActions:
 
     @responses.activate
     def test_create_zendesk_ticket_valid_credentials(self):
-        responses.reset()
+
         responses.add(
             'POST',
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
-            match=[responses.matchers.json_params_matcher({'ticket': {'id': None, 'subject': 'new ticket', 'comment': {'id': None}}})]
+            match=[responses.matchers.json_params_matcher({'ticket': {'comment': {'id': ''}, 'id': '', 'subject': 'new ticket'}})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket')
 
@@ -3433,8 +3429,8 @@ class TestActions:
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
             match=[responses.matchers.json_params_matcher(
-                {'ticket': {'description': 'ticket described', 'id': None, 'subject': 'new ticket',
-                            'tags': ['kairon', 'bot'], 'comment': {'id': None, 'html_body': 'html comment'}}})]
+                {'ticket': {'comment': {'id': '', 'html_body': 'html comment'}, 'id': '', 'subject': 'new ticket', 'description': 'ticket described',
+                            'tags': ['kairon', 'bot'], }})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket',
                                             'ticket described', 'html comment', ['kairon', 'bot'])

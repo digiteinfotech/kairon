@@ -51,7 +51,11 @@ class ActionUtility:
         })
 
         try:
-            if request_method.lower() in {'get', 'post', 'put', 'delete'}:
+            if request_method.lower() == 'get':
+                response = requests.request(
+                    request_method.upper(), http_url, headers=headers, timeout=timeout, params=request_body
+                )
+            elif request_method.lower() in {'post', 'put', 'delete'}:
                 response = requests.request(
                     request_method.upper(), http_url, headers=headers, timeout=timeout, **{content_type: request_body}
                 )
