@@ -75,6 +75,6 @@ pytest-metadata==2.0.4
 tiktoken
 RestrictedPython
 AccessControl
-pykka
+pykka==3.1.1
 timeout-decorator
 anyio==3.7.1

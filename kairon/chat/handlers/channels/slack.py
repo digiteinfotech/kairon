@@ -13,6 +13,7 @@ from slack import WebClient
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
+from fastapi.responses import JSONResponse
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
@@ -290,7 +291,7 @@ class SlackHandler(InputChannel, ChannelHandlerBase):
                 f"Received retry #{retry_count} request from slack"
                 f" due to {retry_reason}."
             )
-            return ""
+            return JSONResponse(content="", headers={"X-Slack-No-Retry": "1"})
         if metadata is not None:
             output_channel = metadata.get("out_channel")
             if use_threads:
