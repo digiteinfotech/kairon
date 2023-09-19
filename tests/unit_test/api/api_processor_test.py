@@ -164,7 +164,7 @@ class TestAccountProcessor:
         assert config['language'] == expected_config['language']
         assert config['pipeline'] == expected_config['pipeline']
         assert config['policies'] == expected_config['policies']
-        assert config['policies'][2]['name'] == 'kairon.shared.policy.RulePolicy'
+        assert config['policies'][2]['name'] == 'kairon.shared.policy.KRulePolicy'
         assert config['policies'][2]['core_fallback_action_name'] == "action_default_fallback"
         assert config['policies'][2]['core_fallback_threshold'] == 0.5
         assert config["policies"][2]["max_history"] == 5

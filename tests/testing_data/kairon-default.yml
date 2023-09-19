@@ -24,4 +24,4 @@ policies:
   core_fallback_threshold: 0.5
   enable_fallback_prediction: false
   max_history: 5
-  name: kairon.shared.policy.RulePolicy
+  name: kairon.shared.policy.KRulePolicy

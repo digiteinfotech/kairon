@@ -25,7 +25,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from kairon.api.models import Response
 from kairon.chat.routers import web_client, channels
 from kairon.exceptions import AppException
-from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.utils import Utility
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
@@ -95,8 +94,6 @@ async def startup():
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
-    await AccountProcessor.default_account_setup()
-    AccountProcessor.load_system_properties()
 
 
 @app.on_event("shutdown")

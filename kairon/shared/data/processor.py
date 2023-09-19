@@ -1460,7 +1460,7 @@ class MongoProcessor:
 
             if not rule_policy:
                 present_config['policies'].append(rule_policy)
-            rule_policy["name"] = "kairon.shared.policy.RulePolicy"
+            rule_policy["name"] = "kairon.shared.policy.KRulePolicy"
 
 
         if action_fallback:
@@ -1481,7 +1481,7 @@ class MongoProcessor:
 
             if not fallback:
                 present_config['policies'].append(fallback)
-            fallback["name"] = "kairon.shared.policy.RulePolicy"
+            fallback["name"] = "kairon.shared.policy.KRulePolicy"
             fallback['core_fallback_action_name'] = action_fallback
             fallback['core_fallback_threshold'] = action_fallback_threshold
             fallback["max_history"] = max_history
@@ -3964,7 +3964,7 @@ class MongoProcessor:
 
         if not rule_policy:
             config_obj["policies"].append(rule_policy)
-        rule_policy["name"] = "kairon.shared.policy.RulePolicy"
+        rule_policy["name"] = "kairon.shared.policy.KRulePolicy"
 
         if not rule_policy.get('core_fallback_action_name'):
             rule_policy['core_fallback_action_name'] = 'action_default_fallback'

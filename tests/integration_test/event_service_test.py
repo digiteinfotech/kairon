@@ -14,7 +14,7 @@ with patch.dict(
                      'ASYNC_TEST_TIMEOUT': "360", "ENABLE_APM": "True", "APM_SERVER_URL": "http://localhost:8082"}
 ):
     with patch("pymongo.collection.Collection.create_index"):
-        with patch('elasticsearch.Elasticsearch', autospec=True) as mock_apm_client:
+        with patch('elasticapm.base.Client', create=True) as mock_apm_client:
             from kairon.events.server import app
 
             Utility.load_environment()

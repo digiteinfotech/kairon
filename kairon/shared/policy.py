@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import functools
-import json
+import ujson as json
 import logging
 from collections import defaultdict
 from typing import Any, List, DefaultDict, Dict, Text, Optional, Set, Tuple, cast
@@ -66,7 +66,7 @@ structlogger = structlog.get_logger()
 @DefaultV1Recipe.register(
     DefaultV1Recipe.ComponentType.POLICY_WITHOUT_END_TO_END_SUPPORT, is_trainable=True
 )
-class RulePolicy(RulePolicy):
+class KRulePolicy(RulePolicy):
     """Policy which handles all the rules."""
 
     # rules use explicit json strings
