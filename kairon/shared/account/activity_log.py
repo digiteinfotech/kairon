@@ -26,8 +26,7 @@ class UserActivityLogger:
     @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):
         reset_password_request_limit = Utility.environment['user']['reset_password_request_limit']
-        user = User.objects(email__iexact=email, status=True).get()
-        reset_password_request_count = AuditLogData.objects(audit={'Bot_id': 'None', 'account': user['account']},
+        reset_password_request_count = AuditLogData.objects(audit__Bot_id='None',
                                                             user=email, action=AuditlogActions.ACTIVITY.value,
                                                             entity=UserActivityType.reset_password_request.value,
                                                             timestamp__gte=datetime.utcnow().date()
@@ -39,12 +38,11 @@ class UserActivityLogger:
     def is_password_reset_within_cooldown_period(email: Text):
         reset_password_request_limit = Utility.environment['user']['reset_password_cooldown_period']
         cooldown_period = datetime.utcnow().__sub__(timedelta(seconds=reset_password_request_limit * 60))
-        user = User.objects(email__iexact=email, status=True).get()
         if Utility.is_exist(
                 AuditLogData, raise_error=False, user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.reset_password.value,
                 timestamp__gte=cooldown_period, check_base_fields=False
         ):
-            log = AuditLogData.objects(audit={'Bot_id': 'None', 'account': user['account']},
+            log = AuditLogData.objects(audit__Bot_id='None',
                                        user=email, action=AuditlogActions.ACTIVITY.value,
                                        entity=UserActivityType.reset_password.value,
                                        timestamp__gte=cooldown_period).get()
