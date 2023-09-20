@@ -125,10 +125,6 @@ telegram:
 
 msteams:
   body_message: "Please select from quick buttons:"
-  MICROSOFT_OPEN_ID_URI: "https://login.botframework.com/v1/.well-known/openidconfiguration"
-  MICROSOFT_OAUTH2_URL: "https://login.microsoftonline.com"
-  MICROSOFT_OAUTH2_PATH : "botframework.com/oauth2/v2.0/token"
-  scope: "https://api.botframework.com/.default"
 
 No_Config_error_message: Configuration not provided for channel {} and elementtype {}
 

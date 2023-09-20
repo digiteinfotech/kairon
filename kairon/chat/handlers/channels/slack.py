@@ -13,6 +13,7 @@ from slack import WebClient
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
+from fastapi.responses import JSONResponse
 
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
@@ -290,7 +291,7 @@ class SlackHandler(InputChannel, ChannelHandlerBase):
                 f"Received retry #{retry_count} request from slack"
                 f" due to {retry_reason}."
             )
-            return ""
+            return JSONResponse(content="", headers={"X-Slack-No-Retry": "1"})
         if metadata is not None:
             output_channel = metadata.get("out_channel")
             if use_threads:
@@ -399,7 +400,7 @@ class SlackHandler(InputChannel, ChannelHandlerBase):
                 return False
 
             prefix = f"v0:{slack_request_timestamp}:".encode("utf-8")
-            basestring = prefix + self.decoded_request_body
+            basestring = prefix + self.encoded_request_body
             digest = hmac.new(
                 slack_signing_secret, basestring, hashlib.sha256
             ).hexdigest()
@@ -446,6 +447,7 @@ class SlackHandler(InputChannel, ChannelHandlerBase):
         slack_channel = primary_slack_config['config'].get('slack_channel')
         if 'x-slack-retry-num' in self.request.headers:
             return
+        self.encoded_request_body = await self.request.body()
         self.decoded_request_body = await self.request.json()
         if not self.is_request_from_slack_authentic(self.request, slack_signing_secret=slack_signing_secret):
             raise HTTPException(

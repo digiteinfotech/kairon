@@ -42,7 +42,7 @@ RUN python -m pip install secure
 RUN python -m pip install fastapi_sso
 RUN python -m pip install croniter
 RUN python -m pip install AccessControl
-RUN python -m pip install pykka
+RUN python -m pip install pykka==3.1.1
 RUN python -m pip install timeout-decorator
 
 RUN mkdir -p /home/cache

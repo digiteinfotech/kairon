@@ -350,9 +350,9 @@ class MessengerHandler(InputChannel, ChannelHandlerBase):
 
         fb_verify = messenger_conf["config"]["verify_token"]
 
-        if (self.request.query_params.get("hub.verify_token")[0]).decode() == fb_verify:
-            hub_challenge = (self.request.query_params.get("hub.challenge")[0]).decode()
-            return hub_challenge
+        if self.request.query_params.get("hub.verify_token") == fb_verify:
+            hub_challenge = self.request.query_params.get("hub.challenge")
+            return int(hub_challenge)
         else:
             logger.warning(
                 "Invalid fb verify token! Make sure this matches "
@@ -367,7 +367,7 @@ class MessengerHandler(InputChannel, ChannelHandlerBase):
         page_access_token = messenger_conf["config"]["page_access_token"]
 
         signature = self.request.headers.get("X-Hub-Signature") or ""
-        if not self.validate_hub_signature(fb_secret, await self.request.json(), signature):
+        if not self.validate_hub_signature(fb_secret, await self.request.body(), signature):
             logger.warning(
                 "Wrong fb secret! Make sure this matches the "
                 "secret in your facebook app settings"
@@ -376,7 +376,7 @@ class MessengerHandler(InputChannel, ChannelHandlerBase):
 
         messenger = Messenger(page_access_token)
 
-        metadata = self.get_metadata(self.request)
+        metadata = self.get_metadata(self.request) or {}
         metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "messenger",
                          "tabname": "default"})
         await messenger.handle(await self.request.json(), metadata, self.bot)
@@ -430,9 +430,9 @@ class InstagramHandler(MessengerHandler):
 
         fb_verify = messenger_conf["config"]["verify_token"]
 
-        if (self.request.query_params.get("hub.verify_token")[0]).decode() == fb_verify:
-            hub_challenge = (self.request.query_params.get("hub.challenge")[0]).decode()
-            return hub_challenge
+        if self.request.query_params.get("hub.verify_token") == fb_verify:
+            hub_challenge = self.request.query_params.get("hub.challenge")
+            return int(hub_challenge)
         else:
             logger.warning(
                 "Invalid verify token! Make sure this matches "
