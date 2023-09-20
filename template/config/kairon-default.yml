@@ -22,7 +22,6 @@ policies:
 - epochs: 100
   name: TEDPolicy
   max_history: 10
-  constrain_similarities: True
 - core_fallback_action_name: action_default_fallback
   core_fallback_threshold: 0.5
   enable_fallback_prediction: false
