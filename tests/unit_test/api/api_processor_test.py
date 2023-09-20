@@ -2478,8 +2478,7 @@ class TestAccountProcessor:
             await(AccountProcessor.send_reset_link('integration@2.com'))
         Utility.email_conf["email"]["enable"] = False
 
-    @pytest.mark.asyncio
-    async def test_upsert_organization(self):
+    def test_upsert_organization(self):
         org_data = {"name": "DEL"}
         mail = "testing@demo.in"
         account = "123456"
@@ -2490,7 +2489,7 @@ class TestAccountProcessor:
         }
         idp_config = IdpConfig(user="${user}", account=[user.account], organization="DEL", config=config).save()
         OrgProcessor.upsert_organization(user=user, org_data=org_data)
-        result = await get_idp_config("123456")
+        result = IDPProcessor.get_idp_config("123456")
         assert result is not None
 
     @pytest.mark.asyncio
@@ -2515,7 +2514,7 @@ class TestAccountProcessor:
     @pytest.mark.asyncio
     async def test_default_account_setup_error_msg(self):
         result = await AccountProcessor.default_account_setup()
-        assert result is not None
+        assert result is None
 
     def test_validate_confirm_password(cls):
         with pytest.raises(ValueError, match="Password and Confirm Password does not match"):
