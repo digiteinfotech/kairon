@@ -346,7 +346,6 @@ class TestEventExecution:
         event = TrainingDataImporterEvent(bot, user, import_data=True)
         event.validate()
         event.enqueue()
-        responses.reset()
 
         logs = list(DataImporterLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -1091,7 +1090,6 @@ class TestEventExecution:
                               {"data": {'bot': bot, 'user': user, 'augment_data': '--augment'}, "cron_exp": None, "timezone": None})],
                       )
         ModelTestingEvent(bot, user).enqueue()
-        responses.reset()
 
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 4
@@ -1117,7 +1115,6 @@ class TestEventExecution:
                               {"data": {'bot': bot, 'user': user, 'augment_data': ''}, "cron_exp": None, "timezone": None})],
                       )
         ModelTestingEvent(bot, user, augment_data=False).enqueue()
-        responses.reset()
 
         logs = list(ModelTestingLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -1129,6 +1126,7 @@ class TestEventExecution:
         assert not logs[0]['is_augmented']
         assert not os.path.exists(os.path.join('./testing_data', bot))
 
+    @responses.activate
     def test_trigger_history_deletion_for_bot(self):
         from datetime import datetime
         bot = 'test_events_bot'
@@ -1136,7 +1134,6 @@ class TestEventExecution:
         till_date = datetime.utcnow().date()
         sender_id = ""
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.delete_history}")
-        responses.reset()
         responses.add("POST",
                       event_url,
                       json={"success": True, "message": "Event triggered successfully!"},
@@ -1146,11 +1143,9 @@ class TestEventExecution:
                               {"data": {'bot': bot, 'user': user, 'till_date': Utility.convert_date_to_string(till_date),
                                'sender_id': sender_id}, "cron_exp": None, "timezone": None})],
                       )
-        responses.start()
         event = DeleteHistoryEvent(bot, user, till_date=till_date, sender_id=None)
         event.validate()
         event.enqueue()
-        responses.stop()
 
         logs = list(HistoryDeletionLogProcessor.get_logs(bot))
         assert len(logs) == 1
@@ -1223,6 +1218,7 @@ class TestEventExecution:
         assert len(settings) == 1
         assert settings[0]["status"] == False
 
+    @responses.activate
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
@@ -1250,7 +1246,6 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1264,7 +1259,6 @@ class TestEventExecution:
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         print(logs)
@@ -1315,6 +1309,7 @@ class TestEventExecution:
             'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
             'filename': 'Brochure.pdf'}}]}]
 
+    @responses.activate
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
@@ -1339,7 +1334,6 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1354,7 +1348,6 @@ class TestEventExecution:
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1375,6 +1368,7 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
+    @responses.activate
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -1396,7 +1390,6 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1415,8 +1408,8 @@ class TestEventExecution:
         assert len(logs[0]) == logs[1] == 1
         exception = logs[0][0].pop("exception")
         assert exception.startswith('Failed to evaluate template: ')
-        responses.reset()
 
+    @responses.activate
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -1439,7 +1432,6 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1457,7 +1449,6 @@ class TestEventExecution:
             event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
 
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1554,6 +1545,7 @@ class TestEventExecution:
             with pytest.raises(Exception):
                 ScheduledEventsBase("test", "test").enqueue(event_request_type, config={})
 
+    @responses.activate
     @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message", autospec=True)
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
@@ -1583,7 +1575,6 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1603,7 +1594,6 @@ class TestEventExecution:
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
 
@@ -1674,6 +1664,7 @@ class TestEventExecution:
         #     'filename': 'Brochure.pdf'}}]}]
         # assert mock_send.call_args[0][5] == '13b1e228_4a08_4d19_a0da_cdb80bc76380'
 
+    @responses.activate
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
@@ -1691,7 +1682,6 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1705,7 +1695,6 @@ class TestEventExecution:
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1
@@ -1725,6 +1714,7 @@ class TestEventExecution:
         with pytest.raises(AppException, match="Notification settings not found!"):
             MessageBroadcastProcessor.get_settings(event_id, bot)
 
+    @responses.activate
     @patch("kairon.shared.channels.broadcast.whatsapp.json")
     @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
@@ -1746,7 +1736,6 @@ class TestEventExecution:
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
-        responses.start()
         responses.add(
             "POST", url,
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
@@ -1765,7 +1754,6 @@ class TestEventExecution:
         event.validate()
         event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
         event.execute(event_id)
-        responses.reset()
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot)
         assert len(logs[0]) == logs[1] == 1

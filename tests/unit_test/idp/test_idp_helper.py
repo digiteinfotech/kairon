@@ -148,7 +148,6 @@ class TestIDP:
     @responses.activate
     def test_get_admin_access_token(self, monkeypatch, set_idp_props):
         event_url = "http://localhost:8080/auth" + IDPURLConstants.AUTH_TOKEN_URL.value.format(realm_name="master")
-        responses.reset()
         response_data = {
             "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJjMmdiOEdnUDJQdE1VYWZzb1Z3aGt0bEwxMnpwYzhHNDN2NE93UHNOS3R3In0.eyJleHAiOjE2NjM1MjUzMDMsImlhdCI6MTY2MzUyNTI0MywianRpIjoiZjUzMDdiOGUtMGZmZi00OGU4LWI0N2MtY2E5NTQ2NGE4NjdjIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL2F1dGgvcmVhbG1zL21hc3RlciIsInN1YiI6ImVhOGQyZDAxLWM2NTYtNDE2Zi1hMmZhLTBkYjExNDU5NzUyOSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImFkbWluLWNsaSIsInNlc3Npb25fc3RhdGUiOiI5MGJiMjA1Mi01OTdlLTRiNjctODI4NC1hZTdmODYxZWRkMjciLCJhY3IiOiIxIiwic2NvcGUiOiJlbWFpbCBwcm9maWxlIiwic2lkIjoiOTBiYjIwNTItNTk3ZS00YjY3LTgyODQtYWU3Zjg2MWVkZDI3IiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJrYWlyb25rZXljbG9hayJ9.HavJzfu1igpt4IuvZCuQxInWTHz1Dt4L5Oy4q5Fw03QuudztXvUQGGthAWkjNzxGwcwhyBmlzsiLmqsj40K3epiCReEM_bL7zKhiXcXXzAzgxWvXZ4x75WYk00fMxW5eETSfIcLPyqPtGdKyyyEKS1fjtw-O_4VXhp3kO8FrSX7TC1A9Tj0R6I19RaQwSo8pxYeStHtgFri6Vuei4N7bto6pDNMn6hlkfxVelgGocs4lkdI8LRv8LgXenNDK6dd5PcaR5UGoCwU_sBa2AUZjJNqaOIjVJjhTBXAlqqQBOkMzhk41zPCK2zBv8uktQVreLixcoQKAxxD8e81e-YdU8w",
             "expires_in": 60,

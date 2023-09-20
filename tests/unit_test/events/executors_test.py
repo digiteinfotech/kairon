@@ -137,7 +137,6 @@ class TestExecutors:
                 with pytest.raises(Exception, match="Failed to add task to queue: Failed to connect to broker"):
                     DramatiqExecutor().execute_task(EventClass.delete_history, {"bot": "test", "user": "test_user"})
 
-    @pytest.mark.asyncio
     def test_standalone_executor(self, monkeypatch):
         mock_env = Utility.environment.copy()
         mock_env['events']['executor']['type'] = 'standalone'

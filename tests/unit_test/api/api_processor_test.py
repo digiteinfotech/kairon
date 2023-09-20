@@ -2289,6 +2289,7 @@ class TestAccountProcessor:
             AccountProcessor.confirm_add_trusted_device("trust@digite.com", "1234567890fghj")
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_validate_trusted_device_add_device(self, monkeypatch):
         token = "abcgd563"
         enable = True
@@ -2313,13 +2314,10 @@ class TestAccountProcessor:
             "postal": "400070",
             "timezone": "Asia/Kolkata"
         }
-        responses.start()
         responses.add("GET", url, json=expected)
         request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
         with patch("kairon.shared.utils.SMTP", autospec=True):
             await Authentication.validate_trusted_device("pandey.udit867@gmail.com", "kjhdsaqewrrtyuio879", request)
-        responses.stop()
-        responses.reset()
 
     def test_list_trusted_device(self):
         assert AccountProcessor.list_trusted_device_fingerprints("udit.pandey@digite.com") == [
@@ -2332,6 +2330,7 @@ class TestAccountProcessor:
         await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio879", request)
 
     @pytest.mark.asyncio
+    @responses.activate
     async def test_validate_trusted_device_invalid(self, monkeypatch):
         token = "abcgd563"
         enable = True
@@ -2350,13 +2349,10 @@ class TestAccountProcessor:
             "postal": "400070",
             "timezone": "Asia/Kolkata"
         }
-        responses.start()
         responses.add("GET", url, json=expected)
         request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
         with patch("kairon.shared.utils.SMTP", autospec=True):
             await Authentication.validate_trusted_device("udit.pandey@digite.com", "kjhdsaqewrrtyuio87", request)
-        responses.stop()
-        responses.reset()
 
     @pytest.mark.asyncio
     async def test_remove_trusted_device_not_exists_2(self):
@@ -2482,7 +2478,8 @@ class TestAccountProcessor:
             await(AccountProcessor.send_reset_link('integration@2.com'))
         Utility.email_conf["email"]["enable"] = False
 
-    def test_upsert_organization(self):
+    @pytest.mark.asyncio
+    async def test_upsert_organization(self):
         org_data = {"name": "DEL"}
         mail = "testing@demo.in"
         account = "123456"
@@ -2493,7 +2490,7 @@ class TestAccountProcessor:
         }
         idp_config = IdpConfig(user="${user}", account=[user.account], organization="DEL", config=config).save()
         OrgProcessor.upsert_organization(user=user, org_data=org_data)
-        result = get_idp_config("123456")
+        result = await get_idp_config("123456")
         assert result is not None
 
     @pytest.mark.asyncio
@@ -2515,8 +2512,9 @@ class TestAccountProcessor:
         assert bots_after_delete == bots_before_delete
         assert result == (None, None, None)
 
-    def test_default_account_setup_error_msg(self):
-        result = AccountProcessor.default_account_setup()
+    @pytest.mark.asyncio
+    async def test_default_account_setup_error_msg(self):
+        result = await AccountProcessor.default_account_setup()
         assert result is not None
 
     def test_validate_confirm_password(cls):

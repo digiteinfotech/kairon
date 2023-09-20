@@ -2346,9 +2346,8 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().model_path == model_path
 
-    @patch("kairon.train.Utility.initiate_fastapi_apm_client", autospec=True)
+    @patch('elasticapm.base.Client', create=True)
     def test_start_training_done_with_intrumentation(self, mock_apm):
-        mock_apm.return_value = Mock()
         with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8082'}):
             processor = MongoProcessor()
             loop = asyncio.get_event_loop()

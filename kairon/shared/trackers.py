@@ -250,4 +250,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
 
     def _additional_events(self, tracker: DialogueStateTracker) -> Iterator:
         count = self.get_latest_session_events_count(tracker.sender_id)
-        return itertools.islice(tracker.events, count, len(tracker.events))
+        if count:
+            return itertools.islice(tracker.events, count, len(tracker.events))
+        return tracker.events
+

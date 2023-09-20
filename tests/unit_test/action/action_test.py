@@ -3084,7 +3084,6 @@ class TestActions:
             'link': 'https://www.digite.com/kanban/what-is-kanban/'
         }]
 
-    @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action(self, mock_trigger_lambda):
         search_term = "What is data science?"
@@ -3134,7 +3133,6 @@ class TestActions:
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is data science?', 'site': 'https://www.w3schools.com/', 'topn': 1}
 
-    @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_without_website(self, mock_trigger_lambda):
         search_term = "What is AI?"
@@ -3191,7 +3189,6 @@ class TestActions:
         called_args = mock_trigger_lambda.call_args
         assert called_args.args[1] == {'text': 'What is AI?', 'site': '', 'topn': 2}
 
-    @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_exception_lambda(self, mock_trigger_lambda):
         search_term = "What is data science?"
@@ -3336,7 +3333,6 @@ class TestActions:
             with pytest.raises(ActionFailure, match=re.escape(f"{result}")):
                 ActionUtility.perform_web_search(search_term, topn=topn)
 
-    @pytest.mark.asyncio
     @mock.patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda", autospec=True)
     def test_public_search_action_app_exception(self, mock_trigger_lambda):
         search_term = "What is AI?"

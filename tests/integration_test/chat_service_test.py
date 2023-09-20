@@ -213,10 +213,6 @@ ChatDataProcessor.save_channel_config(
 responses.stop()
 
 
-def empty_store(*args, **kwargs):
-    return None
-
-
 def __mock_getbusinessdata_workingenabled(*args, **kwargs):
     business_workingdata = json.load(
         open("tests/testing_data/live_agent/business_working_data.json")
@@ -1712,6 +1708,7 @@ def test_whatsapp_valid_order_message_request():
                 })
     actual = response.json()
     assert actual == 'success'
+    time.sleep(5)
     assert len(whatsapp_msg_handler.call_args[0]) == 5
     assert whatsapp_msg_handler.call_args[0][1] == '/k_order_msg{"order": "{\'catalog_id\': \'538971028364699\', \'product_items\': [{\'product_retailer_id\': \'akuba13e44\', \'quantity\': 1, \'item_price\': 200, \'currency\': \'INR\'}, {\'product_retailer_id\': \'0z10aj0bmq\', \'quantity\': 1, \'item_price\': 600, \'currency\': \'INR\'}]}"}'
     assert whatsapp_msg_handler.call_args[0][2] == '919876543210'
@@ -1993,7 +1990,6 @@ def test_whatsapp_bsp_valid_order_message_request():
         })
     actual = response.json()
     assert actual == 'success'
-    responses.reset()
 
 
 def add_live_agent_config(bot_id, email):

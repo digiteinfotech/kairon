@@ -26,7 +26,6 @@ class TestBusinessServiceProvider:
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
-        responses.reset()
 
     @responses.activate
     def test_get_auth_token(self, monkeypatch):

@@ -2299,7 +2299,6 @@ def resource_test_upload_zip():
 @responses.activate
 def test_upload_zip(resource_test_upload_zip):
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
-    responses.reset()
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
@@ -2323,7 +2322,6 @@ def test_upload_zip(resource_test_upload_zip):
 @responses.activate
 def test_upload():
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
-    responses.reset()
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
@@ -2349,7 +2347,6 @@ def test_upload():
 @responses.activate
 def test_upload_yml():
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
-    responses.reset()
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
@@ -2651,7 +2648,6 @@ def test_get_data_importer_logs():
 @responses.activate
 def test_upload_with_chat_client_config_only():
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
-    responses.reset()
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
@@ -2697,7 +2693,6 @@ def test_upload_with_chat_client_config():
     bot_settings.data_importer_limit_per_day = 15
     bot_settings.save()
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
-    responses.reset()
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
@@ -2723,7 +2718,6 @@ def test_upload_with_chat_client_config():
 @responses.activate
 def test_upload_without_chat_client_config():
     event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.data_importer}")
-    responses.reset()
     responses.add(
         "POST", event_url, json={"success": True, "message": "Event triggered successfully!"}
     )
@@ -15038,8 +15032,6 @@ def test_add_live_agent_config_invalid_credentials():
               "override_bot": False, "trigger_on_intents": ["greet", "enquiry"],
               "trigger_on_actions": ["action_default_fallback", "action_enquiry"]}
 
-    responses.start()
-    responses.reset()
     responses.add(
         "GET",
         f"https://app.chatwoot.com/public/api/v1/accounts/{config['config']['account_id']}/inboxes",
@@ -15065,8 +15057,6 @@ def test_add_live_agent_config_triggers_not_added():
 
     add_inbox_response = open("tests/testing_data/live_agent/add_inbox_response.json").read()
     add_inbox_response = json.loads(add_inbox_response)
-    responses.start()
-    responses.reset()
     responses.add(
         "GET",
         f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
@@ -15116,7 +15106,6 @@ def test_add_live_agent_config():
 
     add_inbox_response = open("tests/testing_data/live_agent/add_inbox_response.json").read()
     add_inbox_response = json.loads(add_inbox_response)
-    responses.reset()
     responses.add(
         "GET",
         f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",
@@ -15170,7 +15159,6 @@ def test_update_live_agent_config():
     config = {"agent_type": "chatwoot", "config": {"account_id": "13", "api_access_token": "jfjdjhsk567890",
                                                    "inbox_identifier": add_inbox_response["inbox_identifier"]},
               "override_bot": True}
-    responses.reset()
     responses.add(
         "GET",
         f"https://app.chatwoot.com/api/v1/accounts/{config['config']['account_id']}/inboxes",

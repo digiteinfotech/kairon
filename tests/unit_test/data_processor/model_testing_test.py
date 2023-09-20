@@ -1,4 +1,5 @@
 import os
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
 import shutil
 import tempfile
 import uuid

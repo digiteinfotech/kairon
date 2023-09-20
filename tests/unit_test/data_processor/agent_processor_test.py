@@ -124,7 +124,8 @@ class TestAgentProcessor:
         assert AgentProcessor.get_agent(pytest.bot)
         assert AgentProcessor.cache_provider.len() >= 1
 
-    def test_get_agent_custom_metric_apm_enabled(self):
+    @patch('elasticapm.base.Client', create=True)
+    def test_get_agent_custom_metric_apm_enabled(self, mock_apm_client):
 
         with patch.dict(Utility.environment["elasticsearch"], {"enable": True, 'service_name': 'kairon', 'apm_server_url': 'http://localhost:8082'}):
             assert AgentProcessor.get_agent(pytest.bot)
