@@ -804,7 +804,7 @@ class AccountProcessor:
         previous_passwrd = user.password
         if Utility.verify_password(password.strip(), previous_passwrd):
             raise AppException("You have already used that password, try another")
-        user_act_log = AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.reset_password.value).exclude('audit')
+        user_act_log = AuditLogData.objects(audit={'Bot_id': 'None', 'account': user['account']}, user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.reset_password.value)
         if any(act_log.data is not None and act_log.data.get("password") is not None and
                Utility.verify_password(password.strip(), act_log.data.get("password"))
                for act_log in user_act_log):
@@ -816,7 +816,7 @@ class AccountProcessor:
         UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
                                    data=data)
         if uuid_value is not None:
-            AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value,
+            AuditLogData.objects(audit={'Bot_id': 'None', 'account': user['account']}, user=email, action=AuditlogActions.ACTIVITY.value,
                                  entity=UserActivityType.link_usage.value,
                                  data__status="pending", data__uuid=uuid_value).exclude('audit')\
                 .update_one(set__data__status="done")
