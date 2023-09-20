@@ -1601,6 +1601,23 @@ class Utility:
         return masked_value
 
     @staticmethod
+    def save_auditlog_document(audit, user, entity, data, **kwargs):
+        try:
+            action = kwargs.get("action")
+        except AttributeError:
+            action = kwargs.get("action")
+        audit_log = AuditLogData(audit=audit,
+                                 user=user,
+                                 action=action,
+                                 entity=entity,
+                                 data=data)
+        audit_log.save()
+
+    @staticmethod
+    def publish_auditlog_after_saving(audit_log, event_url):
+        Utility.publish_auditlog(auditlog=audit_log, event_url=event_url)
+
+    @staticmethod
     def save_and_publish_auditlog(document, name, **kwargs):
         try:
             action = kwargs.get("action")
@@ -1616,8 +1633,8 @@ class Utility:
                                  action=action,
                                  entity=name,
                                  data=document.to_mongo().to_dict())
-        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
         audit_log.save()
+        Utility.publish_auditlog_after_saving(audit_log, event_url=kwargs.get("event_url"))
 
     @staticmethod
     def get_auditlog_id_and_mapping(document):

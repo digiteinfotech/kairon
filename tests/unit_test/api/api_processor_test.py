@@ -1,17 +1,18 @@
 import asyncio
 import datetime
 import os
+import time
 import uuid
 from unittest.mock import patch
 from urllib.parse import urljoin
 
 import jwt
+import pytest
 import responses
 from fastapi import HTTPException
 from fastapi_sso.sso.base import OpenID
 from mongoengine import connect
 from mongoengine.errors import ValidationError, DoesNotExist
-import pytest
 from mongomock.object_id import ObjectId
 from pydantic import SecretStr
 from pytest_httpx import HTTPXMock
@@ -20,11 +21,14 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from kairon.api.app.routers.idp import get_idp_config
+from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequest, HttpActionParameters, Password
+from kairon.exceptions import AppException
+from kairon.idp.data_objects import IdpConfig
 from kairon.idp.processor import IDPProcessor
-from kairon.shared.admin.data_objects import BotSecrets
-from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     ORG_SETTINGS_MESSAGES, FeatureMappings
@@ -35,10 +39,6 @@ from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility, MailUtility
-from kairon.exceptions import AppException
-import time
-from kairon.idp.data_objects import IdpConfig
-from kairon.api.models import RegisterAccount, EventConfig, IDPConfig,StoryRequest, HttpActionParameters,Password
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -1512,6 +1512,12 @@ class TestAccountProcessor:
         assert value[0]["metric_type"] == "login_refresh_token"
         assert value[0]["username"] == "nupur.khare@digite.com"
         assert value[0]["timestamp"]
+
+    def test_authenticate_method_login_limit_exceeded(self):
+        username = "nupur.khare@digite.com"
+        password = "Welcome@15"
+        with pytest.raises(AppException, match='Login limit exhausted for today.'):
+            Authentication.authenticate(username, password)
 
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'
