@@ -219,4 +219,4 @@ core:
     - custom.fallback.FallbackIntentFilter
     - kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer
   policies:
-    - kairon.shared.policy.KRulePolicy
+    - kairon.shared.rule_policy.RulePolicy

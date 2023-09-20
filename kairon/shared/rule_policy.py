@@ -1,33 +1,47 @@
 from __future__ import annotations
-
 import copy
 import functools
-import ujson as json
 import logging
-from collections import defaultdict
+import structlog
 from typing import Any, List, DefaultDict, Dict, Text, Optional, Set, Tuple, cast
 
+from tqdm import tqdm
 import numpy as np
-import rasa.core.test
-import rasa.shared.utils.io
-import structlog
-from rasa.core.constants import (
-    DEFAULT_CORE_FALLBACK_THRESHOLD,
-    RULE_POLICY_PRIORITY,
-    POLICY_PRIORITY,
-    POLICY_MAX_HISTORY
-)
-from rasa.core.featurizers.tracker_featurizers import TrackerFeaturizer
-from rasa.core.policies.policy import SupportedData, PolicyPrediction
-from rasa.core.policies.rule_policy import InvalidRule, RulePolicy
-from rasa.core.training.training import create_action_fingerprints, ActionFingerprint
+import ujson as json
+from collections import defaultdict
+
 from rasa.engine.graph import ExecutionContext
 from rasa.engine.recipes.default_recipe import DefaultV1Recipe
 from rasa.engine.storage.resource import Resource
 from rasa.engine.storage.storage import ModelStorage
+from rasa.shared.constants import DOCS_URL_RULES
+from rasa.shared.exceptions import RasaException
+import rasa.shared.utils.io
+from rasa.shared.core.events import LoopInterrupted, UserUttered, ActionExecuted
+from rasa.core.featurizers.tracker_featurizers import TrackerFeaturizer
+from rasa.core.policies.memoization import MemoizationPolicy
+from rasa.core.policies.policy import SupportedData, PolicyPrediction
+from rasa.shared.core.trackers import (
+    DialogueStateTracker,
+    get_active_loop_name,
+    is_prev_action_listen_in_state,
+)
+from rasa.shared.core.generator import TrackerWithCachedStates
+from rasa.core.constants import (
+    DEFAULT_CORE_FALLBACK_THRESHOLD,
+    RULE_POLICY_PRIORITY,
+    POLICY_PRIORITY,
+    POLICY_MAX_HISTORY,
+)
 from rasa.shared.core.constants import (
+    USER_INTENT_RESTART,
+    USER_INTENT_BACK,
+    USER_INTENT_SESSION_START,
     ACTION_LISTEN_NAME,
+    ACTION_RESTART_NAME,
+    ACTION_SESSION_START_NAME,
     ACTION_DEFAULT_FALLBACK_NAME,
+    ACTION_BACK_NAME,
     RULE_SNIPPET_ACTION_NAME,
     SHOULD_NOT_BE_SET,
     PREVIOUS_ACTION,
@@ -38,35 +52,51 @@ from rasa.shared.core.constants import (
     RULE_ONLY_LOOPS,
 )
 from rasa.shared.core.domain import InvalidDomain, State, Domain
-from rasa.shared.core.events import LoopInterrupted, UserUttered, ActionExecuted
-from rasa.shared.core.generator import TrackerWithCachedStates
-from rasa.shared.core.trackers import (
-    DialogueStateTracker,
-    get_active_loop_name,
-    is_prev_action_listen_in_state,
-)
 from rasa.shared.nlu.constants import ACTION_NAME, INTENT_NAME_KEY
-from tqdm import tqdm
-from rasa.core.policies.rule_policy import (
-    RULES,
-    DEFAULT_ACTION_MAPPINGS,
-    RULES_FOR_LOOP_UNHAPPY_PATH,
-    RULES_NOT_IN_STORIES,
-    LOOP_WAS_INTERRUPTED,
-    DO_NOT_PREDICT_LOOP_ACTION,
-    DEFAULT_RULES,
-    LOOP_RULES,
-    LOOP_RULES_SEPARATOR
-)
+import rasa.core.test
+from rasa.core.training.training import create_action_fingerprints, ActionFingerprint
 
 logger = logging.getLogger(__name__)
 structlogger = structlog.get_logger()
 
 
+# These are Rasa Open Source default actions and overrule everything at any time.
+DEFAULT_ACTION_MAPPINGS = {
+    USER_INTENT_RESTART: ACTION_RESTART_NAME,
+    USER_INTENT_BACK: ACTION_BACK_NAME,
+    USER_INTENT_SESSION_START: ACTION_SESSION_START_NAME,
+}
+
+RULES = "rules"
+RULES_FOR_LOOP_UNHAPPY_PATH = "rules_for_loop_unhappy_path"
+RULES_NOT_IN_STORIES = "rules_not_in_stories"
+
+LOOP_WAS_INTERRUPTED = "loop_was_interrupted"
+DO_NOT_PREDICT_LOOP_ACTION = "do_not_predict_loop_action"
+
+DEFAULT_RULES = "predicting default action with intent "
+LOOP_RULES = "handling active loops and forms - "
+LOOP_RULES_SEPARATOR = " - "
+
+
+class InvalidRule(RasaException):
+    """Exception that can be raised when rules are not valid."""
+
+    def __init__(self, message: Text) -> None:
+        super().__init__()
+        self.message = message
+
+    def __str__(self) -> Text:
+        return self.message + (
+            f"\nYou can find more information about the usage of "
+            f"rules at {DOCS_URL_RULES}. "
+        )
+
+
 @DefaultV1Recipe.register(
     DefaultV1Recipe.ComponentType.POLICY_WITHOUT_END_TO_END_SUPPORT, is_trainable=True
 )
-class KRulePolicy(RulePolicy):
+class RulePolicy(MemoizationPolicy):
     """Policy which handles all the rules."""
 
     # rules use explicit json strings
@@ -121,6 +151,7 @@ class KRulePolicy(RulePolicy):
         lookup: Optional[Dict] = None,
     ) -> None:
         """Initializes the policy."""
+
         super().__init__(
             config, model_storage, resource, execution_context, featurizer, lookup
         )
@@ -234,7 +265,7 @@ class KRulePolicy(RulePolicy):
 
             # Since rule snippets and stories inside the loop contain
             # only unhappy paths, notify the loop that
-            # it was predicted after an answer to a different question, and
+            # it was predicted after an answer to a different question and
             # therefore it should not validate user input
             if (
                 # loop is predicted after action_listen in unhappy path,
@@ -676,7 +707,7 @@ class KRulePolicy(RulePolicy):
              Rules that are not present in the stories.
         """
         logger.debug("Started checking rules and stories for contradictions.")
-        # during training, we run `predict_action_probabilities` to check for
+        # during training we run `predict_action_probabilities` to check for
         # contradicting rules.
         # We silent prediction debug to avoid too many logs during these checks.
         logger_level = logger.level
@@ -815,7 +846,7 @@ class KRulePolicy(RulePolicy):
                     and value_from_conversation != value_from_rules
                 ) or (
                     # value shouldn't be set, therefore
-                    # it should be None or non-existent in the state
+                    # it should be None or non existent in the state
                     value_from_rules == SHOULD_NOT_BE_SET
                     and value_from_conversation
                     # during training `SHOULD_NOT_BE_SET` is provided. Hence, we also
@@ -1101,7 +1132,7 @@ class KRulePolicy(RulePolicy):
         ) = self._find_action_from_default_actions(tracker)
 
         # text has priority over intents including default,
-        # however loop happy path has priority overrules prediction
+        # however loop happy path has priority over rules prediction
         if default_action_name and not rules_action_name_from_text:
             return (
                 self._rule_prediction(

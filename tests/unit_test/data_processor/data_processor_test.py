@@ -1306,7 +1306,7 @@ class TestMongoProcessor:
                                       {'core_fallback_action_name': 'action_default_fallback',
                                        'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
                                        'max_history': 5,
-                                       'name': 'kairon.shared.policy.KRulePolicy'}]
+                                       'name': 'RulePolicy'}]
 
     def test_add_or_overwrite_gpt_featurizer_config_with_bot_id(self):
         bot = 'test_config'
@@ -1326,7 +1326,7 @@ class TestMongoProcessor:
                                       {'core_fallback_action_name': 'action_default_fallback',
                                        'core_fallback_threshold': 0.3, 'enable_fallback_prediction': False,
                                        'max_history': 5,
-                                       'name': 'kairon.shared.policy.KRulePolicy'}]
+                                       'name': 'RulePolicy'}]
 
     @pytest.mark.asyncio
     async def test_upload_case_insensitivity(self):
@@ -5565,7 +5565,7 @@ class TestMongoProcessor:
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.3, 'enable_fallback_prediction': True,
                                   'max_history': 5,
-                                  'name': 'kairon.shared.policy.KRulePolicy'}]}
+                                  'name': 'RulePolicy'}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_get_config_properties(self):
@@ -5661,7 +5661,7 @@ class TestMongoProcessor:
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
                                   'max_history': 5,
-                                  'name': 'kairon.shared.policy.KRulePolicy'}]}
+                                  'name': 'RulePolicy'}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_get_config_properties_epoch_only(self):
@@ -5764,7 +5764,7 @@ class TestMongoProcessor:
                                                    {'name': 'FallbackClassifier', 'threshold': 0.8},
                                                    {'epochs': 5, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 5, 'name': 'TEDPolicy'},
-                                 {'name': 'kairon.shared.policy.KRulePolicy', 'max_history': 5, 'core_fallback_action_name': 'action_say_bye',
+                                 {'name': 'RulePolicy', 'max_history': 5, 'core_fallback_action_name': 'action_say_bye',
                                   'core_fallback_threshold': 0.3}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
@@ -5794,7 +5794,7 @@ class TestMongoProcessor:
                                  {'core_fallback_action_name': 'action_default_fallback',
                                   'core_fallback_threshold': 0.5, 'enable_fallback_prediction': True,
                                   'max_history': 5,
-                                  'name': 'kairon.shared.policy.KRulePolicy'}]}
+                                  'name': 'RulePolicy'}]}
         assert not DeepDiff(config, expected)
 
     def test_save_component_properties_all_nlu_fallback_update_threshold(self):
@@ -5833,7 +5833,7 @@ class TestMongoProcessor:
                                                    {'epochs': 10, 'name': 'ResponseSelector'}],
                     'policies': [{'name': 'MemoizationPolicy'}, {'epochs': 10, 'max_history': 5, 'name': 'TEDPolicy'},
                                  {'core_fallback_action_name': 'action_say_bye', 'core_fallback_threshold': 0.3,
-                                  'enable_fallback_prediction': True, 'max_history': 5,'name': 'kairon.shared.policy.KRulePolicy'}]}
+                                  'enable_fallback_prediction': True, 'max_history': 5,'name': 'RulePolicy'}]}
         assert not DeepDiff(config, expected, ignore_order=True)
 
     def test_save_component_properties_all_action_fallback_update(self):
