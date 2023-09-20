@@ -1513,6 +1513,12 @@ class TestAccountProcessor:
         assert value[0]["username"] == "nupur.khare@digite.com"
         assert value[0]["timestamp"]
 
+    def test_authenticate_method_login_limit_exceeded(self):
+        username = "nupur.khare@digite.com"
+        password = "Welcome@15"
+        with pytest.raises(AppException, match='Login limit exhausted for today.'):
+            Authentication.authenticate(username, password)
+
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'
         user = 'test_user'

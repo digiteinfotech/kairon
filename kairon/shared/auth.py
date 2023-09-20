@@ -11,10 +11,12 @@ from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from kairon.api.models import TokenData
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import PluginTypes
-from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
+from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES, AuditlogActions
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -79,7 +81,8 @@ class Authentication:
                 if iat_val is not None:
                     issued_at = datetime.utcfromtimestamp(iat_val)
                     if Utility.is_exist(
-                            UserActivityLog, raise_error=False, user=username, type=UserActivityType.reset_password.value,
+                            AuditLogData, raise_error=False, user=username, action=AuditlogActions.ACTIVITY.value,
+                            entity=UserActivityType.reset_password.value,
                             timestamp__gte=issued_at, check_base_fields=False):
                         raise HTTPException(
                             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -189,6 +192,7 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        UserActivityLogger.login_limit_exceeded(user.get('account'), MetricType.login.value)
         return Authentication.generate_login_tokens(user, True)
 
     @staticmethod
