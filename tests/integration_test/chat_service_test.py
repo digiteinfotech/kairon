@@ -1394,7 +1394,7 @@ def test_whatsapp_valid_order_message_request():
     actual = response.json()
     assert actual == 'success'
     assert len(whatsapp_msg_handler.call_args[0]) == 5
-    assert whatsapp_msg_handler.call_args[0][1] == '/k_order_msg{"order": "{\'catalog_id\': \'538971028364699\', \'product_items\': [{\'product_retailer_id\': \'akuba13e44\', \'quantity\': 1, \'item_price\': 200, \'currency\': \'INR\'}, {\'product_retailer_id\': \'0z10aj0bmq\', \'quantity\': 1, \'item_price\': 600, \'currency\': \'INR\'}]}"}'
+    assert whatsapp_msg_handler.call_args[0][1] == '/k_order_msg{"order": {\'catalog_id\': \'538971028364699\', \'product_items\': [{\'product_retailer_id\': \'akuba13e44\', \'quantity\': 1, \'item_price\': 200, \'currency\': \'INR\'}, {\'product_retailer_id\': \'0z10aj0bmq\', \'quantity\': 1, \'item_price\': 600, \'currency\': \'INR\'}]}}'
     assert whatsapp_msg_handler.call_args[0][2] == '919876543210'
     metadata = whatsapp_msg_handler.call_args[0][3]
     metadata.pop("timestamp")
