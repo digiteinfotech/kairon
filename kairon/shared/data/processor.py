@@ -5538,7 +5538,7 @@ class MongoProcessor:
             }
         elif logtype == LogType.audit_logs.value:
             filter_query = {
-                "metadata__value": bot,
+                "metadata": [{'key': 'Bot_id', 'value': bot}],
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }
