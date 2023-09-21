@@ -25,11 +25,11 @@ class UserActivityLogger:
     @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):
         reset_password_request_limit = Utility.environment['user']['reset_password_request_limit']
-        reset_password_request_count = AuditLogData.objects(audit__Bot_id=None,
-                                                            user=email, action=AuditlogActions.ACTIVITY.value,
-                                                            entity=UserActivityType.reset_password_request.value,
-                                                            timestamp__gte=datetime.utcnow().date()
-                                                            ).count()
+        reset_password_request_count = AuditLogData.objects(
+            user=email, action=AuditlogActions.ACTIVITY.value,
+            entity=UserActivityType.reset_password_request.value,
+            timestamp__gte=datetime.utcnow().date()
+        ).count()
         if reset_password_request_count >= reset_password_request_limit:
             raise AppException('Password reset limit exhausted for today.')
 
@@ -41,10 +41,10 @@ class UserActivityLogger:
                 AuditLogData, raise_error=False, user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.reset_password.value,
                 timestamp__gte=cooldown_period, check_base_fields=False
         ):
-            log = AuditLogData.objects(audit__Bot_id=None,
-                                       user=email, action=AuditlogActions.ACTIVITY.value,
-                                       entity=UserActivityType.reset_password.value,
-                                       timestamp__gte=cooldown_period).get()
+            log = AuditLogData.objects(
+                user=email, action=AuditlogActions.ACTIVITY.value,
+                entity=UserActivityType.reset_password.value,
+                timestamp__gte=cooldown_period).get()
             raise AppException(
                 f'Password reset limit exhausted. Please come back in '
                 f'{str(timedelta(seconds=(datetime.utcnow() - log.timestamp).seconds))}'
