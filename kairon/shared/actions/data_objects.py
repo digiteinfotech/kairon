@@ -17,7 +17,7 @@ from validators import email
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
     EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
-from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.audit.base_data import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import LlmPromptType, LlmPromptSource

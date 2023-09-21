@@ -14,7 +14,7 @@ from mongoengine.errors import ValidationError
 from validators import email, ValidationFailure
 
 from kairon.shared.constants import UserActivityType
-from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.audit.base_data import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.utils import Utility
