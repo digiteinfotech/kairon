@@ -64,7 +64,7 @@ from websockets import connect
 from .actions.models import ActionParameterType
 from .constants import EventClass
 from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
-from .data.base_data import AuditLogData
+from kairon.shared.data.audit.base_data import AuditLogData
 from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource, CognitionMetadataType
@@ -1606,7 +1606,7 @@ class Utility:
             action = kwargs.get("action")
         except AttributeError:
             action = kwargs.get("action")
-        audit_log = AuditLogData(audit=audit,
+        audit_log = AuditLogData(metadata=audit,
                                  user=user,
                                  action=action,
                                  entity=entity,
@@ -1626,9 +1626,9 @@ class Utility:
         except AttributeError:
             action = kwargs.get("action")
 
-        audit = Utility.get_auditlog_id_and_mapping(document)
+        audit = {"key": "Bot_id", "value": Utility.get_auditlog_id_and_mapping(document)}
 
-        audit_log = AuditLogData(audit=audit,
+        audit_log = AuditLogData(metadata=audit,
                                  user=document.user,
                                  action=action,
                                  entity=name,
@@ -1640,12 +1640,10 @@ class Utility:
     def get_auditlog_id_and_mapping(document):
         try:
             auditlog_id = document.bot.__str__()
-            mapping = "Bot_id"
         except AttributeError:
             auditlog_id = document.id.__str__()
-            mapping = f"{document._class_name.__str__()}_id"
 
-        return {mapping: auditlog_id}
+        return auditlog_id
 
     @staticmethod
     def publish_auditlog(auditlog, **kwargs):
@@ -1653,10 +1651,10 @@ class Utility:
         from mongoengine.errors import DoesNotExist
 
         try:
-            if auditlog.audit.get("Bot_id") is None:
+            if auditlog.metadata.value is None:
                 logger.debug("Only bot level event config is supported as of")
                 return
-            event_config = EventConfig.objects(bot=auditlog.audit.get("Bot_id")).get()
+            event_config = EventConfig.objects(bot=auditlog.metadata.value).get()
 
             headers = json.loads(Utility.decrypt_message(event_config.headers))
             ws_url = event_config.ws_url
@@ -1855,15 +1853,13 @@ class Utility:
 
     @staticmethod
     def get_client_ip(request):
-        try:
-            client_ip = request.client.host
-        except AttributeError:
-            client_ip = request.headers.get('X-Forwarded-For')
-            if client_ip and "," in client_ip:
-                client_ip = client_ip.split(",")[0].strip() if client_ip else None
+        client_ip = request.headers.get('X-Forwarded-For')
+        if not client_ip:
+            try:
+                client_ip = request.client.host
+            except AttributeError:
+                client_ip = request.headers.get('X-Real-IP')
 
-        if client_ip is None:
-            client_ip = request.headers.get('X-Real-IP')
         return client_ip
 
     @staticmethod

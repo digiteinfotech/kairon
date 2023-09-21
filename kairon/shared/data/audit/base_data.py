@@ -1,21 +1,24 @@
-from mongoengine import Document, StringField, DateTimeField, DictField, queryset_manager, ListField
 from datetime import datetime
+
+from mongoengine import Document, StringField, DateTimeField, DictField, DynamicField, EmbeddedDocument, \
+    EmbeddedDocumentField
 
 from kairon.shared.data.constant import AuditlogActions
 from kairon.shared.data.signals import auditlog
 
 
+class Metadata(EmbeddedDocument):
+    key = StringField()
+    value = DynamicField()
+
+
 class AuditLogData(Document):
-    audit = DictField(required=True)
+    metadata = EmbeddedDocumentField(Metadata, required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     action = StringField(required=True, choices=[action.value for action in AuditlogActions])
     entity = StringField(required=True)
     data = DictField()
-
-    @queryset_manager
-    def objects(cls, queryset):
-        return queryset.order_by('-timestamp')
 
 
 class Auditlog(Document):

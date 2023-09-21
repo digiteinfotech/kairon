@@ -33,7 +33,7 @@ from kairon.exceptions import AppException
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import TemplateType, StoryStepType, StoryType, CognitionDataType, CognitionMetadataType
 from kairon.shared.utils import Utility
-from .base_data import Auditlog
+from kairon.shared.data.audit.base_data import Auditlog
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
 

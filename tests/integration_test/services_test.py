@@ -15978,7 +15978,7 @@ def test_get_auditlog_for_user_1():
     assert actual["data"][0]["user"] == email
 
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["audit"]["Bot_id"] is not None
+    assert actual["data"][0]["metadata"]["value"] is not None
 
 
 def test_get_auditlog_for_bot():
@@ -16825,7 +16825,7 @@ def test_get_client_ip(monkeypatch):
         "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
         headers=headers
     )
-    assert Utility.get_client_ip(response.request) == "10.0.0.2"
+    assert Utility.get_client_ip(response.request) == "10.0.0.2, 10.0.1.1"
 
     headers = {"X-Real-IP": "10.0.0.3"}
     response = client.post(

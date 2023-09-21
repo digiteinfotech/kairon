@@ -3,7 +3,7 @@ from typing import Text
 
 from kairon.exceptions import AppException
 from kairon.shared.constants import UserActivityType
-from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.audit.base_data import AuditLogData
 from kairon.shared.data.constant import AuditlogActions
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
@@ -17,7 +17,7 @@ class UserActivityLogger:
 
         audit_data = {'message': message}
         audit_data.update(data) if data else None
-        audit = {'Bot_id': bot}
+        audit = {'key': "Bot_id", "value": bot}
         kwargs = {'action': AuditlogActions.ACTIVITY.value}
         user_detail = email if email else AccountProcessor.get_account(account)['user']
         Utility.save_auditlog_document(audit, user_detail, a_type, audit_data, **kwargs)
@@ -29,7 +29,7 @@ class UserActivityLogger:
             user=email, action=AuditlogActions.ACTIVITY.value,
             entity=UserActivityType.reset_password_request.value,
             timestamp__gte=datetime.utcnow().date()
-        ).count()
+        ).order_by('-timestamp').count()
         if reset_password_request_count >= reset_password_request_limit:
             raise AppException('Password reset limit exhausted for today.')
 

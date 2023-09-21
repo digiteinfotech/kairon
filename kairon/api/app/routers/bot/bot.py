@@ -28,7 +28,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     VIEW_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
-from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.audit.base_data import AuditLogData
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
     TrainingDataSourceType
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
@@ -1538,7 +1538,7 @@ async def list_bot_assets(
     return Response(data={"assets": list(AssetsProcessor.list_assets(current_user.get_bot()))})
 
 
-@router.post("/audit/event/config", response_model=Response)
+@router.post("/metadata/event/config", response_model=Response)
 async def set_auditlog_config(request_data: EventConfig,
                               current_user: User = Security(Authentication.get_current_user_and_bot,
                                                             scopes=DESIGNER_ACCESS)):
@@ -1546,7 +1546,7 @@ async def set_auditlog_config(request_data: EventConfig,
     return {"message": "Event config saved"}
 
 
-@router.get("/audit/event/config", response_model=Response)
+@router.get("/metadata/event/config", response_model=Response)
 async def get_auditlog_config(current_user: User = Security(Authentication.get_current_user_and_bot,
                                                             scopes=DESIGNER_ACCESS)):
     data = mongo_processor.get_auditlog_event_config(current_user.get_bot())

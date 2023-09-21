@@ -12,10 +12,11 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 
 from kairon.api.models import TokenData
 from kairon.shared.account.activity_log import UserActivityLogger
+from kairon.shared.account.data_objects import UserActivityType
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import PluginTypes
-from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.audit.base_data import AuditLogData
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES, AuditlogActions
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
@@ -24,7 +25,6 @@ from kairon.shared.models import User
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.sso.factory import LoginSSOFactory
 from kairon.shared.utils import Utility, MailUtility
-from kairon.shared.account.data_objects import UserActivityLog, UserActivityType
 
 Utility.load_environment()
 

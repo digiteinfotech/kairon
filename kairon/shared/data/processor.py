@@ -45,6 +45,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
     LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
+from kairon.shared.data.audit.base_data import AuditLogData
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -52,7 +53,6 @@ from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, Ht
     LlmPromptSource, CognitionDataType
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
-from .base_data import AuditLogData
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -3547,7 +3547,7 @@ class MongoProcessor:
         """
         query = {"bot": bot}
         if document.__name__ == "AuditLogData":
-            query = {"audit__Bot_id": bot}
+            query = {"metadata__value": bot}
         kwargs.update(query)
         return document.objects(**kwargs).count()
 
@@ -5500,8 +5500,8 @@ class MongoProcessor:
         if not to_date:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
-        data_filter = {"audit__Bot_id": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
-        auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').to_json()
+        data_filter = {"metadata": {"key": 'Bot_id', "value": bot}, "timestamp__gte": from_date, "timestamp__lte": to_date}
+        auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by('-timestamp').to_json()
         return json.loads(auditlog_data)
 
     def get_logs(self, bot: Text, logtype: str, start_time: datetime, end_time: datetime):
@@ -5536,7 +5536,7 @@ class MongoProcessor:
             }
         elif logtype == LogType.audit_logs.value:
             filter_query = {
-                "audit__Bot_id": bot,
+                "metadata__value": bot,
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }
