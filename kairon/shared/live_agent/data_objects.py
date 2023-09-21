@@ -2,7 +2,7 @@ from mongoengine import Document, StringField, DictField, DateTimeField, Validat
 from datetime import datetime
 
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.audit.base_data import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 

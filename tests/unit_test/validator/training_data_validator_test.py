@@ -5,7 +5,6 @@ import pytest
 
 from kairon.exceptions import AppException
 from kairon.importer.validator.file_validator import TrainingDataValidator
-from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.utils import Utility
 
 

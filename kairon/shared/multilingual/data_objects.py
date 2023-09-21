@@ -1,6 +1,6 @@
 from mongoengine import StringField, BooleanField, DateTimeField, IntField
 
-from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.audit.base_data import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from datetime import datetime
 
