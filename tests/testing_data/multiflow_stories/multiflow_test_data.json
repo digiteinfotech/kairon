@@ -12,8 +12,8 @@
         {"step": {"name": "utter_mood", "type": "BOT", "node_id": "4", "component_id": "ksos09"},
          "connections": null
          }
-    ], "metadata": null, "start_checkpoints": ["STORY_START"],
-     "end_checkpoints": [], "template_type": "CUSTOM"},
+    ], "start_checkpoints": ["STORY_START"],
+     "template_type": "CUSTOM"},
     {"block_name": "mf_two", "events": [
         {"step": {"name": "greet", "type": "INTENT", "node_id": "1", "component_id": "ksos09"},
          "connections": [{"name": "utter_greet", "type": "BOT", "node_id": "2", "component_id": "ksos09"}]
