@@ -26,7 +26,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         **kwargs: Dict[Text, Any],
     ) -> None:
 
-        if Utility.environment["env"] == "test":
+        if Utility.environment.get("env") == "test":
             from mongomock import MongoClient, Database
 
             self.client = MongoClient(
