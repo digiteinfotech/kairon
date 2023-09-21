@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from typing import Text
 
 from kairon.exceptions import AppException
-from kairon.shared.account.data_objects import User
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.base_data import AuditLogData
 from kairon.shared.data.constant import AuditlogActions
@@ -18,7 +17,7 @@ class UserActivityLogger:
 
         audit_data = {'message': message}
         audit_data.update(data) if data else None
-        audit = {'Bot_id': bot.__str__(), 'account': account}
+        audit = {'Bot_id': bot}
         kwargs = {'action': AuditlogActions.ACTIVITY.value}
         user_detail = email if email else AccountProcessor.get_account(account)['user']
         Utility.save_auditlog_document(audit, user_detail, a_type, audit_data, **kwargs)
@@ -26,7 +25,7 @@ class UserActivityLogger:
     @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):
         reset_password_request_limit = Utility.environment['user']['reset_password_request_limit']
-        reset_password_request_count = AuditLogData.objects(audit__Bot_id='None',
+        reset_password_request_count = AuditLogData.objects(audit__Bot_id=None,
                                                             user=email, action=AuditlogActions.ACTIVITY.value,
                                                             entity=UserActivityType.reset_password_request.value,
                                                             timestamp__gte=datetime.utcnow().date()
@@ -42,7 +41,7 @@ class UserActivityLogger:
                 AuditLogData, raise_error=False, user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.reset_password.value,
                 timestamp__gte=cooldown_period, check_base_fields=False
         ):
-            log = AuditLogData.objects(audit__Bot_id='None',
+            log = AuditLogData.objects(audit__Bot_id=None,
                                        user=email, action=AuditlogActions.ACTIVITY.value,
                                        entity=UserActivityType.reset_password.value,
                                        timestamp__gte=cooldown_period).get()
