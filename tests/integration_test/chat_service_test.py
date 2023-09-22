@@ -354,7 +354,6 @@ def test_chat_with_data_not_present():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
-    print(actual["message"])
     assert actual["message"] == [{'loc': ['body', 'data'], 'msg': 'field required', 'type': 'value_error.missing'}]
 
 
