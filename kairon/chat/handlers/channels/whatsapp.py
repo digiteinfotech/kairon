@@ -1,3 +1,4 @@
+import json
 from typing import Optional, Dict, Text, Any, List, Union
 
 from rasa.core.channels import OutputChannel, UserMessage
@@ -49,7 +50,11 @@ class Whatsapp:
                 message['type'] = "audio"
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
         elif message.get("order"):
-            text = f"/k_order_msg{{\"{message['type']}\": {message['order']}}}"
+            logger.debug(message['order'])
+            slot_val = message['order']
+            if isinstance(message['order'], dict):
+                slot_val = json.dumps(message['order'])
+            text = f"/k_order_msg{{\"{message['type']}\": {slot_val}"
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
