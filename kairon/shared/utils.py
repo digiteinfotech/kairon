@@ -61,11 +61,10 @@ from validators import ValidationFailure
 from validators import email as mail_check
 from websockets import connect
 
-from kairon.shared.data.audit.data_objects import AuditLogData
 from .actions.models import ActionParameterType
 from .constants import EventClass
 from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
-from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
+from .data.constant import TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource, CognitionMetadataType
 from ..exceptions import AppException
