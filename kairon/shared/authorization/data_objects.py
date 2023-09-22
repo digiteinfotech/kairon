@@ -5,7 +5,7 @@ from mongoengine import (
 )
 from mongoengine.errors import ValidationError
 
-from kairon.shared.data.audit.base_data import Auditlog
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
 from kairon.shared.data.signals import auditlogger
 from kairon.shared.utils import Utility

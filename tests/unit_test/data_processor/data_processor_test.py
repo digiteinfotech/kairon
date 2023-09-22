@@ -50,7 +50,7 @@ from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.constants import SLOT_SET_TYPE
-from kairon.shared.data.audit.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
@@ -14044,16 +14044,16 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            metadata=[{"key": "Bot_id", "value": "test"}], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            metadata=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            metadata=[{"key": "Bot_id", "value": "test"}], user="test", timestamp=start_time - timedelta(days=366),
+            metadata=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time - timedelta(days=366),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            metadata=[{"key": "Bot_id", "value": "test"}], user="test", timestamp=start_time - timedelta(days=480),
+            metadata=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time - timedelta(days=480),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
@@ -14835,7 +14835,7 @@ class TestModelProcessor:
         assert result.get("method") == "GET"
 
     def test_auditlog_for_chat_client_config(self):
-        auditlog_data = list(AuditLogData.objects(metadata=[{"key": "Bot_id", "value": "test"}], user='testUser', entity='ChatClientConfig').order_by('-timestamp'))
+        auditlog_data = list(AuditLogData.objects(metadata=[{"key": "bot", "value": "test"}], user='testUser', entity='ChatClientConfig').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
         assert auditlog_data[0].metadata[0]["value"] == "test"
@@ -14843,7 +14843,7 @@ class TestModelProcessor:
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(AuditLogData.objects(metadata=[{"key": "Bot_id", "value": "tests"}], user='testUser', action='save', entity='Intents').order_by('-timestamp'))
+        auditlog_data = list(AuditLogData.objects(metadata=[{"key": "bot", "value": "tests"}], user='testUser', action='save', entity='Intents').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
         assert auditlog_data[0].metadata[0]["value"] == "tests"
@@ -14851,7 +14851,7 @@ class TestModelProcessor:
         assert auditlog_data[0].entity == "Intents"
 
         auditlog_data = list(
-            AuditLogData.objects(metadata=[{"key": "Bot_id", "value": "tests"}], user='testUser', action='delete', entity='Intents').order_by('-timestamp'))
+            AuditLogData.objects(metadata=[{"key": "bot", "value": "tests"}], user='testUser', action='delete', entity='Intents').order_by('-timestamp'))
         # No hard delete supported for intents
         assert len(auditlog_data) == 0
 

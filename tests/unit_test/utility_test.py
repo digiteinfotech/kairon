@@ -22,7 +22,8 @@ from mongoengine.queryset.visitor import Q
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider, UserActivityType
-from kairon.shared.data.audit.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
+from kairon.shared.data.audit.processor import AuditProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
 from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, LLMSettings
 from kairon.shared.data.utils import DataUtility
@@ -1655,22 +1656,22 @@ class TestUtility:
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
                                    user=user,
                                    ws_url="http://localhost:5000/event_url")
         kwargs = {"action": "save"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(metadata=[{"key": "Bot_id", "value": bot}], user=user, action="save").count()
+        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(metadata=[{"key": "bot", "value": bot}], user=user, action="save").count()
         assert count == 1
 
     def test_save_and_publish_auditlog_action_save_another(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1679,15 +1680,15 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}",
                                    method="GET")
         kwargs = {"action": "save"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(metadata=[{"key": "Bot_id", "value": bot}], user=user, action="save").count()
+        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(metadata=[{"key": "bot", "value": bot}], user=user, action="save").count()
         assert count == 2
 
     def test_save_and_publish_auditlog_action_update(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1695,15 +1696,15 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(metadata=[{"key": "Bot_id", "value": bot}], user=user, action="update").count()
+        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(metadata=[{"key": "bot", "value": bot}], user=user, action="update").count()
         assert count == 1
 
     def test_save_and_publish_auditlog_total_count(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1711,8 +1712,8 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(metadata=[{"key": "Bot_id", "value": bot}], user=user).count()
+        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(metadata=[{"key": "bot", "value": bot}], user=user).count()
         assert count >= 3
 
     def test_save_and_publish_auditlog_total_count_with_event_url(self, monkeypatch):
@@ -1726,8 +1727,8 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(metadata=[{"key": "Bot_id", "value": bot}], user=user).count()
+        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(metadata=[{"key": "bot", "value": bot}], user=user).count()
         assert count >= 3
 
     @responses.activate
@@ -1741,7 +1742,7 @@ class TestUtility:
                 "client_secret": "cf92180a7634d90bf42a217408376878"
             }
         auditlog_data = {
-            "metadata": [{"key": "Bot_id", "value": bot}],
+            "metadata": [{"key": "bot", "value": bot}],
             "user": user,
             "action": "update",
             "entity": "Channels",
@@ -1762,19 +1763,19 @@ class TestUtility:
             status=200
         )
 
-        Utility.publish_auditlog(AuditLogData(**auditlog_data))
-        count = AuditLogData.objects(metadata=[{"key": "Bot_id", "value": bot}], user=user).count()
+        AuditProcessor.publish_auditlog(AuditLogData(**auditlog_data))
+        count = AuditLogData.objects(metadata=[{"key": "bot", "value": bot}], user=user).count()
         assert count == 1
 
     def test_save_auditlog_document_with_missing_action(self):
         bot = 'test_bot'
-        audit = [{"key": "Bot_id", "value": bot}]
+        audit = [{"key": "bot", "value": bot}]
         user = "testsampleUser"
         entity = UserActivityType.reset_password.value
         data = {'status': 'pending'}
         kwargs = {'message': ['Reset password']}
         with pytest.raises(ValidationError):
-            Utility.save_auditlog_document(audit, user, entity, data, **kwargs)
+            AuditProcessor.save_auditlog_document(audit, user, entity, data, **kwargs)
 
     @pytest.mark.asyncio
     async def test_messageConverter_whatsapp_button_two(self):

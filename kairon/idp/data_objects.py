@@ -8,7 +8,7 @@ from mongoengine import (
 )
 
 from kairon.idp.constants import IDPConfigType
-from kairon.shared.data.audit.base_data import Auditlog
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import auditlogger
 from kairon.shared.utils import Utility
 

@@ -16,7 +16,7 @@ from kairon.shared.account.data_objects import UserActivityType
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import PluginTypes
-from kairon.shared.data.audit.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES, AuditlogActions
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType

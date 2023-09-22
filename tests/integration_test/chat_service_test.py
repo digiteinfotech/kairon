@@ -22,7 +22,6 @@ from kairon.chat.server import app
 from kairon.chat.utils import ChatUtils
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
-from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor

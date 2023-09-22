@@ -3,7 +3,8 @@ from typing import Text
 
 from kairon.exceptions import AppException
 from kairon.shared.constants import UserActivityType
-from kairon.shared.data.audit.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
+from kairon.shared.data.audit.processor import AuditProcessor
 from kairon.shared.data.constant import AuditlogActions
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
@@ -17,10 +18,10 @@ class UserActivityLogger:
 
         audit_data = {'message': message}
         audit_data.update(data) if data else None
-        audit = [{'key': "Bot_id", "value": bot}]
+        audit = [{'key': "bot", "value": bot}]
         kwargs = {'action': AuditlogActions.ACTIVITY.value}
         user_detail = email if email else AccountProcessor.get_account(account)['user']
-        Utility.save_auditlog_document(audit, user_detail, a_type, audit_data, **kwargs)
+        AuditProcessor.save_auditlog_document(audit, user_detail, a_type, audit_data, **kwargs)
 
     @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):

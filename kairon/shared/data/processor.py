@@ -45,7 +45,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
     LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
-from kairon.shared.data.audit.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -5500,7 +5500,7 @@ class MongoProcessor:
         if not to_date:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
-        data_filter = {"metadata": [{"key": 'Bot_id', "value": bot}], "timestamp__gte": from_date,
+        data_filter = {"metadata": [{"key": 'bot', "value": bot}], "timestamp__gte": from_date,
                        "timestamp__lte": to_date}
         auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by(
             '-timestamp').to_json()
@@ -5536,19 +5536,22 @@ class MongoProcessor:
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }
+            query = logs[logtype].objects(**filter_query).to_json()
         elif logtype == LogType.audit_logs.value:
             filter_query = {
-                "metadata": [{'key': 'Bot_id', 'value': bot}],
+                "metadata": [{'key': 'bot', 'value': bot}],
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }
+            query = logs[logtype].objects(**filter_query).order_by('-timestamp').to_json()
         else:
             filter_query = {
                 "bot": bot,
                 "start_timestamp__gte": start_time,
                 "start_timestamp__lte": end_time
             }
-        value = json.loads(logs[logtype].objects(**filter_query).order_by('-timestamp').to_json())
+            query = logs[logtype].objects(**filter_query).to_json()
+        value = json.loads(query)
         return value
     
     def delete_audit_logs(self):
