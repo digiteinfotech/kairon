@@ -12,7 +12,7 @@ import pytest
 import requests
 import responses
 from fastapi import UploadFile
-from mongoengine import connect
+from mongoengine import connect, ValidationError
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
@@ -21,7 +21,7 @@ from websockets import InvalidStatusCode
 from mongoengine.queryset.visitor import Q
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
-from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
+from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider, UserActivityType
 from kairon.shared.data.audit.base_data import AuditLogData
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
 from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, LLMSettings
@@ -1765,6 +1765,16 @@ class TestUtility:
         Utility.publish_auditlog(AuditLogData(**auditlog_data))
         count = AuditLogData.objects(metadata=[{"key": "Bot_id", "value": bot}], user=user).count()
         assert count == 1
+
+    def test_save_auditlog_document_with_missing_action(self):
+        bot = 'test_bot'
+        audit = [{"key": "Bot_id", "value": bot}]
+        user = "testsampleUser"
+        entity = UserActivityType.reset_password.value
+        data = {'status': 'pending'}
+        kwargs = {'message': ['Reset password']}
+        with pytest.raises(ValidationError):
+            Utility.save_auditlog_document(audit, user, entity, data, **kwargs)
 
     @pytest.mark.asyncio
     async def test_messageConverter_whatsapp_button_two(self):
