@@ -113,7 +113,7 @@ events:
   queue:
     type: ${EVENTS_QUEUE_TYPE:"mongo"}
     url: ${EVENTS_QUEUE_URL:"mongodb://localhost:27017/events"}
-    name: kairon_events
+    name: ${EVENTS_DB_NAME:"kairon_events"}
   task_definition:
     model_training: ${MODEL_TRAINING_TASK_DEFINITION}
     model_testing: ${MODEL_TESTING_TASK_DEFINITION}
@@ -123,7 +123,7 @@ events:
     data_generator: ${DATA_GENERATION_TASK_DEFINITION}
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
-    pyscript: ${PYSCRIPT_TASK_DEFINITION}
+    pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
   scheduler:
