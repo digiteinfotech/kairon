@@ -4,7 +4,7 @@ from mongoengine import StringField, DateTimeField, ListField, EmbeddedDocumentF
     ValidationError, IntField, DynamicDocument, DynamicField, URLField
 
 from kairon.shared.custom_widgets.constants import CustomWidgetParameterType
-from kairon.shared.data.audit.base_data import Auditlog
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 
 
