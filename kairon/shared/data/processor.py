@@ -5548,7 +5548,7 @@ class MongoProcessor:
                 "start_timestamp__gte": start_time,
                 "start_timestamp__lte": end_time
             }
-        value = json.loads(logs[logtype].objects(**filter_query).to_json())
+        value = json.loads(logs[logtype].objects(**filter_query).order_by('-timestamp').to_json())
         return value
     
     def delete_audit_logs(self):

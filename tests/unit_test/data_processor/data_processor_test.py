@@ -15064,10 +15064,10 @@ class TestModelProcessor:
         Channels(bot=bot, user=user, connector_type=connector_type, config=config, meta_config=meta_config).save()
 
         auditlog_data = processor.get_logs("secret", "audit_logs", start_time, end_time)
-        assert auditlog_data[1]["metadata"][0]["value"] == bot
-        assert auditlog_data[1]["entity"] == "Channels"
-        assert auditlog_data[1]["data"]["config"] != config
-
         assert auditlog_data[0]["metadata"][0]["value"] == bot
-        assert auditlog_data[0]["entity"] == "KeyVault"
-        assert auditlog_data[0]["data"]["value"] != value
+        assert auditlog_data[0]["entity"] == "Channels"
+        assert auditlog_data[0]["data"]["config"] != config
+
+        assert auditlog_data[2]["metadata"][0]["value"] == bot
+        assert auditlog_data[2]["entity"] == "KeyVault"
+        assert auditlog_data[2]["data"]["value"] != value
