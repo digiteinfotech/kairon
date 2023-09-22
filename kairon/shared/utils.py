@@ -1634,7 +1634,7 @@ class Utility:
                                  entity=name,
                                  data=document.to_mongo().to_dict())
         audit_log.save()
-        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
+        Utility.publish_auditlog_after_saving(audit_log, event_url=kwargs.get("event_url"))
 
 
     @staticmethod
