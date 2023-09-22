@@ -1,7 +1,8 @@
 import datetime
+
 from bson import ObjectId
-from mongoengine import signals, QuerySet
 from loguru import logger
+from mongoengine import signals, QuerySet
 from mongoengine.signals import Namespace
 
 _custom_signal = Namespace()
@@ -88,5 +89,5 @@ def auditlogger_handler(event1):
 
 @auditlogger_handler(auditlog)
 def auditlogger(sender, document, **kwargs):
-    from kairon import Utility
-    Utility.save_and_publish_auditlog(document, sender.__name__, **kwargs)
+    from kairon.shared.data.audit.processor import AuditProcessor
+    AuditProcessor.save_and_publish_auditlog(document, sender.__name__, **kwargs)

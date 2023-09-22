@@ -29,6 +29,7 @@ from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
@@ -5547,7 +5548,11 @@ def test_add_member_as_owner(monkeypatch):
     assert not response['success']
 
 
-def test_list_bot_invites():
+def test_list_bot_invites(monkeypatch):
+    def _login_limit_exceeded(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
     response = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
@@ -5562,6 +5567,17 @@ def test_list_bot_invites():
     assert response['data']['active_invites'][0]['bot_name'] == 'Hi-Hello'
     assert response['error_code'] == 0
     assert response['success']
+
+
+def test_login_limit_exceeded():
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+    ).json()
+    assert not response['success']
+    assert response['message'] == 'Login limit exhausted for today.'
+    assert response['data'] is None
+    assert response['error_code'] == 422
 
 
 def test_search_users(monkeypatch):
@@ -15962,7 +15978,7 @@ def test_get_auditlog_for_user_1():
     assert actual["data"][0]["user"] == email
 
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["audit"]["Bot_id"] is not None
+    assert actual["data"][0]["metadata"][0]["value"] is not None
 
 
 def test_get_auditlog_for_bot():
@@ -15983,7 +15999,11 @@ def test_get_auditlog_for_bot():
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
 
-def test_get_auditlog_for_user_2():
+def test_get_auditlog_for_user_2(monkeypatch):
+    def _login_limit_exceeded(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16432,7 +16452,11 @@ def test_get_organization():
 
 
 @responses.activate
-def test_update_organization():
+def test_update_organization(monkeypatch):
+    def _login_limit_exceeded(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16449,7 +16473,11 @@ def test_update_organization():
 
 
 @responses.activate
-def test_get_organization_after_update():
+def test_get_organization_after_update(monkeypatch):
+    def _login_limit_exceeded(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16468,6 +16496,10 @@ def test_get_organization_after_update():
 
 @responses.activate
 def test_delete_organization(monkeypatch):
+    def _login_limit_exceeded(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
     def _delete_idp(*args, **kwargs):
         return
 
@@ -16497,7 +16529,11 @@ def test_get_model_testing_logs_accuracy():
     assert response["error_code"] == 0
 
 
-def test_delete_account():
+def test_delete_account(monkeypatch):
+    def _login_limit_exceeded(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
     response_log = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
@@ -16787,7 +16823,7 @@ def test_get_client_ip(monkeypatch):
         "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
         headers=headers
     )
-    assert Utility.get_client_ip(response.request) == "10.0.0.2"
+    assert Utility.get_client_ip(response.request) == "10.0.0.2, 10.0.1.1"
 
     headers = {"X-Real-IP": "10.0.0.3"}
     response = client.post(

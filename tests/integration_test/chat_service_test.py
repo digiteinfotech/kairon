@@ -21,10 +21,11 @@ from kairon.chat.handlers.channels.messenger import MessengerHandler
 from kairon.chat.server import app
 from kairon.chat.utils import ChatUtils
 from kairon.exceptions import AppException
-from kairon.shared.account.data_objects import UserActivityLog
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.constants import UserActivityType
 from kairon.shared.data.constant import INTEGRATION_STATUS
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.data_objects import BotSettings
@@ -2074,7 +2075,7 @@ def test_chat_with_bot_after_reset_passwrd():
     access_token = Authentication.create_access_token(
         data={"sub": "resetpaswrd@chat.com", 'access-limit': ['/api/bot/.+/chat']},
     )
-    UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+    UserActivityLogger.add_log(account=1, a_type=UserActivityType.reset_password.value, email='resetpaswrd@chat.com', bot=bot)
     response = client.post(
         f"/api/bot/{bot}/chat",
         json={"data": "Hi"},
@@ -2093,7 +2094,7 @@ def test_reload_after_reset_passwrd():
     user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
     bot = user['bots']['account_owned'][0]['_id']
     access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
-    UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+    UserActivityLogger.add_log(account=1, a_type=UserActivityType.reset_password.value, email='resetpaswrd@chat.com', bot=bot)
     reload_response = client.get(
         f"/api/bot/{bot}/reload",
         headers={
@@ -2111,7 +2112,7 @@ def test_live_agent_after_reset_passwrd():
     user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
     bot = user['bots']['account_owned'][0]['_id']
     access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
-    UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+    UserActivityLogger.add_log(account=1, a_type=UserActivityType.reset_password.value, email='resetpaswrd@chat.com', bot=bot)
     live_response = client.post(
         f"/api/bot/{bot}/agent/live/2",
         json={"data": "need help"},
@@ -2221,7 +2222,7 @@ def test_get_chat_history_http_error():
     user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
     bot = user['bots']['account_owned'][0]['_id']
     access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
-    UserActivityLog(account=1, user="resetpaswrd@chat.com", type="reset_password", bot=bot).save()
+    UserActivityLogger.add_log(account=1, a_type=UserActivityType.reset_password.value, email='resetpaswrd@chat.com', bot=bot)
     reload_response = client.get(
         f"/api/bot/{bot}/conversation",
         headers={

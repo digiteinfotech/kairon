@@ -26,6 +26,7 @@ from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
+from kairon.shared.data.audit.processor import AuditProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     ORG_SETTINGS_MESSAGES, FeatureMappings
 from kairon.shared.data.data_objects import Configs, Rules, Responses
@@ -934,7 +935,7 @@ class TestAccountProcessor:
         def _publish_auditlog(*args, **kwargs):
             return
 
-        monkeypatch.setattr(Utility, "save_and_publish_auditlog", _publish_auditlog)
+        monkeypatch.setattr(AuditProcessor, "save_and_publish_auditlog", _publish_auditlog)
         account = {
             "account": "Test_Account",
             "bot": "Test",
@@ -1512,6 +1513,12 @@ class TestAccountProcessor:
         assert value[0]["metric_type"] == "login_refresh_token"
         assert value[0]["username"] == "nupur.khare@digite.com"
         assert value[0]["timestamp"]
+
+    def test_authenticate_method_login_limit_exceeded(self):
+        username = "nupur.khare@digite.com"
+        password = "Welcome@15"
+        with pytest.raises(AppException, match='Login limit exhausted for today.'):
+            Authentication.authenticate(username, password)
 
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'

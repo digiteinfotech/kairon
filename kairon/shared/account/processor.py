@@ -11,16 +11,17 @@ from pydantic import SecretStr
 from starlette.requests import Request
 from validators import ValidationFailure
 from validators import email as mail_check
+
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import Account, User, Bot, UserEmailConfirmation, Feedback, UiConfig, \
-    MailTemplates, SystemProperties, BotAccess, UserActivityLog, BotMetaData, TrustedDevice
+    MailTemplates, SystemProperties, BotAccess, BotMetaData, TrustedDevice
 from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, EmailActionConfig
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
-from kairon.shared.data.base_data import AuditLogData
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
+from kairon.shared.data.audit.data_objects import AuditLogData
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, AuditlogActions
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -794,8 +795,9 @@ class AccountProcessor:
         email = decoded_jwt.get("mail_id")
         uuid_value = decoded_jwt.get("uuid")
         if uuid_value is not None and Utility.is_exist(
-                UserActivityLog, raise_error=False, user=email, type=UserActivityType.link_usage.value,
-                data={"status": "done", "uuid": uuid_value}, check_base_fields=False
+                AuditLogData, raise_error=False, user=email, action=AuditlogActions.ACTIVITY.value,
+                entity=UserActivityType.link_usage.value,
+                data__status="done", data__uuid=uuid_value, check_base_fields=False
         ):
             raise AppException("Link is already being used, Please raise new request")
         user = User.objects(email__iexact=email, status=True).get()
@@ -803,7 +805,7 @@ class AccountProcessor:
         previous_passwrd = user.password
         if Utility.verify_password(password.strip(), previous_passwrd):
             raise AppException("You have already used that password, try another")
-        user_act_log = UserActivityLog.objects(user=email, type=UserActivityType.reset_password.value)
+        user_act_log = AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.reset_password.value).order_by('-timestamp')
         if any(act_log.data is not None and act_log.data.get("password") is not None and
                Utility.verify_password(password.strip(), act_log.data.get("password"))
                for act_log in user_act_log):
@@ -815,8 +817,9 @@ class AccountProcessor:
         UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
                                    data=data)
         if uuid_value is not None:
-            UserActivityLog.objects(user=email, type=UserActivityType.link_usage.value,
-                                      data={"status": "pending", "uuid":uuid_value})\
+            AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value,
+                                 entity=UserActivityType.link_usage.value,
+                                 data__status="pending", data__uuid=uuid_value).order_by('-timestamp') \
                 .update_one(set__data__status="done")
         return email, user.first_name
 
@@ -982,7 +985,7 @@ class AccountProcessor:
 
     @staticmethod
     def get_auditlog_for_user(user, start_idx: int = 0, page_size: int = 10):
-        auditlog_data = AuditLogData.objects(user=user).skip(start_idx).limit(page_size).exclude('id').to_json()
+        auditlog_data = AuditLogData.objects(user=user).skip(start_idx).limit(page_size).exclude('id').order_by('-timestamp').to_json()
         return json.loads(auditlog_data)
 
     @staticmethod

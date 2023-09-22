@@ -64,8 +64,7 @@ from websockets import connect
 from .actions.models import ActionParameterType
 from .constants import EventClass
 from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
-from .data.base_data import AuditLogData
-from .data.constant import TOKEN_TYPE, AuditlogActions, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
+from .data.constant import TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
 from .models import StoryStepType, LlmPromptType, LlmPromptSource, CognitionMetadataType
 from ..exceptions import AppException
@@ -1601,56 +1600,6 @@ class Utility:
         return masked_value
 
     @staticmethod
-    def save_and_publish_auditlog(document, name, **kwargs):
-        try:
-            action = kwargs.get("action")
-            if not document.status:
-                action = AuditlogActions.SOFT_DELETE.value
-        except AttributeError:
-            action = kwargs.get("action")
-
-        audit = Utility.get_auditlog_id_and_mapping(document)
-
-        audit_log = AuditLogData(audit=audit,
-                                 user=document.user,
-                                 action=action,
-                                 entity=name,
-                                 data=document.to_mongo().to_dict())
-        Utility.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
-        audit_log.save()
-
-    @staticmethod
-    def get_auditlog_id_and_mapping(document):
-        try:
-            auditlog_id = document.bot.__str__()
-            mapping = "Bot_id"
-        except AttributeError:
-            auditlog_id = document.id.__str__()
-            mapping = f"{document._class_name.__str__()}_id"
-
-        return {mapping: auditlog_id}
-
-    @staticmethod
-    def publish_auditlog(auditlog, **kwargs):
-        from .data.data_objects import EventConfig
-        from mongoengine.errors import DoesNotExist
-
-        try:
-            if auditlog.audit.get("Bot_id") is None:
-                logger.debug("Only bot level event config is supported as of")
-                return
-            event_config = EventConfig.objects(bot=auditlog.audit.get("Bot_id")).get()
-
-            headers = json.loads(Utility.decrypt_message(event_config.headers))
-            ws_url = event_config.ws_url
-            method = event_config.method
-            if ws_url:
-                Utility.execute_http_request(request_method=method, http_url=ws_url,
-                                             request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
-        except (DoesNotExist, AppException):
-            return
-
-    @staticmethod
     def is_reserved_keyword(keyword: Text):
         return keyword in {KAIRON_TWO_STAGE_FALLBACK}.union(SYSTEM_TRIGGERED_UTTERANCES)
 
@@ -1838,15 +1787,13 @@ class Utility:
 
     @staticmethod
     def get_client_ip(request):
-        try:
-            client_ip = request.client.host
-        except AttributeError:
-            client_ip = request.headers.get('X-Forwarded-For')
-            if client_ip and "," in client_ip:
-                client_ip = client_ip.split(",")[0].strip() if client_ip else None
+        client_ip = request.headers.get('X-Forwarded-For')
+        if not client_ip:
+            try:
+                client_ip = request.client.host
+            except AttributeError:
+                client_ip = request.headers.get('X-Real-IP')
 
-        if client_ip is None:
-            client_ip = request.headers.get('X-Real-IP')
         return client_ip
 
     @staticmethod
