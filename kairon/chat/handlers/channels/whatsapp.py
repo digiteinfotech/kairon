@@ -1,3 +1,4 @@
+import json
 from typing import Optional, Dict, Text, Any, List, Union
 
 from rasa.core.channels import OutputChannel, UserMessage
@@ -48,8 +49,10 @@ class Whatsapp:
             if message['type'] == "voice":
                 message['type'] = "audio"
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
-        elif message.get("order"):
-            text = f"/k_order_msg{{\"{message['type']}\": \"{message['order']}\"}}"
+        elif message.get("type") == "order":
+            logger.debug(message['order'])
+            entity = json.dumps({message["type"]: message['order']})
+            text = f"/k_order_msg{entity}"
         else:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
@@ -73,11 +76,12 @@ class Whatsapp:
     async def handle_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
         msg = "success"
         payload = await request.json()
+        request_bytes = await request.body()
         provider = self.config.get("bsp_type", "meta")
         metadata.update({"channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": provider, "tabname": "default"})
         signature = request.headers.get("X-Hub-Signature") or ""
         if provider == "meta":
-            if not MessengerHandler.validate_hub_signature(self.config["app_secret"], payload, signature):
+            if not MessengerHandler.validate_hub_signature(self.config["app_secret"], request_bytes, signature):
                 logger.warning("Wrong app secret secret! Make sure this matches the secret in your whatsapp app settings.")
                 msg = "not validated"
                 return msg
@@ -193,9 +197,9 @@ class WhatsappHandler(MessengerHandler):
 
         verify_token = messenger_conf["config"]["verify_token"]
 
-        if (self.request.query_params.get("hub.verify_token")[0]).decode() == verify_token:
-            hub_challenge = (self.request.query_params.get("hub.challenge")[0]).decode()
-            return hub_challenge
+        if self.request.query_params.get("hub.verify_token") == verify_token:
+            hub_challenge = self.request.query_params.get("hub.challenge")
+            return int(hub_challenge)
         else:
             logger.warning("Invalid verify token! Make sure this matches your webhook settings on the whatsapp app.")
             return {"status": "failure, invalid verify_token"}

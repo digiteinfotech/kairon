@@ -444,12 +444,12 @@ class TrainingDataValidator(Validator):
         story_error = []
         story_present = set()
 
-        required_fields = {k for k, v in MultiflowStories._fields.items() if v and
+        required_fields = {k for k, v in MultiflowStories._fields.items() if v.required and
                            k not in {'bot', 'user', 'timestamp', 'status', 'id'}}
         for story in multiflow_story:
             if isinstance(story, dict):
                 if len(required_fields.difference(set(story.keys()))) > 0:
-                    story_error.append(f'Required fields {required_fields} not found in story: {story.get("name")}')
+                    story_error.append(f'Required fields {required_fields} not found in story: {story.get("block_name")}')
                     continue
                 if story.get('events'):
                     errors = StoryValidator.validate_multiflow_story_steps_file_validator(story.get('events'),

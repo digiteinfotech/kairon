@@ -59,6 +59,7 @@ secure_headers = Secure(
 )
 
 app = FastAPI()
+Utility.load_environment()
 allowed_origins = Utility.environment['cors']['origin']
 app.add_middleware(
     CORSMiddleware,

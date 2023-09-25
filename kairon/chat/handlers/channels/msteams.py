@@ -55,7 +55,7 @@ class MSTeamBot(OutputChannel):
     async def _get_headers(self, refetch=False) -> Optional[Dict[Text, Any]]:
         ms_oauthurl = Utility.system_metadata["channels"][ChannelTypes.MSTEAMS.value]["MICROSOFT_OAUTH2_URL"]
         ms_oauthpath = Utility.system_metadata["channels"][ChannelTypes.MSTEAMS.value]["MICROSOFT_OAUTH2_PATH"]
-        scope = ElementTransformerOps.getChannelConfig("msteams", "scope")
+        scope = Utility.system_metadata["channels"][ChannelTypes.MSTEAMS.value]["scope"]
         if MSTeamBot.token_expiration_date < datetime.datetime.now() or refetch:
             uri = f"{ms_oauthurl}/{ms_oauthpath}"
             grant_type = "client_credentials"
@@ -293,9 +293,10 @@ class MSTeamsHandler(InputChannel, ChannelHandlerBase):
         bot = request.path_params.get('bot')
         token = request.path_params.get("token")
         messenger_conf = ChatDataProcessor.get_channel_config(ChannelTypes.MSTEAMS.value, bot, mask_characters=False)
-        hashed_token = messenger_conf["meta_config"]["secrethash"]
-        jwt_token = Utility.decrypt_message(token)
-        return hashed_token == token, jwt_token
+        secrethash = messenger_conf["meta_config"]["secrethash"]
+        secrettoken = messenger_conf["meta_config"]["secrettoken"]
+        jwt_token = Utility.decrypt_message(secrettoken)
+        return secrethash == token, jwt_token
 
     async def validate(self) :
         return {"status": "ok"}
@@ -314,7 +315,7 @@ class MSTeamsHandler(InputChannel, ChannelHandlerBase):
                 return validation_response
 
             postdata = await self.request.json()
-            metadata = self.get_metadata(self.request)
+            metadata = self.get_metadata(self.request) or {}
             metadata.update({"is_integration_user": True, "bot": self.bot, "account": self.user.account, "channel_type": "msteams",
                              "tabname": "default"})
             metadata_with_attachments = self.add_attachments_to_metadata(
