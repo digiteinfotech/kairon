@@ -7,8 +7,7 @@ import uuid
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from io import BytesIO
-from unittest import mock
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from urllib.parse import urlencode
 
 import numpy as np
@@ -19,7 +18,6 @@ import responses
 from fastapi import UploadFile
 from mongoengine import connect
 from mongoengine.queryset.visitor import Q
-from mongomock import MongoClient
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
@@ -554,7 +552,7 @@ class TestUtility:
             Utility.is_model_file_exists('invalid_bot')
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_password_reset(self, validate_and_send_mail_mock):
         mail_type = 'password_reset'
         email = "sampletest@gmail.com"
@@ -571,7 +569,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_password_reset_confirmation(self, validate_and_send_mail_mock):
         mail_type = 'password_reset_confirmation'
         email = "sampletest@gmail.com"
@@ -586,7 +584,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_verification(self, validate_and_send_mail_mock):
         mail_type = 'verification'
         email = "sampletest@gmail.com"
@@ -601,7 +599,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_verification_confirmation(self, validate_and_send_mail_mock):
         mail_type = 'verification_confirmation'
         email = "sampletest@gmail.com"
@@ -617,7 +615,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_add_member(self, validate_and_send_mail_mock):
         mail_type = 'add_member'
         email = "sampletest@gmail.com"
@@ -639,7 +637,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_add_member_confirmation(self, validate_and_send_mail_mock):
         mail_type = 'add_member_confirmation'
         email = "sampletest@gmail.com"
@@ -663,7 +661,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_update_role_member_mail(self, validate_and_send_mail_mock):
         mail_type = 'update_role_member_mail'
         email = "sampletest@gmail.com"
@@ -688,7 +686,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_update_role_owner_mail(self, validate_and_send_mail_mock):
         mail_type = 'update_role_owner_mail'
         email = "sampletest@gmail.com"
@@ -715,7 +713,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_transfer_ownership_mail(self, validate_and_send_mail_mock):
         mail_type = 'transfer_ownership_mail'
         email = "sampletest@gmail.com"
@@ -739,7 +737,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_password_generated(self, validate_and_send_mail_mock):
         mail_type = 'password_generated'
         email = "sampletest@gmail.com"
@@ -757,7 +755,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_untrusted_login(self, validate_and_send_mail_mock):
         mail_type = 'untrusted_login'
         email = "sampletest@gmail.com"
@@ -780,7 +778,7 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_add_trusted_device(self, validate_and_send_mail_mock):
         mail_type = 'add_trusted_device'
         email = "sampletest@gmail.com"
@@ -799,12 +797,12 @@ class TestUtility:
         validate_and_send_mail_mock.assert_called_once_with(email, expected_subject, expected_body)
 
     @pytest.mark.asyncio
-    @mock.patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_book_a_demo(self, validate_and_send_mail_mock):
         mail_type = 'book_a_demo'
         email = "sampletest@gmail.com"
         first_name = "sample"
-        request = mock.Mock()
+        request = MagicMock()
         request.headers = {'X-Forwarded-For': '58.0.127.89'}
         data = {
             "first_name": "sample",
@@ -1072,7 +1070,7 @@ class TestUtility:
     def test_execute_http_request_connection_error(self):
         def __mock_connection_error(*args, **kwargs):
             raise requests.exceptions.ConnectTimeout()
-        with mock.patch("kairon.shared.utils.requests.request") as mocked:
+        with patch("kairon.shared.utils.requests.request") as mocked:
             mocked.side_effect = __mock_connection_error
             with pytest.raises(AppException, match='Failed to connect to service: localhost'):
                 Utility.execute_http_request("POST", "http://localhost:2000/endpoint")
@@ -1080,7 +1078,7 @@ class TestUtility:
     def test_execute_http_request_exception(self):
         def __mock_connection_error(*args, **kwargs):
             raise Exception("Server not found")
-        with mock.patch("kairon.shared.utils.requests.sessions.Session.request") as mocked:
+        with patch("kairon.shared.utils.requests.sessions.Session.request") as mocked:
             mocked.side_effect = __mock_connection_error
             with pytest.raises(AppException, match='Failed to execute the url: Server not found'):
                 Utility.execute_http_request("POST", "http://test.com/endpoint")
@@ -2011,7 +2009,7 @@ class TestUtility:
                                  ("TESTING@test", [Numbers(1)], "Missing 1 number"),
                                  ("TestingTest", [Numbers(1), Special(1)], "Missing 1 number\nMissing 1 special letter")
                              ])
-    @mock.patch("kairon.shared.utils.Utility.password_policy.test")
+    @patch("kairon.shared.utils.Utility.password_policy.test")
     def test_valid_password(self, mock_password_policy_test, testing_password, results, err_msg):
         mock_password_policy_test.return_value = results
         with pytest.raises(AppException) as error:
@@ -2132,7 +2130,7 @@ class TestUtility:
     def test_verify_email_enable_disposable_email(self):
         email = "test@test.com"
         api_key = "test"
-        with mock.patch.dict(Utility.environment, {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
+        with patch.dict(Utility.environment, {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
             verification = QuickEmailVerification()
             responses.add(responses.GET,
                           verification.url + "?" + urlencode({"apikey": verification.key, "email": email}),
@@ -2160,7 +2158,7 @@ class TestUtility:
     def test_verify_email_enable_invalid_email(self):
         email = "test@test.com"
         api_key = "test"
-        with mock.patch.dict(Utility.environment,
+        with patch.dict(Utility.environment,
                              {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
             verification = QuickEmailVerification()
             responses.add(responses.GET,
@@ -2189,7 +2187,7 @@ class TestUtility:
     def test_verify_email_enable_valid_email(self):
         email = "test@test.com"
         api_key = "test"
-        with mock.patch.dict(Utility.environment,
+        with patch.dict(Utility.environment,
                              {'verify': {"email": {"type": "quickemail", "key": api_key, "enable": True}}}):
             verification = QuickEmailVerification()
             responses.add(responses.GET,
@@ -2518,7 +2516,8 @@ data: [DONE]\n\n"""
             GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
 
     def test_get_client_ip_with_request_client(self):
-        request = mock.Mock()
+        request = MagicMock()
+        request.headers = {}
         request.client.host = "58.0.127.89"
         ip = Utility.get_client_ip(request)
         assert "58.0.127.89" == ip

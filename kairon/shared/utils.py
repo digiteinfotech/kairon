@@ -2152,15 +2152,17 @@ class Utility:
 
     @staticmethod
     def get_client_ip(request):
-        try:
-            client_ip = request.client.host
-        except AttributeError:
+        if request.headers.get("X-Forwarded-For"):
             client_ip = request.headers.get("X-Forwarded-For")
-            if client_ip and "," in client_ip:
-                client_ip = client_ip.split(",")[0].strip() if client_ip else None
-
-        if client_ip is None:
+            if ":" in client_ip:
+                client_ip = client_ip.split(":")[0].strip()
+        elif request.headers.get("X-Real-IP"):
             client_ip = request.headers.get("X-Real-IP")
+        else:
+            if request.client:
+                client_ip = request.client.host
+            else:
+                client_ip = None
         return client_ip
 
     @staticmethod
