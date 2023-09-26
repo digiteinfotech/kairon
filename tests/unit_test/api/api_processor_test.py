@@ -2242,7 +2242,7 @@ class TestAccountProcessor:
         token = str(result[2]).split("/")[2]
         Utility.email_conf["email"]["enable"] = False
         loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
-        with pytest.raises(AppException, match='Link is already being used, Please raise new request'):
+        with pytest.raises(AppException, match='Password already reset!'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@4"))
 
     def test_valid_token_with_payload(self):

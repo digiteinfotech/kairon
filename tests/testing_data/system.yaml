@@ -127,6 +127,9 @@ events:
     pyscript: ${PYSCRIPT_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
+    attributes:
+      - account
+      - bot
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}

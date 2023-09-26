@@ -12,12 +12,11 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 
 from kairon.api.models import TokenData
 from kairon.shared.account.activity_log import UserActivityLogger
-from kairon.shared.account.data_objects import UserActivityType
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import PluginTypes
-from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES, AuditlogActions
+from kairon.shared.data.audit.processor import AuditProcessor
+from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -77,16 +76,7 @@ class Authentication:
                 user_model.alias_user = alias_user or username
                 user_model.role = payload.get('role')
             else:
-                iat_val = payload.get("iat")
-                if iat_val is not None:
-                    issued_at = datetime.utcfromtimestamp(iat_val)
-                    if Utility.is_exist(
-                            AuditLogData, raise_error=False, user=username, action=AuditlogActions.ACTIVITY.value,
-                            entity=UserActivityType.reset_password.value,):
-                        raise HTTPException(
-                            status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail='Session expired. Please login again.',
-                        )
+                AuditProcessor.is_password_reset(payload, username)
             return user_model
         except PyJWTError:
             raise credentials_exception
@@ -191,7 +181,7 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        UserActivityLogger.login_limit_exceeded(user.get('account'), MetricType.login.value)
+        UserActivityLogger.is_login_limit_exceeded(user.get('account'))
         return Authentication.generate_login_tokens(user, True)
 
     @staticmethod

@@ -134,6 +134,9 @@ events:
     min_trigger_interval: ${MIN_SCHDULER_TRIGGER_INTERVAL:86340}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
+    attributes:
+      - account
+      - bot
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://192.168.100.109:8085/evaluate"}

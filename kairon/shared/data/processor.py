@@ -3547,8 +3547,9 @@ class MongoProcessor:
         """
         query = {"bot": bot}
         if document.__name__ == "AuditLogData":
-            query = {"metadata": [{'key': 'bot', 'value': bot}]}
-        kwargs.update(query)
+            query = {
+                "attributes__key": bot}
+        kwargs.update(__raw__=query)
         return document.objects(**kwargs).count()
 
     @staticmethod
@@ -5500,7 +5501,7 @@ class MongoProcessor:
         if not to_date:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
-        data_filter = {"metadata": [{"key": "bot", "value": bot}], "timestamp__gte": from_date, "timestamp__lte": to_date}
+        data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
         auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by('-timestamp').to_json()
         return json.loads(auditlog_data)
 
@@ -5537,7 +5538,8 @@ class MongoProcessor:
             query = logs[logtype].objects(**filter_query).to_json()
         elif logtype == LogType.audit_logs.value:
             filter_query = {
-                'metadata': [{"key": "bot", "value": bot}],
+                'attributes__key': 'bot',
+                'attributes__value': bot,
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }

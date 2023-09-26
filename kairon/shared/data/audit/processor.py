@@ -1,9 +1,15 @@
 import json
+from datetime import datetime
 
+from fastapi import HTTPException
 from loguru import logger
+from mongoengine import DoesNotExist
+from starlette import status
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.constants import UserActivityType
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import AuditlogActions
 
@@ -11,12 +17,11 @@ from kairon.shared.data.constant import AuditlogActions
 class AuditProcessor:
 
     @staticmethod
-    def save_auditlog_document(audit, user, entity, data, **kwargs):
-        try:
-            action = kwargs.get("action")
-        except AttributeError:
-            action = kwargs.get("action")
-        audit_log = AuditLogData(metadata=audit,
+    def save_auditlog_document(bot, account, email, entity, data, **kwargs):
+        action = kwargs.get("action")
+        attribute = [{'key': 'bot', 'value': bot}, {'key': 'account', 'value': account}]
+        user = email if email else AccountProcessor.get_account(account)['user']
+        audit_log = AuditLogData(attributes=attribute,
                                  user=user,
                                  action=action,
                                  entity=entity,
@@ -26,16 +31,13 @@ class AuditProcessor:
 
     @staticmethod
     def save_and_publish_auditlog(document, name, **kwargs):
-        try:
-            action = kwargs.get("action")
-            if not document.status:
-                action = AuditlogActions.SOFT_DELETE.value
-        except AttributeError:
-            action = kwargs.get("action")
+        action = kwargs.get("action")
+        if hasattr(document, 'status') and not document.status:
+            action = AuditlogActions.SOFT_DELETE.value
 
-        audit = [{"key": "bot", "value": AuditProcessor.get_auditlog_id_and_mapping(document)}]
+        attribute = AuditProcessor.get_attributes(document)
 
-        audit_log = AuditLogData(metadata=audit,
+        audit_log = AuditLogData(attributes=attribute,
                                  user=document.user,
                                  action=action,
                                  entity=name,
@@ -44,13 +46,22 @@ class AuditProcessor:
         AuditProcessor.publish_auditlog(auditlog=audit_log, event_url=kwargs.get("event_url"))
 
     @staticmethod
-    def get_auditlog_id_and_mapping(document):
-        try:
-            auditlog_id = document.bot.__str__()
-        except AttributeError:
-            auditlog_id = document.id.__str__()
+    def get_attributes(document):
+        attributes_list = []
+        auditlog_id = None
+        attributes = Utility.environment['events']['audit_logs']['attributes']
+        for value in attributes:
+            attibute_info = {}
+            mapping = value
+            if value == 'account':
+                auditlog_id = None if not hasattr(document, 'account') else document.account.__str__()
+            elif value == 'bot':
+                auditlog_id = None if not hasattr(document, 'bot') else document.bot.__str__()
+            attibute_info['key'] = mapping
+            attibute_info['value'] = auditlog_id
+            attributes_list.append(attibute_info)
 
-        return auditlog_id
+        return attributes_list
 
     @staticmethod
     def publish_auditlog(auditlog, **kwargs):
@@ -58,7 +69,7 @@ class AuditProcessor:
         from mongoengine.errors import DoesNotExist
 
         try:
-            for data in auditlog.metadata:
+            for data in auditlog.attributes:
                 if data.key != 'bot' and data.value is None:
                     logger.debug("Only bot level event config is supported as of")
                     return
@@ -72,3 +83,43 @@ class AuditProcessor:
                                                  request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
         except (DoesNotExist, AppException):
             return
+
+    @staticmethod
+    def is_relogin_done(uuid_value, email):
+        if uuid_value is not None and Utility.is_exist(
+                AuditLogData, raise_error=False, user=email, action=AuditlogActions.ACTIVITY.value,
+                entity=UserActivityType.link_usage.value,
+                data__status="done", data__uuid=uuid_value, check_base_fields=False
+        ):
+            raise AppException("Password already reset!")
+
+    @staticmethod
+    def is_password_used_before(email, password):
+        user_act_log = AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value,
+                                            entity=UserActivityType.reset_password.value).order_by('-timestamp')
+        if any(act_log.data is not None and act_log.data.get("password") is not None and
+               Utility.verify_password(password.strip(), act_log.data.get("password"))
+               for act_log in user_act_log):
+            raise AppException("You have already used that password, try another")
+
+    @staticmethod
+    def update_reset_password_link_usage(uuid_value, email):
+        if uuid_value is not None:
+            AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value,
+                                 entity=UserActivityType.link_usage.value,
+                                 data__status="pending", data__uuid=uuid_value).order_by('-timestamp') \
+                .update_one(set__data__status="done")
+
+    @staticmethod
+    def is_password_reset(payload, username):
+        iat_val = payload.get("iat")
+        if iat_val is not None:
+            issued_at = datetime.utcfromtimestamp(iat_val)
+            if Utility.is_exist(
+                    AuditLogData, raise_error=False, user=username, action=AuditlogActions.ACTIVITY.value,
+                    entity=UserActivityType.reset_password.value,
+                    timestamp__gte=issued_at, check_base_fields=False):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='Session expired. Please login again.',
+                )

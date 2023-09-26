@@ -4,8 +4,8 @@ from typing import Text
 from kairon.exceptions import AppException
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.audit.processor import AuditProcessor
 from kairon.shared.data.constant import AuditlogActions
+from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.utils import Utility
 
@@ -14,14 +14,12 @@ class UserActivityLogger:
 
     @staticmethod
     def add_log(account: int, a_type: UserActivityType, email: Text = None, bot: Text = None, message: list = None, data: dict = None):
-        from kairon.shared.account.processor import AccountProcessor
+        from kairon.shared.data.audit.processor import AuditProcessor
 
         audit_data = {'message': message}
         audit_data.update(data) if data else None
-        audit = [{'key': "bot", "value": bot}]
         kwargs = {'action': AuditlogActions.ACTIVITY.value}
-        user_detail = email if email else AccountProcessor.get_account(account)['user']
-        AuditProcessor.save_auditlog_document(audit, user_detail, a_type, audit_data, **kwargs)
+        AuditProcessor.save_auditlog_document(bot, account, email, a_type, audit_data, **kwargs)
 
 
     @staticmethod
@@ -53,8 +51,8 @@ class UserActivityLogger:
             )
 
     @staticmethod
-    def login_limit_exceeded(account, metric_type):
+    def is_login_limit_exceeded(account):
         login_limit = Utility.environment['security']['login_limit']
-        login_count = MeteringProcessor.get_metric_count(account, metric_type=metric_type)
+        login_count = MeteringProcessor.get_metric_count(account, metric_type=MetricType.login)
         if login_count >= login_limit:
             raise AppException('Login limit exhausted for today.')

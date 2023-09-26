@@ -21,7 +21,7 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import UserActivityType, PluginTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, AuditlogActions
+from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -789,38 +789,27 @@ class AccountProcessor:
         :param password: new password entered by the user
         :return: mail id, mail subject and mail body
         """
+        from kairon.shared.data.audit.processor import AuditProcessor
+
         if Utility.check_empty_string(password):
             raise AppException("password cannot be empty or blank")
         decoded_jwt = Utility.verify_token(token)
         email = decoded_jwt.get("mail_id")
         uuid_value = decoded_jwt.get("uuid")
-        if uuid_value is not None and Utility.is_exist(
-                AuditLogData, raise_error=False, user=email, action=AuditlogActions.ACTIVITY.value,
-                entity=UserActivityType.link_usage.value,
-                data__status="done", data__uuid=uuid_value, check_base_fields=False
-        ):
-            raise AppException("Link is already being used, Please raise new request")
+        AuditProcessor.is_relogin_done(uuid_value,email)
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
         previous_passwrd = user.password
         if Utility.verify_password(password.strip(), previous_passwrd):
             raise AppException("You have already used that password, try another")
-        user_act_log = AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.reset_password.value).order_by('-timestamp')
-        if any(act_log.data is not None and act_log.data.get("password") is not None and
-               Utility.verify_password(password.strip(), act_log.data.get("password"))
-               for act_log in user_act_log):
-            raise AppException("You have already used that password, try another")
+        AuditProcessor.is_password_used_before(email, password)
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
         user.save()
         data = {"password": previous_passwrd}
         UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
                                    data=data)
-        if uuid_value is not None:
-            AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value,
-                                 entity=UserActivityType.link_usage.value,
-                                 data__status="pending", data__uuid=uuid_value).order_by('-timestamp') \
-                .update_one(set__data__status="done")
+        AuditProcessor.update_reset_password_link_usage(uuid_value, email)
         return email, user.first_name
 
     @staticmethod

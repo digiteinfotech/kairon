@@ -14044,16 +14044,16 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            metadata=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            attributes=[{"key": "account", "value": None}, {"key": "bot", "value": "test"}], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            metadata=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time - timedelta(days=366),
+            attributes=[{"key": "account", "value": None}, {"key": "bot", "value": "test"}], user="test", timestamp=start_time - timedelta(days=366),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            metadata=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time - timedelta(days=480),
+            attributes=[{"key": "account", "value": None}, {"key": "bot", "value": "test"}], user="test", timestamp=start_time - timedelta(days=480),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
@@ -14835,23 +14835,23 @@ class TestModelProcessor:
         assert result.get("method") == "GET"
 
     def test_auditlog_for_chat_client_config(self):
-        auditlog_data = list(AuditLogData.objects(metadata=[{"key": "bot", "value": "test"}], user='testUser', entity='ChatClientConfig').order_by('-timestamp'))
+        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "account", "value": None}, {"key": "bot", "value": "test"}], user='testUser', entity='ChatClientConfig').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
-        assert auditlog_data[0].metadata[0]["value"] == "test"
+        assert auditlog_data[0].attributes[1]["value"] == "test"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(AuditLogData.objects(metadata=[{"key": "bot", "value": "tests"}], user='testUser', action='save', entity='Intents').order_by('-timestamp'))
+        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "account", "value": None}, {"key": "bot", "value": "tests"}], user='testUser', action='save', entity='Intents').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
-        assert auditlog_data[0].metadata[0]["value"] == "tests"
+        assert auditlog_data[0].attributes[1]["value"] == "tests"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "Intents"
 
         auditlog_data = list(
-            AuditLogData.objects(metadata=[{"key": "bot", "value": "tests"}], user='testUser', action='delete', entity='Intents').order_by('-timestamp'))
+            AuditLogData.objects(attributes=[{"key": "account", "value": None}, {"key": "bot", "value": "tests"}], user='testUser', action='delete', entity='Intents').order_by('-timestamp'))
         # No hard delete supported for intents
         assert len(auditlog_data) == 0
 
@@ -15064,10 +15064,10 @@ class TestModelProcessor:
         Channels(bot=bot, user=user, connector_type=connector_type, config=config, meta_config=meta_config).save()
 
         auditlog_data = processor.get_logs("secret", "audit_logs", start_time, end_time)
-        assert auditlog_data[0]["metadata"][0]["value"] == bot
+        assert auditlog_data[0]["attributes"][1]["value"] == bot
         assert auditlog_data[0]["entity"] == "Channels"
         assert auditlog_data[0]["data"]["config"] != config
 
-        assert auditlog_data[2]["metadata"][0]["value"] == bot
+        assert auditlog_data[2]["attributes"][1]["value"] == bot
         assert auditlog_data[2]["entity"] == "KeyVault"
         assert auditlog_data[2]["data"]["value"] != value

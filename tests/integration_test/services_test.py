@@ -5552,7 +5552,7 @@ def test_list_bot_invites(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
     response = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
@@ -15972,13 +15972,14 @@ def test_get_auditlog_for_user_1():
         headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
     )
     actual = response.json()
+    print(actual)
     assert actual["data"] is not None
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
     assert actual["data"][0]["entity"] == "BotAccess"
     assert actual["data"][0]["user"] == email
 
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["metadata"][0]["value"] is not None
+    assert actual["data"][0]["attributes"][1]["value"] is not None
 
 
 def test_get_auditlog_for_bot():
@@ -15989,7 +15990,9 @@ def test_get_auditlog_for_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     audit_log_data = actual["data"]["logs"]
+    print(audit_log_data)
     assert audit_log_data is not None
     actions = [d['action'] for d in audit_log_data]
     from collections import Counter
@@ -16003,7 +16006,7 @@ def test_get_auditlog_for_user_2(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16456,7 +16459,7 @@ def test_update_organization(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16477,7 +16480,7 @@ def test_get_organization_after_update(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16499,7 +16502,7 @@ def test_delete_organization(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
     def _delete_idp(*args, **kwargs):
         return
 
@@ -16533,7 +16536,7 @@ def test_delete_account(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
     response_log = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},

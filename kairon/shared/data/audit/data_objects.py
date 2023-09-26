@@ -7,13 +7,13 @@ from kairon.shared.data.constant import AuditlogActions
 from kairon.shared.data.signals import auditlog
 
 
-class Metadata(EmbeddedDocument):
+class Attributes(EmbeddedDocument):
     key = StringField()
     value = DynamicField()
 
 
 class AuditLogData(Document):
-    metadata = ListField(EmbeddedDocumentField(Metadata, required=True))
+    attributes = ListField(EmbeddedDocumentField(Attributes, required=True))
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     action = StringField(required=True, choices=[action.value for action in AuditlogActions])
