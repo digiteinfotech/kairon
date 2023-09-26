@@ -15979,7 +15979,7 @@ def test_get_auditlog_for_user_1():
     assert actual["data"][0]["user"] == email
 
     assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["attributes"][1]["value"] is not None
+    assert actual["data"][0]["attributes"][0]["value"] is not None
 
 
 def test_get_auditlog_for_bot():

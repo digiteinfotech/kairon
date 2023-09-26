@@ -1,17 +1,18 @@
 import asyncio
 import datetime
 import os
+import time
 import uuid
 from unittest.mock import patch
 from urllib.parse import urljoin
 
 import jwt
+import pytest
 import responses
 from fastapi import HTTPException
 from fastapi_sso.sso.base import OpenID
 from mongoengine import connect
 from mongoengine.errors import ValidationError, DoesNotExist
-import pytest
 from mongomock.object_id import ObjectId
 from pydantic import SecretStr
 from pytest_httpx import HTTPXMock
@@ -20,12 +21,17 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from kairon.api.app.routers.idp import get_idp_config
+from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequest, HttpActionParameters, Password
+from kairon.exceptions import AppException
+from kairon.idp.data_objects import IdpConfig
 from kairon.idp.processor import IDPProcessor
-from kairon.shared.admin.data_objects import BotSecrets
-from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.authorization.processor import IntegrationProcessor
+from kairon.shared.constants import UserActivityType
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     ORG_SETTINGS_MESSAGES, FeatureMappings
@@ -36,10 +42,6 @@ from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility, MailUtility
-from kairon.exceptions import AppException
-import time
-from kairon.idp.data_objects import IdpConfig
-from kairon.api.models import RegisterAccount, EventConfig, IDPConfig,StoryRequest, HttpActionParameters,Password
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -1884,6 +1886,7 @@ class TestAccountProcessor:
             user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
+        print(list(AccountProcessor.list_bots(user['account'])))
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
@@ -1966,6 +1969,7 @@ class TestAccountProcessor:
             user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
+        print(list(AccountProcessor.list_bots(user['account'])))
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
@@ -2154,6 +2158,7 @@ class TestAccountProcessor:
             user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
+        print(list(AccountProcessor.list_bots(user['account'])))
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
@@ -2756,3 +2761,29 @@ class TestAccountProcessor:
 
         with pytest.raises(DoesNotExist):
             BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
+
+    def test_save_auditlog_document(self, monkeypatch):
+        from kairon.shared.account.processor import AccountProcessor
+        def publish_auditlog(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
+
+        bot = 'test_bot'
+        user_name = "testsampleUser"
+        account = AccountProcessor.add_account("Nupur", "testsampleUser")
+        AccountProcessor.add_user(
+            email="nk@digite.com",
+            first_name="Nupur",
+            last_name="Khare",
+            password="Welcome@109",
+            account=account['_id'],
+            user=user_name,
+        )
+        entity = UserActivityType.reset_password.value
+        data = {'status': 'pending'}
+        kwargs = {'message': ['Reset password'], 'action': 'activity'}
+        AuditProcessor.save_auditlog_document(bot, account['_id'], None, entity, data, **kwargs)
+        count = AuditLogData.objects(attributes=[{'key': 'bot', 'value': bot}, {'key': 'account', 'value': account['_id']}], user=user_name,
+                                     action='activity').count()
+        assert count == 1

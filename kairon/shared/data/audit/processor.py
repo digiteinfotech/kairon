@@ -49,16 +49,33 @@ class AuditProcessor:
         attributes_list = []
         auditlog_id = None
         attributes = Utility.environment['events']['audit_logs']['attributes']
-        for value in attributes:
-            attibute_info = {}
-            mapping = value
-            if value == 'account':
-                auditlog_id = None if not hasattr(document, 'account') else document.account.__str__()
-            elif value == 'bot':
-                auditlog_id = None if not hasattr(document, 'bot') else document.bot.__str__()
-            attibute_info['key'] = mapping
-            attibute_info['value'] = auditlog_id
-            attributes_list.append(attibute_info)
+        if hasattr(document, 'account') and hasattr(document, 'bot'):
+            for value in attributes:
+                attibute_info = {}
+                mapping = value
+                if value == 'account':
+                    auditlog_id = document.account.__str__()
+                elif value == 'bot':
+                    auditlog_id = document.bot.__str__()
+                attibute_info['key'] = mapping
+                attibute_info['value'] = auditlog_id
+                attributes_list.append(attibute_info)
+        else:
+            if hasattr(document, 'account'):
+                mapping = 'account'
+                auditlog_id = document.account.__str__()
+                attibute_info = {'key': mapping, 'value': auditlog_id}
+                attributes_list.append(attibute_info)
+            elif hasattr(document, 'bot'):
+                mapping = 'bot'
+                auditlog_id = document.bot.__str__()
+                attibute_info = {'key': mapping, 'value': auditlog_id}
+                attributes_list.append(attibute_info)
+            else:
+                mapping = f"{document._class_name.__str__()}_id"
+                auditlog_id = document.id.__str__()
+                attibute_info = {'key': mapping, 'value': auditlog_id}
+                attributes_list.append(attibute_info)
 
         return attributes_list
 
@@ -68,18 +85,18 @@ class AuditProcessor:
         from mongoengine.errors import DoesNotExist
 
         try:
-            for data in auditlog.attributes:
-                if data.key != 'bot' and data.value is None:
-                    logger.debug("Only bot level event config is supported as of")
-                    return
-                event_config = EventConfig.objects(bot=data.value).get()
+            bot_value = next((item for item in auditlog.attributes if item['key'] == 'bot' and item['value'] is not None), None)
+            if not bot_value:
+                logger.debug("Only bot level event config is supported as of")
+                return
+            event_config = EventConfig.objects(bot=bot_value['value']).get()
 
-                headers = json.loads(Utility.decrypt_message(event_config.headers))
-                ws_url = event_config.ws_url
-                method = event_config.method
-                if ws_url:
-                    Utility.execute_http_request(request_method=method, http_url=ws_url,
-                                                 request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
+            headers = json.loads(Utility.decrypt_message(event_config.headers))
+            ws_url = event_config.ws_url
+            method = event_config.method
+            if ws_url:
+                Utility.execute_http_request(request_method=method, http_url=ws_url,
+                                             request_body=auditlog.to_mongo().to_dict(), headers=headers, timeout=5)
         except (DoesNotExist, AppException):
             return
 

@@ -28,7 +28,7 @@ from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
-from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider, UserActivityType
+from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
@@ -1664,7 +1664,7 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url")
         kwargs = {"action": "save"}
         AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(attributes=[{'key': 'account', 'value': None}, {"key": "bot", "value": bot}], user=user, action="save").count()
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="save").count()
         assert count == 1
 
     def test_save_and_publish_auditlog_action_save_another(self, monkeypatch):
@@ -1681,7 +1681,7 @@ class TestUtility:
                                    method="GET")
         kwargs = {"action": "save"}
         AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(attributes=[{'key': 'account', 'value': None}, {"key": "bot", "value": bot}], user=user, action="save").count()
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="save").count()
         assert count == 2
 
     def test_save_and_publish_auditlog_action_update(self, monkeypatch):
@@ -1697,7 +1697,7 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
         AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(attributes=[{'key': 'account', 'value': None}, {"key": "bot", "value": bot}], user=user, action="update").count()
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="update").count()
         assert count == 1
 
     def test_save_and_publish_auditlog_total_count(self, monkeypatch):
@@ -1713,7 +1713,7 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
         AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(attributes=[{'key': 'account', 'value': None}, {"key": "bot", "value": bot}], user=user).count()
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count >= 3
 
     def test_save_and_publish_auditlog_total_count_with_event_url(self, monkeypatch):
@@ -1728,7 +1728,7 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
         AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(attributes=[{'key': 'account', 'value': None}, {"key": "bot", "value": bot}], user=user).count()
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count >= 3
 
     @responses.activate
@@ -1742,7 +1742,7 @@ class TestUtility:
                 "client_secret": "cf92180a7634d90bf42a217408376878"
             }
         auditlog_data = {
-            "attributes": [{"key": "bot", "value": bot}, {"key": "account", "value": None}],
+            "attributes": [{"key": "bot", "value": bot}],
             "user": user,
             "action": "update",
             "entity": "Channels",
@@ -1764,30 +1764,7 @@ class TestUtility:
         )
 
         AuditProcessor.publish_auditlog(AuditLogData(**auditlog_data))
-        count = AuditLogData.objects(attributes=[{'key': 'account', 'value': None}, {"key": "bot", "value": bot}], user=user).count()
-        assert count == 1
-
-    def test_save_auditlog_document(self):
-        from kairon.shared.account.processor import AccountProcessor
-
-        bot = 'test_bot'
-        user_name = "testsampleUser"
-        account = AccountProcessor.add_account("Nupur", "testsampleUser")
-        account_id = account['_id']
-        AccountProcessor.add_user(
-            email="nk@digite.com",
-            first_name="Nupur",
-            last_name="Khare",
-            password="Welcome@109",
-            account=1,
-            user=user_name,
-        )
-        entity = UserActivityType.reset_password.value
-        data = {'status': 'pending'}
-        kwargs = {'message': ['Reset password'], 'action': 'activity'}
-        AuditProcessor.save_auditlog_document(bot, account_id, None, entity, data, **kwargs)
-        count = AuditLogData.objects(attributes=[{'key': 'bot', 'value': bot}, {"key": "account", "value": 1}], user=user_name,
-                                     action='activity').count()
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count == 1
 
     @pytest.mark.asyncio
