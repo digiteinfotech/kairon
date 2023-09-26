@@ -3,7 +3,6 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from loguru import logger
-from mongoengine import DoesNotExist
 from starlette import status
 
 from kairon import Utility
