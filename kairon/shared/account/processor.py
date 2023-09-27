@@ -23,8 +23,6 @@ from kairon.shared.constants import UserActivityType, PluginTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
-from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
 
@@ -520,7 +518,7 @@ class AccountProcessor:
         except Exception as e:
             logging.error(e)
             if is_login_request:
-                MeteringProcessor.add_log(metric_type=MetricType.invalid_login.value, **{"username": email})
+                UserActivityLogger.add_user_log(a_type=UserActivityType.invalid_login.value, email=email, data={"username": email})
             raise DoesNotExist("User does not exist!")
 
     @staticmethod
@@ -534,19 +532,18 @@ class AccountProcessor:
         """
         user = AccountProcessor.get_user(email, is_login_request)
         AccountProcessor.check_email_confirmation(user, is_login_request)
-        kwargs = {"username": email}
         if not user["status"]:
             if is_login_request:
-                kwargs.update({"error": "Inactive User please contact admin!"})
-                MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
-                                              account=user["account"], **kwargs)
+                message = ["Inactive User please contact admin!"]
+                UserActivityLogger.add_log(account=user["account"], a_type=UserActivityType.invalid_login.value, email=email,
+                                            message=message, data={"username": email})
             raise ValidationError("Inactive User please contact admin!")
         account = AccountProcessor.get_account(user["account"])
         if not account["status"]:
             if is_login_request:
-                kwargs.update({"error": "Inactive Account Please contact system admin!"})
-                MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
-                                              account=user["account"], **kwargs)
+                message = ["Inactive Account Please contact system admin!"]
+                UserActivityLogger.add_log(account=user["account"], a_type=UserActivityType.invalid_login.value, email=email,
+                                            message=message, data={"username": email})
             raise ValidationError("Inactive Account Please contact system admin!")
         return user
 
@@ -740,9 +737,9 @@ class AccountProcessor:
                 AccountProcessor.is_user_confirmed(user_info["email"])
             except Exception as e:
                 if is_login_request:
-                    kwargs = {"username": user_info["email"], "error": "Please verify your mail"}
-                    MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value,
-                                                  account=user_info["account"], **kwargs)
+                    message = ["Please verify your mail"]
+                    UserActivityLogger.add_log(account=user_info["account"], a_type=UserActivityType.invalid_login.value,
+                                                message=message, data={"username": user_info["email"]})
                 raise e
 
     @staticmethod
@@ -789,27 +786,26 @@ class AccountProcessor:
         :param password: new password entered by the user
         :return: mail id, mail subject and mail body
         """
-        from kairon.shared.data.audit.processor import AuditProcessor
 
         if Utility.check_empty_string(password):
             raise AppException("password cannot be empty or blank")
         decoded_jwt = Utility.verify_token(token)
         email = decoded_jwt.get("mail_id")
         uuid_value = decoded_jwt.get("uuid")
-        AuditProcessor.is_relogin_done(uuid_value,email)
+        UserActivityLogger.is_relogin_done(uuid_value, email)
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
         previous_passwrd = user.password
         if Utility.verify_password(password.strip(), previous_passwrd):
-            raise AppException("You have already used that password, try another")
-        AuditProcessor.is_password_used_before(email, password)
+            raise AppException("You have already used that password, try another!")
+        UserActivityLogger.is_password_used_before(email, password)
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
         user.save()
         data = {"password": previous_passwrd}
         UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
                                    data=data)
-        AuditProcessor.update_reset_password_link_usage(uuid_value, email)
+        UserActivityLogger.update_reset_password_link_usage(uuid_value, email)
         return email, user.first_name
 
     @staticmethod

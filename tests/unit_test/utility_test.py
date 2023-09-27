@@ -30,7 +30,7 @@ from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.audit.processor import AuditProcessor
+from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
 from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, LLMSettings
 from kairon.shared.data.utils import DataUtility
@@ -1656,14 +1656,14 @@ class TestUtility:
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
                                    user=user,
                                    ws_url="http://localhost:5000/event_url")
         kwargs = {"action": "save"}
-        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="save").count()
         assert count == 1
 
@@ -1671,7 +1671,7 @@ class TestUtility:
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1680,7 +1680,7 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}",
                                    method="GET")
         kwargs = {"action": "save"}
-        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="save").count()
         assert count == 2
 
@@ -1688,7 +1688,7 @@ class TestUtility:
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1696,7 +1696,7 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="update").count()
         assert count == 1
 
@@ -1704,7 +1704,7 @@ class TestUtility:
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(AuditProcessor, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1712,7 +1712,7 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count >= 3
 
@@ -1727,7 +1727,7 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        AuditProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
         count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count >= 3
 
@@ -1763,7 +1763,7 @@ class TestUtility:
             status=200
         )
 
-        AuditProcessor.publish_auditlog(AuditLogData(**auditlog_data))
+        AuditDataProcessor.publish_auditlog(AuditLogData(**auditlog_data))
         count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count == 1
 

@@ -2087,7 +2087,7 @@ def test_chat_with_bot_after_reset_passwrd():
     message = actual.get("message")
     error_code = actual.get("error_code")
     assert error_code == 401
-    assert message == 'Session expired. Please login again.'
+    assert message == 'Session expired. Please login again!'
 
 
 def test_reload_after_reset_passwrd():
@@ -2105,10 +2105,15 @@ def test_reload_after_reset_passwrd():
     message = reload_actual.get("message")
     error_code = reload_actual.get("error_code")
     assert error_code == 401
-    assert message == 'Session expired. Please login again.'
+    assert message == 'Session expired. Please login again!'
 
 
-def test_live_agent_after_reset_passwrd():
+def test_live_agent_after_reset_passwrd(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+
     user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
     bot = user['bots']['account_owned'][0]['_id']
     access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
@@ -2123,7 +2128,7 @@ def test_live_agent_after_reset_passwrd():
     message = live_actual.get("message")
     error_code = live_actual.get("error_code")
     assert error_code == 401
-    assert message == 'Session expired. Please login again.'
+    assert message == 'Session expired. Please login again!'
 
 
 def test_get_chat_history():
@@ -2218,7 +2223,11 @@ def test_get_chat_history_user_exception():
     assert actual["message"] == 'Mongo object out of memory'
 
 
-def test_get_chat_history_http_error():
+def test_get_chat_history_http_error(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     user = AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")
     bot = user['bots']['account_owned'][0]['_id']
     access_token, _, _, _ = Authentication.authenticate("resetpaswrd@chat.com", "resetPswrd@12")
@@ -2233,7 +2242,7 @@ def test_get_chat_history_http_error():
     message = reload_actual.get("message")
     error_code = reload_actual.get("error_code")
     assert error_code == 401
-    assert message == "Session expired. Please login again."
+    assert message == "Session expired. Please login again!"
 
 
 @patch("kairon.live_agent.chatwoot.ChatwootLiveAgent.getBusinesshours")

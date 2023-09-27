@@ -14,12 +14,9 @@ from kairon.api.models import TokenData
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.constants import PluginTypes
-from kairon.shared.data.audit.processor import AuditProcessor
+from kairon.shared.constants import PluginTypes, UserActivityType
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
-from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import User
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.sso.factory import LoginSSOFactory
@@ -76,7 +73,7 @@ class Authentication:
                 user_model.alias_user = alias_user or username
                 user_model.role = payload.get('role')
             else:
-                AuditProcessor.is_password_reset(payload, username)
+                UserActivityLogger.is_password_reset(payload, username)
             return user_model
         except PyJWTError:
             raise credentials_exception
@@ -160,8 +157,9 @@ class Authentication:
     def __authenticate_user(username: str, password: str):
         user = AccountProcessor.get_user_details(username, is_login_request=True)
         if not user or not Utility.verify_password(password, user["password"]):
-            kwargs = {"username": username, "error": "Incorrect username or password"}
-            MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value, account=user["account"], **kwargs)
+            data = {"username": username}
+            message = ["Incorrect username or password"]
+            UserActivityLogger.add_log(account=user["account"], a_type=UserActivityType.invalid_login.value, message=message, data=data)
             return False
         return user
 
@@ -181,7 +179,8 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        UserActivityLogger.is_login_limit_exceeded(user.get('account'))
+        UserActivityLogger.add_log(account=user.get('account'), a_type=UserActivityType.login.value, email=user.get('email'))
+        UserActivityLogger.is_login_within_cooldown_period(user.get('email'))
         return Authentication.generate_login_tokens(user, True)
 
     @staticmethod
@@ -196,12 +195,11 @@ class Authentication:
         ttl = Utility.environment['security']["token_expire"]
         refresh_token = Authentication.__create_refresh_token(claims, access_token_iat, ttl, refresh_token_expire_minutes)
         refresh_token_expiry = access_token_iat + timedelta(minutes=refresh_token_expire_minutes)
-        kwargs = {"username": username}
         if is_login:
-            metric_type = MetricType.login.value
+            metric_type = UserActivityType.login.value
         else:
-            metric_type = MetricType.login_refresh_token.value
-        MeteringProcessor.add_metrics(bot=None, metric_type=metric_type, account=user["account"], **kwargs)
+            metric_type = UserActivityType.login_refresh_token.value
+        UserActivityLogger.add_log(account=user["account"], a_type=metric_type, data={"username": username})
         return access_token, access_token_expiry.timestamp(), refresh_token, refresh_token_expiry.timestamp()
 
     @staticmethod

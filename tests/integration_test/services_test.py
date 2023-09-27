@@ -36,6 +36,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
     KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig, \
@@ -45,7 +46,6 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.data_object import Metering
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
@@ -123,8 +123,8 @@ def test_api_wrong_login():
                                 'Cross-Origin-Resource-Policy': 'same-origin',
                                 'Access-Control-Allow-Origin': '*'
                                 }
-    value = list(Metering.objects(username="test@demo.ai"))
-    assert value[0]["metric_type"] == "invalid_login"
+    value = list(AuditLogData.objects(user="test@demo.ai", action='activity', entity='invalid_login'))
+    assert value[0]["entity"] == "invalid_login"
     assert value[0]["timestamp"]
     assert len(value) == 1
 
@@ -558,10 +558,9 @@ def test_api_wrong_password():
     assert actual["error_code"] == 401
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
-    value = list(Metering.objects(username="INTEGRATION@DEMO.AI"))
-    assert value[0]["metric_type"] == "invalid_login"
+    value = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login'))
+    assert value[0]["entity"] == "invalid_login"
     assert value[0]["timestamp"]
-    assert value[0]["error"] == "Incorrect username or password"
     assert len(value) == 1
 
 
@@ -613,7 +612,11 @@ def test_api_login_with_recaptcha_failed(monkeypatch):
         assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
 
 
-def test_api_login():
+def test_api_login(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -5389,10 +5392,10 @@ def test_api_login_with_account_not_verified():
     assert actual['error_code'] == 422
     assert actual['data'] is None
     assert actual['message'] == 'Please verify your mail'
-    value = list(Metering.objects(username="integration@demo.ai").order_by("-timestamp"))[0]
-    assert value["metric_type"] == "invalid_login"
+    value = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login').order_by("-timestamp"))[0]
+    assert value["entity"] == "invalid_login"
     assert value["timestamp"]
-    assert value["error"] == "Please verify your mail"
+    assert value["data"] == {'message': ['Please verify your mail'], 'username': 'integration@demo.ai'}
 
 
 def test_account_registration_with_confirmation(monkeypatch):
@@ -5552,7 +5555,7 @@ def test_list_bot_invites(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
     response = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
@@ -5574,8 +5577,9 @@ def test_login_limit_exceeded():
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
     ).json()
+    print(response)
     assert not response['success']
-    assert response['message'] == 'Login limit exhausted for today.'
+    assert response['message'].__contains__("Only 3 logins are allowed within 120 minutes.")
     assert response['data'] is None
     assert response['error_code'] == 422
 
@@ -5627,6 +5631,10 @@ def test_accept_bot_invite(monkeypatch):
 
 
 def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     response = client.post(
         "/api/auth/login",
         data={"username": "integrationtest@demo.ai", "password": "Welcome@1"},
@@ -5657,7 +5665,11 @@ def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
     assert response['success']
 
 
-def test_accept_bot_invite_logged_in_user():
+def test_accept_bot_invite_logged_in_user(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     response = client.post(
         "/api/auth/login",
         data={"username": "integration2@demo.ai", "password": "Welcome@1"},
@@ -6137,7 +6149,11 @@ def test_delete_bot():
     assert response['success']
 
 
-def test_login_for_verified():
+def test_login_for_verified(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/auth/login",
@@ -15974,12 +15990,12 @@ def test_get_auditlog_for_user_1():
     actual = response.json()
     print(actual)
     assert actual["data"] is not None
-    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["entity"] == "BotAccess"
+    assert actual["data"][0]["action"] == AuditlogActions.ACTIVITY.value
+    assert actual["data"][0]["entity"] == "login"
     assert actual["data"][0]["user"] == email
 
-    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["attributes"][0]["value"] is not None
+    assert actual["data"][0]["action"] == AuditlogActions.ACTIVITY.value
+    assert actual["data"][0]["attributes"][1]["value"] is not None
 
 
 def test_get_auditlog_for_bot():
@@ -16006,7 +16022,7 @@ def test_get_auditlog_for_user_2(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16028,8 +16044,8 @@ def test_get_auditlog_for_user_2(monkeypatch):
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
     print(audit_log_data)
-    assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
-    assert audit_log_data[0]["entity"] == "ModelTraining"
+    assert audit_log_data[0]["action"] == AuditlogActions.ACTIVITY.value
+    assert audit_log_data[0]["entity"] == "login"
     assert audit_log_data[0]["user"] == email
 
 
@@ -16419,7 +16435,11 @@ def test_idp_provider_fields():
 
 
 @responses.activate
-def test_add_organization():
+def test_add_organization(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16437,7 +16457,11 @@ def test_add_organization():
 
 
 @responses.activate
-def test_get_organization():
+def test_get_organization(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16459,7 +16483,7 @@ def test_update_organization(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16480,7 +16504,7 @@ def test_get_organization_after_update(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16502,7 +16526,7 @@ def test_delete_organization(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
     def _delete_idp(*args, **kwargs):
         return
 
@@ -16536,7 +16560,7 @@ def test_delete_account(monkeypatch):
     def _login_limit_exceeded(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_limit_exceeded", _login_limit_exceeded)
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
     response_log = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@1"},
@@ -16616,7 +16640,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     actual = utter_response.json()
     message = actual["message"]
     error_code = actual['error_code']
-    assert message == 'Session expired. Please login again.'
+    assert message == 'Session expired. Please login again!'
     assert error_code == 401
 
 
@@ -16646,7 +16670,11 @@ def test_overwrite_password_for_matching_passwords(monkeypatch):
     assert actual['data'] is None
 
 
-def test_login_new_password():
+def test_login_new_password(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     response = client.post(
         "/api/auth/login",
         data={"username": "integ1@gmail.com", "password": "Welcome@2"},
@@ -16659,7 +16687,11 @@ def test_login_new_password():
     pytest.token_type = actual["data"]["token_type"]
 
 
-def test_login_old_password():
+def test_login_old_password(monkeypatch):
+    def login_limit(*args, **kwargs):
+        return
+
+    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
     response = client.post(
         "/api/auth/login",
         data={"username": "integ1@gmail.com", "password": "Welcome@1"},
@@ -16669,10 +16701,11 @@ def test_login_old_password():
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
-    value = list(Metering.objects(username="integ1@gmail.com").order_by("-timestamp"))[0]
-    assert value["metric_type"] == "invalid_login"
+    value = list(AuditLogData.objects(user="integ1@gmail.com", action='activity', entity='invalid_login').order_by("-timestamp"))[0]
+    print(value['data'])
+    assert value["entity"] == "invalid_login"
     assert value["timestamp"]
-    assert value["error"] == "Incorrect username or password"
+    assert value["data"] == {'message': ['Incorrect username or password'], 'username': 'integ1@gmail.com'}
 
 
 def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
@@ -16706,7 +16739,7 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
     )
     response = passwrd_change_response.json()
     message = response.get("message")
-    assert message == "You have already used that password, try another"
+    assert message == "You have already used that password, try another!"
 
 
 def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
@@ -16753,7 +16786,7 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     )
     response = passwrd_rechange_response.json()
     message = response.get("message")
-    assert message == "You have already used that password, try another"
+    assert message == "You have already used that password, try another!"
 
 
 def test_idp_provider_fields_unauth():

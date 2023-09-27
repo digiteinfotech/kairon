@@ -89,5 +89,6 @@ def auditlogger_handler(event1):
 
 @auditlogger_handler(auditlog)
 def auditlogger(sender, document, **kwargs):
-    from kairon.shared.data.audit.processor import AuditProcessor
-    AuditProcessor.save_and_publish_auditlog(document, sender.__name__, **kwargs)
+
+    from kairon.shared.data.audit.processor import AuditDataProcessor
+    AuditDataProcessor.save_and_publish_auditlog(document, sender.__name__, **kwargs)
