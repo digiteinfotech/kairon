@@ -1257,6 +1257,7 @@ def test_whatsapp_valid_button_message_request():
                 })
     actual = response.json()
     assert actual == 'success'
+    time.sleep(4)
     assert len(whatsapp_msg_handler.call_args[0]) == 5
     assert whatsapp_msg_handler.call_args[0][1] == 'buy now'
     assert whatsapp_msg_handler.call_args[0][2] == '910123456789'

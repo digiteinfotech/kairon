@@ -76,11 +76,12 @@ class Whatsapp:
     async def handle_payload(self, request, metadata: Optional[Dict[Text, Any]], bot: str) -> str:
         msg = "success"
         payload = await request.json()
+        request_bytes = await request.body()
         provider = self.config.get("bsp_type", "meta")
         metadata.update({"channel_type": ChannelTypes.WHATSAPP.value, "bsp_type": provider, "tabname": "default"})
         signature = request.headers.get("X-Hub-Signature") or ""
         if provider == "meta":
-            if not MessengerHandler.validate_hub_signature(self.config["app_secret"], payload, signature):
+            if not MessengerHandler.validate_hub_signature(self.config["app_secret"], request_bytes, signature):
                 logger.warning("Wrong app secret secret! Make sure this matches the secret in your whatsapp app settings.")
                 msg = "not validated"
                 return msg
@@ -198,7 +199,7 @@ class WhatsappHandler(MessengerHandler):
 
         if self.request.query_params.get("hub.verify_token") == verify_token:
             hub_challenge = self.request.query_params.get("hub.challenge")
-            return hub_challenge
+            return int(hub_challenge)
         else:
             logger.warning("Invalid verify token! Make sure this matches your webhook settings on the whatsapp app.")
             return {"status": "failure, invalid verify_token"}
