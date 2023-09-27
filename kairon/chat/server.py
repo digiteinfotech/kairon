@@ -1,4 +1,5 @@
 import logging
+from time import time
 
 from elasticapm.contrib.starlette import ElasticAPM
 from fastapi import FastAPI, Request
@@ -82,7 +83,10 @@ if apm_client:
 @app.middleware("http")
 async def add_secure_headers(request: Request, call_next):
     """add security headers"""
+    start_time = time()
     response = await call_next(request)
+    process_time = (time() - start_time) * 1000
+
     secure_headers.framework.fastapi(response)
     response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
@@ -91,6 +95,10 @@ async def add_secure_headers(request: Request, call_next):
     response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin else allowed_origins[0]
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
     response.headers['Content-Type'] = 'application/json'
+    formatted_process_time = "{0:.2f}".format(process_time)
+    logger.info(
+        f"request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
+    )
     return response
 
 

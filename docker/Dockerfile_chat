@@ -58,4 +58,4 @@ ENV HF_HOME="/home/cache"
 ENV APP_MODULE=kairon.chat.server:app TIMEOUT=120
 EXPOSE 5000
 
-CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5000 --no-server-header --no-access-log --log-level error --timeout-keep-alive ${TIMEOUT}
+CMD uvicorn ${APP_MODULE} --host 0.0.0.0 --port 5000 --no-server-header --timeout-keep-alive ${TIMEOUT}

@@ -9,7 +9,6 @@ from kairon.shared.constants import ActorType
 
 
 class ActorFactory:
-
     __actors = {
         ActorType.pyscript_runner.value: (PyScriptRunner, PyScriptRunner.start().proxy()),
         ActorType.callable_runner.value: (CallableRunner, CallableRunner.start().proxy())
@@ -27,3 +26,8 @@ class ActorFactory:
             ActorFactory.__actors[actor_type] = (actor, actor_proxy)
 
         return actor_proxy
+
+    @staticmethod
+    def stop_all():
+        for _, actor in ActorFactory.__actors.values():
+            actor.actor_ref.stop()
