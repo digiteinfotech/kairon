@@ -1,10 +1,15 @@
+import json
 import os
 import re
 import shutil
 import tempfile
 import uuid
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from io import BytesIO
 from unittest import mock
+from unittest.mock import patch
+from urllib.parse import urlencode
 
 import numpy as np
 import pandas as pd
@@ -13,16 +18,19 @@ import requests
 import responses
 from fastapi import UploadFile
 from mongoengine import connect
+from mongoengine.queryset.visitor import Q
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from websockets import InvalidStatusCode
 
-from mongoengine.queryset.visitor import Q
+from kairon.chat.converters.channels.response_factory import ConverterFactory
+from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.exceptions import AppException
 from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.constants import GPT3ResourceTypes, LLMResourceProvider
-from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
+from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
 from kairon.shared.data.data_objects import EventConfig, StoryEvents, Slots, LLMSettings
 from kairon.shared.data.utils import DataUtility
@@ -32,14 +40,7 @@ from kairon.shared.llm.clients.gpt3 import GPT3Resources
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility, MailUtility
-from unittest.mock import patch
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
-from kairon.chat.converters.channels.response_factory import ConverterFactory
-import json
 from kairon.shared.verification.email import QuickEmailVerification
-from urllib.parse import urlencode, urljoin
 
 
 class TestUtility:
@@ -1655,22 +1656,22 @@ class TestUtility:
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
                                    user=user,
                                    ws_url="http://localhost:5000/event_url")
         kwargs = {"action": "save"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(audit__Bot_id=bot, user=user, action="save").count()
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="save").count()
         assert count == 1
 
     def test_save_and_publish_auditlog_action_save_another(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1679,15 +1680,15 @@ class TestUtility:
                                    headers="{'Autharization': '123456789'}",
                                    method="GET")
         kwargs = {"action": "save"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(audit__Bot_id=bot, user=user, action="save").count()
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="save").count()
         assert count == 2
 
     def test_save_and_publish_auditlog_action_update(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1695,15 +1696,15 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(audit__Bot_id=bot, user=user, action="update").count()
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user, action="update").count()
         assert count == 1
 
     def test_save_and_publish_auditlog_total_count(self, monkeypatch):
         def publish_auditlog(*args, **kwargs):
             return None
 
-        monkeypatch.setattr(Utility, "publish_auditlog", publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "publish_auditlog", publish_auditlog)
         bot = "tests"
         user = "testuser"
         event_config = EventConfig(bot=bot,
@@ -1711,8 +1712,8 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(audit__Bot_id=bot, user=user).count()
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count >= 3
 
     def test_save_and_publish_auditlog_total_count_with_event_url(self, monkeypatch):
@@ -1726,8 +1727,8 @@ class TestUtility:
                                    ws_url="http://localhost:5000/event_url",
                                    headers="{'Autharization': '123456789'}")
         kwargs = {"action": "update"}
-        Utility.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
-        count = AuditLogData.objects(audit__Bot_id=bot, user=user).count()
+        AuditDataProcessor.save_and_publish_auditlog(event_config, "EventConfig", **kwargs)
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count >= 3
 
     @responses.activate
@@ -1741,7 +1742,7 @@ class TestUtility:
                 "client_secret": "cf92180a7634d90bf42a217408376878"
             }
         auditlog_data = {
-            "audit": {"Bot_id": bot},
+            "attributes": [{"key": "bot", "value": bot}],
             "user": user,
             "action": "update",
             "entity": "Channels",
@@ -1762,8 +1763,8 @@ class TestUtility:
             status=200
         )
 
-        Utility.publish_auditlog(AuditLogData(**auditlog_data))
-        count = AuditLogData.objects(audit__Bot_id=bot, user=user).count()
+        AuditDataProcessor.publish_auditlog(AuditLogData(**auditlog_data))
+        count = AuditLogData.objects(attributes=[{"key": "bot", "value": bot}], user=user).count()
         assert count == 1
 
     @pytest.mark.asyncio
@@ -2536,9 +2537,10 @@ data: [DONE]\n\n"""
         with pytest.raises(AppException, match=re.escape("Received non 200 status code: data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n")):
             GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
 
-    def test_get_client_ip_with_request_client(self):
+    @mock.patch('kairon.shared.utils.Utility.get_client_ip', autospec=True)
+    def test_get_client_ip_with_request_client(self, mock_ip):
+        mock_ip.return_value = "58.0.127.89"
         request = mock.Mock()
-        request.client.host = "58.0.127.89"
         ip = Utility.get_client_ip(request)
         assert "58.0.127.89" == ip
 

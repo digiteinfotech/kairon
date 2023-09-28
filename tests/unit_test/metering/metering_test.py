@@ -5,8 +5,8 @@ from mongoengine import connect
 
 from kairon import Utility
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.metering.data_object import Metering
+from kairon.shared.metering.metering_processor import MeteringProcessor
 
 
 class TestMetering:
@@ -103,3 +103,21 @@ class TestMetering:
         with pytest.raises(ValueError, match="Invalid metric type"):
             MeteringProcessor.update_metrics("test", bot, "test", **{"feedback": "test"})
 
+    def test_add_metrics_with_logs(self):
+        bot = 'ncbvhf'
+        account = 67890
+        metric_type = MetricType.test_chat
+        kwargs = {"feedback": "",
+                  "rating": 1,
+                  "botId": "6322ebbb3c62158dab4aee71",
+                  "botReply": [{"text": "Hello! How are you?"}],
+                  "userReply": "",
+                  "date": "2023-07-17T06:48:02.453Z",
+                  "sender_id": None
+                  }
+        assert MeteringProcessor.add_metrics(bot, account, metric_type)
+        MeteringProcessor.add_log(metric_type, **kwargs)
+        metering = list(Metering.objects(bot=bot, account=account))
+        assert metering[0]['bot'] == bot
+        assert metering[0]['account'] == account
+        assert metering[0]['metric_type'] == metric_type

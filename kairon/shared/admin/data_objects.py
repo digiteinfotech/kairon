@@ -3,7 +3,7 @@ from mongoengine import (
     StringField,
     DateTimeField
 )
-from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
 from mongoengine import signals

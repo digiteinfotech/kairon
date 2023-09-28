@@ -28,7 +28,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     VIEW_ACCESS
 from kairon.shared.data.assets_processor import AssetsProcessor
-from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import EVENT_STATUS, ENDPOINT_TYPE, TOKEN_TYPE, ModelTestType, \
     TrainingDataSourceType
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
@@ -1507,7 +1507,7 @@ async def upload_bot_assets(
     """
     data = {"url": await AssetsProcessor.add_asset(current_user.get_bot(), current_user.get_user(), asset, asset_type)}
     UserActivityLogger.add_log(
-        current_user.account, UserActivityType.add_asset, current_user.get_user(), current_user.get_bot(),
+        UserActivityType.add_asset, current_user.account, current_user.get_user(), current_user.get_bot(),
         [f"asset_type={asset_type}"]
     )
     return Response(message='Asset added', data=data)
@@ -1522,7 +1522,7 @@ async def delete_bot_assets(
     """
     AssetsProcessor.delete_asset(current_user.get_bot(), current_user.get_user(), asset_type)
     UserActivityLogger.add_log(
-        current_user.account, UserActivityType.delete_asset, current_user.get_user(), current_user.get_bot(),
+        UserActivityType.delete_asset, current_user.account, current_user.get_user(), current_user.get_bot(),
         [f"asset_type={asset_type}"]
     )
     return Response(message='Asset deleted')
