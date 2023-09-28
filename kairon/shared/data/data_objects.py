@@ -723,6 +723,7 @@ class CognitionData(Auditlog):
     content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value,
                                                             CognitionDataType.json.value])
     metadata = ListField(EmbeddedDocumentField(CognitionMetadata), default=None)
+    cognition_data_coll = StringField(default="")
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -737,6 +738,10 @@ class CognitionData(Auditlog):
             for metadata_item in self.metadata or []:
                 metadata_item.validate()
                 Utility.retrieve_data(self.data, metadata_item.to_mongo().to_dict())
+
+    def clean(self):
+        if self.cognition_data_coll:
+            self.cognition_data_coll = '_' + self.cognition_data_coll.replace(" ", "_")
 
 
 @auditlogger.log

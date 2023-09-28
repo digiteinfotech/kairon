@@ -40,20 +40,22 @@ class GPT3FAQEmbedding(LLMBase):
         self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:
-        self.__create_collection__(self.bot + self.suffix)
         self.__create_collection__(self.bot + self.cached_resp_suffix)
         count = 0
         contents = list(CognitionData.objects(bot=self.bot))
         for content in tqdm(contents, desc="Training FAQ"):
+            cognition_collection = f"{self.bot}{content.cognition_data_coll}{self.suffix}"
+            self.__create_collection__(cognition_collection)
             if content.content_type == CognitionDataType.json.value:
                 if not content['metadata'] or []:
                     search_payload, vector_embeddings = content.data, json.dumps(content.data)
                 else:
-                    search_payload, vector_embeddings = Utility.get_embeddings_and_payload(content.data, content.metadata)
+                    search_payload, vector_embeddings = Utility.get_embeddings_and_payload_data(content.data, content.metadata)
             else:
                 search_payload, vector_embeddings = {'content': content.data}, content.data
+            search_payload['collection_name'] = cognition_collection
             points = [{'id': content.vector_id, 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
-            self.__collection_upsert__(self.bot + self.suffix, {'points': points},
+            self.__collection_upsert__(cognition_collection, {'points': points},
                                        err_msg="Unable to train FAQ! Contact support")
             count += 1
         return {"faq": count}
@@ -246,7 +248,8 @@ class GPT3FAQEmbedding(LLMBase):
         limit = kwargs.pop('top_results', 10)
         score_threshold = kwargs.pop('similarity_threshold', 0.70)
         if use_similarity_prompt:
-            search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
+            collection_name = kwargs.pop('collection') if kwargs.get('collection') else self.bot + self.suffix
+            search_result = self.__collection_search__(collection_name, vector=query_embedding,
                                                        limit=limit, score_threshold=score_threshold)
 
             similarity_context = "\n".join([item['payload']['content'] for item in search_result['result']])

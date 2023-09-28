@@ -1467,6 +1467,7 @@ def test_payload_upload_api(monkeypatch):
     payload = {
             "data": {"details": "AWS"},
             "content_type": "json",
+            "cognition_data_coll": "Details",
             "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}]
     }
     response = client.post(
@@ -1511,6 +1512,7 @@ def test_payload_updated_api():
         json={
             "payload_id": pytest.payload_id,
             "data": 'Data Collection means gathering relevant data from various sources, which can include databases, APIs, websites, sensors, social media, and more.',
+            "cognition_data_coll": "Collection",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -2253,7 +2255,7 @@ def test_get_prompt_action():
                          {'name': 'Query Prompt',
                           'data': 'If there is no specific query, assume that user is aking about java programming language,',
                           'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'cognition_data_coll': f"{pytest.bot}_faq_embd",
          'set_slots': [], 'dispatch_response': True, 'status': True}]
 
 

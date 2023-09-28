@@ -81,7 +81,7 @@ class TestLLM:
 
             responses.add(
                 "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_faq_embd"),
                 adding_headers={}
             )
 
@@ -92,10 +92,10 @@ class TestLLM:
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_faq_embd"),
                 method="PUT",
                 adding_headers={},
-                match=[responses.matchers.json_params_matcher({'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
+                match=[responses.matchers.json_params_matcher({'name': 'test_embed_faq_faq_embd', 'vectors': gpt3.vector_config})],
                 status=200
             )
 
@@ -109,12 +109,13 @@ class TestLLM:
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_faq_embd/points"),
                 method="PUT",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                   'vector': embedding,
-                                                                  'payload': {'content': test_content.data}
+                                                                  'payload': {'content': test_content.data,
+                                                                              'collection_name': 'test_embed_faq_faq_embd'}
                                                                   }]})],
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
@@ -132,6 +133,14 @@ class TestLLM:
             content_type="json",
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
             {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
+            cognition_data_coll='User_Details',
+            bot=bot, user=user).save()
+        test_content_two = CognitionData(
+            data={"country": "Spain", "lang": "spanish"},
+            content_type="json",
+            metadata=[{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                      {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True}],
+            cognition_data_coll='Country_Details',
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -148,28 +157,24 @@ class TestLLM:
             json={'data': [{'embedding': embedding}]}
         )
 
+        responses.add(
+            url="https://api.openai.com/v1/embeddings",
+            method="POST",
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {"model": "text-embedding-ada-002", "input": json.dumps(test_content_two.data)}),
+                responses.matchers.header_matcher(request_header)],
+            json={'data': [{'embedding': embedding}]}
+        )
+
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
                 "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
-                "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
-            )
-
-            responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                method="PUT",
-                adding_headers={},
-                match=[responses.matchers.json_params_matcher(
-                    {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
-                status=200
             )
 
             responses.add(
@@ -182,19 +187,63 @@ class TestLLM:
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_User_Details_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_User_Details_faq_embd"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': 'test_embed_faq_text_User_Details_faq_embd', 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_User_Details_faq_embd/points"),
                 method="PUT",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                            'vector': embedding,
-                                                                           'payload': {'name': 'Nupur'}
+                                                                           'payload': {'collection_name': 'test_embed_faq_text_User_Details_faq_embd',
+                                                                                       'name': 'Nupur'}
+                                                                           }]})],
+                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+            )
+
+            responses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_Country_Details_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_Country_Details_faq_embd"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': 'test_embed_faq_text_Country_Details_faq_embd', 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_Country_Details_faq_embd/points"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher({'points': [{'id': test_content_two.vector_id,
+                                                                           'vector': embedding,
+                                                                           'payload': {
+                                                                               'collection_name': 'test_embed_faq_text_Country_Details_faq_embd',
+                                                                               'country': 'Spain'}
                                                                            }]})],
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
             response = gpt3.train()
 
-            assert response['faq'] == 1
+            assert response['faq'] == 2
 
     @responses.activate
     def test_gpt3_faq_embedding_train_payload_with_int(self):
@@ -228,23 +277,8 @@ class TestLLM:
 
             responses.add(
                 "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
-                "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
-            )
-
-            responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                method="PUT",
-                adding_headers={},
-                match=[responses.matchers.json_params_matcher(
-                    {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
-                status=200
             )
 
             responses.add(
@@ -257,12 +291,28 @@ class TestLLM:
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_json_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_json_faq_embd"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': 'test_embed_faq_json_faq_embd', 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_json_faq_embd/points"),
                 method="PUT",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                            'vector': embedding,
-                                                                           'payload': {'name': 'Ram', 'age': 23, 'color': 'red'}
+                                                                           'payload': {'name': 'Ram', 'age': 23, 'color': 'red',
+                                                                                       'collection_name': 'test_embed_faq_json_faq_embd'}
                                                                            }]})],
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
@@ -303,23 +353,8 @@ class TestLLM:
 
             responses.add(
                 "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
-                "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
-            )
-
-            responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                method="PUT",
-                adding_headers={},
-                match=[responses.matchers.json_params_matcher(
-                    {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
-                status=200
             )
 
             responses.add(
@@ -332,12 +367,27 @@ class TestLLM:
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_int_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_int_faq_embd"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': 'test_embed_faq_int_faq_embd', 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_int_faq_embd/points"),
                 method="PUT",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                            'vector': embedding,
-                                                                           'payload': test_content.data
+                                                                           'payload': {'age': 23, 'collection_name': 'test_embed_faq_int_faq_embd', 'color': 'red', 'name': 'Ram'}
                                                                            }]})],
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
@@ -376,23 +426,8 @@ class TestLLM:
 
             responses.add(
                 "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
-                "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
-            )
-
-            responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                method="PUT",
-                adding_headers={},
-                match=[responses.matchers.json_params_matcher(
-                    {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
-                status=200
             )
 
             responses.add(
@@ -405,12 +440,27 @@ class TestLLM:
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_json_no_metadata_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_json_no_metadata_faq_embd"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': 'test_embed_faq_json_no_metadata_faq_embd', 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_json_no_metadata_faq_embd/points"),
                 method="PUT",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                            'vector': embedding,
-                                                                           'payload': test_content.data
+                                                                           'payload': {'age': 25, 'city': 'Bengaluru', 'collection_name': 'test_embed_faq_json_no_metadata_faq_embd', 'name': 'Nupur'}
                                                                            }]})],
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
@@ -451,12 +501,6 @@ class TestLLM:
 
             responses.add(
                 "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
-                "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
             )
@@ -471,20 +515,27 @@ class TestLLM:
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_not_exists_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_not_exists_faq_embd"),
                 method="PUT",
                 adding_headers={},
-                match=[responses.matchers.json_params_matcher({'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
+                match=[responses.matchers.json_params_matcher({'name': 'test_embed_faq_not_exists_faq_embd', 'vectors': gpt3.vector_config})],
                 status=200
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_not_exists_faq_embd/points"),
                 method="PUT",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                   'vector': embedding,
-                                                                  'payload': {'content': test_content.data}
+                                                                  'payload': {'content': test_content.data,
+                                                                              'collection_name': 'test_embed_faq_not_exists_faq_embd'}
                                                                   }]})],
                 json={"result": None,
                       'status': {'error': 'Json deserialize error: missing field `vectors` at line 1 column 34779'},
@@ -543,23 +594,8 @@ class TestLLM:
 
             responses.add(
                 "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
-                "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
-            )
-
-            responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                method="PUT",
-                adding_headers={},
-                match=[responses.matchers.json_params_matcher(
-                    {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config})],
-                status=200
             )
 
             responses.add(
@@ -572,12 +608,38 @@ class TestLLM:
             )
 
             responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_payload_upsert_error_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_payload_upsert_error_faq_embd"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': 'test_embed_faq_payload_upsert_error_faq_embd', 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_payload_upsert_error_faq_embd/points"),
                 method="PUT",
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher({'points': [{'id': test_content.vector_id,
                                                                            'vector': embedding,
-                                                                           'payload': test_content.data
+                                                                           'payload': {'collection_name': 'test_embed_faq_payload_upsert_error_faq_embd',
+                                                                                       "filter": {
+                                                                                           "should": [
+                                                                                               {"key": "city",
+                                                                                                "match": {
+                                                                                                    "value": "London"}},
+                                                                                               {"key": "color",
+                                                                                                "match": {
+                                                                                                    "value": "red"}}
+                                                                                           ]
+                                                                                       }
+                                                                                       }
                                                                            }]})],
                 json={"result": None,
                       'status': {'error': 'Json deserialize error: missing field `vectors` at line 1 column 34779'},

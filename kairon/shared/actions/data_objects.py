@@ -665,6 +665,7 @@ class PromptAction(Auditlog):
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
     instructions = ListField(StringField())
+    cognition_data_coll = StringField(required=True)
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)
@@ -675,6 +676,8 @@ class PromptAction(Auditlog):
         for key, value in Utility.get_llm_hyperparameters().items():
             if key not in self.hyperparameters:
                 self.hyperparameters.update({key: value})
+        if Utility.check_empty_string(self.cognition_data_coll):
+            self.cognition_data_coll = self.bot + "_faq_embd"
 
     def validate(self, clean=True):
         if clean:
