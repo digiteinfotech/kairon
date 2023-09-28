@@ -1,17 +1,19 @@
 import asyncio
 import datetime
 import os
+import time
 import uuid
+from unittest import mock
 from unittest.mock import patch
 from urllib.parse import urljoin
 
 import jwt
+import pytest
 import responses
 from fastapi import HTTPException
 from fastapi_sso.sso.base import OpenID
 from mongoengine import connect
 from mongoengine.errors import ValidationError, DoesNotExist
-import pytest
 from mongomock.object_id import ObjectId
 from pydantic import SecretStr
 from pytest_httpx import HTTPXMock
@@ -20,25 +22,26 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
 from kairon.api.app.routers.idp import get_idp_config
+from kairon.api.models import RegisterAccount, EventConfig, IDPConfig, StoryRequest, HttpActionParameters, Password
+from kairon.exceptions import AppException
+from kairon.idp.data_objects import IdpConfig
 from kairon.idp.processor import IDPProcessor
-from kairon.shared.admin.data_objects import BotSecrets
-from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.account.data_objects import Feedback, BotAccess, User, Bot, Account, Organization, TrustedDevice
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.admin.data_objects import BotSecrets
+from kairon.shared.auth import Authentication, LoginSSOFactory
 from kairon.shared.authorization.processor import IntegrationProcessor
+from kairon.shared.constants import UserActivityType
+from kairon.shared.data.audit.data_objects import AuditLogData
+from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ACTIVITY_STATUS, ACCESS_ROLES, TOKEN_TYPE, INTEGRATION_STATUS, \
     ORG_SETTINGS_MESSAGES, FeatureMappings
 from kairon.shared.data.data_objects import Configs, Rules, Responses
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.metering.data_object import Metering
 from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.facebook import FacebookSSO
 from kairon.shared.sso.clients.google import GoogleSSO
 from kairon.shared.utils import Utility, MailUtility
-from kairon.exceptions import AppException
-import time
-from kairon.idp.data_objects import IdpConfig
-from kairon.api.models import RegisterAccount, EventConfig, IDPConfig,StoryRequest, HttpActionParameters,Password
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -787,10 +790,12 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_user", _mock_get_user)
         with pytest.raises(ValidationError):
             AccountProcessor.get_user_details("nupur@gmail.com", True)
-        value = list(Metering.objects(username="nupur@gmail.com").order_by("-timestamp"))
-        assert value[0]["metric_type"] == "invalid_login"
+        value = list(AuditLogData.objects(attributes__key='account', attributes__value=1001).order_by("-timestamp"))
+        assert value[0]["entity"] == "invalid_login"
+        assert value[0]["action"] == 'activity'
+        assert value[0]["user"] == "nupur@gmail.com"
         assert value[0]["timestamp"]
-        assert value[0]["error"] == "Inactive User please contact admin!"
+        assert value[0]["data"] == {'message': ['Inactive User please contact admin!'], 'username': 'nupur@gmail.com'}
 
     def test_get_user_details_inactive_account(self, monkeypatch):
         def _mock_get_user(*args, **kwargs):
@@ -816,10 +821,12 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_account", _mock_get_account)
         with pytest.raises(ValidationError):
             AccountProcessor.get_user_details("nupur@gmail.com", True)
-        value = list(Metering.objects(username="nupur@gmail.com").order_by("-timestamp"))
-        assert value[0]["metric_type"] == "invalid_login"
+        value = list(AuditLogData.objects(attributes__key='account', attributes__value=1001).order_by("-timestamp"))
+        assert value[0]["entity"] == "invalid_login"
+        assert value[0]["action"] == 'activity'
+        assert value[0]["user"] == "nupur@gmail.com"
         assert value[0]["timestamp"]
-        assert value[0]["error"] == "Inactive Account Please contact system admin!"
+        assert value[0]["data"] == {'message': ['Inactive Account Please contact system admin!'], 'username': 'nupur@gmail.com'}
 
     @pytest.fixture
     def mock_user_inactive(self, monkeypatch):
@@ -934,7 +941,7 @@ class TestAccountProcessor:
         def _publish_auditlog(*args, **kwargs):
             return
 
-        monkeypatch.setattr(Utility, "save_and_publish_auditlog", _publish_auditlog)
+        monkeypatch.setattr(AuditDataProcessor, "save_and_publish_auditlog", _publish_auditlog)
         account = {
             "account": "Test_Account",
             "bot": "Test",
@@ -1118,6 +1125,17 @@ class TestAccountProcessor:
         loop = asyncio.new_event_loop()
         with pytest.raises(AppException, match='Password reset limit exhausted. Please come back in *'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
+
+    @mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_password_reset_within_cooldown_period', autospec=True)
+    def test_overwrite_password_email_password_same(self, mock_password_reset, monkeypatch):
+        def _password_reset(*args, **kwargs):
+            return
+        mock_password_reset.return_value = _password_reset
+        monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
+        token = Utility.generate_token('integ2@gmail.com')
+        loop = asyncio.new_event_loop()
+        with pytest.raises(AppException, match='email and password cannot be same!'):
+            loop.run_until_complete(AccountProcessor.overwrite_password(token, "integ2@gmail.com"))
 
     def test_reset_link_not_within_cooldown_period(self, monkeypatch):
         Utility.email_conf["email"]["enable"] = True
@@ -1475,10 +1493,10 @@ class TestAccountProcessor:
         access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token,
                                                                                                           user)
         data_stack = Utility.decode_limited_access_token(refresh)
-        value = Metering.objects(username=username).get(metric_type="login_refresh_token")
-        assert value.metric_type == "login_refresh_token"
-        assert value.username == "nupurrkhare@digite.com"
-        assert value.timestamp
+        value = list(AuditLogData.objects(attributes__key='account', attributes__value=pytest.account, entity="login_refresh_token").order_by("-timestamp"))
+        assert value[0]['entity'] == "login_refresh_token"
+        assert value[0]['user'] == "nupurrkhare@digite.com"
+        assert value[0]['timestamp']
 
     def test_generate_token_from_refresh_token_for_login(self):
         user = AccountProcessor.get_user("nupur.khare@digite.com")
@@ -1501,17 +1519,26 @@ class TestAccountProcessor:
         refresh_token_expiry = datetime.datetime.fromtimestamp(refresh_token_exp, tz=datetime.timezone.utc)
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
         assert round((refresh_token_expiry - iat).total_seconds() / 60) == Utility.environment['security']["refresh_token_expire"]
-        metering = list(Metering.objects(username="nupur.khare@digite.com").order_by("-timestamp"))
-        assert metering[0]["metric_type"] == "login"
-        assert metering[0]["username"] == "nupur.khare@digite.com"
+        metering = list(AuditLogData.objects(attributes__key='account', attributes__value=user['account'], entity="login").order_by("-timestamp"))
+        assert metering[0]["entity"] == "login"
+        assert metering[0]["user"] == "nupur.khare@digite.com"
         assert metering[0]["timestamp"]
 
         access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token, user)
         data_stack = Utility.decode_limited_access_token(refresh)
-        value = list(Metering.objects(username="nupur.khare@digite.com").order_by("-timestamp"))
-        assert value[0]["metric_type"] == "login_refresh_token"
-        assert value[0]["username"] == "nupur.khare@digite.com"
+        value = list(AuditLogData.objects(attributes__key='account', attributes__value=user['account'], entity="login_refresh_token").order_by("-timestamp"))
+        assert value[0]["entity"] == "login_refresh_token"
+        assert value[0]["user"] == "nupur.khare@digite.com"
         assert value[0]["timestamp"]
+
+    def test_authenticate_method_login_within_cooldown_period(self):
+        username = "nupur.khare@digite.com"
+        password = "Welcome@15"
+        Authentication.authenticate(username, password)
+        user = AccountProcessor.get_user(username)
+        with pytest.raises(AppException, match='Only 3 logins are allowed within 120 minutes. '
+                                               f'Please come back in *'):
+            Authentication.generate_login_tokens(user, True)
 
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'
@@ -1877,6 +1904,7 @@ class TestAccountProcessor:
             user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
+        print(list(AccountProcessor.list_bots(user['account'])))
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
@@ -1959,6 +1987,7 @@ class TestAccountProcessor:
             user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
+        print(list(AccountProcessor.list_bots(user['account'])))
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
@@ -2147,6 +2176,7 @@ class TestAccountProcessor:
             user[key] is False if key in {"is_integration_user", "is_onboarded"} else user[key]
             for key in user.keys()
         )
+        print(list(AccountProcessor.list_bots(user['account'])))
         assert len(list(AccountProcessor.list_bots(user['account']))) == 1
         assert not AccountProcessor.is_user_confirmed(user['email'])
 
@@ -2186,7 +2216,7 @@ class TestAccountProcessor:
         monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('samepasswrd@gmail.com')
         loop = asyncio.new_event_loop()
-        with pytest.raises(AppException, match='You have already used that password, try another'):
+        with pytest.raises(AppException, match='You have already used this password, try another!'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@1"))
 
     def test_overwrite_password_with_same_password_again(self, monkeypatch):
@@ -2196,7 +2226,7 @@ class TestAccountProcessor:
         Utility.environment['user']['reset_password_cooldown_period'] = 0
         loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))
         time.sleep(2)
-        with pytest.raises(AppException, match='You have already used that password, try another'):
+        with pytest.raises(AppException, match='You have already used this password, try another!'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@12"))
 
     def test_overwrite_password_with_original_passwrd(self, monkeypatch):
@@ -2205,7 +2235,7 @@ class TestAccountProcessor:
         loop = asyncio.new_event_loop()
         Utility.environment['user']['reset_password_cooldown_period'] = 0
         time.sleep(2)
-        with pytest.raises(AppException, match='You have already used that password, try another'):
+        with pytest.raises(AppException, match='You have already used this password, try another!'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@1"))
 
     def test_overwrite_password_with_successful_update(self, monkeypatch):
@@ -2235,7 +2265,7 @@ class TestAccountProcessor:
         token = str(result[2]).split("/")[2]
         Utility.email_conf["email"]["enable"] = False
         loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
-        with pytest.raises(AppException, match='Link is already being used, Please raise new request'):
+        with pytest.raises(AppException, match='Link has already been used once and has thus expired!'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@4"))
 
     def test_valid_token_with_payload(self):
@@ -2543,19 +2573,19 @@ class TestAccountProcessor:
             RegisterAccount.validate_confirm_password(SecretStr("Owners@4"), {"password": SecretStr("Winte@20")})
 
     def test_validate_password(cls):
-        with pytest.raises(ValueError, match="Password length must be 8\n"
+        with pytest.raises(ValueError, match="Password length must be 10\n"
                                              "Missing 1 number\nMissing 1 special letter"):
             Password.validate_password(SecretStr("Owners"), {})
 
     def test_validate_password_empty(cls):
-        with pytest.raises(ValueError, match="Password length must be 8\n"
+        with pytest.raises(ValueError, match="Password length must be 10\n"
                                              "Missing 1 uppercase letter\n"
                                              "Missing 1 number\n"
                                              "Missing 1 special letter"):
             Password.validate_password(SecretStr(""), {})
 
     def test_validate_password_None(cls):
-        with pytest.raises(ValueError, match="Password length must be 8\n"
+        with pytest.raises(ValueError, match="Password length must be 10\n"
                                              "Missing 1 number\nMissing 1 special letter"):
             Password.validate_password(SecretStr(None), {})
 
@@ -2749,3 +2779,34 @@ class TestAccountProcessor:
 
         with pytest.raises(DoesNotExist):
             BotSecrets.objects(bot=bot_id, secret_type="gpt_key").get().to_mongo().to_dict()
+
+    @mock.patch('kairon.shared.data.audit.processor.AuditDataProcessor.publish_auditlog', autospec=True)
+    def test_save_auditlog_document(self, mock_publish):
+        from kairon.shared.account.processor import AccountProcessor
+        def _publish(*args, **kwargs):
+            return
+
+        mock_publish.return_value = _publish
+        bot = 'test_bot'
+        user_name = "testsampleUser"
+        account = AccountProcessor.add_account("Nupur", "testsampleUser")
+        AccountProcessor.add_user(
+            email="nk@digite.com",
+            first_name="Nupur",
+            last_name="Khare",
+            password="Welcome@109",
+            account=account['_id'],
+            user=user_name,
+        )
+        entity = UserActivityType.reset_password.value
+        data = {'status': 'pending'}
+        kwargs = {'message': ['Reset password'], 'action': 'activity'}
+        AuditDataProcessor.log(entity, account['_id'], bot, None, data, **kwargs)
+        count = AuditLogData.objects(attributes=[{'key': 'account', 'value': account['_id']}, {'key': 'bot', 'value': bot}], user=user_name,  action='activity').count()
+        assert count == 1
+
+    def test_get_attributes(self):
+        document = {'bot': None, 'acccount': None, 'email': 'nk15@digite.com'}
+        attributes = AuditDataProcessor.get_attributes(document)
+        assert attributes[0]['key'] == 'email'
+        assert attributes[0]['value'] == 'nk15@digite.com'

@@ -54,6 +54,9 @@ class UserActivityType(str, Enum):
     add_asset = "add_asset"
     delete_asset = "delete_asset"
     link_usage = "link_usage"
+    login = 'login'
+    login_refresh_token = "login_refresh_token"
+    invalid_login = 'invalid_login'
 
 
 class EventClass(str, Enum):

@@ -11,6 +11,8 @@ user:
   reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
   reset_password_cooldown_period: ${RESET_PASSWORD_COOLDOWN_PERIOD:120}
   validate_trusted_device: ${VALIDATE_TRUSTED_DEVICE:false}
+  login_limit: ${LOGIN_LIMIT:3}
+  login_cooldown_period: ${LOGIN_COOLDOWN_PERIOD:120}
 
 storage:
   assets:
@@ -126,6 +128,9 @@ events:
     pyscript: ${PYSCRIPT_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
+    attributes:
+      - account
+      - bot
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
