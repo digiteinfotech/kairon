@@ -507,6 +507,7 @@ class TestMongoProcessor:
         pytest.action_id = processor.add_prompt_action(request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
+        print(action)
         assert action == [
             {'name': 'test_add_prompt_action_faq_action_with_default_values',
              'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
@@ -518,7 +519,7 @@ class TestMongoProcessor:
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
-             'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+             'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'cognition_data_coll': 'test_bot_faq_embd',
              'status': True, "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                                  {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
                    "dispatch_response": False}]
@@ -776,6 +777,7 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
+        print(action)
         assert action == [
             {'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5, 'top_results': 10,
              'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
@@ -792,7 +794,7 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [],
+             'status': True, 'instructions': [], 'cognition_data_coll': 'test_bot_faq_embd',
              "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                             {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
                    "dispatch_response": False}]
@@ -811,6 +813,7 @@ class TestMongoProcessor:
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True}], 'status': True,
              "set_slots": [], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+             'cognition_data_coll': 'test_bot_faq_embd',
              "dispatch_response": True
              }]
 
@@ -844,6 +847,7 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
+        print(action)
         assert action == [
             {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
              'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
@@ -858,7 +862,7 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
+             'status': True, 'instructions': [], 'cognition_data_coll': 'test_bot_faq_embd', "set_slots": [], "dispatch_response": True}]
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -871,6 +875,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
+        print(action)
         assert action == [
             {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5, 'top_results': 10,
              'similarity_threshold': 0.7, 'failure_message': 'updated_failure_message', 'enable_response_cache': False,
@@ -885,7 +890,7 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True},
                              {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'status': True, 'instructions': [], "set_slots": [], "dispatch_response": True}]
+             'status': True, 'instructions': [], 'cognition_data_coll': 'test_bot_faq_embd', "set_slots": [], "dispatch_response": True}]
 
     def test_delete_prompt_action(self):
         processor = MongoProcessor()

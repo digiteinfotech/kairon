@@ -934,6 +934,7 @@ class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType
     metadata: List[Metadata] = None
+    cognition_data_coll: str = ""
 
     @root_validator
     def check(cls, values):

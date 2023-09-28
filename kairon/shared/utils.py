@@ -150,7 +150,7 @@ class Utility:
                 return data[column_name]
 
     @staticmethod
-    def get_embeddings_and_payload(data: Any, metadata: Dict):
+    def get_embeddings_and_payload_data(data: Any, metadata: Dict):
         search_payload = {}
         create_embedding_data = {}
         for metadata_item in metadata:
