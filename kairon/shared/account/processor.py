@@ -317,8 +317,8 @@ class AccountProcessor:
         AccountProcessor.__update_role(bot, current_owner, current_owner, ACCESS_ROLES.ADMIN.value, validate_ownership_modification=False)
         AccountProcessor.__change_bot_account(bot, to_user)
         UserActivityLogger.add_log(
-            account,
             UserActivityType.transfer_ownership.value,
+            account,
             current_owner, bot,
             [f'Ownership transferred to {to_user}']
         )
@@ -518,7 +518,7 @@ class AccountProcessor:
         except Exception as e:
             logging.error(e)
             if is_login_request:
-                UserActivityLogger.add_user_log(a_type=UserActivityType.invalid_login.value, email=email, data={"username": email})
+                UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, email=email, data={"username": email})
             raise DoesNotExist("User does not exist!")
 
     @staticmethod
@@ -535,14 +535,14 @@ class AccountProcessor:
         if not user["status"]:
             if is_login_request:
                 message = ["Inactive User please contact admin!"]
-                UserActivityLogger.add_log(account=user["account"], a_type=UserActivityType.invalid_login.value, email=email,
+                UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, account=user["account"], email=email,
                                             message=message, data={"username": email})
             raise ValidationError("Inactive User please contact admin!")
         account = AccountProcessor.get_account(user["account"])
         if not account["status"]:
             if is_login_request:
                 message = ["Inactive Account Please contact system admin!"]
-                UserActivityLogger.add_log(account=user["account"], a_type=UserActivityType.invalid_login.value, email=email,
+                UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, account=user["account"], email=email,
                                             message=message, data={"username": email})
             raise ValidationError("Inactive Account Please contact system admin!")
         return user
@@ -738,7 +738,7 @@ class AccountProcessor:
             except Exception as e:
                 if is_login_request:
                     message = ["Please verify your mail"]
-                    UserActivityLogger.add_log(account=user_info["account"], a_type=UserActivityType.invalid_login.value,
+                    UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, account=user_info["account"],
                                                 message=message, data={"username": user_info["email"]})
                 raise e
 
@@ -767,10 +767,10 @@ class AccountProcessor:
             token = Utility.generate_token_payload({"mail_id": mail, "uuid": uuid_value}, token_expiry * 60)
             user = AccountProcessor.get_user(mail)
             link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
-            UserActivityLogger.add_log(account=user['account'], email=mail, a_type=UserActivityType.reset_password_request.value)
+            UserActivityLogger.add_log(a_type=UserActivityType.reset_password_request.value, account=user['account'], email=mail)
             data = {"status": "pending", "uuid": uuid_value}
             UserActivityLogger.add_log(
-                account=user['account'], email=mail, a_type=UserActivityType.link_usage.value,
+                a_type=UserActivityType.link_usage.value, account=user['account'], email=mail,
                 message=["Send Reset Link"], data=data
             )
             return mail, user['first_name'], link
@@ -792,18 +792,18 @@ class AccountProcessor:
         decoded_jwt = Utility.verify_token(token)
         email = decoded_jwt.get("mail_id")
         uuid_value = decoded_jwt.get("uuid")
-        UserActivityLogger.is_relogin_done(uuid_value, email)
+        UserActivityLogger.is_token_alread_used(uuid_value, email)
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
         previous_passwrd = user.password
         if Utility.verify_password(password.strip(), previous_passwrd):
-            raise AppException("You have already used that password, try another!")
+            raise AppException("You have already used this password, try another!")
         UserActivityLogger.is_password_used_before(email, password)
         user.password = Utility.get_password_hash(password.strip())
         user.user = email
         user.save()
         data = {"password": previous_passwrd}
-        UserActivityLogger.add_log(account=user['account'], email=email, a_type=UserActivityType.reset_password.value,
+        UserActivityLogger.add_log(a_type=UserActivityType.reset_password.value, account=user['account'], email=email,
                                    data=data)
         UserActivityLogger.update_reset_password_link_usage(uuid_value, email)
         return email, user.first_name
@@ -892,7 +892,7 @@ class AccountProcessor:
         # Delete all account_owned bots
         for bot in account_bots:
             AccountProcessor.delete_bot(bot['_id'])
-            UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_bot.value, bot=bot["_id"])
+            UserActivityLogger.add_log(a_type=UserActivityType.delete_bot.value, account=account_id, bot=bot["_id"])
 
         # Delete all Users for Account
         for user in User.objects(account=account_id, status=True):
@@ -900,11 +900,11 @@ class AccountProcessor:
                 set__status=ACTIVITY_STATUS.DELETED.value)
             user.status = False
             user.save()
-            UserActivityLogger.add_log(account=account_id, email=user.email, a_type=UserActivityType.delete_user.value)
+            UserActivityLogger.add_log(a_type=UserActivityType.delete_user.value, account=account_id, email=user.email)
 
         account_obj.status = False
         account_obj.save()
-        UserActivityLogger.add_log(account=account_id, a_type=UserActivityType.delete_account.value)
+        UserActivityLogger.add_log(a_type=UserActivityType.delete_account.value, account=account_id)
 
     @staticmethod
     def get_location_and_add_trusted_device(

@@ -15,7 +15,7 @@ from kairon.shared.utils import Utility
 class UserActivityLogger:
 
     @staticmethod
-    def add_log(account: int, a_type: UserActivityType, email: Text = None, bot: Text = None, message: list = None, data: dict = None):
+    def add_log(a_type: UserActivityType, account: int = None,  email: Text = None, bot: Text = None, message: list = None, data: dict = None):
         """
         Adds log for various UserActivity
 
@@ -31,22 +31,6 @@ class UserActivityLogger:
         audit_data.update(data) if data else None
         kwargs = {'action': AuditlogActions.ACTIVITY.value}
         AuditDataProcessor.log(a_type, account, bot,  email, audit_data, **kwargs)
-
-    @staticmethod
-    def add_user_log(a_type: UserActivityType, email: Text = None, message: list = None, data: dict = None):
-        """
-        Adds user level log for various UserActivity
-
-        :param a_type: UserActivityType
-        :param email: email
-        :param message: list of messages
-        :param data: dictionary containing data
-        """
-
-        audit_data = {'message': message}
-        audit_data.update(data) if data else None
-        kwargs = {'action': AuditlogActions.ACTIVITY.value}
-        AuditDataProcessor.log(a_type, email=email, data=audit_data, **kwargs)
 
     @staticmethod
     def is_password_reset_request_limit_exceeded(email: Text):
@@ -105,22 +89,21 @@ class UserActivityLogger:
         logins_within_cutoff = AuditLogData.objects(
             user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.login.value, timestamp__gte=cutoff_time
         ).count()
-        first_login_with_cutoff = list(AuditLogData.objects(
+        first_login_within_cutoff = list(AuditLogData.objects(
             user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.login.value, timestamp__gte=cutoff_time
-        ))[0]
-        next_allowed_login = ((datetime.utcnow() - first_login_with_cutoff.timestamp).total_seconds()) / 60
+        ).order_by("timestamp"))
         if logins_within_cutoff >= login_request_limit:
             raise AppException(f'Only {login_request_limit} logins are allowed within {login_cooldown_period} minutes. '
-                               f'Please come back in {next_allowed_login} minutes!')
+                               f'Please come back in {str(timedelta(seconds=(datetime.utcnow() - first_login_within_cutoff[0].timestamp).seconds))} minutes!')
 
     @staticmethod
-    def is_relogin_done(uuid_value, email):
+    def is_token_alread_used(uuid_value, email):
         """
         Checks if password is already reset or not
 
         :param uuid_value: uuid_value
         :param email: email
-        :raises: AppException: Password already reset!
+        :raises: AppException: Link has already been used once and has thus expired!
         """
 
         if uuid_value is not None and Utility.is_exist(
@@ -128,7 +111,7 @@ class UserActivityLogger:
                 entity=UserActivityType.link_usage.value,
                 data__status="done", data__uuid=uuid_value, check_base_fields=False
         ):
-            raise AppException("Password already reset!")
+            raise AppException("Link has already been used once and has thus expired!")
 
     @staticmethod
     def is_password_used_before(email, password):
@@ -137,15 +120,17 @@ class UserActivityLogger:
 
         :param email: email
         :param password: password
-        :raises: AppException: You have already used that password, try another!
+        :raises: AppException: You have already used this password, try another!
         """
 
         user_act_log = AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value,
                                             entity=UserActivityType.reset_password.value).order_by('-timestamp')
+        if email == password:
+            raise AppException("email and password cannot be same!")
         if any(act_log.data is not None and act_log.data.get("password") is not None and
                Utility.verify_password(password.strip(), act_log.data.get("password"))
                for act_log in user_act_log):
-            raise AppException("You have already used that password, try another!")
+            raise AppException("You have already used this password, try another!")
 
     @staticmethod
     def update_reset_password_link_usage(uuid_value, email):

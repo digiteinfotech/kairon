@@ -28,7 +28,7 @@ class AuditDataProcessor:
         from kairon.shared.account.processor import AccountProcessor
 
         action = kwargs.get("action")
-        attribute = [{'key': 'bot', 'value': bot}, {'key': 'account', 'value': account}]
+        attribute = AuditDataProcessor.get_attributes({"bot": bot, "account": account, "email": email})
         user = email if email else AccountProcessor.get_account(account)['user']
         audit_log = AuditLogData(attributes=attribute,
                                  user=user,
@@ -73,11 +73,18 @@ class AuditDataProcessor:
         attributes_list = []
         attributes = Utility.environment['events']['audit_logs']['attributes']
         for attr in attributes:
-            if hasattr(document, attr):
-                attributes_list.append({'key': attr, 'value': getattr(document, attr)})
+            if isinstance(document, dict):
+                if attr in document and document[attr]:
+                    attributes_list.append({'key': attr, 'value': document[attr]})
+            else:
+                if hasattr(document, attr):
+                    attributes_list.append({'key': attr, 'value': getattr(document, attr)})
         if not attributes_list:
-            key = f"{document._class_name.__str__()}_id"
-            attributes_list.append({'key': key, 'value': document.id.__str__()})
+            if not isinstance(document, dict):
+                key = f"{document._class_name.__str__()}_id"
+                attributes_list.append({'key': key, 'value': document.id.__str__()})
+            else:
+                attributes_list.append({'key': 'email', 'value': document['email']})
 
         return attributes_list
 

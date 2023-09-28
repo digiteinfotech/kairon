@@ -1507,7 +1507,7 @@ async def upload_bot_assets(
     """
     data = {"url": await AssetsProcessor.add_asset(current_user.get_bot(), current_user.get_user(), asset, asset_type)}
     UserActivityLogger.add_log(
-        current_user.account, UserActivityType.add_asset, current_user.get_user(), current_user.get_bot(),
+        UserActivityType.add_asset, current_user.account, current_user.get_user(), current_user.get_bot(),
         [f"asset_type={asset_type}"]
     )
     return Response(message='Asset added', data=data)
@@ -1522,7 +1522,7 @@ async def delete_bot_assets(
     """
     AssetsProcessor.delete_asset(current_user.get_bot(), current_user.get_user(), asset_type)
     UserActivityLogger.add_log(
-        current_user.account, UserActivityType.delete_asset, current_user.get_user(), current_user.get_bot(),
+        UserActivityType.delete_asset, current_user.account, current_user.get_user(), current_user.get_bot(),
         [f"asset_type={asset_type}"]
     )
     return Response(message='Asset deleted')

@@ -159,7 +159,7 @@ class Authentication:
         if not user or not Utility.verify_password(password, user["password"]):
             data = {"username": username}
             message = ["Incorrect username or password"]
-            UserActivityLogger.add_log(account=user["account"], a_type=UserActivityType.invalid_login.value, message=message, data=data)
+            UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, account=user["account"], message=message, data=data)
             return False
         return user
 
@@ -179,14 +179,13 @@ class Authentication:
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        UserActivityLogger.add_log(account=user.get('account'), a_type=UserActivityType.login.value, email=user.get('email'))
-        UserActivityLogger.is_login_within_cooldown_period(user.get('email'))
         return Authentication.generate_login_tokens(user, True)
 
     @staticmethod
     def generate_login_tokens(user: dict, is_login: bool):
         username = user["email"]
         account = user["account"]
+        UserActivityLogger.is_login_within_cooldown_period(user.get('email'))
         access_token = Authentication.create_access_token(data={"sub": username, "account": account})
         claims = Utility.decode_limited_access_token(access_token)
         access_token_iat = datetime.fromtimestamp(claims['iat'])
@@ -199,7 +198,7 @@ class Authentication:
             metric_type = UserActivityType.login.value
         else:
             metric_type = UserActivityType.login_refresh_token.value
-        UserActivityLogger.add_log(account=user["account"], a_type=metric_type, data={"username": username})
+        UserActivityLogger.add_log(a_type=metric_type, account=user["account"], email=username, data={"username": username})
         return access_token, access_token_expiry.timestamp(), refresh_token, refresh_token_expiry.timestamp()
 
     @staticmethod

@@ -29,7 +29,6 @@ from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
-from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.utils import ActionUtility
@@ -225,7 +224,7 @@ def test_account_registration_error():
     )
     actual = response.json()
     assert actual["message"] == [
-        {'loc': ['body', 'password'], 'msg': 'Missing 1 uppercase letter', 'type': 'value_error'}]
+        {'loc': ['body', 'password'], 'msg': 'Password length must be 10\nMissing 1 uppercase letter', 'type': 'value_error'}]
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -247,8 +246,8 @@ def test_recaptcha_verified_request(monkeypatch):
                 "email": "integration1234567890@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration1234567890",
                 "bot": "integration",
             },
@@ -268,8 +267,8 @@ def test_recaptcha_verified_request(monkeypatch):
                 "email": "integration1234567@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration1234567",
                 "bot": "integration",
                 "add_trusted_device": True
@@ -295,8 +294,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
                 "email": "integration1234567890@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -316,8 +315,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
                 "email": "integration1234567890@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -334,8 +333,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
                 "email": "integration1234567890@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -374,8 +373,8 @@ def test_account_registation_temporary_email():
                 "email": email,
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -415,8 +414,8 @@ def test_account_registation_invalid_email():
                 "email": email,
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -474,8 +473,8 @@ def test_account_registration(monkeypatch):
             "email": "integration@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration",
             "bot": "integration",
         },
@@ -490,8 +489,8 @@ def test_account_registration(monkeypatch):
             "email": "INTEGRATIONTEST@DEMO.AI",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integrationtest",
             "bot": "integrationtest",
             "fingerprint": "asdfghj4567890"
@@ -507,8 +506,8 @@ def test_account_registration(monkeypatch):
             "email": "INTEGRATION2@DEMO.AI",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration2",
             "bot": "integration2",
             "fingerprint": "asdfghj4567890"
@@ -538,8 +537,8 @@ def test_account_registration_enable_sso_only(monkeypatch):
             "email": "integration@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration",
             "bot": "integration",
         },
@@ -576,7 +575,7 @@ def test_api_login_with_recaptcha(monkeypatch):
         )
         response = client.post(
             "/api/auth/login",
-            data={"username": email, "password": "Welcome@1", "recaptcha_response": "asdfghjkl2345"},
+            data={"username": email, "password": "Welcome@10", "recaptcha_response": "asdfghjkl2345"},
         )
         actual = response.json()
         assert all(
@@ -599,28 +598,29 @@ def test_api_login_with_recaptcha_failed(monkeypatch):
         )
         response = client.post(
             "/api/auth/login",
-            data={"username": email, "password": "Welcome@1", "recaptcha_response": "asdfghjkl23"},
+            data={"username": email, "password": "Welcome@10", "recaptcha_response": "asdfghjkl23"},
         )
         actual = response.json()
         assert actual == {'success': False, 'message': 'Failed to validate recaptcha', 'data': None, 'error_code': 422}
 
         response = client.post(
             "/api/auth/login",
-            data={"username": email, "password": "Welcome@1"},
+            data={"username": email, "password": "Welcome@10"},
         )
         actual = response.json()
         assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
 
 
-def test_api_login(monkeypatch):
-    def login_limit(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_api_login(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+    mock_password_reset.return_value = _password_reset
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert all(
@@ -654,7 +654,7 @@ def test_api_login(monkeypatch):
     email = "integrationtest@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert all(
@@ -669,7 +669,7 @@ def test_api_login(monkeypatch):
     email = "integration2@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert all(
@@ -684,7 +684,7 @@ def test_api_login(monkeypatch):
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
 
@@ -773,7 +773,7 @@ def test_api_login_enabled_with_fingerprint(monkeypatch):
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert actual["message"] == "fingerprint is required"
@@ -791,8 +791,8 @@ def test_add_trusted_device_on_signup_error(monkeypatch):
             "email": "integration1234567@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration1234567",
             "bot": "integration",
             "fingerprint": None
@@ -935,7 +935,7 @@ def test_api_login_enabled_sso_only(monkeypatch):
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert actual["message"] == "This feature is disabled"
@@ -5383,7 +5383,7 @@ def test_api_login_with_account_not_verified():
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
@@ -5407,8 +5407,8 @@ def test_account_registration_with_confirmation(monkeypatch):
             "email": "integ1@gmail.com",
             "first_name": "Dem",
             "last_name": "User22",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration33",
             "bot": "integration33",
         },
@@ -5433,7 +5433,7 @@ def test_account_registration_with_confirmation(monkeypatch):
 
     response = client.post(
         "/api/auth/login",
-        data={"username": 'integ1@gmail.com', "password": "Welcome@1"},
+        data={"username": 'integ1@gmail.com', "password": "Welcome@10"},
     )
     actual = response.json()
     pytest.add_member_token = actual["data"]["access_token"]
@@ -5551,14 +5551,15 @@ def test_add_member_as_owner(monkeypatch):
     assert not response['success']
 
 
-def test_list_bot_invites(monkeypatch):
-    def _login_limit_exceeded(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_list_bot_invites(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
+    mock_password_reset.return_value = _password_reset
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
     ).json()
 
     response = client.get(
@@ -5575,7 +5576,7 @@ def test_list_bot_invites(monkeypatch):
 def test_login_limit_exceeded():
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
     ).json()
     print(response)
     assert not response['success']
@@ -5630,14 +5631,15 @@ def test_accept_bot_invite(monkeypatch):
     assert response['success']
 
 
-def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
-    def login_limit(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_accept_bot_invite_logged_in_user_with_email_enabled(mock_password_reset, monkeypatch):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+    mock_password_reset.return_value = _password_reset
     response = client.post(
         "/api/auth/login",
-        data={"username": "integrationtest@demo.ai", "password": "Welcome@1"},
+        data={"username": "integrationtest@demo.ai", "password": "Welcome@10"},
     )
     actual = response.json()
     assert all([True if actual["data"][key] else False for key in ["access_token", "token_type"]])
@@ -5665,14 +5667,15 @@ def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
     assert response['success']
 
 
-def test_accept_bot_invite_logged_in_user(monkeypatch):
-    def login_limit(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_accept_bot_invite_logged_in_user(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+    mock_password_reset.return_value = _password_reset
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration2@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration2@demo.ai", "password": "Welcome@10"},
     )
     actual = response.json()
     assert all([True if actual["data"][key] else False for key in ["access_token", "token_type"]])
@@ -5799,8 +5802,8 @@ def test_update_member_role_not_exists(monkeypatch):
             "email": "user@kairon.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "user@kairon.ai",
         },
     )
@@ -5833,8 +5836,8 @@ def test_update_member_role(monkeypatch):
             "email": "integration_email_false@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration_email_false@demo.ai",
         },
     )
@@ -6149,15 +6152,16 @@ def test_delete_bot():
     assert response['success']
 
 
-def test_login_for_verified(monkeypatch):
-    def login_limit(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_login_for_verified(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+    mock_password_reset.return_value = _password_reset
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/auth/login",
-        data={"username": "integ1@gmail.com", "password": "Welcome@1"},
+        data={"username": "integ1@gmail.com", "password": "Welcome@10"},
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
@@ -6293,8 +6297,8 @@ def test_overwrite_password_enabled_sso_only(monkeypatch):
         "/api/account/password/change",
         json={
             "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
-            "password": "Welcome@2",
-            "confirm_password": "Welcome@2"},
+            "password": "Welcome@20",
+            "confirm_password": "Welcome@20"},
     )
     actual = response.json()
     assert actual["message"] == "This feature is disabled"
@@ -15980,7 +15984,7 @@ def test_get_auditlog_for_user_1():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.get(
@@ -15995,7 +15999,7 @@ def test_get_auditlog_for_user_1():
     assert actual["data"][0]["user"] == email
 
     assert actual["data"][0]["action"] == AuditlogActions.ACTIVITY.value
-    assert actual["data"][0]["attributes"][1]["value"] is not None
+    assert actual["data"][0]["attributes"][0]["value"] is not None
 
 
 def test_get_auditlog_for_bot():
@@ -16018,15 +16022,16 @@ def test_get_auditlog_for_bot():
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
 
-def test_get_auditlog_for_user_2(monkeypatch):
-    def _login_limit_exceeded(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_get_auditlog_for_user_2(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
+    mock_password_reset.return_value = _password_reset
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login_2 = response.json()
     response = client.get(
@@ -16096,8 +16101,8 @@ def test_add_member_with_view_role():
             "email": email,
             "first_name": "Dem",
             "last_name": "User22",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": email,
         },
     )
@@ -16118,7 +16123,7 @@ def test_add_member_with_view_role():
 
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
 
@@ -16435,15 +16440,16 @@ def test_idp_provider_fields():
 
 
 @responses.activate
-def test_add_organization(monkeypatch):
-    def login_limit(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_add_organization(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+    mock_password_reset.return_value = _password_reset
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.post(
@@ -16457,15 +16463,16 @@ def test_add_organization(monkeypatch):
 
 
 @responses.activate
-def test_get_organization(monkeypatch):
-    def login_limit(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_get_organization(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+    mock_password_reset.return_value = _password_reset
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.get(
@@ -16479,15 +16486,16 @@ def test_get_organization(monkeypatch):
 
 
 @responses.activate
-def test_update_organization(monkeypatch):
-    def _login_limit_exceeded(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_update_organization(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
+    mock_password_reset.return_value = _password_reset
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.post(
@@ -16500,15 +16508,16 @@ def test_update_organization(monkeypatch):
 
 
 @responses.activate
-def test_get_organization_after_update(monkeypatch):
-    def _login_limit_exceeded(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_get_organization_after_update(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
+    mock_password_reset.return_value = _password_reset
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.get(
@@ -16522,11 +16531,12 @@ def test_get_organization_after_update(monkeypatch):
 
 
 @responses.activate
-def test_delete_organization(monkeypatch):
-    def _login_limit_exceeded(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_delete_organization(mock_password_reset, monkeypatch):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
+    mock_password_reset.return_value = _password_reset
     def _delete_idp(*args, **kwargs):
         return
 
@@ -16534,7 +16544,7 @@ def test_delete_organization(monkeypatch):
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.delete(
@@ -16556,14 +16566,15 @@ def test_get_model_testing_logs_accuracy():
     assert response["error_code"] == 0
 
 
-def test_delete_account(monkeypatch):
-    def _login_limit_exceeded(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_delete_account(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", _login_limit_exceeded)
+    mock_password_reset.return_value = _password_reset
     response_log = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
     )
     actual = response_log.json()
 
@@ -16598,8 +16609,8 @@ def test_get_responses_post_passwd_reset(monkeypatch):
             "email": email,
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration",
             "bot": "integration",
         },
@@ -16607,7 +16618,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     actual = regsiter_response.json()
     login_response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login_actual = login_response.json()
     pytest.access_token = login_actual["data"]["access_token"]
@@ -16660,8 +16671,8 @@ def test_overwrite_password_for_matching_passwords(monkeypatch):
         "/api/account/password/change",
         json={
             "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
-            "password": "Welcome@2",
-            "confirm_password": "Welcome@2"},
+            "password": "Welcome@20",
+            "confirm_password": "Welcome@20"},
     )
     actual = response.json()
     assert actual["success"]
@@ -16670,14 +16681,15 @@ def test_overwrite_password_for_matching_passwords(monkeypatch):
     assert actual['data'] is None
 
 
-def test_login_new_password(monkeypatch):
-    def login_limit(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_login_new_password(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+    mock_password_reset.return_value = _password_reset
     response = client.post(
         "/api/auth/login",
-        data={"username": "integ1@gmail.com", "password": "Welcome@2"},
+        data={"username": "integ1@gmail.com", "password": "Welcome@20"},
     )
     actual = response.json()
 
@@ -16687,14 +16699,15 @@ def test_login_new_password(monkeypatch):
     pytest.token_type = actual["data"]["token_type"]
 
 
-def test_login_old_password(monkeypatch):
-    def login_limit(*args, **kwargs):
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_login_old_password(mock_password_reset):
+    def _password_reset(*args, **kwargs):
         return
 
-    monkeypatch.setattr(UserActivityLogger, "is_login_within_cooldown_period", login_limit)
+    mock_password_reset.return_value = _password_reset
     response = client.post(
         "/api/auth/login",
-        data={"username": "integ1@gmail.com", "password": "Welcome@1"},
+        data={"username": "integ1@gmail.com", "password": "Welcome@10"},
     )
     actual = response.json()
     assert not actual["success"]
@@ -16716,8 +16729,8 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
             "email": email,
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "samepasswrd",
             "bot": "samepasswrd",
         },
@@ -16734,12 +16747,12 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
         "/api/account/password/change",
         json={
             "data": token,
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1"},
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10"},
     )
     response = passwrd_change_response.json()
     message = response.get("message")
-    assert message == "You have already used that password, try another!"
+    assert message == "You have already used this password, try another!"
 
 
 def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
@@ -16751,8 +16764,8 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
             "email": email,
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "samepasswrd2",
             "bot": "samepasswrd2",
         },
@@ -16786,7 +16799,7 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     )
     response = passwrd_rechange_response.json()
     message = response.get("message")
-    assert message == "You have already used that password, try another!"
+    assert message == "You have already used this password, try another!"
 
 
 def test_idp_provider_fields_unauth():
@@ -16800,7 +16813,7 @@ def test_idp_provider_fields_unauth():
 
 def test_allowed_origin_default():
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"}
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"}
     )
     actual = response.json()
     assert actual["error_code"] == 422
@@ -16824,7 +16837,7 @@ def test_allowed_origin(monkeypatch):
     monkeypatch.setitem(Utility.environment['cors'], 'origin', 'http://digite.com')
 
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"},
         headers={"origin": "http://digite.com"}
     )
     actual = response.json()
@@ -16849,21 +16862,21 @@ def test_allowed_origin(monkeypatch):
 def test_get_client_ip(monkeypatch):
     headers = {"X-Forwarded-For": "10.0.0.1"}
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"},
         headers=headers
     )
     assert Utility.get_client_ip(response.request) == "10.0.0.1"
 
     headers = {"X-Forwarded-For": "10.0.0.2, 10.0.1.1"}
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"},
         headers=headers
     )
     assert Utility.get_client_ip(response.request) == "10.0.0.2, 10.0.1.1"
 
     headers = {"X-Real-IP": "10.0.0.3"}
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"},
         headers=headers
     )
     assert Utility.get_client_ip(response.request) == "10.0.0.3"
@@ -16878,7 +16891,7 @@ def test_allow_only_sso_login(monkeypatch):
 
     response = client.post(
         "/api/auth/login",
-        data={"username": user, "password": "Welcome@1"},
+        data={"username": user, "password": "Welcome@10"},
     )
     actual = response.json()
     assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"
@@ -16916,7 +16929,7 @@ def test_api_login_with_SSO_only_flag():
     email = "idp_user@demo.in"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"
