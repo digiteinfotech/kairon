@@ -37,7 +37,7 @@ class HistoryProcessor:
         events, message = HistoryProcessor.fetch_user_history(
             collection, sender, from_date=from_date, to_date=to_date
         )
-        return list(HistoryProcessor.__prepare_data(events)), message
+        return events, message
 
     @staticmethod
     def fetch_chat_users(collection: Text,
@@ -72,41 +72,6 @@ class HistoryProcessor:
                 raise AppException(e)
 
     @staticmethod
-    def __prepare_data(events):
-        bot_action = None
-        if events:
-            event_list = ["user", "bot"]
-            for i in range(events.__len__()):
-                event = events[i]
-                if event["event"] in event_list:
-                    result = {
-                        "event": event["event"],
-                        "time": datetime.fromtimestamp(event["timestamp"]).time(),
-                        "date": datetime.fromtimestamp(event["timestamp"]).date(),
-                    }
-
-                    if event.get("text"):
-                        result["text"] = event.get("text")
-
-                    if event["event"] == "user":
-                        parse_data = event["parse_data"]
-                        result["intent"] = parse_data["intent"]["name"]
-                        result["confidence"] = parse_data["intent"]["confidence"]
-                    elif event["event"] == "bot":
-                        result['data'] = event['data']
-                        if event.get('metadata') and event["metadata"].get("utter_action"):
-                            result["action"] = event['metadata']['utter_action']
-                        else:
-                            result["action"] = bot_action
-
-                    if result:
-                        yield result
-                else:
-                    bot_action = (
-                        event["name"] if event["event"] == "action" else None
-                    )
-
-    @staticmethod
     def fetch_user_history(collection: Text, sender_id: Text,
                            from_date: date = (datetime.utcnow() - timedelta(30)).date(),
                            to_date: date = datetime.utcnow().date()):
@@ -129,18 +94,14 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 values = list(conversations
-                              .aggregate([{"$match": {"sender_id": sender_id, "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                                                  "$lte": Utility.get_timestamp_from_date(to_date)}}},
-                                          {"$match": {"event.event": {"$in": ["user", "bot", "action"]}}},
-                                          {"$sort": {"event.timestamp": 1}},
-                                          {"$group": {"_id": None, "events": {"$push": "$event"}}},
-                                          {"$project": {"_id": 0, "events": 1}}])
+                              .aggregate([{"$match": {"sender_id": sender_id, "type": {"$in": ["flattened", "broadcast"]},
+                                                      "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                                    "$lte": Utility.get_timestamp_from_date(to_date)}}},
+                                          {"$sort": {"timestamp": 1}},
+                                          {"$project": {"_id": 0, "sender_id": 1, "conversation_id": 1, "data": 1, "timestamp": 1}}])
                               )
                 if values:
-                    return (
-                        values[0]['events'],
-                        message
-                    )
+                    return values, message
                 return [], message
         except ServerSelectionTimeoutError as e:
             logger.error(e)
@@ -842,18 +803,21 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
                 user_data = list(
                     conversations.aggregate(
-                        [{"$match": {"type": "flattened",
+                        [{"$match": {"type": {"$in": ["flattened", "broadcast"]},
                                      "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                    "$lte": Utility.get_timestamp_from_date(to_date)}}},
                             {"$project": {"user_input": "$data.user_input", "intent": "$data.intent",
                                           "confidence": "$data.confidence", "action": "$data.action",
                                           "timestamp": {"$toDate": {"$multiply": ["$timestamp", 1000]}},
-                                          "bot_response": "$data.bot_response", "sender_id": "$sender_id"
+                                          "bot_response": "$data.bot_response", "sender_id": "$sender_id",
+                                          "template_name": "$data.name", "template": "$data.template",
+                                          "template_params": "$data.template_params"
                                           }},
                             {"$sort": {"timestamp": -1}},
                             {"$project": {"_id": "$sender_id", "user_input": 1, "intent": 1, "confidence": 1,
                                           "timestamp": {'$dateToString': {'format': "%d-%m-%Y %H:%M:%S", 'date': '$timestamp'}},
-                                          "action": 1, "bot_response": 1}}
+                                          "action": 1, "bot_response": 1, "template_name": 1, "template": 1,
+                                          "template_params": 1}}
                          ], allowDiskUse=True))
 
         except Exception as e:

@@ -73,12 +73,11 @@ class AuditDataProcessor:
         attributes_list = []
         attributes = Utility.environment['events']['audit_logs']['attributes']
         for attr in attributes:
-            if isinstance(document, dict):
-                if attr in document and document[attr]:
-                    attributes_list.append({'key': attr, 'value': document[attr]})
-            else:
-                if hasattr(document, attr):
-                    attributes_list.append({'key': attr, 'value': getattr(document, attr)})
+            if isinstance(document, dict) and document.get(attr):
+                attributes_list.append({'key': attr, 'value': document[attr]})
+            elif hasattr(document, attr):
+                attributes_list.append({'key': attr, 'value': getattr(document, attr)})
+
         if not attributes_list:
             if not isinstance(document, dict):
                 key = f"{document._class_name.__str__()}_id"

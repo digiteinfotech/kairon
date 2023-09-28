@@ -84,15 +84,15 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         return self.list_templates(id=template_id)
 
     def list_templates(self, **kwargs):
-        filters = {}
+        filters = ""
         try:
             if kwargs:
-                filters.update(kwargs)
+                filters = str(kwargs).replace('\'', "\"")
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             account_id = config.get("config", {}).get("waba_account_id")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
             partner_id = config.get("config", {}).get("partner_id", Utility.environment["channels"]["360dialog"]["partner_id"])
-            template_endpoint = f"/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={filters}&sort=business_templates.name"
+            template_endpoint = f'/api/v2/partners/{partner_id}/waba_accounts/{account_id}/waba_templates?filters={filters}&sort=business_templates.name'
             headers = {"Authorization": BSP360Dialog.get_partner_auth_token()}
             url = f"{base_url}{template_endpoint}"
             resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers,

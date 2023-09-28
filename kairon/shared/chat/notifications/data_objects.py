@@ -2,7 +2,7 @@ from mongoengine import Document, StringField, DateTimeField, DynamicDocument, E
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField
 
 from kairon import Utility
-from kairon.shared.data.base_data import Auditlog
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from datetime import datetime
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType

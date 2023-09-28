@@ -14,7 +14,7 @@ from kairon.api.models import TokenData
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.constants import PluginTypes, ChannelTypes
+from kairon.shared.constants import PluginTypes, ChannelTypes, UserActivityType
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User

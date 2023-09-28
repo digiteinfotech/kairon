@@ -1,12 +1,15 @@
 import json
 from typing import List, Text, Dict
 
+import pymongo
 import requests
+from uuid6 import uuid7
 
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
+from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.chat.notifications.constants import MessageBroadcastLogType, MessageBroadcastType
 from kairon.shared.chat.notifications.data_objects import MessageBroadcastLogs
 from kairon.shared.chat.notifications.processor import MessageBroadcastProcessor
@@ -51,15 +54,20 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         script = self.config['pyscript']
         timeout = self.config.get('pyscript_timeout', Utility.environment["actors"]["default_timeout"])
         channel_client = self.__get_client()
+        client = self.__get_db_client()
 
         def send_msg(template_id: Text, recipient, language_code: Text = "en", components: Dict = None, namespace: Text = None):
             response = channel_client.send_template_message(template_id, recipient, language_code, components, namespace)
             status = "Failed" if response.get("error") else "Success"
+            raw_template = self.__get_template(template_id, language_code)
 
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
-                status=status, recipient=recipient, template_params=components
+                status=status, recipient=recipient, template_params=components,
+                template=raw_template
             )
+            self.__log_broadcast_in_conversation_history(template_id, recipient, components, raw_template, client)
+
             return response
 
         def log(**kwargs):
@@ -82,6 +90,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
     def __send_using_configuration(self, recipients: List):
         channel_client = self.__get_client()
         total = len(recipients)
+        db_client = self.__get_db_client()
 
         for i, template_config in enumerate(self.config['template_config']):
             failure_cnt = 0
@@ -89,6 +98,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             namespace = template_config.get("namespace")
             lang = template_config["language"]
             template_params = self._get_template_parameters(template_config)
+            raw_template = self.__get_template(template_id, lang)
 
             # if there's no template body, pass params as None for all recipients
             template_params = template_params * len(recipients) if template_params else [template_params] * len(recipients)
@@ -105,9 +115,13 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                     status = "Failed" if response.get("errors") else "Success"
                     if status == "Failed":
                         failure_cnt = failure_cnt + 1
+                    else:
+                        self.__log_broadcast_in_conversation_history(template_id, recipient, t_params, raw_template, db_client)
+
                     MessageBroadcastProcessor.add_event_log(
                         self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
-                        status=status, recipient=recipient, template_params=t_params
+                        status=status, recipient=recipient, template_params=t_params,
+                        template=raw_template
                     )
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
@@ -125,3 +139,26 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         except DoesNotExist as e:
             logger.exception(e)
             raise AppException(f"Whatsapp channel config not found!")
+
+    def __get_template(self, name: Text, language: Text):
+        for template in BSP360Dialog(self.bot, self.user).list_templates(**{"business_templates.name": name}):
+            if template.get("language") == language:
+                return template.get("components")
+
+    def __log_broadcast_in_conversation_history(self, template_id, contact: Text, template_params, template, mongo_client):
+        import time
+
+        mongo_client.insert({
+            "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
+            "data": {"name":template_id, "template": template, "template_params": template_params}
+        })
+
+    def __get_db_client(self):
+        config = Utility.get_local_db()
+        client = pymongo.MongoClient(
+            host=config['host'], username=config.get('username'), password=config.get('password'),
+            authSource=config['options'].get("authSource") if config['options'].get("authSource") else "admin"
+        )
+        db = client.get_database(config['db'])
+        coll = db.get_collection(self.bot)
+        return coll
