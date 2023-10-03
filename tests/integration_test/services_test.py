@@ -558,6 +558,7 @@ def test_api_wrong_password():
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
     value = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login'))
+    print(value)
     assert value[0]["entity"] == "invalid_login"
     assert value[0]["timestamp"]
     assert len(value) == 1
@@ -611,12 +612,7 @@ def test_api_login_with_recaptcha_failed(monkeypatch):
         assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_api_login(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_api_login():
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -5550,12 +5546,7 @@ def test_add_member_as_owner(monkeypatch):
     assert not response['success']
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_list_bot_invites(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_list_bot_invites():
     response = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@10"},
@@ -5573,9 +5564,21 @@ def test_list_bot_invites(mock_password_reset):
 
 
 def test_login_limit_exceeded():
+    response_one = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@3010"},
+    ).json()
+    response_two = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@3010"},
+    ).json()
+    response_three = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@3010"},
+    ).json()
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@10"},
+        data={"username": "integration@demo.ai", "password": "Welcome@3010"},
     ).json()
     print(response)
     assert not response['success']
@@ -5630,12 +5633,7 @@ def test_accept_bot_invite(monkeypatch):
     assert response['success']
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_accept_bot_invite_logged_in_user_with_email_enabled(mock_password_reset, monkeypatch):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
     response = client.post(
         "/api/auth/login",
         data={"username": "integrationtest@demo.ai", "password": "Welcome@10"},
@@ -5666,12 +5664,7 @@ def test_accept_bot_invite_logged_in_user_with_email_enabled(mock_password_reset
     assert response['success']
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_accept_bot_invite_logged_in_user(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_accept_bot_invite_logged_in_user():
     response = client.post(
         "/api/auth/login",
         data={"username": "integration2@demo.ai", "password": "Welcome@10"},
@@ -6151,12 +6144,7 @@ def test_delete_bot():
     assert response['success']
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_login_for_verified(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_login_for_verified():
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/auth/login",
@@ -16021,12 +16009,7 @@ def test_get_auditlog_for_bot():
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_get_auditlog_for_user_2(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_get_auditlog_for_user_2():
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16439,12 +16422,7 @@ def test_idp_provider_fields():
 
 
 @responses.activate
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_add_organization(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_add_organization():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16462,12 +16440,7 @@ def test_add_organization(mock_password_reset):
 
 
 @responses.activate
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_get_organization(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_get_organization():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16485,12 +16458,7 @@ def test_get_organization(mock_password_reset):
 
 
 @responses.activate
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_update_organization(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_update_organization():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16507,12 +16475,7 @@ def test_update_organization(mock_password_reset):
 
 
 @responses.activate
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_get_organization_after_update(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_get_organization_after_update():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16530,12 +16493,7 @@ def test_get_organization_after_update(mock_password_reset):
 
 
 @responses.activate
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_delete_organization(mock_password_reset, monkeypatch):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_delete_organization(monkeypatch):
     def _delete_idp(*args, **kwargs):
         return
 
@@ -16565,12 +16523,7 @@ def test_get_model_testing_logs_accuracy():
     assert response["error_code"] == 0
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_delete_account(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_delete_account():
     response_log = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@10"},
@@ -16680,12 +16633,7 @@ def test_overwrite_password_for_matching_passwords(monkeypatch):
     assert actual['data'] is None
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_login_new_password(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_login_new_password():
     response = client.post(
         "/api/auth/login",
         data={"username": "integ1@gmail.com", "password": "Welcome@20"},
@@ -16698,12 +16646,7 @@ def test_login_new_password(mock_password_reset):
     pytest.token_type = actual["data"]["token_type"]
 
 
-@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
-def test_login_old_password(mock_password_reset):
-    def _password_reset(*args, **kwargs):
-        return
-
-    mock_password_reset.return_value = _password_reset
+def test_login_old_password():
     response = client.post(
         "/api/auth/login",
         data={"username": "integ1@gmail.com", "password": "Welcome@10"},

@@ -87,10 +87,10 @@ class UserActivityLogger:
         login_request_limit = Utility.environment['user']['login_limit']
         cutoff_time = datetime.utcnow() - timedelta(minutes=login_cooldown_period)
         logins_within_cutoff = AuditLogData.objects(
-            user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.login.value, timestamp__gte=cutoff_time
+            user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.invalid_login.value, timestamp__gte=cutoff_time
         ).count()
         first_login_within_cutoff = list(AuditLogData.objects(
-            user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.login.value, timestamp__gte=cutoff_time
+            user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.invalid_login.value, timestamp__gte=cutoff_time
         ).order_by("timestamp"))
         if logins_within_cutoff >= login_request_limit:
             raise AppException(f'Only {login_request_limit} logins are allowed within {login_cooldown_period} minutes. '

@@ -1533,12 +1533,16 @@ class TestAccountProcessor:
 
     def test_authenticate_method_login_within_cooldown_period(self):
         username = "nupur.khare@digite.com"
-        password = "Welcome@15"
-        Authentication.authenticate(username, password)
-        user = AccountProcessor.get_user(username)
+        password = "HelloWorld"
+        with pytest.raises(HTTPException):
+            Authentication.authenticate(username, password)
+        with pytest.raises(HTTPException):
+            Authentication.authenticate(username, password)
+        with pytest.raises(HTTPException):
+            Authentication.authenticate(username, password)
         with pytest.raises(AppException, match='Only 3 logins are allowed within 120 minutes. '
                                                f'Please come back in *'):
-            Authentication.generate_login_tokens(user, True)
+            Authentication.authenticate(username, password)
 
     def test_generate_integration_token_name_exists(self, monkeypatch):
         bot = 'test'
