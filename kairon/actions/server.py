@@ -26,14 +26,23 @@ from mongoengine.errors import (
 from pymongo.errors import PyMongoError
 from rasa_sdk import utils
 from rasa_sdk.interfaces import ActionExecutionRejection, ActionNotFoundException
-from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolicy, XContentTypeOptions, Server, \
-    CacheControl, Secure, PermissionsPolicy
+from secure import (
+    StrictTransportSecurity,
+    ReferrerPolicy,
+    ContentSecurityPolicy,
+    XContentTypeOptions,
+    Server,
+    CacheControl,
+    Secure,
+    PermissionsPolicy,
+)
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.actions.handlers.action import ActionHandler
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from ..shared.utils import Utility
+from ..shared.account.processor import AccountProcessor
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
@@ -53,8 +62,23 @@ cache_value = CacheControl().must_revalidate()
 content = XContentTypeOptions()
 server = Server().set("Secure")
 permissions_value = (
-    PermissionsPolicy().accelerometer().autoplay().camera().document_domain().encrypted_media().fullscreen().vibrate()
-    .geolocation().gyroscope().magnetometer().microphone().midi().payment().picture_in_picture().sync_xhr().usb()
+    PermissionsPolicy()
+    .accelerometer()
+    .autoplay()
+    .camera()
+    .document_domain()
+    .encrypted_media()
+    .fullscreen()
+    .vibrate()
+    .geolocation()
+    .gyroscope()
+    .magnetometer()
+    .microphone()
+    .midi()
+    .payment()
+    .picture_in_picture()
+    .sync_xhr()
+    .usb()
 )
 secure_headers = Secure(
     server=server,
@@ -63,13 +87,13 @@ secure_headers = Secure(
     referrer=referrer,
     permissions=permissions_value,
     cache=cache_value,
-    content=content
+    content=content,
 )
 
 action = FastAPI()
 Utility.load_environment()
 Utility.load_email_configuration()
-allowed_origins = Utility.environment['cors']['origin']
+allowed_origins = Utility.environment["cors"]["origin"]
 action.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -91,12 +115,13 @@ async def add_secure_headers(request: Request, call_next):
     """add security headers"""
     response = await call_next(request)
     secure_headers.framework.fastapi(response)
-    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
-    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
-    response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+    response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
     requested_origin = request.headers.get("origin")
-    response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin is not None else \
-        allowed_origins[0]
+    response.headers["Access-Control-Allow-Origin"] = (
+        requested_origin if requested_origin is not None else allowed_origins[0]
+    )
     return response
 
 
@@ -119,21 +144,24 @@ async def log_requests(request: Request, call_next):
 
 @action.on_event("startup")
 async def startup():
-    """ MongoDB is connected on the bot trainer startup """
-    config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
+    """MongoDB is connected on the bot trainer startup"""
+    config: dict = Utility.mongoengine_connection(
+        Utility.environment["database"]["url"]
+    )
     connect(**config)
+    AccountProcessor.load_system_properties()
 
 
 @action.on_event("shutdown")
 async def shutdown():
-    """ MongoDB is disconnected when bot trainer is shut down """
+    """MongoDB is disconnected when bot trainer is shut down"""
     disconnect()
 
 
 @action.exception_handler(StarletteHTTPException)
 async def startlette_exception_handler(request, exc):
-    """ This function logs the Starlette HTTP error detected and returns the
-        appropriate message and details of the error """
+    """This function logs the Starlette HTTP error detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
 
     return JSONResponse(
@@ -145,8 +173,8 @@ async def startlette_exception_handler(request, exc):
 
 @action.exception_handler(AssertionError)
 async def http_exception_handler(request, exc):
-    """ This function logs the Assertion error detected and returns the
-        appropriate message and details of the error """
+    """This function logs the Assertion error detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -155,8 +183,8 @@ async def http_exception_handler(request, exc):
 
 @action.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc: RequestValidationError):
-    """ logs the RequestValidationError detected and returns the
-        appropriate message and details of the error """
+    """logs the RequestValidationError detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=exc.errors()).dict()
@@ -165,8 +193,8 @@ async def validation_exception_handler(request, exc: RequestValidationError):
 
 @action.exception_handler(DoesNotExist)
 async def app_does_not_exist_exception_handler(request, exc):
-    """ logs the DoesNotExist error detected and returns the
-        appropriate message and details of the error """
+    """logs the DoesNotExist error detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -175,8 +203,8 @@ async def app_does_not_exist_exception_handler(request, exc):
 
 @action.exception_handler(PyMongoError)
 async def pymongo_exception_handler(request, exc):
-    """ logs the PyMongoError detected and returns the
-        appropriate message and details of the error """
+    """logs the PyMongoError detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -185,8 +213,8 @@ async def pymongo_exception_handler(request, exc):
 
 @action.exception_handler(ValidationError)
 async def app_validation_exception_handler(request, exc):
-    """ logs the ValidationError detected and returns the
-        appropriate message and details of the error """
+    """logs the ValidationError detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -195,8 +223,8 @@ async def app_validation_exception_handler(request, exc):
 
 @action.exception_handler(OperationError)
 async def mongoengine_operation_exception_handler(request, exc):
-    """ logs the OperationError detected and returns the
-            appropriate message and details of the error """
+    """logs the OperationError detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -205,8 +233,8 @@ async def mongoengine_operation_exception_handler(request, exc):
 
 @action.exception_handler(NotRegistered)
 async def mongoengine_notregistered_exception_handler(request, exc):
-    """ logs the NotRegistered error detected and returns the
-            appropriate message and details of the error """
+    """logs the NotRegistered error detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -215,8 +243,8 @@ async def mongoengine_notregistered_exception_handler(request, exc):
 
 @action.exception_handler(InvalidDocumentError)
 async def mongoengine_invalid_document_exception_handler(request, exc):
-    """ logs the InvalidDocumentError detected and returns the
-            appropriate message and details of the error """
+    """logs the InvalidDocumentError detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -225,8 +253,8 @@ async def mongoengine_invalid_document_exception_handler(request, exc):
 
 @action.exception_handler(LookUpError)
 async def mongoengine_lookup_exception_handler(request, exc):
-    """ logs the LookUpError detected and returns the
-            appropriate message and details of the error """
+    """logs the LookUpError detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -235,8 +263,8 @@ async def mongoengine_lookup_exception_handler(request, exc):
 
 @action.exception_handler(MultipleObjectsReturned)
 async def mongoengine_multiple_objects_exception_handler(request, exc):
-    """ logs the MultipleObjectsReturned error detected and returns the
-            appropriate message and details of the error """
+    """logs the MultipleObjectsReturned error detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -245,8 +273,8 @@ async def mongoengine_multiple_objects_exception_handler(request, exc):
 
 @action.exception_handler(InvalidQueryError)
 async def mongoengine_invalid_query_exception_handler(request, exc):
-    """ logs the InvalidQueryError detected and returns the
-            appropriate message and details of the error """
+    """logs the InvalidQueryError detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -255,8 +283,8 @@ async def mongoengine_invalid_query_exception_handler(request, exc):
 
 @action.exception_handler(PyJWTError)
 async def pyjwt_exception_handler(request, exc):
-    """ logs the AppException error detected and returns the
-            appropriate message and details of the error """
+    """logs the AppException error detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -265,8 +293,8 @@ async def pyjwt_exception_handler(request, exc):
 
 @action.exception_handler(AppException)
 async def app_exception_handler(request, exc):
-    """ logs the AppException error detected and returns the
-            appropriate message and details of the error """
+    """logs the AppException error detected and returns the
+    appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
         Response(success=False, error_code=422, message=str(exc)).dict()
@@ -286,16 +314,16 @@ async def webhook(request_json: dict):
     try:
         result = await ActionHandler.process_actions(request_json)
         if result:
-            result = JSONResponse(status_code=status.HTTP_200_OK,content=result)
+            result = JSONResponse(status_code=status.HTTP_200_OK, content=result)
         return result
     except ActionExecutionRejection as e:
         logger.debug(e)
         body = {"error": e.message, "action_name": e.action_name}
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content=body)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=body)
     except ActionNotFoundException as e:
         logger.info(e)
         body = {"error": e.message, "action_name": e.action_name}
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,content=body)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=body)
 
 
 async def main(scope, receive, send):
