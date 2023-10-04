@@ -348,12 +348,6 @@ class DataUtility:
         return fallback_action
 
     @staticmethod
-    def load_default_actions():
-        from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
-
-        return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
-
-    @staticmethod
     def get_template_type(story):
         """
         Retrieve template type(either QnA or Custom) from events in the flow.
