@@ -79,11 +79,10 @@ async def visitor_hit_fallback(
     Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries
     """
     Utility.validate_from_date_and_to_date(from_date, to_date)
-    fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/fallback?from_date={from_date}'
-        f'&to_date={to_date}&action_fallback={fallback_action}&nlu_fallback=utter_please_rephrase'
+        f'&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
@@ -164,11 +163,10 @@ async def complete_conversations(
     Fetches the number of successful conversations of the bot, which had no fallback
     """
     Utility.validate_from_date_and_to_date(from_date, to_date)
-    fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/conversation/success?from_date={from_date}'
-        f'&to_date={to_date}&action_fallback={fallback_action}&nlu_fallback=utter_please_rephrase'
+        f'&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
@@ -233,11 +231,10 @@ async def complete_conversation_trend(
     Fetches the counts of successful conversations of the bot for previous months
     """
     Utility.validate_from_date_and_to_date(from_date, to_date)
-    fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/success?from_date={from_date}&to_date={to_date}'
-        f'&action_fallback={fallback_action}&nlu_fallback=utter_please_rephrase'
+        f'&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
@@ -267,11 +264,10 @@ async def fallback_trend(
     Fetches the fallback count of the bot for previous months
     """
     Utility.validate_from_date_and_to_date(from_date, to_date)
-    fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/fallback?from_date={from_date}'
-        f'&to_date={to_date}&action_fallback={fallback_action}&nlu_fallback=utter_please_rephrase'
+        f'&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
@@ -437,11 +433,10 @@ async def fallback_dropoff(
     Fetches the list of users that dropped off after encountering fallback
     """
     Utility.validate_from_date_and_to_date(from_date, to_date)
-    fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/fallback/dropoff?from_date={from_date}&to_date={to_date}'
-        f'&action_fallback={fallback_action}&nlu_fallback=utter_please_rephrase'
+        f'&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
@@ -469,11 +464,10 @@ async def unsuccessful_session_count(
     Fetches the count of sessions that encountered a fallback for a particular user.
     """
     Utility.validate_from_date_and_to_date(from_date, to_date)
-    fallback_action = DataUtility.load_fallback_actions(current_user.get_bot())
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/sessions/unsuccessful?from_date={from_date}&to_date={to_date}'
-        f'&action_fallback={fallback_action}&nlu_fallback=utter_please_rephrase'
+        f'&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
