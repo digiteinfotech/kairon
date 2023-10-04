@@ -331,15 +331,6 @@ class DataUtility:
                     f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
 
     @staticmethod
-    def load_fallback_actions(bot: Text):
-        from .processor import MongoProcessor
-
-        mongo_processor = MongoProcessor()
-        config = mongo_processor.load_config(bot)
-        fallback_action = DataUtility.parse_fallback_action(config)
-        return fallback_action
-
-    @staticmethod
     def parse_fallback_action(config: Dict):
         fallback_action = "action_default_fallback"
         action_fallback = next((comp for comp in config['policies'] if comp["name"] == "RulePolicy"), None)
