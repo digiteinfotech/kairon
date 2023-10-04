@@ -94,7 +94,7 @@ class UserActivityLogger:
         ).order_by("timestamp"))
         if logins_within_cutoff >= login_request_limit:
             raise AppException(f'Account frozen due to too many unsuccessful login attempts. '
-                               f'Please come back in {str(timedelta(seconds=(datetime.utcnow() - first_login_within_cutoff[0].timestamp).seconds))} minutes!')
+                               f'Please come back in {str(timedelta(seconds=(datetime.utcnow() - first_login_within_cutoff[0].timestamp).seconds))}')
 
     @staticmethod
     def is_token_alread_used(uuid_value, email):
