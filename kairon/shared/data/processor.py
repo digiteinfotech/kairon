@@ -3986,11 +3986,13 @@ class MongoProcessor:
         action = None
         event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
         try:
-            rule = Rules.objects(bot=bot, status=True, events__match=event,
-                                 block_name__iexact=DEFAULT_NLU_FALLBACK_RULE).get()
-            for event in rule.events:
-                if 'action' == event.type and event.name != RULE_SNIPPET_ACTION_NAME:
-                    action = event.name
+            rules = Rules.objects(bot=bot, status=True, events__match=event)
+            for rule in rules:
+                for event in rule.events:
+                    if 'action' == event.type and event.name != RULE_SNIPPET_ACTION_NAME:
+                        action = event.name
+                        break
+                if action is not None:
                     break
         except DoesNotExist as e:
             logging.error(e)
