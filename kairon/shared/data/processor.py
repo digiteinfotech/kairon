@@ -3981,23 +3981,6 @@ class MongoProcessor:
                 config_obj['pipeline'].insert(property_idx + 1, fallback)
                 self.add_default_fallback_data(bot, user, True, False)
 
-    @staticmethod
-    def fetch_nlu_fallback_action(bot: Text):
-        action = None
-        event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
-        try:
-            rules = Rules.objects(bot=bot, status=True, events__match=event)
-            for rule in rules:
-                for event in rule.events:
-                    if 'action' == event.type and event.name != RULE_SNIPPET_ACTION_NAME:
-                        action = event.name
-                        break
-                if action is not None:
-                    break
-        except DoesNotExist as e:
-            logging.error(e)
-        return action
-
     def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
         if nlu_fallback:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,

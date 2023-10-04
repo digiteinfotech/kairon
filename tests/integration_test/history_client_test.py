@@ -385,8 +385,8 @@ def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_process
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback"
-        f"?from_date={from_date}&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=None",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
+        f"&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'fallback_counts': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
@@ -410,8 +410,8 @@ def test_fallback_count_range_no_nlu_fallback_rule_with_from_date_and_to_date(mo
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?"
-        f"from_date={from_date}&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=None",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
+        f"&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'fallback_counts': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
