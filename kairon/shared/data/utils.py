@@ -337,8 +337,7 @@ class DataUtility:
         mongo_processor = MongoProcessor()
         config = mongo_processor.load_config(bot)
         fallback_action = DataUtility.parse_fallback_action(config)
-        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
-        return fallback_action, nlu_fallback_action
+        return fallback_action
 
     @staticmethod
     def parse_fallback_action(config: Dict):
