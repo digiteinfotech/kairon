@@ -854,16 +854,3 @@ class ActionUtility:
             raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
             rephrased_message = Utility.retrieve_gpt_response(raw_resp)
         return raw_resp, rephrased_message
-
-    @staticmethod
-    def format_recommendations(llm_response, k_faq_action_config):
-        recommendations = None
-        if llm_response['content']['result']:
-            recommendations = [
-                {"text": item['payload']['query'], "payload": item['payload']['query']}
-                for item in llm_response['content']['result']
-            ]
-            bot_response = k_faq_action_config.get('failure_message', DEFAULT_NLU_FALLBACK_RESPONSE)
-        else:
-            bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
-        return recommendations, bot_response

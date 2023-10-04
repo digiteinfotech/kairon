@@ -2251,8 +2251,8 @@ class TestUtility:
         with pytest.raises(AppException, match="Could not find any hyperparameters for configured LLM."):
             Utility.get_llm_hyperparameters()
 
-    @responses.activate
-    def test_trigger_gpt3_client_completion_with_generated_text(self):
+    @pytest.mark.asyncio
+    async def test_trigger_gpt3_client_completion_with_generated_text(self, aioresponses):
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         messages = {"messages": [
@@ -2266,53 +2266,21 @@ class TestUtility:
         mock_completion_request = messages
         mock_completion_request.update(hyperparameters)
 
-        responses.add(
+        aioresponses.add(
             url="https://api.openai.com/v1/chat/completions",
             method="POST",
             status=200,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
-            json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
 
-        resp = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        resp = await GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
         assert resp[0] == generated_text
 
-    @responses.activate
-    def test_trigger_gpt3_client_completion_with_response(self):
-        api_key = "test"
-        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-        messages = {"messages": [
-            {"role": "system",
-             "content": DEFAULT_SYSTEM_PROMPT},
-            {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
-        ]}
-        hyperparameters = Utility.get_llm_hyperparameters()
-        request_header = {"Authorization": f"Bearer {api_key}"}
-        mock_completion_request = {"messages": [
-            {"role": "system",
-             "content": DEFAULT_SYSTEM_PROMPT},
-            {'role': 'user',
-             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
-        ]}
-        mock_completion_request.update(hyperparameters)
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
-        responses.add(
-            url="https://api.openai.com/v1/chat/completions",
-            method="POST",
-            status=200,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
-            json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-        )
-
-        formatted_response, raw_response = GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
-        assert formatted_response == generated_text
-        assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
-
-    @responses.activate
-    def test_trigger_gp3_client_completion(self):
+    @pytest.mark.asyncio
+    async def test_trigger_gpt3_client_completion_with_response(self, aioresponses):
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         hyperparameters = Utility.get_llm_hyperparameters()
@@ -2325,20 +2293,49 @@ class TestUtility:
         ]}
         mock_completion_request.update(hyperparameters)
 
-        responses.add(
+        aioresponses.add(
             url="https://api.openai.com/v1/chat/completions",
             method="POST",
             status=200,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
-            json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
-        formatted_response, raw_response = GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+        formatted_response, raw_response = await GPT3Resources("test").invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
         assert formatted_response == generated_text
         assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
-    @responses.activate
-    def test_trigger_gp3_client_completion_failure(self):
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+    @pytest.mark.asyncio
+    async def test_trigger_gp3_client_completion(self, aioresponses):
+        api_key = "test"
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+
+        aioresponses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=200,
+            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+        )
+        formatted_response, raw_response = await GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        assert formatted_response == generated_text
+        assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+    @pytest.mark.asyncio
+    async def test_trigger_gp3_client_completion_failure(self, aioresponses):
         api_key = "test"
         hyperparameters = Utility.get_llm_hyperparameters()
         request_header = {"Authorization": f"Bearer {api_key}"}
@@ -2350,68 +2347,82 @@ class TestUtility:
         ]}
         mock_completion_request.update(hyperparameters)
 
-        responses.add(
+        aioresponses.add(
             url="https://api.openai.com/v1/chat/completions",
             method="POST",
             status=504,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
-            json={"error": {"message": "Server unavailable!", "id": 876543456789}}
+            payload={"error": {"message": "Server unavailable!", "id": 876543456789}}
         )
-        with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
-            GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        with pytest.raises(AppException, match="Failed to connect to service: api.openai.com"):
+            await GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
 
-    @responses.activate
-    def test_trigger_gp3_client_embedding(self):
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+        aioresponses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=201,
+            body="openai".encode(),
+            repeat=True
+        )
+        with pytest.raises(AppException):
+            await GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+    @pytest.mark.asyncio
+    async def test_trigger_gp3_client_embedding(self, aioresponses):
         api_key = "test"
         query = "What kind of language is python?"
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         request_header = {"Authorization": f"Bearer {api_key}"}
 
-        responses.add(
+        aioresponses.add(
             url="https://api.openai.com/v1/embeddings",
             method="POST",
             status=200,
-            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
-                   responses.matchers.header_matcher(request_header)],
-            json={'data': [{'embedding': embedding}]}
+            payload={'data': [{'embedding': embedding}]}
         )
-        formatted_response, raw_response = GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+        formatted_response, raw_response = await GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
         assert formatted_response == embedding
         assert raw_response == {'data': [{'embedding': embedding}]}
 
-    @responses.activate
-    def test_trigger_gp3_client_embedding_failure(self):
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+    @pytest.mark.asyncio
+    async def test_trigger_gp3_client_embedding_failure(self, aioresponses):
         api_key = "test"
         query = "What kind of language is python?"
-        embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
         request_header = {"Authorization": f"Bearer {api_key}"}
 
-        responses.add(
+        aioresponses.add(
             url="https://api.openai.com/v1/embeddings",
             method="POST",
-            status=504,
-            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
-                   responses.matchers.header_matcher(request_header)],
+            status=504
         )
 
-        with pytest.raises(AppException, match="Received non 200 status code:"):
-            GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+        with pytest.raises(AppException, match="Failed to connect to service: api.openai.com"):
+            await GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
 
-        responses.add(
+        aioresponses.add(
             url="https://api.openai.com/v1/embeddings",
             method="POST",
-            status=504,
-            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
-                   responses.matchers.header_matcher(request_header)],
-            json={"error": {"message": "Server unavailable!", "id": 876543456789}}
+            status=204,
+            payload={"error": {"message": "Server unavailable!", "id": 876543456789}},
+            repeat=True
         )
 
         with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
-            GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+            await GPT3Resources(api_key).invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
 
-    @responses.activate
-    def test_trigger_gp3_client_streaming_completion(self):
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+        assert list(aioresponses.requests.values())[0][1].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+        assert list(aioresponses.requests.values())[0][1].kwargs['headers'] == request_header
+
+    @pytest.mark.asyncio
+    async def test_trigger_gp3_client_streaming_completion(self, aioresponses):
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         hyperparameters = Utility.get_llm_hyperparameters()
@@ -2442,40 +2453,68 @@ data: {"choices": [{"delta": {"content": " programming"}, "index": 0, "finish_re
 data: {"choices": [{"delta": {"content": "."}, "index": 0, "finish_reason": null}]}\n\n
 data: {"choices": [{"delta": {}, "index": 0, "finish_reason": "stop"}]}\n\n
 data: [DONE]\n\n"""
-        responses.add(
+
+        aioresponses.add(
             url="https://api.openai.com/v1/chat/completions",
             method="POST",
             status=200,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
             body=content.encode(),
-            stream=True
+            content_type="text/event-stream",
         )
-        formatted_response, raw_response = GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value,
-                                                                         **mock_completion_request)
+
+        formatted_response, raw_response = await GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value,
+                                                                                   **mock_completion_request)
         assert formatted_response == generated_text
-        assert raw_response == [{'choices': [{'delta': {'role': 'assistant'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': 'Python'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ' is'}, 'index': 0, 'finish_reason': None}]}, {
-                                    'choices': [
-                                        {'delta': {'content': ' dynamically'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ' typed'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]}, {
-                                    'choices': [{'delta': {'content': ' garbage-collected'}, 'index': 0,
-                                                 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ' high'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ' level'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ','}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ' general'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': ' purpose'}, 'index': 0, 'finish_reason': None}]}, {
-                                    'choices': [
-                                        {'delta': {'content': ' programming'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {'content': '.'}, 'index': 0, 'finish_reason': None}]},
-                                {'choices': [{'delta': {}, 'index': 0, 'finish_reason': 'stop'}]}]
+        assert raw_response == [
+            b'data: {"choices": [{"delta": {"role": "assistant"}, "index": 0, "finish_reason": null}]}\n', b'\n', b'\n',
+            b'data: {"choices": [{"delta": {"content": "Python"}, "index": 0, "finish_reason": null}]}\n', b'\n', b'\n',
+            b'data: {"choices": [{"delta": {"content": " is"}, "index": 0, "finish_reason": null}]}\n', b'\n', b'\n',
+            b'data: {"choices": [{"delta": {"content": " dynamically"}, "index": 0, "finish_reason": null}]}\n', b'\n',
+            b'\n', b'data: {"choices": [{"delta": {"content": " typed"}, "index": 0, "finish_reason": null}]}\n', b'\n',
+            b'\n', b'data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n', b'\n',
+            b'\n',
+            b'data: {"choices": [{"delta": {"content": " garbage-collected"}, "index": 0, "finish_reason": null}]}\n',
+            b'\n', b'\n', b'data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n',
+            b'\n', b'\n', b'data: {"choices": [{"delta": {"content": " high"}, "index": 0, "finish_reason": null}]}\n',
+            b'\n', b'\n', b'data: {"choices": [{"delta": {"content": " level"}, "index": 0, "finish_reason": null}]}\n',
+            b'\n', b'\n', b'data: {"choices": [{"delta": {"content": ","}, "index": 0, "finish_reason": null}]}\n',
+            b'\n', b'\n',
+            b'data: {"choices": [{"delta": {"content": " general"}, "index": 0, "finish_reason": null}]}\n', b'\n',
+            b'\n', b'data: {"choices": [{"delta": {"content": " purpose"}, "index": 0, "finish_reason": null}]}\n',
+            b'\n', b'\n',
+            b'data: {"choices": [{"delta": {"content": " programming"}, "index": 0, "finish_reason": null}]}\n', b'\n',
+            b'\n', b'data: {"choices": [{"delta": {"content": "."}, "index": 0, "finish_reason": null}]}\n', b'\n',
+            b'\n', b'data: {"choices": [{"delta": {}, "index": 0, "finish_reason": "stop"}]}\n', b'\n', b'\n',
+            b'data: [DONE]\n', b'\n']
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
-    @responses.activate
-    def test_trigger_gp3_client_streaming_completion_failure(self):
+    @pytest.mark.asyncio
+    async def test_trigger_gp3_client_streaming_connection_error(self, aioresponses):
+        api_key = "test"
+        generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+        hyperparameters = Utility.get_llm_hyperparameters()
+        request_header = {"Authorization": f"Bearer {api_key}"}
+        mock_completion_request = {"messages": [
+            {"role": "system",
+             "content": DEFAULT_SYSTEM_PROMPT},
+            {'role': 'user',
+             'content': 'Answer question based on the context below, if answer is not in the context go check previous logs.\nSimilarity Prompt:\nPython is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.\nInstructions on how to use Similarity Prompt: Answer according to this context.\n \n Q: Explain python is called high level programming language in laymen terms?\n A:'}
+        ]}
+        mock_completion_request.update(hyperparameters)
+        mock_completion_request["stream"] = True
+
+        aioresponses.add(
+            url="https://api.openai.com/v1/chat/completions",
+            method="POST",
+            status=401,
+        )
+
+        with pytest.raises(AppException, match=re.escape("Failed to execute the url: 401, message='Unauthorized', url=URL('https://api.openai.com/v1/chat/completions')")):
+            await GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+    @pytest.mark.asyncio
+    async def test_trigger_gp3_client_streaming_completion_failure(self, aioresponses):
         api_key = "test"
         hyperparameters = Utility.get_llm_hyperparameters()
         request_header = {"Authorization": f"Bearer {api_key}"}
@@ -2489,29 +2528,21 @@ data: [DONE]\n\n"""
         mock_completion_request["stream"] = True
 
         content = "data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n"
-        responses.add(
+        aioresponses.add(
             url="https://api.openai.com/v1/chat/completions",
             method="POST",
             status=200,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
             body=content.encode(),
-            stream=True
+            content_type="text/event-stream",
         )
-        with pytest.raises(AppException, match=re.escape("Received HTTP code 200 in streaming response from openai: {'choices': [{'delta': {'role': 'assistant'}}]}")):
-            GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        with pytest.raises(AppException, match=re.escape('Failed to parse streaming response: b"data: {\'choices\': [{\'delta\': {\'role\': \'assistant\'}}]}\\n"')):
+            await GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
 
-        def __mock_exception(*args, **kwargs):
-            raise Exception("Something went wrong!")
-            
-        with patch("kairon.shared.llm.clients.gpt3.parse_stream") as mock_stream:
-            mock_stream.side_effect = __mock_exception
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
-            with pytest.raises(AppException, match="Failed to parse response: *"):
-                GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
-
-    @responses.activate
-    def test_trigger_gp3_client_completion_failure_invalid_json(self):
+    @pytest.mark.asyncio
+    async def test_trigger_gp3_client_completion_failure_invalid_json(self, aioresponses):
         api_key = "test"
         hyperparameters = Utility.get_llm_hyperparameters()
         request_header = {"Authorization": f"Bearer {api_key}"}
@@ -2525,17 +2556,18 @@ data: [DONE]\n\n"""
         mock_completion_request["stream"] = True
 
         content = "data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n"
-        responses.add(
+        aioresponses.add(
             url="https://api.openai.com/v1/chat/completions",
             method="POST",
             status=504,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
             body=content.encode(),
-            stream=True
         )
-        with pytest.raises(AppException, match=re.escape("Received non 200 status code: data: {'choices': [{'delta': {'role': 'assistant'}}]}\n\n")):
-            GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        with pytest.raises(AppException, match='Failed to connect to service: api.openai.com'):
+            await GPT3Resources(api_key).invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
 
     @mock.patch('kairon.shared.utils.Utility.get_client_ip', autospec=True)
     def test_get_client_ip_with_request_client(self, mock_ip):
@@ -2555,8 +2587,8 @@ data: [DONE]\n\n"""
         with pytest.raises(AppException, match='aws client not supported'):
             LLMClientFactory.get_resource_provider("aws")
 
-    @responses.activate
-    def test_trigger_azure_client_completion(self):
+    @pytest.mark.asyncio
+    async def test_trigger_azure_client_completion(self, aioresponses):
         api_key = "test"
         generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
         hyperparameters = Utility.get_llm_hyperparameters()
@@ -2571,22 +2603,23 @@ data: [DONE]\n\n"""
         llm_settings = LLMSettings(enable_faq=True, provider="azure", embeddings_model_id="openaimodel_embd",
                                    chat_completion_model_id="openaimodel_completion",
                                    api_version="2023-03-16").to_mongo().to_dict()
-        responses.add(
+        aioresponses.add(
             url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['chat_completion_model_id']}/{GPT3ResourceTypes.chat_completion.value}?api-version={llm_settings['api_version']}",
             method="POST",
             status=200,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
-            json={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
+            payload={'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
         )
 
         client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
-        formatted_response, raw_response = client.invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        formatted_response, raw_response = await client.invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
         assert formatted_response == generated_text
         assert raw_response == {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}
 
-    @responses.activate
-    def test_trigger_azure_client_embedding(self):
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+    @pytest.mark.asyncio
+    async def test_trigger_azure_client_embedding(self, aioresponses):
         api_key = "test"
         query = "What kind of language is python?"
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
@@ -2595,22 +2628,23 @@ data: [DONE]\n\n"""
                                    chat_completion_model_id="openaimodel_completion",
                                    api_version="2023-03-16").to_mongo().to_dict()
 
-        responses.add(
+        aioresponses.add(
             url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['embeddings_model_id']}/{GPT3ResourceTypes.embeddings.value}?api-version={llm_settings['api_version']}",
             method="POST",
             status=200,
-            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
-                   responses.matchers.header_matcher(request_header)],
-            json={'data': [{'embedding': embedding}]}
+            payload={'data': [{'embedding': embedding}]}
         )
         client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
-        formatted_response, raw_response = client.invoke(GPT3ResourceTypes.embeddings.value,
+        formatted_response, raw_response = await client.invoke(GPT3ResourceTypes.embeddings.value,
                                                          model="text-embedding-ada-002", input=query)
         assert formatted_response == embedding
         assert raw_response == {'data': [{'embedding': embedding}]}
 
-    @responses.activate
-    def test_trigger_azure_client_embedding_failure(self):
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
+
+    @pytest.mark.asyncio
+    async def test_trigger_azure_client_embedding_failure(self, aioresponses):
         api_key = "test"
         query = "What kind of language is python?"
         request_header = {"api-key": api_key}
@@ -2618,32 +2652,21 @@ data: [DONE]\n\n"""
                                    chat_completion_model_id="openaimodel_completion",
                                    api_version="2023-03-16").to_mongo().to_dict()
 
-        responses.add(
+        aioresponses.add(
             url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['embeddings_model_id']}/{GPT3ResourceTypes.embeddings.value}?api-version={llm_settings['api_version']}",
             method="POST",
-            status=504,
-            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
-                   responses.matchers.header_matcher(request_header)],
+            status=504
         )
         client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
 
-        with pytest.raises(AppException, match="Received non 200 status code:"):
-            client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
+        with pytest.raises(AppException, match="Failed to connect to service: kairon.openai.azure.com"):
+            await client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
 
-        responses.add(
-            url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['embeddings_model_id']}/{GPT3ResourceTypes.embeddings.value}?api-version={llm_settings['api_version']}",
-            method="POST",
-            status=504,
-            match=[responses.matchers.json_params_matcher({"model": "text-embedding-ada-002", "input": query}),
-                   responses.matchers.header_matcher(request_header)],
-            json={"error": {"message": "Server unavailable!", "id": 876543456789}}
-        )
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": query}
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
-        with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
-            client.invoke(GPT3ResourceTypes.embeddings.value, model="text-embedding-ada-002", input=query)
-
-    @responses.activate
-    def test_trigger_azure_client_completion_failure(self):
+    @pytest.mark.asyncio
+    async def test_trigger_azure_client_completion_failure(self, aioresponses):
         api_key = "test"
         hyperparameters = Utility.get_llm_hyperparameters()
         request_header = {"api-key": api_key}
@@ -2658,18 +2681,19 @@ data: [DONE]\n\n"""
         ]}
         mock_completion_request.update(hyperparameters)
 
-        responses.add(
+        aioresponses.add(
             url=f"https://kairon.openai.azure.com/openai/deployments/{llm_settings['chat_completion_model_id']}/{GPT3ResourceTypes.chat_completion.value}?api-version={llm_settings['api_version']}",
             method="POST",
             status=504,
-            match=[responses.matchers.json_params_matcher(mock_completion_request),
-                   responses.matchers.header_matcher(request_header)],
-            json={"error": {"message": "Server unavailable!", "id": 876543456789}}
+            payload={"error": {"message": "Server unavailable!", "id": 876543456789}}
         )
 
         client = LLMClientFactory.get_resource_provider(LLMResourceProvider.azure.value)(api_key, **llm_settings)
-        with pytest.raises(AppException, match="Server unavailable!. Request id: 876543456789"):
-            client.invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+        with pytest.raises(AppException, match="Failed to connect to service: kairon.openai.azure.com"):
+            await client.invoke(GPT3ResourceTypes.chat_completion.value, **mock_completion_request)
+
+        assert list(aioresponses.requests.values())[0][0].kwargs['json'] == mock_completion_request
+        assert list(aioresponses.requests.values())[0][0].kwargs['headers'] == request_header
 
     @pytest.mark.asyncio
     async def test_messageConverter_whatsapp_dropdown(self):

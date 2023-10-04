@@ -2400,7 +2400,7 @@ class TestMongoProcessor:
         assert model_training.first().exception in str("Training data does not exists!")
 
     @patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
     def test_start_training_with_llm_faq(

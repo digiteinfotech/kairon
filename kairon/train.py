@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 from contextlib import ExitStack
@@ -173,7 +174,7 @@ def start_training(bot: str, user: str, token: str = None):
         settings = settings.to_mongo().to_dict()
         if settings["llm_settings"]['enable_faq']:
             llm = LLMFactory.get_instance("faq")(bot, settings["llm_settings"])
-            faqs = llm.train()
+            faqs = asyncio.run(llm.train())
             account = AccountProcessor.get_bot(bot)['account']
             MeteringProcessor.add_metrics(bot=bot, metric_type=MetricType.faq_training.value, account=account, **faqs)
         model_file = train_model_for_bot(bot)
