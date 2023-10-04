@@ -93,7 +93,7 @@ class UserActivityLogger:
             user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.invalid_login.value, timestamp__gte=cutoff_time
         ).order_by("timestamp"))
         if logins_within_cutoff >= login_request_limit:
-            raise AppException(f'Only {login_request_limit} logins are allowed within {login_cooldown_period} minutes. '
+            raise AppException(f'Account frozen due to too many unsuccessful login attempts. '
                                f'Please come back in {str(timedelta(seconds=(datetime.utcnow() - first_login_within_cutoff[0].timestamp).seconds))} minutes!')
 
     @staticmethod

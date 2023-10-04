@@ -1540,7 +1540,7 @@ class TestAccountProcessor:
             Authentication.authenticate(username, password)
         with pytest.raises(HTTPException):
             Authentication.authenticate(username, password)
-        with pytest.raises(AppException, match='Only 3 logins are allowed within 120 minutes. '
+        with pytest.raises(AppException, match='Account frozen due to too many unsuccessful login attempts. '
                                                f'Please come back in *'):
             Authentication.authenticate(username, password)
 

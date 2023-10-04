@@ -5582,7 +5582,7 @@ def test_login_limit_exceeded():
     ).json()
     print(response)
     assert not response['success']
-    assert response['message'].__contains__("Only 3 logins are allowed within 120 minutes.")
+    assert response['message'].__contains__("Account frozen due to too many unsuccessful login attempts.")
     assert response['data'] is None
     assert response['error_code'] == 422
 
@@ -16009,7 +16009,12 @@ def test_get_auditlog_for_bot():
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
 
-def test_get_auditlog_for_user_2():
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_get_auditlog_for_user_2(mock_password_reset):
+    def _password_reset(*args, **kwargs):
+        return
+
+    mock_password_reset.return_value = _password_reset
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
@@ -16523,7 +16528,12 @@ def test_get_model_testing_logs_accuracy():
     assert response["error_code"] == 0
 
 
-def test_delete_account():
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_delete_account(mock_password_reset):
+    def _password_reset(*args, **kwargs):
+        return
+
+    mock_password_reset.return_value = _password_reset
     response_log = client.post(
         "/api/auth/login",
         data={"username": "integration@demo.ai", "password": "Welcome@10"},

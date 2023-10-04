@@ -155,9 +155,9 @@ class Authentication:
 
     @staticmethod
     def __authenticate_user(username: str, password: str):
+        UserActivityLogger.is_login_within_cooldown_period(username)
         user = AccountProcessor.get_user_details(username, is_login_request=True)
         if not user or not Utility.verify_password(password, user["password"]):
-            UserActivityLogger.is_login_within_cooldown_period(username)
             data = {"username": username}
             message = ["Incorrect username or password"]
             UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, account=user["account"], email=username.lower(), message=message, data=data)
