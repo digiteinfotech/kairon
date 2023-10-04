@@ -3,8 +3,13 @@ from __future__ import annotations
 from typing import Optional, Text, List, Dict, Tuple
 
 import rasa
-from rasa.core.actions.action import Action, ActionRetrieveResponse, ActionEndToEndResponse, RemoteAction, \
-    default_actions
+from rasa.core.actions.action import (
+    Action,
+    ActionRetrieveResponse,
+    ActionEndToEndResponse,
+    RemoteAction,
+    default_actions,
+)
 from rasa.core.actions.action import is_retrieval_action
 from rasa.core.channels import UserMessage, OutputChannel, CollectingOutputChannel
 from rasa.core.policies.policy import PolicyPrediction
@@ -14,7 +19,7 @@ from rasa.shared.constants import DOCS_URL_POLICIES, UTTER_PREFIX
 from rasa.shared.core.constants import (
     ACTION_EXTRACT_SLOTS,
     ACTION_SESSION_START_NAME,
-    SESSION_START_METADATA_SLOT
+    SESSION_START_METADATA_SLOT,
 )
 from rasa.shared.core.domain import Domain
 from rasa.shared.core.events import (
@@ -36,7 +41,7 @@ class KaironMessageProcessor(MessageProcessor):
     """
 
     async def _handle_message_with_tracker(
-            self, message: UserMessage, tracker: DialogueStateTracker
+        self, message: UserMessage, tracker: DialogueStateTracker
     ):
 
         if message.parse_data:
@@ -65,7 +70,7 @@ class KaironMessageProcessor(MessageProcessor):
         return parse_data
 
     async def _run_prediction_loop(
-            self, output_channel: OutputChannel, tracker: DialogueStateTracker
+        self, output_channel: OutputChannel, tracker: DialogueStateTracker
     ) -> List[Dict]:
         # keep taking actions decided by the policy until it chooses to 'listen'
         should_predict_another_action = True
@@ -76,8 +81,13 @@ class KaironMessageProcessor(MessageProcessor):
             # this actually just calls the policy's method by the same name
             try:
                 action, prediction = self.predict_next_with_tracker_if_should(tracker)
-                actions_predicted.append({"action_name": action.name(), "max_confidence": prediction.max_confidence,
-                                          "policy_name": prediction.policy_name})
+                actions_predicted.append(
+                    {
+                        "action_name": action.name(),
+                        "max_confidence": prediction.max_confidence,
+                        "policy_name": prediction.policy_name,
+                    }
+                )
             except ActionLimitReached:
                 logger.warning(
                     "Circuit breaker tripped. Stopped predicting "
@@ -100,9 +110,7 @@ class KaironMessageProcessor(MessageProcessor):
             )
         return actions_predicted
 
-    async def log_message(
-            self, message: UserMessage, should_save_tracker: bool = True
-    ):
+    async def log_message(self, message: UserMessage, should_save_tracker: bool = True):
         """
         Log `message` on tracker belonging to the message's conversation_id.
 
@@ -124,15 +132,25 @@ class KaironMessageProcessor(MessageProcessor):
 
         return tracker, predictions
 
-    async def handle_message(
-            self, message: UserMessage
-    ):
+    async def handle_message(self, message: UserMessage):
         """Handle a single message with this processor."""
-        tabname = message.metadata.get("tabname", "default")
-        response = {"nlu": None, "action": None, "response": None, "slots": None, "events": None, "tabname": tabname}
+        if message.metadata:
+            tabname = message.metadata.get("tabname", "default")
+        else:
+            tabname = "default"
+        response = {
+            "nlu": None,
+            "action": None,
+            "response": None,
+            "slots": None,
+            "events": None,
+            "tabname": tabname,
+        }
 
         # preprocess message if necessary
-        tracker, intent_predictions = await self.log_message(message, should_save_tracker=False)
+        tracker, intent_predictions = await self.log_message(
+            message, should_save_tracker=False
+        )
         response["nlu"] = intent_predictions
 
         if self.model_metadata.training_type == TrainingType.NLU:
@@ -145,18 +163,27 @@ class KaironMessageProcessor(MessageProcessor):
 
         tracker = await self.run_action_extract_slots(message.output_channel, tracker)
 
-        actions_predictions = await self._run_prediction_loop(message.output_channel, tracker)
+        actions_predictions = await self._run_prediction_loop(
+            message.output_channel, tracker
+        )
         response["action"] = actions_predictions
         response["slots"] = [f"{s.name}: {s.value}" for s in tracker.slots.values()]
 
         # save tracker state to continue conversation from this state
         await self.save_tracker(tracker)
         metadata = message.metadata
-        metric_type = MetricType.prod_chat if metadata and metadata.get('is_integration_user') else MetricType.test_chat
+        metric_type = (
+            MetricType.prod_chat
+            if metadata and metadata.get("is_integration_user")
+            else MetricType.test_chat
+        )
         if metadata:
             MeteringProcessor.add_metrics(
-                metadata.get('bot'), metadata.get('account'), metric_type, user_id=message.sender_id,
-                channel_type=metadata.get('channel_type')
+                metadata.get("bot"),
+                metadata.get("account"),
+                metric_type,
+                user_id=message.sender_id,
+                channel_type=metadata.get("channel_type"),
             )
         if isinstance(message.output_channel, CollectingOutputChannel):
             response["response"] = message.output_channel.messages
@@ -165,7 +192,7 @@ class KaironMessageProcessor(MessageProcessor):
         return response
 
     def _get_action(
-            self, action_name: Text
+        self, action_name: Text
     ) -> Optional[rasa.core.actions.action.Action]:
         return self.action_for_name_or_text(
             action_name, self.domain, self.action_endpoint
@@ -273,7 +300,9 @@ class KaironMessageProcessor(MessageProcessor):
 
     @staticmethod
     def action_for_name_or_text(
-            action_name_or_text: Text, domain: Domain, action_endpoint: Optional[EndpointConfig]
+        action_name_or_text: Text,
+        domain: Domain,
+        action_endpoint: Optional[EndpointConfig],
     ) -> "Action":
         """Retrieves an action by its name or by its text in case it's an end-to-end action.
 
@@ -294,13 +323,13 @@ class KaironMessageProcessor(MessageProcessor):
         defaults = {a.name(): a for a in default_actions(action_endpoint)}
 
         if (
-                action_name_or_text in defaults
-                and action_name_or_text not in domain.user_actions_and_forms
+            action_name_or_text in defaults
+            and action_name_or_text not in domain.user_actions_and_forms
         ):
             return defaults[action_name_or_text]
 
         if action_name_or_text.startswith(UTTER_PREFIX) and is_retrieval_action(
-                action_name_or_text, domain.retrieval_intents
+            action_name_or_text, domain.retrieval_intents
         ):
             return ActionRetrieveResponse(action_name_or_text)
 
@@ -312,7 +341,9 @@ class KaironMessageProcessor(MessageProcessor):
 
         is_form = action_name_or_text in domain.form_names
         # Users can override the form by defining an action with the same name as the form
-        user_overrode_form_action = is_form and action_name_or_text in domain.user_actions
+        user_overrode_form_action = (
+            is_form and action_name_or_text in domain.user_actions
+        )
         if is_form and not user_overrode_form_action:
             from rasa.core.actions.forms import FormAction
 
@@ -321,7 +352,7 @@ class KaironMessageProcessor(MessageProcessor):
         return RemoteAction(action_name_or_text, action_endpoint)
 
     def action_for_index(
-            self, index: int, domain: Domain, action_endpoint: Optional[EndpointConfig]
+        self, index: int, domain: Domain, action_endpoint: Optional[EndpointConfig]
     ) -> "Action":
         """Get an action based on its index in the list of available actions.
 

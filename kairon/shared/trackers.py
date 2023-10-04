@@ -10,6 +10,7 @@ from rasa.shared.core.trackers import DialogueStateTracker, EventVerbosity
 from uuid6 import uuid7
 from kairon.shared.utils import Utility
 from rasa.core.tracker_store import SerializedTrackerAsText
+from loguru import logger
 
 
 class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
@@ -125,6 +126,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             flattened_conversation["data"]["action"] = actions_predicted
             flattened_conversation["data"]["bot_response"] = bot_responses
             data.append(flattened_conversation)
+            logger.debug(f"tracker saving data: {len(data)}")
             if data:
                 self.conversations.insert_many(data)
 
@@ -246,11 +248,16 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                 ]
             )
         )
-        return stored[0]["count"]
+        if stored:
+            return stored[0]["count"]
+        else:
+            return None
 
     def _additional_events(self, tracker: DialogueStateTracker) -> Iterator:
         count = self.get_latest_session_events_count(tracker.sender_id)
+        total_events = len(tracker.events)
+        logger.debug(f"tracker existing events : {count}")
+        logger.debug(f"tracker total events : {total_events}")
         if count:
-            return itertools.islice(tracker.events, count, len(tracker.events))
+            return itertools.islice(tracker.events, count, total_events)
         return tracker.events
-

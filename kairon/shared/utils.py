@@ -634,7 +634,7 @@ class Utility:
         from kairon.shared.trackers import KMongoTrackerStore
 
         config = Utility.get_local_db()
-
+        logger.debug(f"Loading tracker host:{config.get('host')}, db:{config.get('db')}, collection:{bot}")
         return KMongoTrackerStore(
             domain=domain,
             host=config["host"],
@@ -646,7 +646,6 @@ class Utility:
             if config["options"].get("authSource")
             else "admin",
         )
-
 
     @staticmethod
     def special_match(strg, search=re.compile(r"[^a-zA-Z0-9_]").search):
@@ -1033,8 +1032,9 @@ class Utility:
             config["authentication_source"] = options["authsource"]
         if "authmechanism" in options:
             config["authentication_mechanism"] = options["authmechanism"]
-        if Utility.environment['env'] == "test":
+        if Utility.environment["env"] == "test":
             from mongomock import MongoClient
+
             config["db"] = "mongoenginetest"
             config["mongo_client_class"] = MongoClient
         return config
@@ -1055,8 +1055,8 @@ class Utility:
         from rasa.utils.endpoints import EndpointConfig
         from rasa.core.lock_store import LockStore
 
-        if not Utility.check_empty_string(Utility.environment['lock_store'].get('url')):
-            lock_store_config = Utility.environment['lock_store'].copy()
+        if not Utility.check_empty_string(Utility.environment["lock_store"].get("url")):
+            lock_store_config = Utility.environment["lock_store"].copy()
             lock_store_config["key_prefix"] = bot
             for param in ["url", "port", "password", "db"]:
                 if not lock_store_config.get(param):
@@ -1083,9 +1083,16 @@ class Utility:
         return is_data_valid
 
     @staticmethod
-    def write_training_data(nlu, domain, config: dict,
-                            stories, rules=None, actions: dict = None, chat_client_config: dict = None,
-                            multiflow_stories: dict = None):
+    def write_training_data(
+        nlu,
+        domain,
+        config: dict,
+        stories,
+        rules=None,
+        actions: dict = None,
+        chat_client_config: dict = None,
+        multiflow_stories: dict = None,
+    ):
         """
         convert mongo data  to individual files
 
@@ -1142,14 +1149,22 @@ class Utility:
             Utility.write_to_file(chat_client_config_path, chat_client_config_as_str)
         if multiflow_stories:
             multiflow_stories_as_str = yaml.dump(multiflow_stories).encode()
-            Utility.write_to_file(multiflow_stories_config_path, multiflow_stories_as_str)
+            Utility.write_to_file(
+                multiflow_stories_config_path, multiflow_stories_as_str
+            )
         return temp_path
 
     @staticmethod
     def create_zip_file(
-            nlu, domain, stories, config: Dict, bot: Text,
-            rules=None,
-            actions: Dict = None, multiflow_stories: Dict = None, chat_client_config: Dict = None
+        nlu,
+        domain,
+        stories,
+        config: Dict,
+        bot: Text,
+        rules=None,
+        actions: Dict = None,
+        multiflow_stories: Dict = None,
+        chat_client_config: Dict = None,
     ):
         """
         adds training files to zip
@@ -1173,7 +1188,7 @@ class Utility:
             rules,
             actions,
             chat_client_config,
-            multiflow_stories
+            multiflow_stories,
         )
         zip_path = os.path.join(tempfile.gettempdir(), bot)
         zip_file = shutil.make_archive(zip_path, format="zip", root_dir=directory)
@@ -1680,19 +1695,29 @@ class Utility:
         return Utility.environment["events"]["server_url"]
 
     @staticmethod
-    def request_event_server(event_class: EventClass, payload: dict, method: Text = "POST", is_scheduled: bool = False,
-                             cron_exp: Text = None, timezone: Text = None):
+    def request_event_server(
+        event_class: EventClass,
+        payload: dict,
+        method: Text = "POST",
+        is_scheduled: bool = False,
+        cron_exp: Text = None,
+        timezone: Text = None,
+    ):
         """
         Trigger request to event server along with payload.
         """
         event_server_url = Utility.get_event_server_url()
-        request_body = {
-            "data": payload, "cron_exp": cron_exp, "timezone": timezone
-        }
+        request_body = {"data": payload, "cron_exp": cron_exp, "timezone": timezone}
         logger.debug(request_body)
         resp = Utility.execute_http_request(
-            method, urljoin(event_server_url, f'/api/events/execute/{event_class}?is_scheduled={is_scheduled}'),
-            request_body, err_msg=f"Failed to trigger {event_class} event: ", validate_status=True
+            method,
+            urljoin(
+                event_server_url,
+                f"/api/events/execute/{event_class}?is_scheduled={is_scheduled}",
+            ),
+            request_body,
+            err_msg=f"Failed to trigger {event_class} event: ",
+            validate_status=True,
         )
         if not resp["success"]:
             raise AppException(
@@ -1706,11 +1731,15 @@ class Utility:
         """
         event_server_url = Utility.get_event_server_url()
         resp = Utility.execute_http_request(
-            "DELETE", urljoin(event_server_url, f'/api/events/{event_id}'),
-            err_msg=f"Failed to delete scheduled event {event_id}: ", validate_status=True
+            "DELETE",
+            urljoin(event_server_url, f"/api/events/{event_id}"),
+            err_msg=f"Failed to delete scheduled event {event_id}: ",
+            validate_status=True,
         )
-        if not resp['success']:
-            raise AppException(f"Failed to delete scheduled event {event_id}: {resp.get('message', '')}")
+        if not resp["success"]:
+            raise AppException(
+                f"Failed to delete scheduled event {event_id}: {resp.get('message', '')}"
+            )
 
     @staticmethod
     def validate_recaptcha(recaptcha_response: str = None, remote_ip: str = None):
@@ -1754,7 +1783,7 @@ class Utility:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        config['config'].pop("whitelist")
+        config["config"].pop("whitelist")
         return config
 
     @staticmethod
@@ -2316,29 +2345,63 @@ class StoryValidator:
 
         for story_node in story_graph.nodes():
             if story_node.step_type == "INTENT":
-                if [successor for successor in story_graph.successors(story_node) if successor.step_type == "INTENT"]:
-                    errors.append("Intent should be followed by an Action or Slot type event")
+                if [
+                    successor
+                    for successor in story_graph.successors(story_node)
+                    if successor.step_type == "INTENT"
+                ]:
+                    errors.append(
+                        "Intent should be followed by an Action or Slot type event"
+                    )
                 if len(list(story_graph.successors(story_node))) > 1:
-                    errors.append("Intent can only have one connection of action type or slot type")
-            if story_node.step_type == 'SLOT' and story_node.value:
-                if story_node.value is not None and not isinstance(story_node.value, (str, int, bool)):
-                    errors.append("slot values in multiflow story must be either None or of type int, str or boolean")
-            if story_node.step_type != 'SLOT' and story_node.value is not None:
-                errors.append("Value is allowed only for slot events in multiflow story")
-            if story_node.step_type == 'SLOT' and story_node.node_id in leaf_node_ids:
+                    errors.append(
+                        "Intent can only have one connection of action type or slot type"
+                    )
+            if story_node.step_type == "SLOT" and story_node.value:
+                if story_node.value is not None and not isinstance(
+                    story_node.value, (str, int, bool)
+                ):
+                    errors.append(
+                        "slot values in multiflow story must be either None or of type int, str or boolean"
+                    )
+            if story_node.step_type != "SLOT" and story_node.value is not None:
+                errors.append(
+                    "Value is allowed only for slot events in multiflow story"
+                )
+            if story_node.step_type == "SLOT" and story_node.node_id in leaf_node_ids:
                 errors.append("Slots cannot be leaf nodes!")
-            if story_node.step_type == 'INTENT' and story_node.node_id in leaf_node_ids:
+            if story_node.step_type == "INTENT" and story_node.node_id in leaf_node_ids:
                 errors.append("Leaf nodes cannot be intent")
         if metadata:
             for value in metadata:
-                if value.get('flow_type') == 'RULE':
-                    if any(leaf.node_id == value.get('node_id') for leaf in leaf_nodes):
-                        paths = list(all_simple_paths(story_graph, source[0], next(
-                            leaf for leaf in leaf_nodes if leaf.node_id == value.get('node_id'))))
-                        if any(len([node.step_type for node in path if node.step_type == 'INTENT']) > 1 for path in
-                               paths):
-                            errors.append('Path tagged as RULE can have only one intent!')
-            if any(value['node_id'] not in leaf_node_ids for value in metadata):
+                if value.get("flow_type") == "RULE":
+                    if any(leaf.node_id == value.get("node_id") for leaf in leaf_nodes):
+                        paths = list(
+                            all_simple_paths(
+                                story_graph,
+                                source[0],
+                                next(
+                                    leaf
+                                    for leaf in leaf_nodes
+                                    if leaf.node_id == value.get("node_id")
+                                ),
+                            )
+                        )
+                        if any(
+                            len(
+                                [
+                                    node.step_type
+                                    for node in path
+                                    if node.step_type == "INTENT"
+                                ]
+                            )
+                            > 1
+                            for path in paths
+                        ):
+                            errors.append(
+                                "Path tagged as RULE can have only one intent!"
+                            )
+            if any(value["node_id"] not in leaf_node_ids for value in metadata):
                 errors.append("Only leaf nodes can be tagged with a flow")
         return errors
 
@@ -2346,8 +2409,8 @@ class StoryValidator:
     def create_multiflow_story_graphs(multiflow_stories: dict):
         graphs = []
         if multiflow_stories:
-            for events in multiflow_stories['multiflow_story']:
-                graph = StoryValidator.get_graph(events['events'])
+            for events in multiflow_stories["multiflow_story"]:
+                graph = StoryValidator.get_graph(events["events"])
                 graphs.append(graph)
             return graphs
 
