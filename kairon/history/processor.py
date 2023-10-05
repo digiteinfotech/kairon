@@ -139,9 +139,9 @@ class HistoryProcessor:
                 db = clt.get_database()
                 conversations = db.get_collection(collection)
                 fallback_counts = list(conversations.aggregate([
-                                                                {"$match": {"event.event": "action",
-                                                                            "event.name": {"$in": [fallback_action, nlu_fallback_action]},
-                                                                            "event.timestamp": {
+                                                                {"$match": {"type": "flattened",
+                                                                            "data.intent": "nlu_fallback",
+                                                                            "timestamp": {
                                                                                 "$gte": Utility.get_timestamp_from_date(from_date),
                                                                                 "$lte": Utility.get_timestamp_from_date(to_date)}
                                                                             }
@@ -408,9 +408,10 @@ class HistoryProcessor:
                 fallback_count = list(
                     conversations.aggregate([
                         {"$match": {
-                            "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                "$lte": Utility.get_timestamp_from_date(to_date)},
-                            "event.name": {"$in": [fallback_action, nlu_fallback_action]}
+                            "type": "flattened",
+                            "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                          "$lte": Utility.get_timestamp_from_date(to_date)},
+                            "data.intent": "nlu_fallback"
                         }
                         },
                         {"$group": {"_id": None, "count": {"$sum": 1}}},
@@ -644,12 +645,13 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
+                                "type": "flattened",
                                 "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                     "$lte": Utility.get_timestamp_from_date(to_date)},
-                                "event.event": {"$in": [fallback_action, nlu_fallback_action]}
+                                "data.intent": "nlu_fallback"
                             }
                         },
-                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
                         {"$group": {"_id": "$month", "count": {"$sum": 1}}},
                         {"$project": {"_id": 1, "count": 1}}
                     ], allowDiskUse=True))
