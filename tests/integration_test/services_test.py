@@ -558,7 +558,6 @@ def test_api_wrong_password():
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
     value = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login'))
-    print(value)
     assert value[0]["entity"] == "invalid_login"
     assert value[0]["timestamp"]
     assert len(value) == 1
