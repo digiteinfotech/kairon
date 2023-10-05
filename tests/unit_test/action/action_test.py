@@ -2699,7 +2699,7 @@ class TestActions:
                                               'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
                                  'dispatch_response': True, 'set_slots': [], 'llm_prompts': llm_prompts,
-                                 'instructions': [], 'cognition_data_coll': 'test_action_server_faq_embd'}
+                                 'instructions': []}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
         bot_settings.pop("status")
@@ -4032,7 +4032,7 @@ class TestActions:
                                                         'type': 'system', 'source': 'static', 'is_enabled': True},
                                                        {'name': 'History Prompt', 'type': 'user', 'source': 'history',
                                                         'is_enabled': True}], 'instructions': [],
-                                       'status': True, 'cognition_data_coll': 'test_bot_action_test_faq_embd'}
+                                       'status': True}
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

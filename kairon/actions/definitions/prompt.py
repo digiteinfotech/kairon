@@ -177,7 +177,7 @@ class ActionPrompt(ActionsBase):
         params['similarity_prompt_name'] = similarity_prompt_name
         params['similarity_prompt_instructions'] = similarity_prompt_instructions
         params['instructions'] = k_faq_action_config.get('instructions', [])
-        params['collection'] = k_faq_action_config.get('cognition_data_coll')
+        params['collection'] = k_faq_action_config.get('collection')
         return params
 
     @staticmethod

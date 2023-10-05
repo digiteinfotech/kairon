@@ -243,7 +243,7 @@ prompt_action:
   top_results: 5
   similarity_threshold: 1
   enable_response_cache: True
-  cognition_data_coll: Query collection
+  collection: Query collection
   llm_prompts:
     - name: System Prompt
       data: You are a personal assistant.
@@ -261,7 +261,7 @@ prompt_action:
   top_results: 5
   similarity_threshold: 1
   enable_response_cache: True
-  cognition_data_coll: Similarity collection
+  collection: Similarity collection
   llm_prompts:
     - name: System Prompt
       data: You are a personal assistant.

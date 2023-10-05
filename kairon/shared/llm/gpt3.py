@@ -41,23 +41,29 @@ class GPT3FAQEmbedding(LLMBase):
 
     def train(self, *args, **kwargs) -> Dict:
         self.__create_collection__(self.bot + self.cached_resp_suffix)
+        collection_groups = {}
         count = 0
         contents = list(CognitionData.objects(bot=self.bot))
-        for content in tqdm(contents, desc="Training FAQ"):
-            cognition_collection = f"{self.bot}{content.cognition_data_coll}{self.suffix}"
-            self.__create_collection__(cognition_collection)
-            if content.content_type == CognitionDataType.json.value:
-                if not content['metadata'] or []:
-                    search_payload, vector_embeddings = content.data, json.dumps(content.data)
+        for content in contents:
+            collection_name = f"{self.bot}_{content.collection}{self.suffix}" if content.collection else f"{self.bot}{self.suffix}"
+            if collection_name not in collection_groups:
+                collection_groups[collection_name] = []
+            collection_groups[collection_name].append(content)
+        for collection, grouped_contents in collection_groups.items():
+            self.__create_collection__(collection)
+            for content in tqdm(grouped_contents, desc="Training FAQ"):
+                if content.content_type == CognitionDataType.json.value:
+                    if not content['metadata'] or []:
+                        search_payload, vector_embeddings = content.data, json.dumps(content.data)
+                    else:
+                        search_payload, vector_embeddings = Utility.get_embeddings_and_payload_data(content.data, content.metadata)
                 else:
-                    search_payload, vector_embeddings = Utility.get_embeddings_and_payload_data(content.data, content.metadata)
-            else:
-                search_payload, vector_embeddings = {'content': content.data}, content.data
-            search_payload['collection_name'] = cognition_collection
-            points = [{'id': content.vector_id, 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
-            self.__collection_upsert__(cognition_collection, {'points': points},
-                                       err_msg="Unable to train FAQ! Contact support")
-            count += 1
+                    search_payload, vector_embeddings = {'content': content.data}, content.data
+                search_payload['collection_name'] = collection
+                points = [{'id': content.vector_id, 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
+                self.__collection_upsert__(collection, {'points': points},
+                                           err_msg="Unable to train FAQ! Contact support")
+                count += 1
         return {"faq": count}
 
     def predict(self, query: Text, *args, **kwargs) -> Dict:

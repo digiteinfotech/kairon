@@ -81,22 +81,8 @@ class TestLLM:
 
             responses.add(
                 "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_faq_embd"),
-                adding_headers={}
-            )
-
-            responses.add(
-                "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
-            )
-
-            responses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_faq_embd"),
-                method="PUT",
-                adding_headers={},
-                match=[responses.matchers.json_params_matcher({'name': 'test_embed_faq_faq_embd', 'vectors': gpt3.vector_config})],
-                status=200
             )
 
             responses.add(
@@ -105,6 +91,20 @@ class TestLLM:
                 adding_headers={},
                 match=[responses.matchers.json_params_matcher(
                     {'name': gpt3.bot + gpt3.cached_resp_suffix, 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_faq_embd"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher({'name': 'test_embed_faq_faq_embd', 'vectors': gpt3.vector_config})],
                 status=200
             )
 
@@ -133,14 +133,21 @@ class TestLLM:
             content_type="json",
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
             {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
-            cognition_data_coll='User_Details',
+            collection='User_Details',
             bot=bot, user=user).save()
         test_content_two = CognitionData(
             data={"country": "Spain", "lang": "spanish"},
             content_type="json",
             metadata=[{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True}],
-            cognition_data_coll='Country_Details',
+            collection='Country_Details',
+            bot=bot, user=user).save()
+        test_content_three = CognitionData(
+            data={"role": "ds", "lang": "spanish"},
+            content_type="json",
+            metadata=[{"column_name": "role", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                      {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True}],
+            collection='Country_Details',
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -164,6 +171,17 @@ class TestLLM:
             match=[
                 responses.matchers.json_params_matcher(
                     {"model": "text-embedding-ada-002", "input": json.dumps(test_content_two.data)}),
+                responses.matchers.header_matcher(request_header)],
+            json={'data': [{'embedding': embedding}]}
+        )
+
+        responses.add(
+            url="https://api.openai.com/v1/embeddings",
+            method="POST",
+            status=200,
+            match=[
+                responses.matchers.json_params_matcher(
+                    {"model": "text-embedding-ada-002", "input": json.dumps(test_content_three.data)}),
                 responses.matchers.header_matcher(request_header)],
             json={'data': [{'embedding': embedding}]}
         )
@@ -241,9 +259,40 @@ class TestLLM:
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
+            responses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'],
+                        f"/collections/test_embed_faq_text_Country_Details_faq_embd"),
+                adding_headers={}
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections/test_embed_faq_text_Country_Details_faq_embd"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher(
+                    {'name': 'test_embed_faq_text_Country_Details_faq_embd', 'vectors': gpt3.vector_config})],
+                status=200
+            )
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections/test_embed_faq_text_Country_Details_faq_embd/points"),
+                method="PUT",
+                adding_headers={},
+                match=[responses.matchers.json_params_matcher({'points': [{'id': test_content_three.vector_id,
+                                                                           'vector': embedding,
+                                                                           'payload': {
+                                                                               'collection_name': 'test_embed_faq_text_Country_Details_faq_embd',
+                                                                               'role': 'ds'}
+                                                                           }]})],
+                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+            )
+
             response = gpt3.train()
 
-            assert response['faq'] == 2
+            assert response['faq'] == 3
 
     @responses.activate
     def test_gpt3_faq_embedding_train_payload_with_int(self):
