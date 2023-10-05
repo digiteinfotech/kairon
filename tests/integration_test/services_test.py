@@ -1463,6 +1463,7 @@ def test_payload_upload_api(monkeypatch):
     payload = {
             "data": {"details": "AWS"},
             "content_type": "json",
+            "collection": "Details",
             "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}]
     }
     response = client.post(
@@ -1507,6 +1508,7 @@ def test_payload_updated_api():
         json={
             "payload_id": pytest.payload_id,
             "data": 'Data Collection means gathering relevant data from various sources, which can include databases, APIs, websites, sensors, social media, and more.',
+            "collection": "Collection",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}

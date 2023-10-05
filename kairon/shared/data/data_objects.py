@@ -723,6 +723,7 @@ class CognitionData(Auditlog):
     content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value,
                                                             CognitionDataType.json.value])
     metadata = ListField(EmbeddedDocumentField(CognitionMetadata), default=None)
+    collection = StringField(default=None)
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
