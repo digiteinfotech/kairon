@@ -155,11 +155,12 @@ class Authentication:
 
     @staticmethod
     def __authenticate_user(username: str, password: str):
+        UserActivityLogger.is_login_within_cooldown_period(username)
         user = AccountProcessor.get_user_details(username, is_login_request=True)
         if not user or not Utility.verify_password(password, user["password"]):
             data = {"username": username}
             message = ["Incorrect username or password"]
-            UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, account=user["account"], message=message, data=data)
+            UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, account=user["account"], email=username.lower(), message=message, data=data)
             return False
         return user
 
@@ -185,7 +186,6 @@ class Authentication:
     def generate_login_tokens(user: dict, is_login: bool):
         username = user["email"]
         account = user["account"]
-        UserActivityLogger.is_login_within_cooldown_period(user.get('email'))
         access_token = Authentication.create_access_token(data={"sub": username, "account": account})
         claims = Utility.decode_limited_access_token(access_token)
         access_token_iat = datetime.fromtimestamp(claims['iat'])
