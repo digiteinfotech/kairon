@@ -3416,7 +3416,7 @@ class TestActions:
             'POST',
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
-            match=[responses.matchers.json_params_matcher({'ticket': {'comment': {'id': ''}, 'id': '', 'subject': 'new ticket'}})]
+            match=[responses.matchers.json_params_matcher({'ticket': {'comment': {}, 'subject': 'new ticket'}})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket')
 
@@ -3425,7 +3425,7 @@ class TestActions:
             'https://digite751.zendesk.com/api/v2/tickets.json',
             json={'count': 1},
             match=[responses.matchers.json_params_matcher(
-                {'ticket': {'comment': {'id': '', 'html_body': 'html comment'}, 'id': '', 'subject': 'new ticket', 'description': 'ticket described',
+                {'ticket': {'comment': { 'html_body': 'html comment'}, 'subject': 'new ticket', 'description': 'ticket described',
                             'tags': ['kairon', 'bot'], }})]
         )
         ActionUtility.create_zendesk_ticket('digite751', 'test@digite.com', 'ASDFGHJKL', 'new ticket',
