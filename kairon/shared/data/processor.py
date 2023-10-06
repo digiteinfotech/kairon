@@ -5815,6 +5815,7 @@ class MongoProcessor:
         payload_obj.data = payload.get('data')
         payload_obj.content_type = payload.get('content_type')
         payload_obj.metadata = [CognitionMetadata(**meta) for meta in payload.get('metadata', [])]
+        payload_obj.collection = payload.get('collection', None)
         payload_obj.user = user
         payload_obj.bot = bot
         payload_id = payload_obj.save().to_mongo().to_dict()["_id"].__str__()
@@ -5830,6 +5831,7 @@ class MongoProcessor:
             payload_obj = CognitionData.objects(bot=bot, id=payload_id).get()
             payload_obj.data = data
             payload_obj.content_type = content_type
+            payload_obj.collection = payload.get('collection', None)
             payload_obj.user = user
             payload_obj.timestamp = datetime.utcnow()
             payload_obj.save()
@@ -5860,4 +5862,5 @@ class MongoProcessor:
             final_data['content'] = data
             final_data['content_type'] = data_type
             final_data['metadata'] = metadata
+            final_data['collection'] = item.get('collection', None)
             yield final_data

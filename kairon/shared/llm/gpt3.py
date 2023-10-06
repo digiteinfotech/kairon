@@ -40,22 +40,45 @@ class GPT3FAQEmbedding(LLMBase):
         self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:
-        self.__create_collection__(self.bot + self.suffix)
+        self.__delete_collection()
         self.__create_collection__(self.bot + self.cached_resp_suffix)
         count = 0
-        contents = list(CognitionData.objects(bot=self.bot))
-        for content in tqdm(contents, desc="Training FAQ"):
-            if content.content_type == CognitionDataType.json.value:
-                if not content['metadata'] or []:
-                    search_payload, vector_embeddings = content.data, json.dumps(content.data)
+        collection_group = list(CognitionData.objects.aggregate([
+            {
+                '$match': {
+                    'bot': self.bot
+                }
+            },
+            {
+                '$group': {
+                    '_id': "$collection",
+                    'content': {'$push': "$$ROOT"}
+                }
+            },
+            {
+                '$project': {
+                    'collection': "$_id",
+                    'content': 1,
+                    '_id': 0
+                }
+            }
+        ]))
+        for collections in collection_group:
+            collection = f"{self.bot}{self.suffix}" if collections['collection'] is None else f"{self.bot}_{collections['collection']}{self.suffix}"
+            self.__create_collection__(collection)
+            for content in tqdm(collections['content'], desc="Training FAQ"):
+                if content['content_type'] == CognitionDataType.json.value:
+                    if not content['metadata'] or []:
+                        search_payload, vector_embeddings = content['data'], json.dumps(content['data'])
+                    else:
+                        search_payload, vector_embeddings = Utility.get_embeddings_and_payload_data(content['data'], content['metadata'])
                 else:
-                    search_payload, vector_embeddings = Utility.get_embeddings_and_payload(content.data, content.metadata)
-            else:
-                search_payload, vector_embeddings = {'content': content.data}, content.data
-            points = [{'id': content.vector_id, 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
-            self.__collection_upsert__(self.bot + self.suffix, {'points': points},
-                                       err_msg="Unable to train FAQ! Contact support")
-            count += 1
+                    search_payload, vector_embeddings = {'content': content['data']}, content['data']
+                search_payload['collection_name'] = collection
+                points = [{'id': content['vector_id'], 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
+                self.__collection_upsert__(collection, {'points': points},
+                                           err_msg="Unable to train FAQ! Contact support")
+                count += 1
         return {"faq": count}
 
     def predict(self, query: Text, *args, **kwargs) -> Dict:
@@ -147,13 +170,23 @@ class GPT3FAQEmbedding(LLMBase):
                             'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return completion
 
-    def __create_collection__(self, collection_name: Text):
-        Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
-                                     request_method="DELETE",
+    def __delete_collection(self):
+        response = Utility.execute_http_request(http_url=urljoin(self.db_url, "/collections"),
+                                     request_method="GET",
                                      headers=self.headers,
                                      return_json=False,
                                      timeout=5)
+        response = response.json()
+        if response.get('result'):
+            for collection in response['result'].get('collections') or []:
+                if collection['name'].startswith(self.bot):
+                    Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection['name']}"),
+                                                 request_method="DELETE",
+                                                 headers=self.headers,
+                                                 return_json=False,
+                                                 timeout=5)
 
+    def __create_collection__(self, collection_name: Text):
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                      request_method="PUT",
                                      headers=self.headers,
@@ -246,7 +279,8 @@ class GPT3FAQEmbedding(LLMBase):
         limit = kwargs.pop('top_results', 10)
         score_threshold = kwargs.pop('similarity_threshold', 0.70)
         if use_similarity_prompt:
-            search_result = self.__collection_search__(self.bot + self.suffix, vector=query_embedding,
+            collection_name = f"{self.bot}_{kwargs.get('collection')}{self.suffix}" if kwargs.get('collection') else f"{self.bot}{self.suffix}"
+            search_result = self.__collection_search__(collection_name, vector=query_embedding,
                                                        limit=limit, score_threshold=score_threshold)
 
             similarity_context = "\n".join([item['payload']['content'] for item in search_result['result']])
