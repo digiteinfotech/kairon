@@ -99,8 +99,12 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             actions_predicted = []
             bot_responses = []
             data = []
+            metadata = {}
             for event in additional_events:
                 event = event.as_dict()
+                if not event.get("metadata"):
+                    event["metadata"] = {}
+                event["metadata"].update(metadata)
                 data.append(
                     {
                         "sender_id": sender_id,
@@ -117,6 +121,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                     flattened_conversation["data"]["confidence"] = event["parse_data"][
                         "intent"
                     ]["confidence"]
+                    metadata = event.get("metadata")
                 elif event["event"] == "action":
                     actions_predicted.append(event.get("name"))
                 elif event["event"] == "bot":
@@ -126,7 +131,6 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             flattened_conversation["data"]["action"] = actions_predicted
             flattened_conversation["data"]["bot_response"] = bot_responses
             data.append(flattened_conversation)
-            logger.debug(f"tracker saving data: {len(data)}")
             if data:
                 self.conversations.insert_many(data)
 
