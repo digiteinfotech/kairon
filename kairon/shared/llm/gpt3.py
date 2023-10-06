@@ -62,12 +62,8 @@ class GPT3FAQEmbedding(LLMBase):
                 }
             }
         ]))
-        collection_group = [{
-            'content': item['content'],
-            'collection': f"{self.bot}{self.suffix}" if item['collection'] is None else f"{self.bot}_{item['collection']}{self.suffix}"}
-            for item in collection_group]
         for collections in collection_group:
-            collection = collections['collection']
+            collection = f"{self.bot}{self.suffix}" if collections['collection'] is None else f"{self.bot}_{collections['collection']}{self.suffix}"
             self.__create_collection__(collection)
             for content in tqdm(collections['content'], desc="Training FAQ"):
                 if content['content_type'] == CognitionDataType.json.value:
@@ -272,7 +268,7 @@ class GPT3FAQEmbedding(LLMBase):
         limit = kwargs.pop('top_results', 10)
         score_threshold = kwargs.pop('similarity_threshold', 0.70)
         if use_similarity_prompt:
-            collection_name = kwargs.pop('collection') if kwargs.get('collection') else self.bot + self.suffix
+            collection_name = f"{self.bot}_{kwargs.get('collection')}{self.suffix}" if kwargs.get('collection') else f"{self.bot}{self.suffix}"
             search_result = self.__collection_search__(collection_name, vector=query_embedding,
                                                        limit=limit, score_threshold=score_threshold)
 
