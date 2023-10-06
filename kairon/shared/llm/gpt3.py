@@ -40,6 +40,7 @@ class GPT3FAQEmbedding(LLMBase):
         self.__logs = []
 
     def train(self, *args, **kwargs) -> Dict:
+        self.__delete_collection()
         self.__create_collection__(self.bot + self.cached_resp_suffix)
         count = 0
         collection_group = list(CognitionData.objects.aggregate([
@@ -168,6 +169,22 @@ class GPT3FAQEmbedding(LLMBase):
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'rephrase_query', 'hyperparameters': hyperparameters})
         return completion
+
+    def __delete_collection(self):
+        response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections"),
+                                     request_method="GET",
+                                     headers=self.headers,
+                                     return_json=False,
+                                     timeout=5)
+        response = response.json()
+        if response.get('result') and response['result']['collections']:
+            for collection in response['result']['collections']:
+                if collection['name'].__contains__(self.bot):
+                    Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection['name']}"),
+                                                 request_method="DELETE",
+                                                 headers=self.headers,
+                                                 return_json=False,
+                                                 timeout=5)
 
     def __create_collection__(self, collection_name: Text):
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),

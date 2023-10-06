@@ -80,6 +80,13 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections"),
+                method="GET",
+                adding_headers={},
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
+
+            responses.add(
                 "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
@@ -186,8 +193,51 @@ class TestLLM:
             json={'data': [{'embedding': embedding}]}
         )
 
+        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+        responses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_Swift_faq_embd"),
+            method="PUT",
+            adding_headers={},
+            match=[responses.matchers.json_params_matcher(
+                {'name': 'test_embed_faq_text_Swift_faq_embd', 'vectors': gpt3.vector_config})],
+            status=200
+        )
+
+        responses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/example_bot_Swift_faq_embd"),
+            method="PUT",
+            adding_headers={},
+            match=[responses.matchers.json_params_matcher(
+                {'name': 'example_bot_Swift_faq_embd', 'vectors': gpt3.vector_config})],
+            status=200
+        )
+
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections"),
+                method="GET",
+                adding_headers={},
+                json={"time": 0, "status": "ok", "result": {
+                        "collections": [
+                            {
+                                "name": "test_embed_faq_text_Swift_faq_embd"
+                            },
+                            {
+                                "name": "example_bot_Swift_faq_embd"
+                            }
+                        ]
+                    }
+                }
+            )
+
+            responses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_Swift_faq_embd"),
+                adding_headers={}
+            )
 
             responses.add(
                 "DELETE",
@@ -305,6 +355,13 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections"),
+                method="GET",
+                adding_headers={},
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
+
+            responses.add(
                 "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
@@ -381,6 +438,13 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections"),
+                method="GET",
+                adding_headers={},
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
+
+            responses.add(
                 "DELETE",
                 urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 adding_headers={}
@@ -452,6 +516,13 @@ class TestLLM:
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections"),
+                method="GET",
+                adding_headers={},
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
 
             responses.add(
                 "DELETE",
@@ -529,6 +600,13 @@ class TestLLM:
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections"),
+                method="GET",
+                adding_headers={},
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
 
             responses.add(
                 "DELETE",
@@ -622,6 +700,13 @@ class TestLLM:
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            responses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections"),
+                method="GET",
+                adding_headers={},
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
 
             responses.add(
                 "DELETE",
