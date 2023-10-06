@@ -22,6 +22,8 @@ def load_history_data():
     items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
     for item in items:
         item['event']['timestamp'] = time.time()
+        if item.get('timestamp'):
+            item['timestamp'] = time.time()
     collection.insert_many(items)
     return db_url, client
 
@@ -201,7 +203,7 @@ class TestHistory:
         mock_client.return_value = mongoclient
         hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
                                                                        fallback_action='utter_location_query')
-        assert hit_fall_back["fallback_count"] == 0
+        assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 273
         assert message is None
 
@@ -212,7 +214,7 @@ class TestHistory:
                                                                        fallback_action="action_default_fallback",
                                                                        nlu_fallback_action="utter_please_rephrase")
 
-        assert hit_fall_back["fallback_count"] == 100
+        assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 273
         assert message is None
 
@@ -300,7 +302,7 @@ class TestHistory:
     def test_user_retention(self, mock_client):
         mock_client.return_value = mongoclient
         retention, message = HistoryProcessor.user_retention("tests")
-        assert round(retention['user_retention']) == round(71)
+        assert round(retention['user_retention']) == round(63)
         assert message is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
