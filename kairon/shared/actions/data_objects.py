@@ -650,10 +650,6 @@ class LlmPrompt(EmbeddedDocument):
             raise ValidationError("System prompt must have static source!")
 
 
-class PromptAction:
-    pass
-
-
 @auditlogger.log
 @push_notification.apply
 class PromptAction(Auditlog):

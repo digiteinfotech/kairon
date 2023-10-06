@@ -41,26 +41,44 @@ class GPT3FAQEmbedding(LLMBase):
 
     def train(self, *args, **kwargs) -> Dict:
         self.__create_collection__(self.bot + self.cached_resp_suffix)
-        collection_groups = {}
         count = 0
-        contents = list(CognitionData.objects(bot=self.bot))
-        for content in contents:
-            collection_name = f"{self.bot}_{content.collection}{self.suffix}" if content.collection else f"{self.bot}{self.suffix}"
-            if collection_name not in collection_groups:
-                collection_groups[collection_name] = []
-            collection_groups[collection_name].append(content)
-        for collection, grouped_contents in collection_groups.items():
+        collection_group = list(CognitionData.objects.aggregate([
+            {
+                '$match': {
+                    'bot': self.bot
+                }
+            },
+            {
+                '$group': {
+                    '_id': "$collection",
+                    'content': {'$push': "$$ROOT"}
+                }
+            },
+            {
+                '$project': {
+                    'collection': "$_id",
+                    'content': 1,
+                    '_id': 0
+                }
+            }
+        ]))
+        collection_group = [{
+            'content': item['content'],
+            'collection': f"{self.bot}{self.suffix}" if item['collection'] is None else f"{self.bot}_{item['collection']}{self.suffix}"}
+            for item in collection_group]
+        for collections in collection_group:
+            collection = collections['collection']
             self.__create_collection__(collection)
-            for content in tqdm(grouped_contents, desc="Training FAQ"):
-                if content.content_type == CognitionDataType.json.value:
+            for content in tqdm(collections['content'], desc="Training FAQ"):
+                if content['content_type'] == CognitionDataType.json.value:
                     if not content['metadata'] or []:
-                        search_payload, vector_embeddings = content.data, json.dumps(content.data)
+                        search_payload, vector_embeddings = content['data'], json.dumps(content['data'])
                     else:
-                        search_payload, vector_embeddings = Utility.get_embeddings_and_payload_data(content.data, content.metadata)
+                        search_payload, vector_embeddings = Utility.get_embeddings_and_payload_data(content['data'], content['metadata'])
                 else:
-                    search_payload, vector_embeddings = {'content': content.data}, content.data
+                    search_payload, vector_embeddings = {'content': content['data']}, content['data']
                 search_payload['collection_name'] = collection
-                points = [{'id': content.vector_id, 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
+                points = [{'id': content['vector_id'], 'vector': self.__get_embedding(vector_embeddings), 'payload': search_payload}]
                 self.__collection_upsert__(collection, {'points': points},
                                            err_msg="Unable to train FAQ! Contact support")
                 count += 1
