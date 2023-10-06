@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Text, List, Dict, Tuple
+from typing import Optional, Text, List, Dict, Tuple, Any
 import copy
 import rasa
 from rasa.core.actions.action import (
@@ -26,8 +26,14 @@ from rasa.shared.core.events import (
     SlotSet,
     UserUttered,
 )
+from rasa.shared.core.slots import ListSlot
 from rasa.shared.core.trackers import DialogueStateTracker
 from rasa.shared.data import TrainingType
+from rasa.shared.nlu.constants import (
+    ENTITY_ATTRIBUTE_TYPE,
+    ENTITY_ATTRIBUTE_ROLE,
+    ENTITY_ATTRIBUTE_GROUP,
+)
 from rasa.utils.endpoints import EndpointConfig
 
 from kairon.shared.metering.constants import MetricType
@@ -35,6 +41,7 @@ from kairon.shared.metering.metering_processor import MeteringProcessor
 import structlog
 
 structlogger = structlog.get_logger()
+
 
 class KaironMessageProcessor(MessageProcessor):
     """
@@ -67,6 +74,8 @@ class KaironMessageProcessor(MessageProcessor):
         )
 
         if parse_data["entities"]:
+            slot_events = self.slots_for_entities(parse_data["entities"], self.domain)
+            tracker.update(slot_events)
             self._log_slots(tracker)
 
         return parse_data
@@ -409,3 +418,31 @@ class KaironMessageProcessor(MessageProcessor):
         )
 
         return tracker
+
+    def slots_for_entities(
+        self, entities: List[Dict[Text, Any]], domain: Domain
+    ) -> List[SlotSet]:
+        """Creates slot events for entities if from_entity mapping matches.
+
+        Args:
+            entities: The list of entities.
+
+        Returns:
+            A list of `SlotSet` events.
+        """
+        slot_events = []
+
+        for slot in domain.slots:
+            matching_entities = [
+                entity.get("value")
+                for entity in entities
+                if entity.get("entity") == slot.name
+            ]
+
+            if matching_entities:
+                if isinstance(slot, ListSlot):
+                    slot_events.append(SlotSet(slot.name, matching_entities))
+                else:
+                    slot_events.append(SlotSet(slot.name, matching_entities[-1]))
+
+        return slot_events
