@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional, Text, List, Dict, Tuple
-
+import copy
 import rasa
 from rasa.core.actions.action import (
     Action,
@@ -32,7 +32,9 @@ from rasa.utils.endpoints import EndpointConfig
 
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
+import structlog
 
+structlogger = structlog.get_logger()
 
 class KaironMessageProcessor(MessageProcessor):
     """
@@ -345,9 +347,7 @@ class KaironMessageProcessor(MessageProcessor):
             is_form and action_name_or_text in domain.user_actions
         )
         if is_form and not user_overrode_form_action:
-            from rasa.core.actions.forms import FormAction
-
-            return FormAction(action_name_or_text, action_endpoint)
+            return RemoteAction(action_name_or_text, action_endpoint)
 
         return RemoteAction(action_name_or_text, action_endpoint)
 
@@ -377,3 +377,35 @@ class KaironMessageProcessor(MessageProcessor):
         return self.action_for_name_or_text(
             domain.action_names_or_texts[index], domain, action_endpoint
         )
+
+    async def run_action_extract_slots(
+        self, output_channel: OutputChannel, tracker: DialogueStateTracker
+    ) -> DialogueStateTracker:
+        """Run action to extract slots and update the tracker accordingly.
+
+        Args:
+            output_channel: Output channel associated with the incoming user message.
+            tracker: A tracker representing a conversation state.
+
+        Returns:
+            the given (updated) tracker
+        """
+        action_extract_slots = self.action_for_name_or_text(
+            ACTION_EXTRACT_SLOTS, self.domain, self.action_endpoint
+        )
+        extraction_events = await action_extract_slots.run(
+            output_channel, self.nlg, tracker, self.domain
+        )
+
+        await self._send_bot_messages(extraction_events, tracker, output_channel)
+
+        tracker.update_with_events(extraction_events, self.domain)
+
+        structlogger.debug(
+            "processor.extract.slots",
+            action_extract_slot=ACTION_EXTRACT_SLOTS,
+            len_extraction_events=len(extraction_events),
+            rasa_events=copy.deepcopy(extraction_events),
+        )
+
+        return tracker
