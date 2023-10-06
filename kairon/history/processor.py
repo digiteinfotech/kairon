@@ -1133,54 +1133,45 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                new_session = list(
-                    conversations.aggregate([{"$match": {"event.timestamp": {
-                        "$gte": Utility.get_timestamp_from_date(from_date),
-                        "$lte": Utility.get_timestamp_from_date(to_date)
-                    },
-                                                 "event.name": {"$ne": "action_listen"},
-                                                 "event.event": {
-                                                     "$nin": ["session_started", "restart", "bot"]}}},
-                                            {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
-                                                         "allevents": {"$push": "$event"}}},
-                                             {"$unwind": "$events"},
-                                             {"$project": {
-                                                 "_id": 1,
-                                                 "events": 1,
-                                                 "following_events": {
-                                                     "$arrayElemAt": [
-                                                         "$allevents",
-                                                         {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
-                                                     ]
-                                                 }
-                                             }},
-                                             {"$match": {'$or': [{"events.name": fallback_action},
-                                                                 {"events.name": nlu_fallback_action}],
-                                                         "following_events.name": "action_session_start"}},
-                                             {"$group": {"_id": "$_id", "count": {"$sum": 1}}},
-                                             {"$sort": {"count": -1}}
-                                             ], allowDiskUse=True)
-                )
+                new_session = list(conversations.aggregate([
+                    {"$match": {"event.name": {"$ne": "action_listen"},
+                                "timestamp": {
+                                    "$gte": Utility.get_timestamp_from_date(from_date),
+                                    "$lte": Utility.get_timestamp_from_date(to_date)
+                                },
+                                "event.event": {"$nin": ["session_started", "restart", "bot"]}}},
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "events": {"$push": "$data"}, "allevents": {"$push": "$data"}}},
+                    {"$unwind": "$events"},
+                    {"$project": {
+                        "_id": 1,
+                        "events": 1,
+                        "following_events": {
+                             "$arrayElemAt": [
+                                 "$allevents",
+                                 {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                             ]
+                         }
+                     }},
+                    {"$match": {"events.intent": "nlu_fallback", "following_events.action": "action_session_start"}},
+                    {"$group": {"_id": "$_id", "count": {"$sum": 1}}},
+                    {"$sort": {"count": -1}}
+                ], allowDiskUse=True))
 
-                single_session = list(
-                    conversations.aggregate([
-                                             {"$match": {"event.timestamp": {
-                                                 "$gte": Utility.get_timestamp_from_date(from_date),
-                                                 "$lte": Utility.get_timestamp_from_date(to_date)
-                                            },
-                                                 "event.name": {"$ne": "action_listen"},
-                                                 "event.event": {
-                                                     "$nin": ["session_started", "restart", "bot"]}}},
-                                            {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
-                                             {"$addFields": {"last_event": {"$last": "$events"}}},
-                                             {"$match": {'$or': [{"last_event.name": fallback_action},
-                                                                 {"last_event.name": nlu_fallback_action}]}},
-                                             {"$addFields": {"count": 1}},
-                                             {"$project": {"_id": 1, "count": 1}}
-                                             ], allowDiskUse=True)
-            )
+                single_session = list(conversations.aggregate([
+                    {"$match": {"event.name": {"$ne": "action_listen"},
+                                "timestamp": {
+                                    "$gte": Utility.get_timestamp_from_date(from_date),
+                                    "$lte": Utility.get_timestamp_from_date(to_date)
+                                },
+                                "event.event": {"$nin": ["session_started", "restart", "bot"]}}},
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "events": {"$push": "$data"}}},
+                    {"$addFields": {"last_event": {"$last": "$events"}}},
+                    {"$match": {"last_event.intent": "nlu_fallback"}},
+                    {"$addFields": {"count": 1}},
+                    {"$project": {"_id": 1, "count": 1}}
+                ], allowDiskUse=True))
         except Exception as e:
             logger.error(e)
             message = str(e)
@@ -1316,56 +1307,45 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                new_session = list(
-                    conversations.aggregate([
-                                             {"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
-                                                         "event.name": {
-                                                             "$in": ["action_session_start", fallback_action,
-                                                                     nlu_fallback_action]}
-                                                         }
+                new_session = list(conversations.aggregate([
+                    {"$match": {"event.name": {"$ne": "action_listen"},
+                                "timestamp": {
+                                    "$gte": Utility.get_timestamp_from_date(from_date),
+                                    "$lte": Utility.get_timestamp_from_date(to_date)
+                                },
+                                "event.event": {"$nin": ["session_started", "restart", "bot"]}}},
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "events": {"$push": "$data"}, "allevents": {"$push": "$data"}}},
+                    {"$unwind": "$events"},
+                    {"$project": {
+                        "_id": 1,
+                        "events": 1,
+                        "following_events": {
+                             "$arrayElemAt": [
+                                 "$allevents",
+                                 {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
+                             ]
+                         }
+                     }},
+                    {"$match": {"events.intent": "nlu_fallback", "following_events.action": "action_session_start"}},
+                    {"$group": {"_id": "$_id", "count": {"$sum": 1}}},
+                    {"$sort": {"count": -1}}
+                ], allowDiskUse=True))
 
-                                             },
-                                            {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"},
-                                                         "allevents": {"$push": "$event"}}},
-                                             {"$unwind": "$events"},
-                                             {"$project": {
-                                                 "_id": 1,
-                                                 "events": 1,
-                                                 "following_events": {
-                                                     "$arrayElemAt": [
-                                                         "$allevents",
-                                                         {"$add": [{"$indexOfArray": ["$allevents", "$events"]}, 1]}
-                                                     ]
-                                                 }
-                                             }},
-                                             {"$match": {'$or': [{"events.name": fallback_action},
-                                                                 {"events.name": nlu_fallback_action}],
-                                                         "following_events.name": "action_session_start"}},
-                                             {"$group": {"_id": "$_id", "count": {"$sum": 1}}},
-                                             {"$sort": {"count": -1}}
-
-                                             ], allowDiskUse=True))
-
-                single_session = list(
-                    conversations.aggregate([{"$match": {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
-                                                         "event.name": {
-                                                             "$in": ["action_session_start", fallback_action,
-                                                                     nlu_fallback_action]}
-                                                         }
-
-                                             },
-                                             {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "events": {"$push": "$event"}}},
-                                             {"$addFields": {"last_event": {"$last": "$events"}}},
-                                             {"$match": {'$or': [{"last_event.name": fallback_action},
-                                                                 {"last_event.name": nlu_fallback_action}]}},
-                                             {"$addFields": {"count": 1}},
-                                             {"$project": {"_id": 1, "count": 1}}
-                                             ], allowDiskUse=True)
-                    )
+                single_session = list(conversations.aggregate([
+                    {"$match": {"event.name": {"$ne": "action_listen"},
+                                "timestamp": {
+                                    "$gte": Utility.get_timestamp_from_date(from_date),
+                                    "$lte": Utility.get_timestamp_from_date(to_date)
+                                },
+                                "event.event": {"$nin": ["session_started", "restart", "bot"]}}},
+                    {"$sort": {"event.timestamp": 1}},
+                    {"$group": {"_id": "$sender_id", "events": {"$push": "$data"}}},
+                    {"$addFields": {"last_event": {"$last": "$events"}}},
+                    {"$match": {"last_event.intent": "nlu_fallback"}},
+                    {"$addFields": {"count": 1}},
+                    {"$project": {"_id": 1, "count": 1}}
+                ], allowDiskUse=True))
         except Exception as e:
             logger.error(e)
             message = str(e)
