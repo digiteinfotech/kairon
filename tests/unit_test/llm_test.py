@@ -102,12 +102,6 @@ class TestLLM:
             )
 
             responses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
                 method="PUT",
                 adding_headers={},
@@ -255,12 +249,6 @@ class TestLLM:
             )
 
             responses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_User_details_faq_embd"),
-                adding_headers={}
-            )
-
-            responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_User_details_faq_embd"),
                 method="PUT",
                 adding_headers={},
@@ -279,12 +267,6 @@ class TestLLM:
                                                                                        'collection_name': 'test_embed_faq_text_User_details_faq_embd'}
                                                                            }]})],
                 json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
-            )
-
-            responses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/test_embed_faq_text_Country_details_faq_embd"),
-                adding_headers={}
             )
 
             responses.add(
@@ -377,12 +359,6 @@ class TestLLM:
             )
 
             responses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
                 method="PUT",
                 adding_headers={},
@@ -460,12 +436,6 @@ class TestLLM:
             )
 
             responses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
-            )
-
-            responses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
                 method="PUT",
                 adding_headers={},
@@ -537,12 +507,6 @@ class TestLLM:
                 match=[responses.matchers.json_params_matcher(
                     {'name': gpt3.bot + gpt3.cached_resp_suffix, 'vectors': gpt3.vector_config})],
                 status=200
-            )
-
-            responses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
             )
 
             responses.add(
@@ -621,12 +585,6 @@ class TestLLM:
                 match=[responses.matchers.json_params_matcher(
                     {'name': gpt3.bot + gpt3.cached_resp_suffix, 'vectors': gpt3.vector_config})],
                 status=200
-            )
-
-            responses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
             )
 
             responses.add(
@@ -721,12 +679,6 @@ class TestLLM:
                 match=[responses.matchers.json_params_matcher(
                     {'name': gpt3.bot + gpt3.cached_resp_suffix, 'vectors': gpt3.vector_config})],
                 status=200
-            )
-
-            responses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                adding_headers={}
             )
 
             responses.add(

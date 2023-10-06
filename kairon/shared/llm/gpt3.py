@@ -171,15 +171,15 @@ class GPT3FAQEmbedding(LLMBase):
         return completion
 
     def __delete_collection(self):
-        response = Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections"),
+        response = Utility.execute_http_request(http_url=urljoin(self.db_url, "/collections"),
                                      request_method="GET",
                                      headers=self.headers,
                                      return_json=False,
                                      timeout=5)
         response = response.json()
-        if response.get('result') and response['result']['collections']:
-            for collection in response['result']['collections']:
-                if collection['name'].__contains__(self.bot):
+        if response.get('result'):
+            for collection in response['result'].get('collections') or []:
+                if collection['name'].startswith(self.bot):
                     Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection['name']}"),
                                                  request_method="DELETE",
                                                  headers=self.headers,
@@ -187,12 +187,6 @@ class GPT3FAQEmbedding(LLMBase):
                                                  timeout=5)
 
     def __create_collection__(self, collection_name: Text):
-        Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
-                                     request_method="DELETE",
-                                     headers=self.headers,
-                                     return_json=False,
-                                     timeout=5)
-
         Utility.execute_http_request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                      request_method="PUT",
                                      headers=self.headers,
