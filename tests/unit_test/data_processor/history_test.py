@@ -201,8 +201,7 @@ class TestHistory:
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_custom_action(self, mock_client):
         mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
-                                                                       fallback_action='utter_location_query')
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests")
         assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 273
         assert message is None
@@ -210,9 +209,7 @@ class TestHistory:
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_nlu_fallback_configured(self, mock_client):
         mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
-                                                                       fallback_action="action_default_fallback",
-                                                                       nlu_fallback_action="utter_please_rephrase")
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests")
 
         assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 273
