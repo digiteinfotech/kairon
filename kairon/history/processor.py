@@ -113,9 +113,7 @@ class HistoryProcessor:
     @staticmethod
     def visitor_hit_fallback(collection: Text,
                              from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-                             to_date: date = datetime.utcnow().date(),
-                             fallback_action: str = 'action_default_fallback',
-                             nlu_fallback_action: str = None):
+                             to_date: date = datetime.utcnow().date()):
 
         """
         Fallback count for bot.
@@ -125,8 +123,6 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
         :return: list of visitor fallback
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -134,32 +130,31 @@ class HistoryProcessor:
         message = None
         try:
             client = HistoryProcessor.get_mongo_connection()
-            default_actions = Utility.load_default_actions()
             with client as clt:
                 db = clt.get_database()
                 conversations = db.get_collection(collection)
                 fallback_counts = list(conversations.aggregate([
-                                                                {"$match": {"type": "flattened",
-                                                                            "data.intent": "nlu_fallback",
-                                                                            "timestamp": {
-                                                                                "$gte": Utility.get_timestamp_from_date(from_date),
-                                                                                "$lte": Utility.get_timestamp_from_date(to_date)}
-                                                                            }
-                                                                 },
-                                                                {"$group": {"_id": None, "fallback_count": {"$sum": 1}}},
-                                                                {"$project": {"fallback_count": 1, "_id": 0}}
-                                                                ], allowDiskUse=True))
+                    {"$match": {"type": "flattened",
+                                "data.intent": "nlu_fallback",
+                                "timestamp": {
+                                    "$gte": Utility.get_timestamp_from_date(from_date),
+                                    "$lte": Utility.get_timestamp_from_date(to_date)}
+                                }
+                     },
+                    {"$group": {"_id": None, "fallback_count": {"$sum": 1}}},
+                    {"$project": {"fallback_count": 1, "_id": 0}}
+                ], allowDiskUse=True))
 
-                total_counts = list(conversations.aggregate([
-                                                             {"$match": {"event.event": "user",
-                                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                                             "$lte": Utility.get_timestamp_from_date(to_date)
-                                                                                             }
-                                                                         }
-                                                              },
-                                                             {"$group": {"_id": None, "total_count": {"$sum": 1}}},
-                                                             {"$project": {"total_count": 1, "_id": 0}}
-                                                             ], allowDiskUse=True))
+                total_counts = list(conversations.aggregate(
+                    [
+                        {"$match": {"type": "flattened",
+                                    "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                                  "$lte": Utility.get_timestamp_from_date(to_date)}
+                                    }
+                         },
+                        {"$group": {"_id": None, "total_count": {"$sum": 1}}},
+                        {"$project": {"total_count": 1, "_id": 0}}
+                    ], allowDiskUse=True))
 
         except Exception as e:
             logger.error(e)
@@ -371,9 +366,7 @@ class HistoryProcessor:
     @staticmethod
     def successful_conversations(collection: Text,
                                  from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-                                 to_date: date = datetime.utcnow().date(),
-                                 fallback_action: str = 'action_default_fallback',
-                                 nlu_fallback_action: str = 'nlu_fallback'):
+                                 to_date: date = datetime.utcnow().date()):
 
         """
         Counts the number of successful conversations of the bot
@@ -381,8 +374,6 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
         :return: number of successful conversations
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -394,16 +385,15 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                total = list(
-                    conversations.aggregate([{"$match": {
-                                                        "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                            "$lte": Utility.get_timestamp_from_date(to_date)},
-                                                        "event.event": "user"
-                                                        }
-                                             },
-                                             {"$group": {"_id": None, "count": {"$sum": 1}}},
-                                             {"$project": {"_id": 0, "count": 1}}
-                                             ]))
+                total = list(conversations.aggregate([
+                    {"$match": {
+                        "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                      "$lte": Utility.get_timestamp_from_date(to_date)},
+                        "type": "flattened"}
+                    },
+                    {"$group": {"_id": None, "count": {"$sum": 1}}},
+                    {"$project": {"_id": 0, "count": 1}}
+                ]))
 
                 fallback_count = list(
                     conversations.aggregate([
@@ -605,9 +595,7 @@ class HistoryProcessor:
     @staticmethod
     def successful_conversation_range(collection: Text,
                                       from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-                                      to_date: date = datetime.utcnow().date(),
-                                      fallback_action: str = 'action_default_fallback',
-                                      nlu_fallback_action: str = 'nlu_fallback'):
+                                      to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for successful conversation count
@@ -615,8 +603,6 @@ class HistoryProcessor:
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
         :return: dictionary of counts of successful bot conversations for the previous months
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -632,12 +618,12 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
-                            "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                "$lte": Utility.get_timestamp_from_date(to_date)},
-                            "event.event": "user"
-                        }
+                                "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
+                                              "$lte": Utility.get_timestamp_from_date(to_date)},
+                                "type": "flattened"
+                            }
                         },
-                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
+                        {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
                         {"$group": {"_id": "$month", "count": {"$sum": 1}}},
                         {"$project": {"_id": 1, "count": 1}}
                     ], allowDiskUse=True))
@@ -658,9 +644,9 @@ class HistoryProcessor:
         except Exception as e:
             logger.error(e)
             message = str(e)
-        unsuccess_dict = {item["_id"]: item["count"]   for item in total_unsuccess}
+        unsuccess_dict = {item["_id"]: item["count"] for item in total_unsuccess}
         total_dict = {item["_id"]: item["count"] for item in total_unsuccess}
-        successful = [{key: value - unsuccess_dict[key]}  for key, value in total_dict.items()]
+        successful = [{key: value - unsuccess_dict[key]} for key, value in total_dict.items()]
         return (
             {"successful": successful, "total": total},
             message
@@ -726,17 +712,13 @@ class HistoryProcessor:
     @staticmethod
     def fallback_count_range(collection: Text,
                              from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-                             to_date: date = datetime.utcnow().date(),
-                             fallback_action: str = 'action_default_fallback',
-                             nlu_fallback_action: str = 'nlu_fallback'):
+                             to_date: date = datetime.utcnow().date()):
 
         """
         Computes the trend for fallback counts
         :param collection: collection to connect to
         :param from_date: default is last month date
         :param to_date: default is current month today date
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
         :return: dictionary of fallback counts for the previous months
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
@@ -748,31 +730,29 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                fallback_counts = list(
-                    conversations.aggregate([{"$match": {"event.event": "action",
-                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                             "$lte": Utility.get_timestamp_from_date(to_date)},
-                                                         "event.name": {"$in": [fallback_action, nlu_fallback_action]}
-                                                         }
-                                              },
-                                             {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
-                                             {"$group": {"_id": "$month", "count": {"$sum": 1}}},
-                                             {"$project": {"_id": 1, "count": 1}}
-                                             ]))
-                action_counts = list(
-                    conversations.aggregate([{"$match": {"$and":
-                                                             [
-                                                                 {"event.event": "action"},
-                                                                 {"event.name": {"$nin": ['action_listen', 'action_session_start']}},
-                                                                 {"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                                      "$lte": Utility.get_timestamp_from_date(to_date)}}
-                                                             ],
-                                                        }
-                                             },
-                                             {"$addFields": {"month": { "$month": {"$toDate": {"$multiply": ["$event.timestamp", 1000]}}}}},
-                                             {"$group": {"_id": "$month", "total_count": {"$sum": 1}}},
-                                             {"$project": {"_id": 1, "total_count": 1}}
-                                             ]))
+                fallback_counts = list(conversations.aggregate([
+                    {"$match": {"type": "flattened",
+                                "timestamp": {
+                                    "$gte": Utility.get_timestamp_from_date(from_date),
+                                    "$lte": Utility.get_timestamp_from_date(to_date)
+                                },
+                                "data.intent": "nlu_fallback"}},
+                    {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
+                    {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+                    {"$project": {"_id": 1, "count": 1}}
+                ]))
+                action_counts = list(conversations.aggregate([{"$match": {"$and": [
+                    {"type": "flattened"},
+                    {"data.intent": {"$nin": ['action_listen', 'action_session_start']}},
+                    {"timestamp": {
+                        "$gte": Utility.get_timestamp_from_date(from_date),
+                        "$lte": Utility.get_timestamp_from_date(to_date)
+                    }}]}},
+                    {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
+                    {"$group": {"_id": "$month", "total_count": {"$sum": 1}}},
+                    {"$project": {"_id": 1, "total_count": 1}}
+                ]))
+
         except Exception as e:
             logger.error(e)
             message = str(e)
@@ -1111,16 +1091,12 @@ class HistoryProcessor:
     @staticmethod
     def user_fallback_dropoff(collection: Text,
                               from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-                              to_date: date = datetime.utcnow().date(),
-                              fallback_action: str = 'action_default_fallback',
-                              nlu_fallback_action: str = 'nlu_fallback'):
+                              to_date: date = datetime.utcnow().date()):
 
         """
         Computes the list of users that dropped off after encountering fallback
 
         :param collection: collection to connect to
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
         :param from_date: default is last month date
         :param to_date: default is current month today date
         :return: dictionary of users and their dropoff counts
@@ -1285,16 +1261,12 @@ class HistoryProcessor:
     @staticmethod
     def unsuccessful_session(collection: Text,
                              from_date: date = (datetime.utcnow() - timedelta(30)).date(),
-                             to_date: date = datetime.utcnow().date(),
-                             fallback_action: str = 'action_default_fallback',
-                             nlu_fallback_action: str = 'nlu_fallback'):
+                             to_date: date = datetime.utcnow().date()):
 
         """
         Computes the count of sessions for a user that had a fallback
 
         :param collection: collection to connect to
-        :param fallback_action: fallback action configured for bot
-        :param nlu_fallback_action: nlu fallback configured for bot
         :param from_date: default is last month date
         :param to_date: default is current month today date
         :return: dictionary of users and their unsuccessful session counts

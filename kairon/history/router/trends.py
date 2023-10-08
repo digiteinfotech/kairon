@@ -41,13 +41,11 @@ async def new_users(
 async def complete_conversation(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        action_fallback: str = Query(default="action_default_fallback"),
-        nlu_fallback: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the counts of successful conversations of the bot for previous months."""
     range_value, message = HistoryProcessor.successful_conversation_range(
-        collection, from_date, to_date, action_fallback, nlu_fallback
+        collection, from_date, to_date
     )
     return {"data": range_value, "message": message}
 
@@ -69,13 +67,11 @@ async def user_retention(
 async def fallback(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(180)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        action_fallback: str = Query(default="action_default_fallback"),
-        nlu_fallback: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the fallback count of the bot for previous months."""
     range_value, message = HistoryProcessor.fallback_count_range(
-        collection, from_date, to_date, action_fallback, nlu_fallback
+        collection, from_date, to_date
     )
     return {"data": range_value, "message": message}
 

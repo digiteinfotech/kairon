@@ -81,8 +81,7 @@ async def visitor_hit_fallback(
     Utility.validate_from_date_and_to_date(from_date, to_date)
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
-        f'/api/history/{current_user.get_bot()}/metrics/fallback?from_date={from_date}'
-        f'&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
+        f'/api/history/{current_user.get_bot()}/metrics/fallback?from_date={from_date}&to_date={to_date}'
     )
 
 
@@ -166,7 +165,7 @@ async def complete_conversations(
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/conversation/success?from_date={from_date}'
-        f'&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
+        f'&to_date={to_date}'
     )
 
 
@@ -234,7 +233,6 @@ async def complete_conversation_trend(
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/trends/conversations/success?from_date={from_date}&to_date={to_date}'
-        f'&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
@@ -266,8 +264,7 @@ async def fallback_trend(
     Utility.validate_from_date_and_to_date(from_date, to_date)
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
-        f'/api/history/{current_user.get_bot()}/trends/fallback?from_date={from_date}'
-        f'&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
+        f'/api/history/{current_user.get_bot()}/trends/fallback?from_date={from_date}&to_date={to_date}'
     )
 
 
@@ -436,7 +433,6 @@ async def fallback_dropoff(
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/fallback/dropoff?from_date={from_date}&to_date={to_date}'
-        f'&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
@@ -467,7 +463,6 @@ async def unsuccessful_session_count(
     return Utility.trigger_history_server_request(
         current_user.get_bot(),
         f'/api/history/{current_user.get_bot()}/metrics/sessions/unsuccessful?from_date={from_date}&to_date={to_date}'
-        f'&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase'
     )
 
 
