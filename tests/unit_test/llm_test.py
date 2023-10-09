@@ -77,6 +77,12 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                method="GET",
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
+
+
+            aioresponses.add(
                 method="DELETE",
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
             )
@@ -118,6 +124,21 @@ class TestLLM:
             content_type="json",
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
+            collection="User_details",
+            bot=bot, user=user).save()
+        test_content_two = CognitionData(
+            data={"country": "Spain", "lang": "spanish"},
+            content_type="json",
+            metadata=[{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                      {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True}],
+            collection="Country_details",
+            bot=bot, user=user).save()
+        test_content_three = CognitionData(
+            data={"role": "ds", "lang": "spanish"},
+            content_type="json",
+            metadata=[{"column_name": "role", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                      {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True}],
+            collection="Country_details",
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -131,24 +152,52 @@ class TestLLM:
             payload={'data': [{'embedding': embedding}]}
         )
 
+        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                method="DELETE",
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                method="GET",
+                json={"time": 0, "status": "ok", "result": {
+                    "collections": [{"name": "test_embed_faq_text_Swift_faq_embd"},
+                        {"name": "example_bot_Swift_faq_embd"}]}}
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                method="DELETE",
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Swift_{gpt3.suffix}"),
+            )
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_User_details_{gpt3.suffix}"),
                 method="PUT",
                 status=200
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_User_details_{gpt3.suffix}/points"),
                 method="PUT",
                 payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+            )
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Country_details_{gpt3.suffix}"),
+                method="PUT",
+                status=200
+            )
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Country_details_{gpt3.suffix}/points"),
+                method="PUT",
+                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+            )
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'],
+                            f"/collections/test_embed_faq_text_Country_details_faq_embd/points"),
+                method="PUT",
+                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
             response = await gpt3.train()
@@ -160,12 +209,20 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
                                                                                  "input": json.dumps(test_content.data)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            assert list(aioresponses.requests.values())[2][1].kwargs['json'] == {"model": "text-embedding-ada-002",
+                                                                                 "input": json.dumps(test_content_two.data)}
+            assert list(aioresponses.requests.values())[2][1].kwargs['headers'] == request_header
+            assert list(aioresponses.requests.values())[2][2].kwargs['json'] == {"model": "text-embedding-ada-002",
+                                                                                 "input": json.dumps(
+                                                                                     test_content_three.data)}
+            assert list(aioresponses.requests.values())[2][2].kwargs['headers'] == request_header
 
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
                             'vector': embedding,
                             'payload': {'name': 'Nupur'}
                             }]}
+            assert response['faq'] == 3
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_train_payload_with_int(self, aioresponses):
@@ -195,12 +252,23 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
-                method="DELETE",
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}")
+                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                method="GET",
+                payload={"time": 0, "status": "ok", "result": {"collections": []}})
+
+            aioresponses.add(
+                "DELETE",
+                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
+                method="PUT",
+                status=200
+            )
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
                 method="PUT",
                 status=200
             )
@@ -253,8 +321,19 @@ class TestLLM:
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
 
             aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                method="GET",
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
+
+            aioresponses.add(
                 method="DELETE",
                 url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+            )
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                method="PUT",
+                status=200
             )
 
             aioresponses.add(
@@ -307,6 +386,12 @@ class TestLLM:
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                method="GET",
+                payload={"time": 0, "status": "ok", "result": {"collections": []}})
+
 
             aioresponses.add(
                 method="DELETE",
@@ -366,6 +451,11 @@ class TestLLM:
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                method="GET",
+                payload={"time": 0, "status": "ok", "result": {"collections": []}})
 
             aioresponses.add(
                 method="DELETE",
@@ -429,6 +519,11 @@ class TestLLM:
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+
+            aioresponses.add(
+                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                method="GET",
+                json={"time": 0, "status": "ok", "result": {"collections": []}})
 
             aioresponses.add(
                 method="DELETE",

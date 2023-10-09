@@ -670,6 +670,7 @@ class PromptAction(Auditlog):
     hyperparameters = DictField(default=Utility.get_llm_hyperparameters)
     llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
     instructions = ListField(StringField())
+    collection = StringField(default=None)
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
     status = BooleanField(default=True)

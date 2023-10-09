@@ -9641,7 +9641,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_search, mock_embe
                                                 'use_similarity_prompt': True,
                                                 'similarity_prompt_name': 'Similarity Prompt',
                                                 'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                'instructions': []}
+                                                'instructions': [], 'collection': None}
 
 
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
@@ -9725,7 +9725,8 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
                                                 'use_similarity_prompt': True,
                                                 'similarity_prompt_name': 'Similarity Prompt',
                                                 'similarity_prompt_instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                'instructions': ['Answer in a short way.', 'Keep it simple.']}
+                                                'instructions': ['Answer in a short way.', 'Keep it simple.'],
+                                                'collection': None}
 
 
 @mock.patch.object(GPT3Resources, "invoke", autospec=True)
