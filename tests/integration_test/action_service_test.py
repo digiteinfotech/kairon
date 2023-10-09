@@ -523,7 +523,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url(mock_trigger_l
         bot="5f50fd0a56b698ca10d35d2z",
         user="user"
     ).save()
-    mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+    mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, "url": None}}}
 
     request_object = {
         "next_action": action_name,
@@ -600,7 +600,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exceptio
         bot="5f50fd0a56b698ca10d35d2z",
         user="user"
     ).save()
-    mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+    mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, "url": None}}}
 
     request_object = {
         "next_action": action_name,
@@ -641,7 +641,7 @@ def test_pyscript_action_execution_without_pyscript_evaluator_url_raise_exceptio
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': "I have failed to process your request"}]
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
-        assert log['exception'] == "{'Payload': {'body': 'Failed to evaluated the pyscript'}, 'StatusCode': 422}"
+        assert log['exception'] == "Failed to evaluated the pyscript"
 
 
 @responses.activate
@@ -6455,7 +6455,7 @@ def test_process_web_search_action_with_search_engine_url():
         },
         "version": "version"
     }
-    with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+    with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
         response = client.post("/webhook", json=request_object)
         response_json = response.json()
         assert response.status_code == 200

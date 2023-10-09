@@ -79,8 +79,7 @@ class TestLLM:
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
                 method="GET",
-                json={"time": 0, "status": "ok", "result": {"collections": []}})
-
+                payload={"time": 0, "status": "ok", "result": {"collections": []}})
 
             aioresponses.add(
                 method="DELETE",
@@ -111,7 +110,7 @@ class TestLLM:
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
                             'vector': embedding,
-                            'payload': {'content': test_content.data}
+                            'payload': {"collection_name": f"{gpt3.bot}{gpt3.suffix}", 'content': test_content.data}
                             }]}
 
     @pytest.mark.asyncio
@@ -149,79 +148,84 @@ class TestLLM:
             url="https://api.openai.com/v1/embeddings",
             method="POST",
             status=200,
-            payload={'data': [{'embedding': embedding}]}
+            payload={'data': [{'embedding': embedding}]},
+            repeat=True
         )
 
         gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
-
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
                 method="GET",
-                json={"time": 0, "status": "ok", "result": {
-                    "collections": [{"name": "test_embed_faq_text_Swift_faq_embd"},
+                payload={"time": 0, "status": "ok", "result": {"collections": [{"name": "test_embed_faq_text_Swift_faq_embd"},
                         {"name": "example_bot_Swift_faq_embd"}]}}
             )
 
             aioresponses.add(
                 method="DELETE",
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Swift_{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Swift{gpt3.suffix}"),
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_User_details_{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_User_details{gpt3.suffix}"),
                 method="PUT",
                 status=200
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_User_details_{gpt3.suffix}/points"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_User_details{gpt3.suffix}/points"),
                 method="PUT",
                 payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Country_details_{gpt3.suffix}"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Country_details{gpt3.suffix}"),
                 method="PUT",
                 status=200
             )
 
             aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Country_details_{gpt3.suffix}/points"),
+                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}_Country_details{gpt3.suffix}/points"),
                 method="PUT",
-                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+                payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'],
                             f"/collections/test_embed_faq_text_Country_details_faq_embd/points"),
                 method="PUT",
-                json={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+                payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
             )
 
             response = await gpt3.train()
-            assert response['faq'] == 1
+            assert response['faq'] == 3
 
-            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
+            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {'name': f"{gpt3.bot}_Country_details{gpt3.suffix}",
                                                                                  'vectors': gpt3.vector_config}
 
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": json.dumps(test_content.data)}
-            assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[2][1].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": json.dumps(test_content_two.data)}
-            assert list(aioresponses.requests.values())[2][1].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[2][2].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": json.dumps(
-                                                                                     test_content_three.data)}
-            assert list(aioresponses.requests.values())[2][2].kwargs['headers'] == request_header
+            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {"model": "text-embedding-ada-002",
+                                                                                 "input": '{"country": "Spain", "lang": "spanish"}'}
+            assert list(aioresponses.requests.values())[3][0].kwargs['headers'] == request_header
+            assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {"model": "text-embedding-ada-002",
+                                                                                 "input": '{"role": "ds", "lang": "spanish"}'}
+            assert list(aioresponses.requests.values())[3][1].kwargs['headers'] == request_header
+            assert list(aioresponses.requests.values())[3][2].kwargs['json'] == {"model": "text-embedding-ada-002",
+                                                                                 "input": '{"name": "Nupur", "city": "Pune"}'}
+            assert list(aioresponses.requests.values())[3][2].kwargs['headers'] == request_header
+            assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {'points': [{'id': test_content_two.vector_id,
+                                                                                             'vector': embedding,
+                                                                                             'payload': {'collection_name': f"{gpt3.bot}_Country_details{gpt3.suffix}",
+                                                                                                         'country': 'Spain'}}]}
+            assert list(aioresponses.requests.values())[4][1].kwargs['json'] == {'points': [{'id': test_content_three.vector_id,
+                                                                                             'vector': embedding,
+                                                                                             'payload': {'collection_name': f"{gpt3.bot}_Country_details{gpt3.suffix}", 'role': 'ds'}}]}
 
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
-                'points': [{'id': test_content.vector_id,
-                            'vector': embedding,
-                            'payload': {'name': 'Nupur'}
-                            }]}
+            assert list(aioresponses.requests.values())[5][0].kwargs['json'] == {'name': f"{gpt3.bot}_User_details{gpt3.suffix}",
+                                                                                 'vectors': gpt3.vector_config}
+            assert list(aioresponses.requests.values())[6][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
+                                                                                             'vector': embedding,
+                                                                                             'payload': {'collection_name': f"{gpt3.bot}_User_details{gpt3.suffix}",
+                                                                                                         'name': 'Nupur'}}]}
             assert response['faq'] == 3
 
     @pytest.mark.asyncio
@@ -248,37 +252,24 @@ class TestLLM:
             payload={'data': [{'embedding': embedding}]}
         )
 
+        gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
+        aioresponses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+            method="PUT",
+            status=200
+        )
+        aioresponses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+            method="GET",
+            payload={"time": 0, "status": "ok", "result": {"collections": []}})
+
+        aioresponses.add(
+            url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+            method="PUT",
+            payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
+        )
+
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': secret}}):
-            gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
-                method="GET",
-                payload={"time": 0, "status": "ok", "result": {"collections": []}})
-
-            aioresponses.add(
-                "DELETE",
-                urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
-            )
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
-                method="PUT",
-                status=200
-            )
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.cached_resp_suffix}"),
-                method="PUT",
-                status=200
-            )
-
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
-                method="PUT",
-                payload={"result": {"operation_id": 0, "status": "acknowledged"}, "status": "ok", "time": 0.003612634}
-            )
-
             response = await gpt3.train()
             assert response['faq'] == 1
 
@@ -287,10 +278,9 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
                                                                                  "input": json.dumps(input)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
-            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
-                'points': [{'id': test_content.vector_id,
+            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
                             'vector': embedding,
-                            'payload': {'name': 'Ram', 'age': 23, 'color': 'red'}
+                            'payload': {'name': 'Ram', 'age': 23, 'color': 'red', "collection_name": f"{gpt3.bot}{gpt3.suffix}"}
                             }]}
 
     @pytest.mark.asyncio
@@ -323,7 +313,7 @@ class TestLLM:
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
                 method="GET",
-                json={"time": 0, "status": "ok", "result": {"collections": []}})
+                payload={"time": 0, "status": "ok", "result": {"collections": []}})
 
             aioresponses.add(
                 method="DELETE",
@@ -356,10 +346,12 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
                                                                                  "input": json.dumps(input)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            expected_payload = test_content.data
+            expected_payload['collection_name'] = f"{gpt3.bot}{gpt3.suffix}"
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
                             'vector': embedding,
-                            'payload': test_content.data
+                            'payload': expected_payload
                             }]}
 
     @pytest.mark.asyncio
@@ -418,10 +410,12 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002",
                                                                                  "input": json.dumps(test_content.data)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            expected_payload = test_content.data
+            expected_payload['collection_name'] = f"{gpt3.bot}{gpt3.suffix}"
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'points': [{'id': test_content.vector_id,
                             'vector': embedding,
-                            'payload': test_content.data
+                            'payload': expected_payload
                             }]}
 
     def test_gpt3_faq_embedding_train_failure(self):
@@ -483,9 +477,8 @@ class TestLLM:
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": test_content.data}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
-                                                                  'vector': embedding,
-                                                                  'payload': {'content': test_content.data}
-                                                                  }]}
+                                                                  'vector': embedding, 'payload': {'collection_name': f"{bot}{gpt3.suffix}",'content': test_content.data}}]}
+
 
     @pytest.mark.asyncio
     async def test_gpt3_faq_embedding_train_payload_upsert_error_json(self, aioresponses):
@@ -523,7 +516,7 @@ class TestLLM:
             aioresponses.add(
                 url=urljoin(Utility.environment['vector']['db'], f"/collections"),
                 method="GET",
-                json={"time": 0, "status": "ok", "result": {"collections": []}})
+                payload={"time": 0, "status": "ok", "result": {"collections": []}})
 
             aioresponses.add(
                 method="DELETE",
@@ -550,9 +543,11 @@ class TestLLM:
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix, 'vectors': gpt3.vector_config}
             assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {"model": "text-embedding-ada-002", "input": json.dumps(test_content.data)}
             assert list(aioresponses.requests.values())[2][0].kwargs['headers'] == request_header
+            expected_payload = test_content.data
+            expected_payload['collection_name'] = f"{gpt3.bot}{gpt3.suffix}"
             assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {'points': [{'id': test_content.vector_id,
                                                                            'vector': embedding,
-                                                                           'payload': test_content.data
+                                                                           'payload': expected_payload
                                                                            }]}
 
     @pytest.mark.asyncio

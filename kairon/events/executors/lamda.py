@@ -15,6 +15,6 @@ class LambdaExecutor(ExecutorBase):
         """
         env_data = Utility.build_lambda_payload(data)
         response = CloudUtility.trigger_lambda(event_class, env_data)
-        if response['StatusCode'] != 200:
+        if CloudUtility.lambda_execution_failed(response):
             raise AppException(response)
         return response

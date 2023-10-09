@@ -67,6 +67,7 @@ RUN python -m pip install RestrictedPython
 RUN python -m pip install AccessControl
 RUN python -m pip install pykka==3.1.1
 RUN python -m pip install timeout-decorator
+RUN python -m pip install aiohttp-retry
 
 RUN mkdir data_generator
 RUN mkdir training_data

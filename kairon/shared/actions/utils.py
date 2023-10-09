@@ -400,21 +400,24 @@ class ActionUtility:
 
     @staticmethod
     def perform_web_search(search_term: str, **kwargs):
-        search_engine_url = Utility.environment['web_search_url']['url']
+        trigger_task = Utility.environment['web_search']['trigger_task']
+        search_engine_url = Utility.environment['web_search']['url']
+        website = kwargs.get('website') if kwargs.get('website') else ''
+        request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
         results = []
         try:
-            website = kwargs.get('website') if kwargs.get('website') else ''
-            request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
-            if not ActionUtility.is_empty(search_engine_url):
+            if trigger_task:
+                lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
+                if CloudUtility.lambda_execution_failed(lambda_response):
+                    err = lambda_response['Payload'].get('body') or lambda_response
+                    raise ActionFailure(f"{err}")
+                search_results = lambda_response["Payload"].get('body')
+            else:
                 response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
                 if response.get('error_code') != 0:
                     raise ActionFailure(f"{response}")
                 search_results = response.get('data')
-            else:
-                lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
-                if lambda_response['StatusCode'] != 200:
-                    raise ActionFailure(f"{lambda_response}")
-                search_results = lambda_response["Payload"].get('body')
+
             if not search_results:
                 raise ActionFailure("No response retrieved!")
             for item in search_results:
@@ -531,18 +534,20 @@ class ActionUtility:
 
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):
+        trigger_task = Utility.environment['evaluator']['pyscript']['trigger_task']
         pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
         request_body = {"source_code": source_code, "predefined_objects": context}
-        if not ActionUtility.is_empty(pyscript_evaluator_url):
+        if trigger_task:
+            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body)
+            if CloudUtility.lambda_execution_failed(lambda_response):
+                err = lambda_response['Payload'].get('body') or lambda_response
+                raise ActionFailure(f"{err}")
+            result = lambda_response["Payload"].get('body')
+        else:
             resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
             if resp.get('error_code') != 0:
                 raise ActionFailure(f'Pyscript evaluation failed: {resp}')
             result = resp.get('data')
-        else:
-            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body)
-            if lambda_response['StatusCode'] != 200:
-                raise ActionFailure(f"{lambda_response}")
-            result = lambda_response["Payload"].get('body')
 
         return result
 

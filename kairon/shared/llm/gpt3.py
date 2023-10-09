@@ -40,7 +40,7 @@ class GPT3FAQEmbedding(LLMBase):
         self.__logs = []
 
     async def train(self, *args, **kwargs) -> Dict:
-        await self.__delete_collection()
+        await self.__delete_collections()
         count = 0
         collection_groups = list(CognitionData.objects.aggregate([
             {'$match': {'bot': self.bot}},
@@ -55,14 +55,14 @@ class GPT3FAQEmbedding(LLMBase):
                     if not content['metadata'] or []:
                         search_payload, vector_embeddings = content['data'], json.dumps(content['data'])
                     else:
-                        search_payload, vector_embeddings = Utility.get_embeddings_and_payload(content['data'], content['metadata'])
-            else:
-                search_payload, vector_embeddings = {'content': content.data}, content.data
-            search_payload['collection_name'] = collection
-            embeddings = await self.__get_embedding(vector_embeddings)
-            points = [{'id': content['vector_id'], 'vector': embeddings, 'payload': search_payload}]
-            await self.__collection_upsert__(collection, {'points': points}, err_msg="Unable to train FAQ! Contact support")
-            count += 1
+                        search_payload, vector_embeddings = Utility.get_embeddings_and_payload_data(content['data'], content['metadata'])
+                else:
+                    search_payload, vector_embeddings = {'content': content["data"]}, content["data"]
+                search_payload['collection_name'] = collection
+                embeddings = await self.__get_embedding(vector_embeddings)
+                points = [{'id': content['vector_id'], 'vector': embeddings, 'payload': search_payload}]
+                await self.__collection_upsert__(collection, {'points': points}, err_msg="Unable to train FAQ! Contact support")
+                count += 1
         return {"faq": count}
 
     async def predict(self, query: Text, *args, **kwargs) -> Dict:
@@ -144,12 +144,10 @@ class GPT3FAQEmbedding(LLMBase):
     async def __delete_collections(self):
         client = AioRestClient(False)
         try:
-            response = client.request(http_url=urljoin(self.db_url, "/collections"),
+            response = await client.request(http_url=urljoin(self.db_url, "/collections"),
                                       request_method="GET",
                                       headers=self.headers,
-                                      return_json=False,
                                       timeout=5)
-            response = await response.json()
             if response.get('result'):
                 for collection in response['result'].get('collections') or []:
                     if collection['name'].startswith(self.bot):
@@ -159,7 +157,7 @@ class GPT3FAQEmbedding(LLMBase):
                                              return_json=False,
                                              timeout=5)
         finally:
-            client.cleanup()
+            await client.cleanup()
 
     async def __create_collection__(self, collection_name: Text):
         await AioRestClient().request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),

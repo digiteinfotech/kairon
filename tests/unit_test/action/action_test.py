@@ -1440,7 +1440,7 @@ class TestActions:
         def _get_action(*args, **kwargs):
             return {"type": ActionType.pyscript_action.value}
 
-        mock_environment = {"evaluator": {"pyscript": {"url": None}}}
+        mock_environment = {"evaluator": {"pyscript": {"trigger_task": True, 'url': None}}}
 
         with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
             mock_trigger_lambda.return_value = \
@@ -3131,7 +3131,9 @@ class TestActions:
         }]
             }
         }
-        result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
+        with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+            result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
         assert result == [{
             'title': 'Data Science Introduction - W3Schools',
             'text': "Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.",
@@ -3185,7 +3187,9 @@ class TestActions:
         }
         }
 
-        result = ActionUtility.perform_web_search(search_term, topn=topn)
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
+        with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+            result = ActionUtility.perform_web_search(search_term, topn=topn)
         assert result == [
             {'title': 'Artificial intelligence - Wikipedia',
              'text': 'Artificial intelligence ( AI) is the intelligence of machines or software, as opposed to the intelligence of human beings or animals.',
@@ -3234,15 +3238,21 @@ class TestActions:
             }
         }
         mock_trigger_lambda.return_value = response
-        with pytest.raises(ActionFailure, match=re.escape(f"{response}")):
-            ActionUtility.perform_web_search(search_term, topn=topn, website=website)
+
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
+        with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+            with pytest.raises(ActionFailure, match='The requested resource was not found on the server.'):
+                ActionUtility.perform_web_search(search_term, topn=topn, website=website)
 
     def test_public_search_action_error(self):
         search_term = "What is science?"
         website = "www.google.com"
         topn = 1
+
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}, 'events': {'executor': {"region": "us-east-1"}, 'task_definition': {"web_search": None}}}
         with pytest.raises(ActionFailure, match="Parameter validation failed:\nInvalid type for parameter FunctionName, value: None, type: <class 'NoneType'>, valid types: <class 'str'>"):
-            ActionUtility.perform_web_search(search_term, website=website, topn=topn)
+            with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+                ActionUtility.perform_web_search(search_term, website=website, topn=topn)
 
     @responses.activate
     def test_public_search_with_url(self):
@@ -3264,7 +3274,7 @@ class TestActions:
                 })],
         )
 
-        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+        with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             result = ActionUtility.perform_web_search(search_term, topn=topn)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
@@ -3293,7 +3303,7 @@ class TestActions:
                 })],
         )
 
-        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+        with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             result = ActionUtility.perform_web_search(search_term, topn=topn, website=website)
             assert result == [
                 {'title': 'Artificial intelligence - Wikipedia',
@@ -3317,7 +3327,7 @@ class TestActions:
                 })],
         )
 
-        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+        with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             with pytest.raises(ActionFailure, match=re.escape('Failed to execute the url: Got non-200 status code: 500 {"data": []}')):
                 ActionUtility.perform_web_search(search_term, topn=topn)
 
@@ -3338,7 +3348,7 @@ class TestActions:
                 })],
         )
 
-        with mock.patch.dict(Utility.environment, {'web_search_url': {"url": search_engine_url}}):
+        with mock.patch.dict(Utility.environment, {'web_search': {"trigger_task": False, "url": search_engine_url}}):
             with pytest.raises(ActionFailure, match=re.escape(f"{result}")):
                 ActionUtility.perform_web_search(search_term, topn=topn)
 
@@ -3379,8 +3389,11 @@ class TestActions:
             }
         }
 
+        mock_environment = {"web_search": {"trigger_task": True, 'url': None}}
+
         with pytest.raises(ActionFailure, match="No response retrieved!"):
-            ActionUtility.perform_web_search(search_term, topn=topn)
+            with patch("kairon.shared.utils.Utility.environment", new=mock_environment):
+                ActionUtility.perform_web_search(search_term, topn=topn)
 
     def test_get_zendesk_action_not_found(self):
         bot = 'test_action_server'
