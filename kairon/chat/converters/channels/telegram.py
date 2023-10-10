@@ -34,6 +34,27 @@ class TelegramResponseConverter(ElementTransformerOps):
         except Exception as ex:
             raise Exception(f" Error in TelegramResponseConverter::link_transformer {str(ex)}")
 
+    def button_transformer(self, message):
+        try:
+            jsoniterator = ElementTransformerOps.json_generator(message)
+            reply_markup = {}
+            inline_keyboard = []
+            reply_markup.update({"inline_keyboard": inline_keyboard})
+            inline_keyboard_array = []
+            for item in jsoniterator:
+                if item.get("type") == ElementTypes.BUTTON.value:
+                    title = ElementTransformerOps.json_generator(item.get("children"))
+                    for titletext in title:
+                        button_text = titletext.get("text")
+                    btn_body = {}
+                    btn_body.update({"text": button_text})
+                    btn_body.update({"callback_data": item.get("value")})
+                    inline_keyboard_array.append(btn_body)
+            inline_keyboard.append(inline_keyboard_array)
+            return reply_markup
+        except Exception as ex:
+            raise Exception(f"Exception in TelegramResponseConverter::button_transfomer: {str(ex)}")
+
     async def messageConverter(self, message):
         try:
             if self.message_type == ElementTypes.IMAGE.value:
@@ -42,5 +63,7 @@ class TelegramResponseConverter(ElementTransformerOps):
                 return self.link_transformer(message)
             elif self.message_type == ElementTypes.VIDEO.value:
                 return super().video_transformer(message)
+            elif self.message_type == ElementTypes.BUTTON.value:
+                return self.button_transformer(message)
         except Exception as ex:
             raise Exception(f"Error in TelegramResponseConverter::messageConverter {str(ex)}")

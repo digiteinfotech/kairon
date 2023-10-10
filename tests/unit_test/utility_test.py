@@ -2747,3 +2747,21 @@ data: [DONE]\n\n"""
         assert not Utility.is_picklable_for_mongo({"requests": requests})
         assert not Utility.is_picklable_for_mongo({"utility": Utility})
         assert not Utility.is_picklable_for_mongo({"is_picklable_for_mongo": Utility.is_picklable_for_mongo})
+
+    def test_button_transformer_telegram_single_button(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one")
+        from kairon.chat.converters.channels.telegram import TelegramResponseConverter
+        telegram = TelegramResponseConverter("button", "telegram")
+        response = telegram.button_transformer(input_json)
+        expected_output = json_data.get("telegram_button_op_one")
+        assert expected_output == response
+
+    def test_button_transformer_telegram_multi_buttons(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_three")
+        from kairon.chat.converters.channels.telegram import TelegramResponseConverter
+        telegram = TelegramResponseConverter("button", "telegram")
+        response = telegram.button_transformer(input_json)
+        expected_output = json_data.get("telegram_button_op_multi")
+        assert expected_output == response
