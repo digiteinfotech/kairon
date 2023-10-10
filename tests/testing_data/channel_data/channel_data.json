@@ -461,6 +461,8 @@
   "telegram_button_op_one": {"inline_keyboard": [[{"text": "One", "callback_data": "single button is clicked"}]]},
   "telegram_button_op_multi": {"inline_keyboard": [[{"text": "Veg", "callback_data": "Vegetables only"},
   {"text": "Non-veg", "callback_data": "fish food served"},
-  {"text": "Desert", "callback_data": "Only Desert food"}]]}
+  {"text": "Desert", "callback_data": "Only Desert food"}]]},
 
+  "button_one_exception": [{"type":"button","value":"single button is clicked","id":"5"},
+    {"type":"paragraph","children":[{"text":""}]}]
 }

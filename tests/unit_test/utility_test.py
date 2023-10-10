@@ -41,6 +41,7 @@ from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
 from kairon.shared.models import TemplateType
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.verification.email import QuickEmailVerification
+from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 
 
 class TestUtility:
@@ -2751,7 +2752,6 @@ data: [DONE]\n\n"""
     def test_button_transformer_telegram_single_button(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("button_one")
-        from kairon.chat.converters.channels.telegram import TelegramResponseConverter
         telegram = TelegramResponseConverter("button", "telegram")
         response = telegram.button_transformer(input_json)
         expected_output = json_data.get("telegram_button_op_one")
@@ -2760,8 +2760,23 @@ data: [DONE]\n\n"""
     def test_button_transformer_telegram_multi_buttons(self):
         json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
         input_json = json_data.get("button_three")
-        from kairon.chat.converters.channels.telegram import TelegramResponseConverter
         telegram = TelegramResponseConverter("button", "telegram")
         response = telegram.button_transformer(input_json)
         expected_output = json_data.get("telegram_button_op_multi")
         assert expected_output == response
+
+    @pytest.mark.asyncio
+    async def test_button_transformer_telegram_messageConverter(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_three")
+        telegram = ConverterFactory.getConcreteInstance("button", "telegram")
+        response = await telegram.messageConverter(input_json)
+        expected_output = json_data.get("telegram_button_op_multi")
+        assert expected_output == response
+
+    def test_button_transformer_telegram_exception(self):
+        json_data = json.load(open("tests/testing_data/channel_data/channel_data.json"))
+        input_json = json_data.get("button_one_exception")
+        telegram = TelegramResponseConverter("button", "telegram")
+        with pytest.raises(Exception):
+            telegram.button_transformer(input_json)
