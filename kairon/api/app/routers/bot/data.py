@@ -50,8 +50,9 @@ async def download_faq_files(
     return response
 
 
-@router.post("/text/faq", response_model=Response)
-def save_bot_text(
+@router.post("/text/faq/{collection}", response_model=Response)
+async def save_bot_text(
+        collection: str,
         text: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -63,6 +64,7 @@ def save_bot_text(
         "data": {
             "_id": processor.save_content(
                     text.data,
+                    collection,
                     current_user.get_user(),
                     current_user.get_bot(),
             )
@@ -70,11 +72,12 @@ def save_bot_text(
     }
 
 
-@router.put("/text/faq/{text_id}", response_model=Response)
-def update_bot_text(
+@router.put("/text/faq/{text_id}/{collection}", response_model=Response)
+async def update_bot_text(
         text_id: str,
         text: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        collection: str = None,
 ):
     """
     Updates text content into the bot
@@ -87,13 +90,14 @@ def update_bot_text(
                 text.data,
                 current_user.get_user(),
                 current_user.get_bot(),
+                collection
             )
         }
     }
 
 
 @router.delete("/text/faq/{text_id}", response_model=Response)
-def delete_bot_text(
+async def delete_bot_text(
         text_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -107,7 +111,7 @@ def delete_bot_text(
 
 
 @router.get("/text/faq", response_model=Response)
-def get_text(
+async def get_text(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -117,7 +121,7 @@ def get_text(
 
 
 @router.post("/cognition", response_model=Response)
-def save_cognition_data(
+async def save_cognition_data(
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -137,7 +141,7 @@ def save_cognition_data(
 
 
 @router.put("/cognition/{cognition_id}", response_model=Response)
-def update_cognition_data(
+async def update_cognition_data(
         cognition_id: str,
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -159,7 +163,7 @@ def update_cognition_data(
 
 
 @router.delete("/cognition/{cognition_id}", response_model=Response)
-def delete_cognition_data(
+async def delete_cognition_data(
         cognition_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -173,7 +177,7 @@ def delete_cognition_data(
 
 
 @router.get("/cognition", response_model=Response)
-def list_cognition_data(
+async def list_cognition_data(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """

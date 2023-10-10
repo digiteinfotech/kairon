@@ -14237,13 +14237,14 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = "Bot"
         content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
                   'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
                   ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
                   'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
                   'physical machines.'
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
-            processor.save_content(content, user, bot)
+            processor.save_content(content, collection, user, bot)
 
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
@@ -14253,41 +14254,45 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = "Bot"
         content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
                   'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
                   ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
                   'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
                   'physical machines.'
-        pytest.content_id = processor.save_content(content, user, bot)
+        pytest.content_id = processor.save_content(content, collection, user, bot)
         content_id = '5349b4ddd2791d08c09890f3'
         with pytest.raises(AppException, match="Text already exists!"):
-            processor.update_content(content_id, content, user, bot)
+            processor.update_content(content_id, content, user, bot, None)
 
     def test_save_content_invalid(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = 'example'
         content = 'A bot, short for robot, is a program.'
         with pytest.raises(AppException, match="Content should contain atleast 10 words."):
-            processor.save_content(content, user, bot)
+            processor.save_content(content, collection, user, bot)
 
     def test_update_content(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = 'Bot_details'
         content = 'Bots are commonly used in various industries, such as e-commerce, customer service, gaming, ' \
                   'and social media. Some bots are designed to interact with humans in a conversational manner and are ' \
                   'called chatbots or virtual assistants.'
-        processor.update_content(pytest.content_id, content, user, bot)
+        processor.update_content(pytest.content_id, content, user, bot, collection)
 
     def test_update_content_invalid(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = 'example_one'
         content = 'Bots are commonly used in various industries.'
         with pytest.raises(AppException, match="Content should contain atleast 10 words."):
-            content_id = processor.save_content(content, user, bot)
-            processor.update_content(content_id, content, user, bot)
+            content_id = processor.save_content(content, collection, user, bot)
+            processor.update_content(content_id, content, user, bot, collection)
 
     def test_update_content_not_found(self):
         processor = MongoProcessor()
@@ -14299,7 +14304,7 @@ class TestMongoProcessor:
                   'MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License which is ' \
                   'deemed non-free by several distributions.'
         with pytest.raises(AppException, match="Content with given id not found!"):
-            processor.update_content(content_id, content, user, bot)
+            processor.update_content(content_id, content, user, bot, None)
 
     def test_delete_content(self):
         processor = MongoProcessor()
@@ -14323,14 +14328,17 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = 'testing'
         content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
                   'application are tested in isolation to ensure that each unit functions as expected. '
-        pytest.content_id = processor.save_content(content, user, bot)
+        pytest.content_id = processor.save_content(content, collection, user, bot)
         data = list(processor.get_content(bot))
+        print(data)
         assert data[0][
                    'content'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                                  'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['_id']
+        assert data[0]['collection'] == 'testing'
 
     def test_delete_content_for_action(self):
         processor = MongoProcessor()

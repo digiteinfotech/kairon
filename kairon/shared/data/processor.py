@@ -5438,6 +5438,7 @@ class MongoProcessor:
         action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyperparameters())
         action.llm_prompts = [LlmPrompt(**prompt) for prompt in request_data.get('llm_prompts', [])]
         action.instructions = request_data.get('instructions', [])
+        action.collection = request_data.get('collection')
         action.set_slots = request_data.get('set_slots', [])
         action.dispatch_response = request_data.get('dispatch_response', True)
         action.timestamp = datetime.utcnow()
@@ -5754,7 +5755,7 @@ class MongoProcessor:
 
             yield action
 
-    def save_content(self, content: Text, user: Text, bot: Text):
+    def save_content(self, content: Text, collection: Text, user: Text, bot: Text):
         bot_settings = self.get_bot_settings(bot=bot, user=user)
         if not bot_settings["llm_settings"]['enable_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
@@ -5763,6 +5764,7 @@ class MongoProcessor:
 
         content_obj = CognitionData()
         content_obj.data = content
+        content_obj.collection = collection
         content_obj.user = user
         content_obj.bot = bot
         id = (
@@ -5770,7 +5772,7 @@ class MongoProcessor:
         )
         return id
 
-    def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
+    def update_content(self, content_id: str, content: Text, user: Text, bot: Text, collection: Text = None):
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
 
@@ -5780,6 +5782,7 @@ class MongoProcessor:
         try:
             content_obj = CognitionData.objects(bot=bot, id=content_id).get()
             content_obj.data = content
+            content_obj.collection = collection
             content_obj.user = user
             content_obj.timestamp = datetime.utcnow()
             content_obj.save()
@@ -5804,8 +5807,10 @@ class MongoProcessor:
             final_data = {}
             item = value.to_mongo().to_dict()
             data = item.pop("data")
+            collection = item.pop("collection")
             final_data["_id"] = item["_id"].__str__()
             final_data['content'] = data
+            final_data['collection'] = collection
             yield final_data
 
     def save_cognition_data(self, payload: Dict, user: Text, bot: Text):

@@ -883,6 +883,7 @@ class PromptActionConfigRequest(BaseModel):
     hyperparameters: dict = None
     llm_prompts: List[LlmPromptRequest]
     instructions: List[str] = []
+    collection: str = None
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_response: bool = True
 
