@@ -532,40 +532,19 @@ class StoryRequest(BaseModel):
         return v
 
 
-class LLMSettingsModel(BaseModel):
-    enable_faq: bool = False
-    provider: str = LLMResourceProvider.openai.value
-    embeddings_model_id: str = None
-    chat_completion_model_id: str = None
-    api_version: str = None
-
-
 class AnalyticsModel(BaseModel):
     fallback_intent: str = DEFAULT_NLU_FALLBACK_INTENT_NAME
 
+    @validator('fallback_intent')
+    def validate_fallback_intent(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+        if Utility.check_empty_string(v):
+            raise ValueError("fallback_intent field cannot be empty")
+        return v
+
 
 class BotSettingsRequest(BaseModel):
-    ignore_utterances: bool = False
-    force_import: bool = False
-    rephrase_response: bool = False
-    website_data_generator_depth_search_limit: int = 2
-    llm_settings: LLMSettingsModel = LLMSettingsModel()
     analytics: AnalyticsModel = AnalyticsModel()
-    chat_token_expiry: int = 30
-    refresh_token_expiry: int = 60
-    whatsapp: str = "meta"
-    notification_scheduling_limit: int = 4
-    training_limit_per_day: int = 5
-    test_limit_per_day: int = 5
-    data_importer_limit_per_day: int = 5
-    multilingual_limit_per_day: int = 2
-    data_generation_limit_per_day: int = 3
-
-    @root_validator
-    def check(cls, values):
-        if values.get('refresh_token_expiry') <= values.get('chat_token_expiry'):
-            raise ValueError("refresh_token_expiry must be greater than chat_token_expiry!")
-        return values
 
 
 class FeedbackRequest(BaseModel):
