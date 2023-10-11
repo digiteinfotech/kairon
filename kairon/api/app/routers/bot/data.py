@@ -123,14 +123,14 @@ async def get_text(
     return {"data": list(processor.get_content(current_user.get_bot(), **kwargs))}
 
 
-@router.get("/text/faq", response_model=Response)
-async def list_text(
+@router.get("/text/faq/collection", response_model=Response)
+async def list_collection(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches text content of the bot
     """
-    return {"data": list(processor.list_content(current_user.get_bot()))}
+    return {"data": processor.list_collection(current_user.get_bot())}
 
 
 @router.post("/cognition", response_model=Response)

@@ -5817,19 +5817,14 @@ class MongoProcessor:
             item["_id"] = item["_id"].__str__()
             yield item
 
-    def list_content(self, bot: Text):
+    def list_collection(self, bot: Text):
         """
         Retrieve cognition data.
 
         :param bot: bot id
         """
-        for value in CognitionData.objects(bot=bot):
-            value = value.to_mongo().to_dict()
-            value["_id"] = value["_id"].__str__()
-            value.pop('bot')
-            value.pop('user')
-            value.pop('timestamp')
-            yield value
+        collections = list(CognitionData.objects(bot=bot).distinct(field='collection'))
+        return collections
 
     def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
         bot_settings = self.get_bot_settings(bot=bot, user=user)

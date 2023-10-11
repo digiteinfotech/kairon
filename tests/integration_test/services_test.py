@@ -1412,9 +1412,9 @@ def test_get_content(mock_get_content):
     assert actual["data"][0]['collection']
 
 
-def test_list_content():
+def test_list_collection():
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        url=f"/api/bot/{pytest.bot}/data/text/faq/collection",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
@@ -1422,7 +1422,6 @@ def test_list_content():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-    assert actual["data"][0]['collection']
 
 
 def test_delete_content():

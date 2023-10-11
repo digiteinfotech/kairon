@@ -14362,9 +14362,8 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'testUser'
         processor = MongoProcessor()
-        contents = list(processor.list_content(bot))
-        assert contents[0]['data'] == 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. '
-        assert contents[0]['collection']
+        contents = processor.list_collection(bot)
+        assert contents
 
     def test_delete_content_for_action(self):
         processor = MongoProcessor()
