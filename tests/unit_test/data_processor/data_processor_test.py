@@ -14244,7 +14244,7 @@ class TestMongoProcessor:
                   'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
                   'physical machines.'
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
-            processor.save_content(content, collection, user, bot)
+            processor.save_content(content, user, bot, collection)
 
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
@@ -14260,7 +14260,7 @@ class TestMongoProcessor:
                   ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
                   'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
                   'physical machines.'
-        pytest.content_id = processor.save_content(content, collection, user, bot)
+        pytest.content_id = processor.save_content(content, user, bot, collection)
         content_id = '5349b4ddd2791d08c09890f3'
         with pytest.raises(AppException, match="Text already exists!"):
             processor.update_content(content_id, content, user, bot, None)
@@ -14272,7 +14272,7 @@ class TestMongoProcessor:
         collection = 'example'
         content = 'A bot, short for robot, is a program.'
         with pytest.raises(AppException, match="Content should contain atleast 10 words."):
-            processor.save_content(content, collection, user, bot)
+            processor.save_content(content, user, bot, collection)
 
     def test_update_content(self):
         processor = MongoProcessor()
@@ -14291,7 +14291,7 @@ class TestMongoProcessor:
         collection = 'example_one'
         content = 'Bots are commonly used in various industries.'
         with pytest.raises(AppException, match="Content should contain atleast 10 words."):
-            content_id = processor.save_content(content, collection, user, bot)
+            content_id = processor.save_content(content, user, bot, collection)
             processor.update_content(content_id, content, user, bot, collection)
 
     def test_update_content_not_found(self):
@@ -14319,26 +14319,52 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Text does not exists!"):
             processor.delete_content("507f191e810c19729de860ea", user, bot)
 
-    def test_get_content_not_exists(self):
+    @patch("kairon.shared.data.processor.MongoProcessor.get_content", autospec=True)
+    def test_get_content_not_exists(self, mock_get_content):
+        def _get_content(*args, **kwargs):
+            return []
+
+        mock_get_content.return_value = _get_content()
+        kwargs = {}
         processor = MongoProcessor()
         bot = 'test'
-        assert list(processor.get_content(bot)) == []
+        assert list(processor.get_content(bot, **kwargs)) == []
 
-    def test_get_content(self):
+    @patch("kairon.shared.data.processor.MongoProcessor.get_content", autospec=True)
+    def test_get_content(self, mock_get_content):
+        def _get_content(*args, **kwargs):
+            return [{'vector_id': 1,
+                '_id': '65266ff16f0190ca4fd09898',
+                 'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
+                 'user': 'testUser', 'bot': 'test',
+                 'content_type': 'text',
+                 'metadata': [],
+                 'collection': 'testing'}]
+
+        mock_get_content.return_value = _get_content()
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
         collection = 'testing'
         content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
                   'application are tested in isolation to ensure that each unit functions as expected. '
-        pytest.content_id = processor.save_content(content, collection, user, bot)
-        data = list(processor.get_content(bot))
+        pytest.content_id = processor.save_content(content, user, bot, collection)
+        kwargs = {'data': 'Unit testing'}
+        data = list(processor.get_content(bot, **kwargs))
         print(data)
         assert data[0][
-                   'content'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                                  'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['_id']
         assert data[0]['collection'] == 'testing'
+
+    def test_list_content(self):
+        bot = 'test'
+        user = 'testUser'
+        processor = MongoProcessor()
+        contents = list(processor.list_content(bot))
+        assert contents[0]['data'] == 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. '
+        assert contents[0]['collection']
 
     def test_delete_content_for_action(self):
         processor = MongoProcessor()

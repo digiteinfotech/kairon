@@ -5755,7 +5755,7 @@ class MongoProcessor:
 
             yield action
 
-    def save_content(self, content: Text, collection: Text, user: Text, bot: Text):
+    def save_content(self, content: Text, user: Text, bot: Text, collection: Text = None):
         bot_settings = self.get_bot_settings(bot=bot, user=user)
         if not bot_settings["llm_settings"]['enable_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
@@ -5796,22 +5796,40 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Text does not exists!")
 
-    def get_content(self, bot: Text):
+    def get_content(self, bot: Text, **kwargs):
         """
         fetches content
 
         :param bot: bot id
+        :param collection: name of the collection
         :return: yield dict
         """
-        for value in CognitionData.objects(bot=bot):
-            final_data = {}
+        kwargs["bot"] = bot
+        search = kwargs.pop('data', None)
+        start_idx = kwargs.pop('start_idx', None)
+        page_size = kwargs.pop('page_size', None)
+        cognition_data = CognitionData.objects(**kwargs)
+        if search:
+            cognition_data = cognition_data.search_text(search)
+        for value in cognition_data.skip(start_idx).limit(page_size):
             item = value.to_mongo().to_dict()
-            data = item.pop("data")
-            collection = item.pop("collection")
-            final_data["_id"] = item["_id"].__str__()
-            final_data['content'] = data
-            final_data['collection'] = collection
-            yield final_data
+            item.pop('timestamp')
+            item["_id"] = item["_id"].__str__()
+            yield item
+
+    def list_content(self, bot: Text):
+        """
+        Retrieve cognition data.
+
+        :param bot: bot id
+        """
+        for value in CognitionData.objects(bot=bot):
+            value = value.to_mongo().to_dict()
+            value["_id"] = value["_id"].__str__()
+            value.pop('bot')
+            value.pop('user')
+            value.pop('timestamp')
+            yield value
 
     def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
         bot_settings = self.get_bot_settings(bot=bot, user=user)

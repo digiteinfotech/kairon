@@ -1387,7 +1387,32 @@ def test_content_update_api_id_not_found():
     assert actual["error_code"] == 422
 
 
-def test_get_content():
+@mock.patch('kairon.shared.data.processor.MongoProcessor.get_content', autospec=True)
+def test_get_content(mock_get_content):
+    def _get_content(*args, **kwargs):
+        return [{'vector_id': 1,
+                '_id': '65266ff16f0190ca4fd09898',
+                 'data': 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.',
+                 'user': '"integration@demo.ai"', 'bot': pytest.bot,
+                 'content_type': 'text',
+                 'metadata': [],
+                 'collection': 'aws'}]
+
+    mock_get_content.return_value = _get_content()
+    filter_query = 'without having to manage'
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq?data={filter_query}&start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["data"][0]['collection']
+
+
+def test_list_content():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1431,9 +1456,14 @@ def test_delete_content_does_not_exist():
     assert actual["error_code"] == 422
 
 
-def test_get_content_not_exists():
+@mock.patch('kairon.shared.data.processor.MongoProcessor.get_content', autospec=True)
+def test_get_content_not_exists(mock_get_content):
+    def _get_content(*args, **kwargs):
+        return []
+
+    mock_get_content.return_value = _get_content()
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        url=f"/api/bot/{pytest.bot}/data/text/faq?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()

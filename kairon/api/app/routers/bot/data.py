@@ -1,6 +1,7 @@
 import os
 
 from fastapi import UploadFile, File, Security, APIRouter
+from starlette.requests import Request
 from starlette.responses import FileResponse
 
 from kairon.api.models import Response, TextData, CognitiveDataRequest
@@ -52,9 +53,9 @@ async def download_faq_files(
 
 @router.post("/text/faq/{collection}", response_model=Response)
 async def save_bot_text(
-        collection: str,
         text: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        collection: str = None
 ):
     """
     Saves text content into the bot
@@ -64,9 +65,9 @@ async def save_bot_text(
         "data": {
             "_id": processor.save_content(
                     text.data,
-                    collection,
                     current_user.get_user(),
                     current_user.get_bot(),
+                    collection
             )
         }
     }
@@ -112,12 +113,24 @@ async def delete_bot_text(
 
 @router.get("/text/faq", response_model=Response)
 async def get_text(
+        request: Request,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches text content of the bot
     """
-    return {"data": list(processor.get_content(current_user.get_bot()))}
+    kwargs = request.query_params._dict.copy()
+    return {"data": list(processor.get_content(current_user.get_bot(), **kwargs))}
+
+
+@router.get("/text/faq", response_model=Response)
+async def list_text(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches text content of the bot
+    """
+    return {"data": list(processor.list_content(current_user.get_bot()))}
 
 
 @router.post("/cognition", response_model=Response)
