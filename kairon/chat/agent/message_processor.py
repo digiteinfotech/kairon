@@ -3,13 +3,18 @@ from __future__ import annotations
 from typing import Optional, Text, List, Dict, Tuple, Any
 import copy
 import rasa
+from rasa.plugin import plugin_manager
 from rasa.core.actions.action import (
     Action,
     ActionRetrieveResponse,
     ActionEndToEndResponse,
     RemoteAction,
     default_actions,
+    ActionBotResponse,
+    ActionExtractSlots,
+
 )
+from rasa.core.actions.forms import FormAction
 from rasa.core.actions.action import is_retrieval_action
 from rasa.core.channels import UserMessage, OutputChannel, CollectingOutputChannel
 from rasa.core.policies.policy import PolicyPrediction
@@ -74,8 +79,6 @@ class KaironMessageProcessor(MessageProcessor):
         )
 
         if parse_data["entities"]:
-            slot_events = self.slots_for_entities(parse_data["entities"], self.domain)
-            tracker.update(slot_events)
             self._log_slots(tracker)
 
         return parse_data
@@ -177,6 +180,9 @@ class KaironMessageProcessor(MessageProcessor):
         actions_predictions = await self._run_prediction_loop(
             message.output_channel, tracker
         )
+        anonymization = await self.run_anonymization_pipeline(tracker)
+
+        response["anonymization_pipeline"] = anonymization
         response["action"] = actions_predictions
         response["slots"] = [f"{s.name}: {s.value}" for s in tracker.slots.values()]
 
@@ -339,6 +345,9 @@ class KaironMessageProcessor(MessageProcessor):
         ):
             return defaults[action_name_or_text]
 
+        if action_name_or_text == ACTION_EXTRACT_SLOTS:
+            return ActionExtractSlots(action_endpoint)
+
         if action_name_or_text.startswith(UTTER_PREFIX) and is_retrieval_action(
             action_name_or_text, domain.retrieval_intents
         ):
@@ -348,7 +357,7 @@ class KaironMessageProcessor(MessageProcessor):
             return ActionEndToEndResponse(action_name_or_text)
 
         if action_name_or_text.startswith(UTTER_PREFIX):
-            return RemoteAction(action_name_or_text, action_endpoint)
+            return ActionBotResponse(action_name_or_text)
 
         is_form = action_name_or_text in domain.form_names
         # Users can override the form by defining an action with the same name as the form
@@ -356,7 +365,7 @@ class KaironMessageProcessor(MessageProcessor):
             is_form and action_name_or_text in domain.user_actions
         )
         if is_form and not user_overrode_form_action:
-            return RemoteAction(action_name_or_text, action_endpoint)
+            return FormAction(action_name_or_text, action_endpoint)
 
         return RemoteAction(action_name_or_text, action_endpoint)
 
@@ -419,30 +428,25 @@ class KaironMessageProcessor(MessageProcessor):
 
         return tracker
 
-    def slots_for_entities(
-        self, entities: List[Dict[Text, Any]], domain: Domain
-    ) -> List[SlotSet]:
-        """Creates slot events for entities if from_entity mapping matches.
+    async def run_anonymization_pipeline(self, tracker: DialogueStateTracker):
+        """Run the anonymization pipeline on the new tracker events.
 
         Args:
-            entities: The list of entities.
-
-        Returns:
-            A list of `SlotSet` events.
+            tracker: A tracker representing a conversation state.
         """
-        slot_events = []
+        anonymization_pipeline = plugin_manager().hook.get_anonymization_pipeline()
+        if anonymization_pipeline is None:
+            return None
 
-        for slot in domain.slots:
-            matching_entities = [
-                entity.get("value")
-                for entity in entities
-                if entity.get("entity") == slot.name
-            ]
+        old_tracker = await self.tracker_store.retrieve(tracker.sender_id)
+        new_events = rasa.shared.core.trackers.TrackerEventDiffEngine.event_difference(
+            old_tracker, tracker
+        )
 
-            if matching_entities:
-                if isinstance(slot, ListSlot):
-                    slot_events.append(SlotSet(slot.name, matching_entities))
-                else:
-                    slot_events.append(SlotSet(slot.name, matching_entities[-1]))
-
-        return slot_events
+        anonymization = []
+        for event in new_events:
+            body = {"sender_id": tracker.sender_id}
+            body.update(event.as_dict())
+            anonymization_pipeline.run(body)
+            anonymization.append(body.copy())
+        return anonymization

@@ -27,3 +27,4 @@ policies:
   enable_fallback_prediction: false
   max_history: 10
   name: RulePolicy
+assistant_id: 20231010-153657-obsolete-distance

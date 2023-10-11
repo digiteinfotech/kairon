@@ -36,7 +36,9 @@ entities:
 slots:
   category:
     type: text
-    mappings: []
+    mappings:
+      - type: "from_entity"
+        entity: category
   priority:
     type: categorical
     mappings: []

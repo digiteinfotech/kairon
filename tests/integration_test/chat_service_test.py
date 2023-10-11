@@ -718,7 +718,7 @@ def test_chat_with_limited_access():
     assert actual["error_code"] == 0
     assert actual["data"]
     assert actual["data"]["response"] == [
-        {"recipient_id": "testUser", "text": "Welcome to kairon"}
+        {"recipient_id": "testUser", "text": "I'm sorry, I didn't quite understand that. Could you rephrase?"}
     ]
     data = MeteringProcessor.get_logs(
         bot_account, metric_type=MetricType.prod_chat, bot=bot2

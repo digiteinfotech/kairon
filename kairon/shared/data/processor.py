@@ -20,7 +20,7 @@ from mongoengine.queryset.visitor import Q
 from pandas import DataFrame
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH, INTENT_MESSAGE_PREFIX, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
-from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, DEFAULT_SLOT_NAMES
+from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME, DEFAULT_INTENTS, DEFAULT_SLOT_NAMES, MAPPING_TYPE, SlotMappingType
 from rasa.shared.core.domain import SessionConfig
 from rasa.shared.core.events import ActionExecuted, UserUttered, ActiveLoop
 from rasa.shared.core.events import SlotSet
@@ -778,13 +778,16 @@ class MongoProcessor:
     def __save_slot_mapping(self, slots, bot, user):
         slots_name_list = self.__fetch_slot_names(bot)
         existing_slot_mappings = SlotMapping.objects(bot=bot, status=True).values_list('slot')
+        mapping_to_save = []
         for slot in slots:
             items = vars(slot)
             slot_name = items['name']
             slot_mapping = items['mappings']
             if slot_mapping and slot_name in slots_name_list:
                 if slot_name not in existing_slot_mappings:
-                    SlotMapping(slot=slot_name, mapping=slot_mapping, bot=bot, user=user).save()
+                    mapping_to_save.append(SlotMapping(slot=slot_name, mapping=slot_mapping, bot=bot, user=user))
+        if mapping_to_save:
+            SlotMapping.objects.insert(mapping_to_save)
 
     def __save_forms(self, forms, bot: Text, user: Text):
         if forms:
@@ -1071,9 +1074,23 @@ class MongoProcessor:
                 }
             value[SLOTS.TYPE.value] = slot.type
             value["influence_conversation"] = slot.influence_conversation
-            value["mappings"] = slots_mapping.get(key, [])
+            value["mappings"] = self.__prepare_autofill(slots_mapping.get(key, []), key)
             results.append({key: value})
         return dict(ChainMap(*results))
+
+    def __prepare_autofill(self, mappings: list, slot_name: str):
+        auto_fill = False
+        new_mappings = mappings.copy()
+        for mapping in new_mappings:
+            if (mapping.get(MAPPING_TYPE) == SlotMappingType.FROM_ENTITY.value and
+                mapping.get("entity") == slot_name
+            ):
+                auto_fill = True
+                break
+
+        if not auto_fill:
+            new_mappings.append({MAPPING_TYPE: SlotMappingType.FROM_ENTITY.value, "entity": slot_name})
+        return new_mappings
 
     def __extract_story_events(self, events):
         for event in events:
@@ -1409,13 +1426,15 @@ class MongoProcessor:
         self.add_default_fallback_config(configs, bot, user)
         try:
             config_obj = Configs.objects().get(bot=bot)
-            config_obj.pipeline = configs["pipeline"]
-            config_obj.language = configs["language"]
-            config_obj.policies = configs["policies"]
         except DoesNotExist:
-            configs["bot"] = bot
-            configs["user"] = user
-            config_obj = Configs._from_son(configs)
+            config_obj = Configs()
+
+        config_obj.bot = bot
+        config_obj.user = user
+        config_obj.pipeline = configs["pipeline"]
+        config_obj.language = configs["language"]
+        config_obj.policies = configs["policies"]
+
         return config_obj.save().id.__str__()
 
     def __insert_bot_id(self, config_obj: dict, bot: Text, component_name: Text):
@@ -2187,7 +2206,7 @@ class MongoProcessor:
     ):
         """
         update the bot utterance
-        
+
         :param id: utterance id against which the utterance is updated
         :param utterances: utterance value
         :param name: utterance name
@@ -2217,7 +2236,7 @@ class MongoProcessor:
     def get_response(self, name: Text, bot: Text):
         """
         fetch all the utterances
-        
+
         :param name: utterance name
         :param bot: bot id
         :return: yields the utterances
@@ -2579,9 +2598,9 @@ class MongoProcessor:
 
     def get_stories(self, bot: Text):
         """
-        fetches stories 
-        
-        :param bot: bot is 
+        fetches stories
+
+        :param bot: bot is
         :return: yield dict
         """
 
@@ -4767,7 +4786,6 @@ class MongoProcessor:
         for mapping in mappings:
             yield {mapping['slot']: mapping['mapping']}
 
-
     def get_slot_mappings(self, bot: Text):
         """
         Fetches existing slot mappings.
@@ -5137,7 +5155,7 @@ class MongoProcessor:
             action.pop('status')
             action.pop('timestamp')
             yield action
-            
+
     def add_hubspot_forms_action(self, action: Dict, bot: str, user: str):
         """
         Add a new Hubspot forms Action
@@ -5563,7 +5581,7 @@ class MongoProcessor:
             }
         value = json.loads(logs[logtype].objects(**filter_query).to_json())
         return value
-    
+
     def delete_audit_logs(self):
         retention_period = Utility.environment['events']['audit_logs']['retention']
         overdue_time = datetime.utcnow() - timedelta(days=retention_period)
@@ -5609,7 +5627,7 @@ class MongoProcessor:
         from kairon.shared.augmentation.utils import AugmentationUtils
 
         error_summary = {'intents': [], 'utterances': [], 'training_examples': []}
-        component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0, 
+        component_count = {'intents': 0, 'utterances': 0, 'stories': 0, 'rules': 0, 'training_examples': 0,
                            'domain': {'intents': 0, 'utterances': 0}}
         for index, row in df.iterrows():
             is_intent_added = False
