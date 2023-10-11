@@ -947,7 +947,6 @@ class TestMongoProcessor:
         assert updated_settings.timestamp
         assert updated_settings.user
         assert updated_settings.bot
-        print(updated_settings.to_mongo().to_dict())
         assert updated_settings.analytics.to_mongo().to_dict() == {'fallback_intent': 'utter_please_rephrase'}
         assert updated_settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
 
