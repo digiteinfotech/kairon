@@ -1,6 +1,7 @@
 import os
 
 from fastapi import UploadFile, File, Security, APIRouter
+from starlette.requests import Request
 from starlette.responses import FileResponse
 
 from kairon.api.models import Response, TextData, CognitiveDataRequest
@@ -50,10 +51,11 @@ async def download_faq_files(
     return response
 
 
-@router.post("/text/faq", response_model=Response)
-def save_bot_text(
+@router.post("/text/faq/{collection}", response_model=Response)
+async def save_bot_text(
         text: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        collection: str = None
 ):
     """
     Saves text content into the bot
@@ -65,16 +67,18 @@ def save_bot_text(
                     text.data,
                     current_user.get_user(),
                     current_user.get_bot(),
+                    collection
             )
         }
     }
 
 
-@router.put("/text/faq/{text_id}", response_model=Response)
-def update_bot_text(
+@router.put("/text/faq/{text_id}/{collection}", response_model=Response)
+async def update_bot_text(
         text_id: str,
         text: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        collection: str = None,
 ):
     """
     Updates text content into the bot
@@ -87,13 +91,14 @@ def update_bot_text(
                 text.data,
                 current_user.get_user(),
                 current_user.get_bot(),
+                collection
             )
         }
     }
 
 
 @router.delete("/text/faq/{text_id}", response_model=Response)
-def delete_bot_text(
+async def delete_bot_text(
         text_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -107,17 +112,29 @@ def delete_bot_text(
 
 
 @router.get("/text/faq", response_model=Response)
-def get_text(
+async def get_text(
+        request: Request,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches text content of the bot
     """
-    return {"data": list(processor.get_content(current_user.get_bot()))}
+    kwargs = request.query_params._dict.copy()
+    return {"data": list(processor.get_content(current_user.get_bot(), **kwargs))}
+
+
+@router.get("/text/faq/collection", response_model=Response)
+async def list_collection(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches text content of the bot
+    """
+    return {"data": processor.list_collection(current_user.get_bot())}
 
 
 @router.post("/cognition", response_model=Response)
-def save_cognition_data(
+async def save_cognition_data(
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -137,7 +154,7 @@ def save_cognition_data(
 
 
 @router.put("/cognition/{cognition_id}", response_model=Response)
-def update_cognition_data(
+async def update_cognition_data(
         cognition_id: str,
         cognition: CognitiveDataRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -159,7 +176,7 @@ def update_cognition_data(
 
 
 @router.delete("/cognition/{cognition_id}", response_model=Response)
-def delete_cognition_data(
+async def delete_cognition_data(
         cognition_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -173,7 +190,7 @@ def delete_cognition_data(
 
 
 @router.get("/cognition", response_model=Response)
-def list_cognition_data(
+async def list_cognition_data(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
