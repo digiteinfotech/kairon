@@ -14351,19 +14351,25 @@ class TestMongoProcessor:
         pytest.content_id = processor.save_content(content, user, bot, collection)
         kwargs = {'data': 'Unit testing'}
         data = list(processor.get_content(bot, **kwargs))
-        print(data)
         assert data[0][
                    'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                                  'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['_id']
         assert data[0]['collection'] == 'testing'
+        kwargs = {}
+        actual = list(processor.get_content(bot, **kwargs))
+        assert actual[0][
+                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                              'software application are tested in isolation to ensure that each unit functions as expected. '
+        assert actual[0]['_id']
+        assert actual[0]['collection'] == 'testing'
 
     def test_list_content(self):
         bot = 'test'
         user = 'testUser'
         processor = MongoProcessor()
         contents = processor.list_collection(bot)
-        assert contents
+        assert contents == ['testing']
 
     def test_delete_content_for_action(self):
         processor = MongoProcessor()

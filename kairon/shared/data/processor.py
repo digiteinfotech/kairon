@@ -5805,8 +5805,8 @@ class MongoProcessor:
         """
         kwargs["bot"] = bot
         search = kwargs.pop('data', None)
-        start_idx = kwargs.pop('start_idx', None)
-        page_size = kwargs.pop('page_size', None)
+        start_idx = kwargs.pop('start_idx', 0)
+        page_size = kwargs.pop('page_size', 10)
         cognition_data = CognitionData.objects(**kwargs)
         if search:
             cognition_data = cognition_data.search_text(search)

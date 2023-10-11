@@ -51,7 +51,7 @@ async def download_faq_files(
     return response
 
 
-@router.post("/text/faq/{collection}", response_model=Response)
+@router.post("/text/faq", response_model=Response)
 async def save_bot_text(
         text: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -73,7 +73,7 @@ async def save_bot_text(
     }
 
 
-@router.put("/text/faq/{text_id}/{collection}", response_model=Response)
+@router.put("/text/faq/{text_id}", response_model=Response)
 async def update_bot_text(
         text_id: str,
         text: TextData,
