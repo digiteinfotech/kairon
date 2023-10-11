@@ -84,7 +84,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         return self.list_templates(id=template_id)
 
     def list_templates(self, **kwargs):
-        filters = ""
+        filters = "{}"
         try:
             if kwargs:
                 filters = str(kwargs).replace('\'', "\"")

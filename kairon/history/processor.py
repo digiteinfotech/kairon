@@ -59,10 +59,11 @@ class HistoryProcessor:
         with client as client:
             db = client.get_database()
             conversations = db.get_collection(collection)
+            time_filter = {"$gte": Utility.get_timestamp_from_date(from_date), "$lte": Utility.get_timestamp_from_date(to_date)}
             try:
-                values = conversations.distinct(key="sender_id",
-                                                filter={"event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                            "$lte": Utility.get_timestamp_from_date(to_date)}})
+                values = conversations.distinct(
+                    key="sender_id", filter={"$or": [{"event.timestamp": time_filter}, {"timestamp": time_filter}]}
+                )
                 return values, None
             except ServerSelectionTimeoutError as e:
                 logger.error(e)

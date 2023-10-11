@@ -790,8 +790,7 @@ def test_pyscript_action_execution_with_invalid_response():
     assert log['exception'] == 'Pyscript evaluation failed: {\'success\': False, \'data\': None, \'message\': \'Script execution error: ("Line 2: SyntaxError: invalid syntax at statement: for i in 10",)\', \'error_code\': 422}'
 
 
-@responses.activate
-def test_http_action_execution():
+def test_http_action_execution(aioresponses):
     action_name = "test_http_action_execution"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -829,14 +828,11 @@ def test_http_action_execution():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot&name=udit",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-             "name": "udit", "contact": None})],
+        status=200
     )
 
     request_object = {
@@ -905,8 +901,7 @@ def test_http_action_execution():
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
 
-@responses.activate
-def test_http_action_execution_returns_custom_json():
+def test_http_action_execution_returns_custom_json(aioresponses):
     action_name = "test_http_action_execution_returns_custom_json"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -943,14 +938,11 @@ def test_http_action_execution_returns_custom_json():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot&name=udit",
         body=resp_msg,
         status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-             "name": "udit", "contact": None})],
     )
 
     request_object = {
@@ -995,8 +987,7 @@ def test_http_action_execution_returns_custom_json():
         'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}
 
 
-@responses.activate
-def test_http_action_execution_custom_json_with_invalid_json_response():
+def test_http_action_execution_custom_json_with_invalid_json_response(aioresponses):
     action_name = "test_http_action_execution_custom_json_with_invalid_json_response"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1033,14 +1024,11 @@ def test_http_action_execution_custom_json_with_invalid_json_response():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot&name=udit",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-             "name": "udit", "contact": None})],
+        status=200
     )
 
     request_object = {
@@ -1086,7 +1074,7 @@ def test_http_action_execution_custom_json_with_invalid_json_response():
 
 
 @responses.activate
-def test_http_action_execution_return_custom_json_with_script_evaluation():
+def test_http_action_execution_return_custom_json_with_script_evaluation(aioresponses):
     action_name = "test_http_action_execution_return_custom_json_with_script_evaluation"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1121,14 +1109,11 @@ def test_http_action_execution_return_custom_json_with_script_evaluation():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot&name=udit",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-             "name": "udit", "contact": None})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1188,7 +1173,7 @@ def test_http_action_execution_return_custom_json_with_script_evaluation():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_json_response():
+def test_http_action_execution_script_evaluation_with_json_response(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_json_response"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2d", user="user").save()
     HttpActionConfig(
@@ -1223,13 +1208,11 @@ def test_http_action_execution_script_evaluation_with_json_response():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2d&tag=from_bot&user=1011",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
-                                                       "tag": "from_bot", "name": None, "contact": None})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1286,7 +1269,7 @@ def test_http_action_execution_script_evaluation_with_json_response():
 
 
 @responses.activate
-def test_http_action_execution_no_response_dispatch():
+def test_http_action_execution_no_response_dispatch(aioresponses):
     action_name = "test_http_action_execution_no_response_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1319,13 +1302,11 @@ def test_http_action_execution_no_response_dispatch():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.urlencoded_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        status=200
     )
 
     request_object = {
@@ -1393,7 +1374,7 @@ def test_http_action_execution_no_response_dispatch():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation():
+def test_http_action_execution_script_evaluation(aioresponses):
     action_name = "test_http_action_execution_script_evaluation"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1427,13 +1408,11 @@ def test_http_action_execution_script_evaluation():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1526,7 +1505,7 @@ def test_http_action_execution_script_evaluation():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params():
+def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1578,13 +1557,11 @@ def test_http_action_execution_script_evaluation_with_dynamic_params():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?sender_id=default&user_message=get%20intents&intent=test_run",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -1709,7 +1686,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json():
+def test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1761,13 +1738,11 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?sender_id=default&user_message=get%20intents&intent=test_run",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
+        status=200
     )
 
     responses.add(
@@ -1863,7 +1838,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch():
+def test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -1915,13 +1890,11 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?sender_id=default&user_message=get%20intents&intent=test_run",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2014,7 +1987,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch():
+def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_response_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -2066,13 +2039,11 @@ def test_http_action_execution_script_evaluation_failure_with_dynamic_params_no_
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?sender_id=default&user_message=get%20intents&intent=test_run",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run"})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2246,7 +2217,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_failure():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list():
+def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -2303,14 +2274,11 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?intent=test_run&sender_id=default&user_details=%257B%2527email%2527%253A+%2527uditpandey%2540digite.com%2527%257D&user_message=get+intents",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
-             "user_details": {"email": "uditpandey@digite.com"}})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2436,7 +2404,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_failure_no_dispatch():
+def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_no_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -2470,13 +2438,11 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2553,7 +2519,7 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_failure_and_dispatch():
+def test_http_action_execution_script_evaluation_failure_and_dispatch(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -2587,13 +2553,11 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -2670,7 +2634,7 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch():
 
 
 @responses.activate
-def test_http_action_execution_script_evaluation_failure_and_dispatch_2():
+def test_http_action_execution_script_evaluation_failure_and_dispatch_2(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_failure_and_dispatch_2"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()
     HttpActionConfig(
@@ -2704,13 +2668,11 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch_2():
             }
         }
     })
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
+        url=f"{http_url}?bot=5f50fd0a56b698ca10d35d2e&user=1011&tag=from_bot",
         body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot"})],
+        status=200
     )
     responses.add(
         method=responses.POST,
@@ -10127,8 +10089,8 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_search, mock
 @responses.activate
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_answer", autospec=True)
 @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-@patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
-def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embedding, mock_completion):
+@patch("kairon.shared.llm.gpt3.GPT3FAQEmbedding.__collection_search__", autospec=True)
+def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embedding, mock_completion, aioresponses):
     from kairon.shared.llm.gpt3 import GPT3FAQEmbedding
     from openai.util import convert_to_openai_object
     from openai.openai_response import OpenAIResponse
@@ -10168,14 +10130,11 @@ def test_prompt_action_response_action_with_action_prompt(mock_search, mock_embe
 
     http_url = 'http://localhost:8081/mock'
     resp_msg = "Python is a scripting language because it uses an interpreter to translate and run its code."
-    responses.add(
+    aioresponses.add(
         method=responses.GET,
-        url=http_url,
-        json=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher(
-            {"bot": "5u08kd0a56b698ca10d98e6s", "user": "1011", "tag": "from_bot",
-             "name": "nupur", "contact": "9876543219"})],
+        url=f"{http_url}?bot=5u08kd0a56b698ca10d98e6s&user=1011&tag=from_bot&name=nupur&contact=9876543219",
+        payload=resp_msg,
+        status=200
     )
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',

@@ -1625,7 +1625,7 @@ class TestActions:
         assert log['api_response']
 
     @pytest.mark.asyncio
-    async def test_run_with_params(self, monkeypatch):
+    async def test_run_with_params(self, monkeypatch, aioresponses):
         http_url = "http://www.google.com/$SENDER_ID?id=$param2"
         http_response = "This should be response"
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
@@ -1644,11 +1644,9 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
-            url="http://www.google.com/sender_test_run_with_params?id=param2value",
+            url="http://www.google.com/sender_test_run_with_params?id=param2value&key1=value1&key2=value2",
             body=http_response,
             status=200,
         )
@@ -1680,8 +1678,8 @@ class TestActions:
         assert log['request_params'] == {'key1': 'value1', 'key2': 'value2'}
 
     @pytest.mark.asyncio
-    async def test_run_with_dynamic_params(self, monkeypatch):
-        http_url = "http://localhost:8080/mock"
+    async def test_run_with_dynamic_params(self, monkeypatch, aioresponses):
+        http_url = "http://kairon.com/mock"
         http_response = "This should be response"
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
@@ -1708,9 +1706,9 @@ class TestActions:
             json={"success": True, "data": resp_msg},
             status=200,
         )
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
-            url="http://localhost:8080/mock",
+            url=f"{http_url}?sender_id=default_sender&user_message=get%20intents&intent=test_run",
             body=http_response,
             status=200,
         )
@@ -1740,12 +1738,12 @@ class TestActions:
         assert log['bot_response']
         assert log['api_response']
         assert log['status']
-        assert log['url'] == "http://localhost:8080/mock"
+        assert log['url'] == http_url
         assert log['request_params'] == {'sender_id': 'default_sender', 'user_message': 'get intents',
                                          'intent': 'test_run'}
 
     @pytest.mark.asyncio
-    async def test_run_with_post(self, monkeypatch):
+    async def test_run_with_post(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_post",
             response=HttpActionResponse(value="Data added successfully, id:${data}"),
@@ -1762,9 +1760,7 @@ class TestActions:
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
-        responses.reset()
-        responses.start()
-        responses.add(
+        aioresponses.add(
             method=responses.POST,
             url=http_url,
             body=resp_msg,
@@ -1786,7 +1782,7 @@ class TestActions:
         assert actual[0]['value'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
-    async def test_run_with_post_and_parameters(self, monkeypatch):
+    async def test_run_with_post_and_parameters(self, monkeypatch, aioresponses):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
@@ -1806,9 +1802,7 @@ class TestActions:
 
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
-        responses.reset()
-        responses.start()
-        responses.add(
+        aioresponses.add(
             method=responses.POST,
             url=http_url,
             body=resp_msg,
@@ -1826,8 +1820,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post_and_parameters")
-        responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
@@ -1843,7 +1835,7 @@ class TestActions:
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
-    async def test_run_with_post_and_dynamic_params(self, monkeypatch):
+    async def test_run_with_post_and_dynamic_params(self, monkeypatch, aioresponses):
         dynamic_params = \
             "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", \"intent\": \"${intent}\"}"
         action = HttpActionConfig(
@@ -1860,18 +1852,16 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        responses.reset()
-        responses.start()
         resp_msg = {"sender_id": "default_sender", "user_message": "get intents", "intent": "test_run"}
-        responses.add(
+        aioresponses.add(
             method=responses.POST,
             url=Utility.environment['evaluator']['url'],
-            json={"success": True, "data": resp_msg},
+            payload={"success": True, "data": resp_msg},
             status=200,
         )
         http_url = 'http://localhost:8080/mock'
         resp_msg = "5000"
-        responses.add(
+        aioresponses.add(
             method=responses.POST,
             url=http_url,
             body=resp_msg,
@@ -1889,8 +1879,6 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_post_and_dynamic_params")
-        responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
@@ -1907,7 +1895,7 @@ class TestActions:
         assert log['bot_response'] == 'Data added successfully, id:5000'
 
     @pytest.mark.asyncio
-    async def test_run_with_get(self, monkeypatch):
+    async def test_run_with_get(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_get",
             response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
@@ -1923,8 +1911,6 @@ class TestActions:
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
         http_url = 'http://localhost:8081/mock'
-        responses.reset()
-        responses.start()
         resp_msg = json.dumps({
             "a": {
                 "b": {
@@ -1935,7 +1921,7 @@ class TestActions:
                 }
             }
         })
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
             url=http_url,
             body=resp_msg,
@@ -1951,14 +1937,12 @@ class TestActions:
         action.save().to_mongo().to_dict()
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
                                                                              "test_run_with_get")
-        responses.stop()
-        responses.reset()
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
     @pytest.mark.asyncio
-    async def test_run_with_get_dispatch_type_text_with_json_response(self, monkeypatch):
+    async def test_run_with_get_dispatch_type_text_with_json_response(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_with_get_with_json_response",
             response=HttpActionResponse(value="'The value of '+`${a.b.d}`+' in '+`${a.b.d.0}`+' is '+`${a.b.d}`",
@@ -1991,7 +1975,7 @@ class TestActions:
                 }
             }
         })
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
             url=http_url,
             body=resp_msg,
@@ -2032,7 +2016,6 @@ class TestActions:
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_get_with_json_response",
                                        status="SUCCESS").get()
-        print(log.to_mongo().to_dict())
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
@@ -2041,7 +2024,7 @@ class TestActions:
         assert log['bot_response'] == "The value of 2 in red is ['red', 'buggy', 'bumpers']"
 
     @pytest.mark.asyncio
-    async def test_run_with_get_with_dynamic_params(self, monkeypatch):
+    async def test_run_with_get_with_dynamic_params(self, monkeypatch, aioresponses):
         dynamic_params = "{\"sender_id\": \"${sender_id}\", \"user_message\": \"${user_message}\", "\
                          "\"intent\": \"${intent}\", \"EMAIL\": \"${key_vault.EMAIL}\"}"
         KeyVault(key="EMAIL", value="uditpandey@digite.com", bot="5f50fd0a56b698ca10d35d2e", user="user").save()
@@ -2089,9 +2072,9 @@ class TestActions:
                 }
             }
         })
-        responses.add(
+        aioresponses.add(
             method=responses.GET,
-            url=http_url,
+            url=f"{http_url}?sender_id=default_sender&user_message=get%20intents&intent=test_run&EMAIL=uditpandey@digite.com",
             body=resp_msg,
             status=200,
         )
@@ -2306,15 +2289,14 @@ class TestActions:
         except ActionFailure as e:
             assert str(e) == 'Unable to retrieve value for key from HTTP response: \'d\''
 
-    @responses.activate
     @pytest.mark.asyncio
-    async def test_run_get_with_parameters(self, monkeypatch):
+    async def test_run_get_with_parameters(self, monkeypatch, aioresponses):
         request_params = [HttpActionRequestBody(key='key1', value="value1"),
                           HttpActionRequestBody(key='key2', value="value2")]
         action = HttpActionConfig(
             action_name="test_run_get_with_parameters",
             response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
-            http_url="http://localhost:8081/mock",
+            http_url="http://kairon.com/mock",
             request_method="GET",
             params_list=request_params,
             bot="5f50fd0a56b698ca10d35d2e",
@@ -2325,7 +2307,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        http_url = 'http://localhost:8081/mock'
+        http_url = 'http://kairon.com/mock'
         resp_msg = {
             "a": {
                 "b": {
@@ -2337,9 +2319,8 @@ class TestActions:
             }
         }
 
-        responses.add(
-            responses.GET, http_url, json=resp_msg,
-            match=[responses.matchers.urlencoded_params_matcher({'key1': 'value1', 'key2': 'value2'})],
+        aioresponses.add(
+            method=responses.GET, url="http://kairon.com/mock?key1=value1&key2=value2", payload=resp_msg, status=200
         )
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}
@@ -2356,13 +2337,12 @@ class TestActions:
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
 
-    @responses.activate
     @pytest.mark.asyncio
-    async def test_run_get_with_parameters_2(self, monkeypatch):
+    async def test_run_get_with_parameters_2(self, monkeypatch, aioresponses):
         action = HttpActionConfig(
             action_name="test_run_get_with_parameters_2",
             response=HttpActionResponse(value="The value of ${data.a.b.3} in ${data.a.b.d.0} is ${data.a.b.d}"),
-            http_url="http://localhost:8081/mock",
+            http_url="http://kairon.com/mock",
             request_method="GET",
             params_list=None,
             bot="5f50fd0a56b698ca10d35d2e",
@@ -2373,7 +2353,7 @@ class TestActions:
             return {"type": ActionType.http_action.value}
 
         monkeypatch.setattr(ActionUtility, "get_action", _get_action)
-        http_url = 'http://localhost:8081/mock'
+        http_url = 'http://kairon.com/mock'
         resp_msg = {
             "a": {
                 "b": {
@@ -2385,8 +2365,8 @@ class TestActions:
             }
         }
 
-        responses.add(
-            responses.GET, http_url, json=resp_msg
+        aioresponses.add(
+            method=responses.GET, url=http_url, payload=resp_msg, status=200
         )
 
         slots = {"bot": "5f50fd0a56b698ca10d35d2e"}

@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, List, Text, Dict
 
 import requests
+from aiohttp import ContentTypeError
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa.shared.constants import UTTER_PREFIX
@@ -21,6 +22,7 @@ from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
 from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
+from ..rest_client import AioRestClient
 from ..utils import Utility
 from ...exceptions import AppException
 
@@ -30,6 +32,37 @@ class ActionUtility:
     """
     Utility class to assist executing actions
     """
+
+    @staticmethod
+    async def execute_request_async(http_url: str, request_method: str, request_body=None, headers=None,
+                                    content_type: str = HttpRequestContentType.json.value):
+        """
+        Executes http urls provided in asynchronous fashion.
+
+        @param http_url: HTTP url to be executed
+        @param request_method: One of GET, PUT, POST, DELETE
+        @param request_body: Request body to be sent with the request
+        @param headers: header for the HTTP request
+        @param content_type: request content type HTTP request
+        :return: JSON/string response
+        """
+        timeout = Utility.environment['action'].get('request_timeout', 1)
+        headers = headers if headers else {}
+        headers.update({
+            REQUEST_TIMESTAMP_HEADER: datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        kwargs = {"content_type": content_type, "timeout": timeout, "return_json": False}
+        client = AioRestClient()
+        response = await client.request(request_method, http_url, request_body, headers, **kwargs)
+        if response.status not in [200, 202, 201, 204]:
+            raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
+        try:
+            http_response = await response.json()
+        except (ContentTypeError, ValueError) as e:
+            logging.error(str(e))
+            http_response = await response.text()
+
+        return http_response
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
