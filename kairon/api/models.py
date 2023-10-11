@@ -5,11 +5,12 @@ from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.exceptions import AppException
+from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, DbQueryValueType, \
     DbActionOperationType
-from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
+from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE, LLMResourceProvider
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
@@ -529,6 +530,42 @@ class StoryRequest(BaseModel):
                 raise ValueError(
                     f"""Found rules '{values['name']}' that contain more than intent.\nPlease use stories for this case""")
         return v
+
+
+class LLMSettingsModel(BaseModel):
+    enable_faq: bool = False
+    provider: str = LLMResourceProvider.openai.value
+    embeddings_model_id: str = None
+    chat_completion_model_id: str = None
+    api_version: str = None
+
+
+class AnalyticsModel(BaseModel):
+    fallback_intent: str = DEFAULT_NLU_FALLBACK_INTENT_NAME
+
+
+class BotSettingsRequest(BaseModel):
+    ignore_utterances: bool = False
+    force_import: bool = False
+    rephrase_response: bool = False
+    website_data_generator_depth_search_limit: int = 2
+    llm_settings: LLMSettingsModel = LLMSettingsModel()
+    analytics: AnalyticsModel = AnalyticsModel()
+    chat_token_expiry: int = 30
+    refresh_token_expiry: int = 60
+    whatsapp: str = "meta"
+    notification_scheduling_limit: int = 4
+    training_limit_per_day: int = 5
+    test_limit_per_day: int = 5
+    data_importer_limit_per_day: int = 5
+    multilingual_limit_per_day: int = 2
+    data_generation_limit_per_day: int = 3
+
+    @root_validator
+    def check(cls, values):
+        if values.get('refresh_token_expiry') <= values.get('chat_token_expiry'):
+            raise ValueError("refresh_token_expiry must be greater than chat_token_expiry!")
+        return values
 
 
 class FeedbackRequest(BaseModel):

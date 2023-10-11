@@ -18,6 +18,7 @@ from mongoengine import (
     FloatField,
     SequenceField
 )
+from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.slots import (
     CategoricalSlot,
     FloatSlot,
@@ -868,6 +869,10 @@ class LLMSettings(EmbeddedDocument):
     api_version = StringField()
 
 
+class Analytics(EmbeddedDocument):
+    fallback_intent = StringField(default=DEFAULT_NLU_FALLBACK_INTENT_NAME)
+
+
 @auditlogger.log
 @push_notification.apply
 class BotSettings(Auditlog):
@@ -876,6 +881,7 @@ class BotSettings(Auditlog):
     rephrase_response = BooleanField(default=False)
     website_data_generator_depth_search_limit = IntField(default=2)
     llm_settings = EmbeddedDocumentField(LLMSettings, default=LLMSettings())
+    analytics = EmbeddedDocumentField(Analytics, default=Analytics())
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
     whatsapp = StringField(default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value])
