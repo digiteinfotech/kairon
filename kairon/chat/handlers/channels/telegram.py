@@ -25,6 +25,8 @@ from kairon.shared.models import User
 from kairon.chat.agent_processor import AgentProcessor
 from kairon import Utility
 from kairon.chat.converters.channels.response_factory import ConverterFactory
+from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +161,9 @@ class TelegramOutput(TeleBot, OutputChannel):
                     del response["text"]
                     api_call = getattr(self, send_functions[("text",)])
                     api_call(recipient_id, *response_list, **response)
+                elif ops_type in ["button"]:
+                    body_default = ElementTransformerOps.getChannelConfig(ChannelTypes.TELEGRAM.value, "body_message")
+                    self.send_message(recipient_id, text=body_default, reply_markup=json.dumps(response))
             else:
                 self.send_message(recipient_id, str(json_message))
         except Exception as ap:
