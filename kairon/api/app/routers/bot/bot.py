@@ -16,7 +16,7 @@ from kairon.api.models import (
     BulkTrainingDataAddRequest, TrainingDataGeneratorStatusModel, StoryRequest,
     SynonymRequest, RegexRequest,
     StoryType, ComponentConfig, SlotRequest, DictData, LookupTablesRequest, Forms,
-    TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest
+    TextDataLowerCase, SlotMappingRequest, EventConfig, MultiFlowStoryRequest, BotSettingsRequest
 )
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
@@ -1614,3 +1614,13 @@ async def get_bot_settings(
     bot_settings = bot_settings.to_mongo().to_dict()
     bot_settings.pop("_id")
     return Response(data=bot_settings)
+
+
+@router.put("/settings", response_model=Response)
+async def update_bot_settings(
+        bot_settings: BotSettingsRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=VIEW_ACCESS)
+):
+    """Updates bot settings"""
+    MongoProcessor.edit_bot_settings(bot_settings.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Bot Settings updated successfully')

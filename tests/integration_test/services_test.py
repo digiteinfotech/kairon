@@ -13894,6 +13894,7 @@ def test_get_bot_settings():
                               'force_import': False,
                               'ignore_utterances': False,
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
+                              'analytics': {'fallback_intent': 'nlu_fallback'},
                               'multilingual_limit_per_day': 2,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
@@ -13902,6 +13903,81 @@ def test_get_bot_settings():
                               'training_limit_per_day': 5,
                               'website_data_generator_depth_search_limit': 2,
                               'whatsapp': 'meta'}
+
+
+
+def test_update_bot_settings_with_invalid_values():
+    bot_settings = {
+        "ignore_utterances": True,
+        "force_import": True,
+        "rephrase_response": True,
+        "website_data_generator_depth_search_limit": 2,
+        "llm_settings": {'provider': 'azure', 'enable_faq': True},
+        "analytics": {'fallback_intent': 'nlu_fallback'},
+        "chat_token_expiry": 60,
+        "refresh_token_expiry": 30
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=bot_settings
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'refresh_token_expiry must be greater than chat_token_expiry!',
+                                  'type': 'value_error'}]
+
+
+def test_update_bot_settings():
+    bot_settings = {
+        "ignore_utterances": True,
+        "force_import": True,
+        "rephrase_response": True,
+        "website_data_generator_depth_search_limit": 2,
+        "llm_settings": {'provider': 'azure', 'enable_faq': True},
+        "analytics": {'fallback_intent': 'utter_please_rephrase'},
+        "chat_token_expiry": 30,
+        "refresh_token_expiry": 60
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=bot_settings
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Bot Settings updated successfully"
+    response = client.get(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    actual["data"].pop("bot")
+    actual["data"].pop("user")
+    actual["data"].pop("timestamp")
+    actual["data"].pop("status")
+    assert actual['data'] == {'chat_token_expiry': 30,
+                              'data_generation_limit_per_day': 3,
+                              'data_importer_limit_per_day': 5,
+                              'force_import': True,
+                              'ignore_utterances': True,
+                              'llm_settings': {'enable_faq': True, 'provider': 'azure'},
+                              'analytics': {'fallback_intent': 'utter_please_rephrase'},
+                              'multilingual_limit_per_day': 2,
+                              'notification_scheduling_limit': 4,
+                              'refresh_token_expiry': 60,
+                              'rephrase_response': True,
+                              'test_limit_per_day': 5,
+                              'training_limit_per_day': 5,
+                              'website_data_generator_depth_search_limit': 2,
+                              'whatsapp': 'meta'}
+
 
 
 def test_delete_channels_config():

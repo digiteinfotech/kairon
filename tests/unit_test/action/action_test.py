@@ -2710,6 +2710,7 @@ class TestActions:
                                 'force_import': False,
                                 'ignore_utterances': False,
                                 'llm_settings': {'enable_faq': True, 'provider': 'openai'},
+                                'analytics': {'fallback_intent': 'nlu_fallback'},
                                 'multilingual_limit_per_day': 2,
                                 'notification_scheduling_limit': 4,
                                 'refresh_token_expiry': 60,
@@ -3945,21 +3946,22 @@ class TestActions:
         bot_settings = ActionUtility.get_bot_settings(bot=bot)
         bot_settings.pop('timestamp')
         assert bot_settings == {'bot': 'test_bot',
-                          'chat_token_expiry': 30,
-                          'data_generation_limit_per_day': 3,
-                          'data_importer_limit_per_day': 5,
-                          'force_import': False,
-                          'ignore_utterances': False,
-                          'llm_settings': {'enable_faq': False, 'provider': 'openai'},
-                          'multilingual_limit_per_day': 2,
-                          'notification_scheduling_limit': 4,
-                          'refresh_token_expiry': 60,
-                          'rephrase_response': False,
-                          'status': True,
-                          'test_limit_per_day': 5,
-                          'training_limit_per_day': 5,
-                          'website_data_generator_depth_search_limit': 2,
-                          'whatsapp': 'meta'}
+                                'chat_token_expiry': 30,
+                                'data_generation_limit_per_day': 3,
+                                'data_importer_limit_per_day': 5,
+                                'force_import': False,
+                                'ignore_utterances': False,
+                                'llm_settings': {'enable_faq': False, 'provider': 'openai'},
+                                'analytics': {'fallback_intent': 'nlu_fallback'},
+                                'multilingual_limit_per_day': 2,
+                                'notification_scheduling_limit': 4,
+                                'refresh_token_expiry': 60,
+                                'rephrase_response': False,
+                                'status': True,
+                                'test_limit_per_day': 5,
+                                'training_limit_per_day': 5,
+                                'website_data_generator_depth_search_limit': 2,
+                                'whatsapp': 'meta'}
 
     def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"

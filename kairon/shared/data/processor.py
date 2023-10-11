@@ -90,7 +90,7 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, CognitionData, MultiFlowStoryMetadata,
-    Synonyms, Lookup, CognitionMetadata
+    Synonyms, Lookup, CognitionMetadata, LLMSettings, Analytics
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
@@ -4244,6 +4244,36 @@ class MongoProcessor:
             logging.error(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
+
+    @staticmethod
+    def edit_bot_settings(bot_settings: dict, bot: Text, user: Text):
+        """
+        Update bot settings with new values.
+        :param bot_settings: bot settings values
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(BotSettings, raise_error=False, bot=bot, status=True):
+            raise AppException(f'Bot Settings for the bot not found')
+
+        settings = BotSettings.objects(bot=bot, status=True).get()
+        llm_settings = LLMSettings(**bot_settings.get('llm_settings'))
+        analytics = Analytics(**bot_settings.get('analytics'))
+        settings.update(
+            set__ignore_utterances=bot_settings.get('ignore_utterances'), set__force_import=bot_settings.get('force_import'),
+            set__rephrase_response=bot_settings.get('rephrase_response'),
+            set__website_data_generator_depth_search_limit=bot_settings.get('website_data_generator_depth_search_limit'),
+            set__whatsapp=bot_settings.get('whatsapp'), set__chat_token_expiry=bot_settings.get('chat_token_expiry'),
+            set__refresh_token_expiry=bot_settings.get('refresh_token_expiry'),
+            set__notification_scheduling_limit=bot_settings.get('notification_scheduling_limit'),
+            set__training_limit_per_day=bot_settings.get('training_limit_per_day'),
+            set__test_limit_per_day=bot_settings.get('test_limit_per_day'),
+            set__data_importer_limit_per_day=bot_settings.get('data_importer_limit_per_day'),
+            set__multilingual_limit_per_day=bot_settings.get('multilingual_limit_per_day'),
+            set__data_generation_limit_per_day=bot_settings.get('data_generation_limit_per_day'),
+            set__llm_settings=llm_settings, set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow()
+        )
 
     @staticmethod
     def enable_llm_faq(bot: Text, user: Text):
