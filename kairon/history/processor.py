@@ -1457,10 +1457,12 @@ class HistoryProcessor:
             with client as client:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
-                conversations.aggregate([{"$match": {"sender_id": sender_id}},
-                                         {"$match": {"event.timestamp": {"$lte": till_date_timestamp}}},
-                                         {"$sort": {"event.timestamp": 1}},
-                                         {"$project": {"_id":0}},
+                conversations.aggregate([{"$match": {"sender_id": sender_id,
+                                                     "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
+                                                             {"timestamp": {"$lte": till_date_timestamp}}]
+                                                     }
+                                          },
+                                         {"$project": {"_id": 0}},
                                          {"$merge": {"into": {"db": archive_db, "coll": archive_collection},
                                                      "on": "_id",
                                                      "whenMatched": "keepExisting",
