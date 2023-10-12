@@ -30,10 +30,10 @@ from validators import domain
 from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import TemplateType, StoryStepType, StoryType, CognitionDataType, CognitionMetadataType
 from kairon.shared.utils import Utility
-from kairon.shared.data.audit.data_objects import Auditlog
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
 
@@ -728,7 +728,7 @@ class CognitionData(Auditlog):
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["bot"]}]}
+    meta = {"indexes": [{"fields": ["$data", "bot"]}]}
 
     def validate(self, clean=True):
         if clean:

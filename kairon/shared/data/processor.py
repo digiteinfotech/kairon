@@ -5438,6 +5438,7 @@ class MongoProcessor:
         action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyperparameters())
         action.llm_prompts = [LlmPrompt(**prompt) for prompt in request_data.get('llm_prompts', [])]
         action.instructions = request_data.get('instructions', [])
+        action.collection = request_data.get('collection')
         action.set_slots = request_data.get('set_slots', [])
         action.dispatch_response = request_data.get('dispatch_response', True)
         action.timestamp = datetime.utcnow()
@@ -5754,7 +5755,7 @@ class MongoProcessor:
 
             yield action
 
-    def save_content(self, content: Text, user: Text, bot: Text):
+    def save_content(self, content: Text, user: Text, bot: Text, collection: Text = None):
         bot_settings = self.get_bot_settings(bot=bot, user=user)
         if not bot_settings["llm_settings"]['enable_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
@@ -5763,6 +5764,7 @@ class MongoProcessor:
 
         content_obj = CognitionData()
         content_obj.data = content
+        content_obj.collection = collection
         content_obj.user = user
         content_obj.bot = bot
         id = (
@@ -5770,7 +5772,7 @@ class MongoProcessor:
         )
         return id
 
-    def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
+    def update_content(self, content_id: str, content: Text, user: Text, bot: Text, collection: Text = None):
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
 
@@ -5780,6 +5782,7 @@ class MongoProcessor:
         try:
             content_obj = CognitionData.objects(bot=bot, id=content_id).get()
             content_obj.data = content
+            content_obj.collection = collection
             content_obj.user = user
             content_obj.timestamp = datetime.utcnow()
             content_obj.save()
@@ -5793,20 +5796,33 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Text does not exists!")
 
-    def get_content(self, bot: Text):
+    def get_content(self, bot: Text, **kwargs):
         """
         fetches content
 
         :param bot: bot id
         :return: yield dict
         """
-        for value in CognitionData.objects(bot=bot):
-            final_data = {}
+        kwargs["bot"] = bot
+        search = kwargs.pop('data', None)
+        start_idx = kwargs.pop('start_idx', 0)
+        page_size = kwargs.pop('page_size', 10)
+        cognition_data = CognitionData.objects(**kwargs)
+        if search:
+            cognition_data = cognition_data.search_text(search)
+        for value in cognition_data.skip(start_idx).limit(page_size):
             item = value.to_mongo().to_dict()
-            data = item.pop("data")
-            final_data["_id"] = item["_id"].__str__()
-            final_data['content'] = data
-            yield final_data
+            item.pop('timestamp')
+            item["_id"] = item["_id"].__str__()
+            yield item
+
+    def list_collection(self, bot: Text):
+        """
+        Retrieve cognition data.
+        :param bot: bot id
+        """
+        collections = list(CognitionData.objects(bot=bot).distinct(field='collection'))
+        return collections
 
     def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
         bot_settings = self.get_bot_settings(bot=bot, user=user)

@@ -983,7 +983,7 @@ def test_list_bots():
 
 def test_content_upload_api_with_gpt_feature_disabled():
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_details",
         json={
             "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
                     "used to inform decision-making. Data can take many forms, including text, numbers, images, "
@@ -1273,7 +1273,7 @@ def test_content_upload_api(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_details",
         json={
             "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
                        "used to inform decision-making. Data can take many forms, including text, numbers, images, "
@@ -1288,13 +1288,32 @@ def test_content_upload_api(monkeypatch):
     assert actual["error_code"] == 0
 
 
-def test_content_upload_api_invalid(monkeypatch):
+def test_content_upload_api_without_collection(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
+        json={
+            "data": "Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network."
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.content_id_two = actual["data"]["_id"]
+    assert actual["message"] == "Text saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+
+def test_content_upload_api_invalid(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data",
         json={
             "data": "Data"
         },
@@ -1310,12 +1329,12 @@ def test_content_upload_api_invalid(monkeypatch):
 
 def test_content_updated_api():
     response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}?collection=aws",
         json={
             "text_id": pytest.content_id,
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
                        "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
-                       "you can focus on developing and deploying your applications rather than managing the infrastructure."
+                       "you can focus on developing and deploying your applications rather than managing the infrastructure.",
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
@@ -1383,15 +1402,56 @@ def test_content_update_api_id_not_found():
     assert actual["error_code"] == 422
 
 
-def test_get_content():
+@mock.patch('kairon.shared.data.processor.MongoProcessor.get_content', autospec=True)
+def test_get_content(mock_get_content):
+    def _get_content(*args, **kwargs):
+        return [{'vector_id': 1,
+                '_id': '65266ff16f0190ca4fd09898',
+                 'data': 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.',
+                 'user': '"integration@demo.ai"', 'bot': pytest.bot,
+                 'content_type': 'text',
+                 'metadata': [],
+                 'collection': 'aws'}]
+
+    mock_get_content.return_value = _get_content()
+    filter_query = 'without having to manage'
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq?data={filter_query}&start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["data"][0]['collection']
+
+
+def test_get_content_without_data():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
+    assert actual["data"][0]['collection'] == 'aws'
+    assert actual["data"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
+    assert actual["data"][1]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+
+
+def test_list_collection():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert set(actual["data"]) == {'aws'}
 
 
 def test_delete_content():
@@ -1407,6 +1467,18 @@ def test_delete_content():
     assert actual["message"] == "Text deleted!"
     assert actual["data"] is None
     assert actual["error_code"] == 0
+    response_two = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id_two}",
+        json={
+            "text_id": pytest.content_id_two,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_two = response_two.json()
+    assert actual_two["success"]
+    assert actual_two["message"] == "Text deleted!"
+    assert actual_two["data"] is None
+    assert actual_two["error_code"] == 0
 
 
 def test_delete_content_does_not_exist():
@@ -1431,6 +1503,7 @@ def test_get_content_not_exists():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
@@ -1977,6 +2050,7 @@ def test_add_prompt_action(monkeypatch):
                                     'data': 'If there is no specific query, assume that user is aking about java programming.',
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'collection': 'Bot_collection',
               'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
