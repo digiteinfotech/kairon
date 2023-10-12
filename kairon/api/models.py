@@ -5,6 +5,7 @@ from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 
 from kairon.exceptions import AppException
+from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, DbQueryValueType, \
@@ -529,6 +530,21 @@ class StoryRequest(BaseModel):
                 raise ValueError(
                     f"""Found rules '{values['name']}' that contain more than intent.\nPlease use stories for this case""")
         return v
+
+
+class AnalyticsModel(BaseModel):
+    fallback_intent: str = DEFAULT_NLU_FALLBACK_INTENT_NAME
+
+    @validator('fallback_intent')
+    def validate_fallback_intent(cls, v, values, **kwargs):
+        from kairon.shared.utils import Utility
+        if Utility.check_empty_string(v):
+            raise ValueError("fallback_intent field cannot be empty")
+        return v
+
+
+class BotSettingsRequest(BaseModel):
+    analytics: AnalyticsModel = AnalyticsModel()
 
 
 class FeedbackRequest(BaseModel):

@@ -925,6 +925,31 @@ class TestMongoProcessor:
         )
         assert result is None
 
+    def test_edit_bot_settings_does_not_exist(self):
+        processor = MongoProcessor()
+        bot_settings = {
+            "analytics": {'fallback_intent': 'nlu_fallback'},
+        }
+        with pytest.raises(AppException, match='Bot Settings for the bot not found'):
+            processor.edit_bot_settings(bot_settings, 'new_test_bot', 'test')
+
+    def test_edit_bot_settings(self):
+        processor = MongoProcessor()
+        BotSettings(bot='new_test_bot', user='test').save()
+        bot_settings = {
+            "analytics": {'fallback_intent': 'utter_please_rephrase'},
+        }
+        processor.edit_bot_settings(bot_settings, 'new_test_bot', 'test')
+        updated_settings = processor.get_bot_settings('new_test_bot', 'test')
+        assert not updated_settings.ignore_utterances
+        assert not updated_settings.force_import
+        assert updated_settings.status
+        assert updated_settings.timestamp
+        assert updated_settings.user
+        assert updated_settings.bot
+        assert updated_settings.analytics.to_mongo().to_dict() == {'fallback_intent': 'utter_please_rephrase'}
+        assert updated_settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
+
     @pytest.mark.asyncio
     async def test_save_from_path_yml(self):
         processor = MongoProcessor()

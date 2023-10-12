@@ -331,14 +331,13 @@ class DataUtility:
                     f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
 
     @staticmethod
-    def load_fallback_actions(bot: Text):
-        from .processor import MongoProcessor
+    def get_fallback_intent(bot: Text, user: Text):
+        from kairon.shared.data.processor import MongoProcessor
 
-        mongo_processor = MongoProcessor()
-        config = mongo_processor.load_config(bot)
-        fallback_action = DataUtility.parse_fallback_action(config)
-        nlu_fallback_action = MongoProcessor.fetch_nlu_fallback_action(bot)
-        return fallback_action, nlu_fallback_action
+        bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
+        bot_settings = bot_settings.to_mongo().to_dict()
+        fallback_intent = bot_settings['analytics']['fallback_intent']
+        return fallback_intent
 
     @staticmethod
     def parse_fallback_action(config: Dict):
@@ -347,12 +346,6 @@ class DataUtility:
         if action_fallback:
             fallback_action = action_fallback.get("core_fallback_action_name", fallback_action)
         return fallback_action
-
-    @staticmethod
-    def load_default_actions():
-        from kairon.importer.validator.file_validator import DEFAULT_ACTIONS
-
-        return list(DEFAULT_ACTIONS - {"action_default_fallback", "action_two_stage_fallback"})
 
     @staticmethod
     def get_template_type(story):
