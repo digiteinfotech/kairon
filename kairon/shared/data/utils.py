@@ -331,13 +331,13 @@ class DataUtility:
                     f"""Found rules '{name}' that contain more than user event.\nPlease use stories for this case""")
 
     @staticmethod
-    def get_nlu_fallback_action(bot: Text, user: Text):
+    def get_fallback_intent(bot: Text, user: Text):
         from kairon.shared.data.processor import MongoProcessor
 
         bot_settings = MongoProcessor.get_bot_settings(bot=bot, user=user)
         bot_settings = bot_settings.to_mongo().to_dict()
-        nlu_fallback_action = bot_settings['analytics']['fallback_intent']
-        return nlu_fallback_action
+        fallback_intent = bot_settings['analytics']['fallback_intent']
+        return fallback_intent
 
     @staticmethod
     def parse_fallback_action(config: Dict):

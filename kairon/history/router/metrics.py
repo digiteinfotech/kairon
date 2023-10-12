@@ -27,12 +27,12 @@ async def user_with_metrics(
 async def visitor_hit_fallback_count(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        nlu_fallback: str = Query(default=None),
+        fallback_intent: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries."""
     visitor_hit_fallback, message = HistoryProcessor.visitor_hit_fallback(
-        collection, from_date, to_date, nlu_fallback
+        collection, from_date, to_date, fallback_intent
     )
     return {"data": visitor_hit_fallback, "message": message}
 
@@ -79,12 +79,12 @@ async def count_new_users(
 async def complete_conversations(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        nlu_fallback: str = Query(default=None),
+        fallback_intent: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the number of successful conversations of the bot, which had no fallback."""
     conversation_count, message = HistoryProcessor.successful_conversations(
-        collection, from_date, to_date, nlu_fallback
+        collection, from_date, to_date, fallback_intent
     )
     return {"data": conversation_count, "message": message}
 
@@ -147,12 +147,12 @@ async def user_input_count(
 async def fallback_dropoff(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        nlu_fallback: str = Query(default=None),
+        fallback_intent: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the list of users that dropped off after encountering fallback."""
     user_list, message = HistoryProcessor.user_fallback_dropoff(
-        collection, from_date, to_date, nlu_fallback
+        collection, from_date, to_date, fallback_intent
     )
     return {"data": user_list, "message": message}
 
@@ -174,12 +174,12 @@ async def intents_dropoff(
 async def unsuccessful_sessions(
         from_date: date = Query(default=(datetime.utcnow() - timedelta(30)).date()),
         to_date: date = Query(default=datetime.utcnow().date()),
-        nlu_fallback: str = Query(default=None),
+        fallback_intent: str = Query(default=None),
         collection: str = Depends(Authentication.authenticate_and_get_collection)
 ):
     """Fetches the count of sessions that encountered a fallback for a particular user."""
     user_list, message = HistoryProcessor.unsuccessful_session(
-        collection, from_date, to_date, nlu_fallback
+        collection, from_date, to_date, fallback_intent
     )
     return Response(data=user_list, message=message)
 

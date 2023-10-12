@@ -13949,7 +13949,7 @@ def test_update_analytics_settings():
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert actual["message"] == "Bot Settings updated successfully"
+    assert actual["message"] == "Bot Settings updated"
     response = client.get(
         f"/api/bot/{pytest.bot}/settings",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},

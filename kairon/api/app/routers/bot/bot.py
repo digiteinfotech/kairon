@@ -1619,8 +1619,8 @@ async def get_bot_settings(
 @router.put("/settings", response_model=Response)
 async def update_bot_settings(
         bot_settings: BotSettingsRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """Updates bot settings"""
     MongoProcessor.edit_bot_settings(bot_settings.dict(), current_user.get_bot(), current_user.get_user())
-    return Response(message='Bot Settings updated successfully')
+    return Response(message='Bot Settings updated')

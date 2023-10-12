@@ -202,7 +202,7 @@ class TestHistory:
     def test_visitor_hit_fallback_custom_action(self, mock_client):
         mock_client.return_value = mongoclient
         hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
-                                                                       nlu_fallback_action="utter_location_query")
+                                                                       fallback_intent="utter_location_query")
         assert hit_fall_back["fallback_count"] == 0
         assert hit_fall_back["total_count"] == 273
         assert message is None
@@ -211,7 +211,7 @@ class TestHistory:
     def test_visitor_hit_fallback_nlu_fallback_configured(self, mock_client):
         mock_client.return_value = mongoclient
         hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
-                                                                       nlu_fallback_action="utter_please_rephrase")
+                                                                       fallback_intent="utter_please_rephrase")
 
         assert hit_fall_back["fallback_count"] == 100
         assert hit_fall_back["total_count"] == 273

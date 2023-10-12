@@ -10,7 +10,7 @@ from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TY
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, DbQueryValueType, \
     DbActionOperationType
-from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE, LLMResourceProvider
+from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
 ValidationFailure = validators.ValidationFailure
 from pydantic import BaseModel, validator, SecretStr, root_validator, constr
