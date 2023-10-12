@@ -1460,7 +1460,8 @@ class HistoryProcessor:
                 conversations.aggregate([{"$match": {"sender_id": sender_id,
                                                      "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
                                                              {"timestamp": {"$lte": till_date_timestamp}}]
-                                                     }},
+                                                     }
+                                          },
                                          {"$project": {"_id": 0}},
                                          {"$merge": {"into": {"db": archive_db, "coll": archive_collection},
                                                      "on": "_id",
