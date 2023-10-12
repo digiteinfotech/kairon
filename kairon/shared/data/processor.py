@@ -90,7 +90,7 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, CognitionData, MultiFlowStoryMetadata,
-    Synonyms, Lookup, CognitionMetadata
+    Synonyms, Lookup, CognitionMetadata, LLMSettings, Analytics
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
@@ -3981,20 +3981,6 @@ class MongoProcessor:
                 config_obj['pipeline'].insert(property_idx + 1, fallback)
                 self.add_default_fallback_data(bot, user, True, False)
 
-    @staticmethod
-    def fetch_nlu_fallback_action(bot: Text):
-        action = None
-        event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
-        try:
-            rule = Rules.objects(bot=bot, status=True, events__match=event).get()
-            for event in rule.events:
-                if 'action' == event.type and event.name != RULE_SNIPPET_ACTION_NAME:
-                    action = event.name
-                    break
-        except DoesNotExist as e:
-            logging.error(e)
-        return action
-
     def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
         if nlu_fallback:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
@@ -4258,6 +4244,22 @@ class MongoProcessor:
             logging.error(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
+
+    @staticmethod
+    def edit_bot_settings(bot_settings: dict, bot: Text, user: Text):
+        """
+        Update bot settings with new values.
+        :param bot_settings: bot settings values
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(BotSettings, raise_error=False, bot=bot, status=True):
+            raise AppException(f'Bot Settings for the bot not found')
+
+        settings = BotSettings.objects(bot=bot, status=True).get()
+        analytics = Analytics(**bot_settings.get('analytics'))
+        settings.update(set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow())
 
     @staticmethod
     def enable_llm_faq(bot: Text, user: Text):

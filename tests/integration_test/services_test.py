@@ -13894,6 +13894,81 @@ def test_get_bot_settings():
                               'force_import': False,
                               'ignore_utterances': False,
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
+                              'analytics': {'fallback_intent': 'nlu_fallback'},
+                              'multilingual_limit_per_day': 2,
+                              'notification_scheduling_limit': 4,
+                              'refresh_token_expiry': 60,
+                              'rephrase_response': False,
+                              'test_limit_per_day': 5,
+                              'training_limit_per_day': 5,
+                              'website_data_generator_depth_search_limit': 2,
+                              'whatsapp': 'meta'}
+
+
+def test_update_analytics_settings_with_empty_value():
+    bot_settings = {
+        "analytics": {'fallback_intent': ''},
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=bot_settings
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'analytics', 'fallback_intent'],
+                                  'msg': 'fallback_intent field cannot be empty', 'type': 'value_error'}]
+
+
+def test_update_analytics_settings_with_none():
+    bot_settings = {
+        "analytics": {'fallback_intent': None},
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=bot_settings
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'analytics', 'fallback_intent'],
+                                  'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}]
+
+
+def test_update_analytics_settings():
+    bot_settings = {
+        "analytics": {'fallback_intent': 'utter_please_rephrase'},
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=bot_settings
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Bot Settings updated"
+    response = client.get(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    actual["data"].pop("bot")
+    actual["data"].pop("user")
+    actual["data"].pop("timestamp")
+    actual["data"].pop("status")
+    assert actual['data'] == {'chat_token_expiry': 30,
+                              'data_generation_limit_per_day': 3,
+                              'data_importer_limit_per_day': 5,
+                              'force_import': False,
+                              'ignore_utterances': False,
+                              'llm_settings': {'enable_faq': False, 'provider': 'openai'},
+                              'analytics': {'fallback_intent': 'utter_please_rephrase'},
                               'multilingual_limit_per_day': 2,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
