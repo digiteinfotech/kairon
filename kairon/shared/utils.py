@@ -862,6 +862,9 @@ class Utility:
                 Utility.environment['security']["secret_key"],
                 algorithms=[Utility.environment['security']["algorithm"]],
             )
+            if decoded_jwt.get("is_enc"):
+                claims_str = Utility.decrypt_message(decoded_jwt["sub"])
+                decoded_jwt = json.loads(claims_str)
             return decoded_jwt
         except PyJWTError:
             raise PyJWTError("Invalid token")

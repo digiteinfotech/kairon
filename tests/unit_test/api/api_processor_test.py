@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 import os
 import time
 import uuid
@@ -1204,7 +1205,11 @@ class TestAccountProcessor:
         algorithm = Utility.environment['security']["algorithm"]
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 180
-        assert payload.get('sub') == 'test'
+        assert payload["is_enc"] == True
+        assert not Utility.check_empty_string(payload['sub'])
+        claims = Utility.decrypt_message(payload['sub'])
+        claims = json.loads(claims)
+        assert claims["sub"] == 'test'
 
         start_date = datetime.datetime.now()
         token = Authentication.create_access_token(data={"sub": "test"})
@@ -1290,6 +1295,10 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token, refresh_token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload["is_enc"] == True
+        assert not Utility.check_empty_string(payload['sub'])
+        claims = Utility.decrypt_message(payload['sub'])
+        payload = json.loads(claims)
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
@@ -1311,6 +1320,10 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token, _ = Authentication.generate_integration_token(bot, user, name='integration_token', role='tester')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload["is_enc"] == True
+        assert not Utility.check_empty_string(payload['sub'])
+        claims = Utility.decrypt_message(payload['sub'])
+        payload = json.loads(claims)
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
@@ -1333,6 +1346,10 @@ class TestAccountProcessor:
             bot, user, expiry=15, name='integration_token_with_expiry', role='designer'
         )
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload["is_enc"] == True
+        assert not Utility.check_empty_string(payload['sub'])
+        claims = Utility.decrypt_message(payload['sub'])
+        payload = json.loads(claims)
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
@@ -1371,6 +1388,10 @@ class TestAccountProcessor:
         pytest.refresh_token = refresh_token
         pytest.dynamic_token = token
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload["is_enc"] == True
+        assert not Utility.check_empty_string(payload['sub'])
+        claims = Utility.decrypt_message(payload['sub'])
+        payload = json.loads(claims)
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')
@@ -1582,6 +1603,10 @@ class TestAccountProcessor:
         token, _ = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
                                                           token_type=TOKEN_TYPE.DYNAMIC.value)
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        assert payload["is_enc"] == True
+        assert not Utility.check_empty_string(payload['sub'])
+        claims = Utility.decrypt_message(payload['sub'])
+        payload = json.loads(claims)
         assert payload.get('bot') == bot
         assert payload.get('sub') == user
         assert payload.get('iat')

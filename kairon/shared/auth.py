@@ -1,4 +1,6 @@
+import json
 import re
+from calendar import timegm
 from datetime import datetime, timedelta, timezone
 from typing import Text
 
@@ -159,8 +161,29 @@ class Authentication:
             if to_encode.get("iat") is None:
                 to_encode.update({"iat": datetime.utcnow()})
         to_encode.update({"type": token_type})
+        to_encode = Authentication.encrypt_token_claims(to_encode)
         encoded_jwt = encode(to_encode, secret_key, algorithm=algorithm)
         return encoded_jwt
+
+    @staticmethod
+    def encrypt_token_claims(to_encode: dict):
+        token_claims = to_encode.copy()
+        for time_claim in ["exp", "iat", "nbf"]:
+            # Convert datetime to a intDate value in known time-format claims
+            if isinstance(token_claims.get(time_claim), datetime):
+                token_claims[time_claim] = timegm(token_claims[time_claim].utctimetuple())
+
+        claims_str = json.dumps(token_claims)
+        encrypted_claims = Utility.encrypt_message(claims_str)
+        encoded_jwt = {"sub": encrypted_claims, "is_enc": True}
+        [encoded_jwt.update({claim: to_encode[claim]}) for claim in ["exp", "iat"] if to_encode.get(claim)]
+        return encoded_jwt
+
+    @staticmethod
+    def decrypt_token_claims(encypted_claims: str):
+        claims_str = Utility.decrypt_message(encypted_claims)
+        claims = json.loads(claims_str)
+        return claims
 
     @staticmethod
     def __authenticate_user(username: str, password: str):
