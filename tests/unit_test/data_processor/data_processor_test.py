@@ -1509,6 +1509,7 @@ class TestMongoProcessor:
         story_graph = processor.load_stories("all")
         assert isinstance(story_graph, StoryGraph) is True
         assert story_graph.story_steps.__len__() == 16
+        assert story_graph.story_steps[5].events[2].name == 'ticket_file_form'
         assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
         assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'
@@ -1518,6 +1519,7 @@ class TestMongoProcessor:
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
         assert domain.slots.__len__() == 17
+        assert all(slot.mappings[0]['type'] == 'from_entity' and slot.mappings[0]['entity'] == slot.name for slot in domain.slots if slot.name not in ['requested_slot', 'session_started_metadata'])
         assert domain.responses.keys().__len__() == 27
         assert domain.entities.__len__() == 17
         assert domain.forms.__len__() == 2

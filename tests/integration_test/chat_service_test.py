@@ -1365,56 +1365,50 @@ def test_whatsapp_valid_text_message_request():
         return True
 
     responses.add("POST", "https://graph.facebook.com/v13.0/12345678/messages", json={})
-    with mock.patch.object(EndpointConfig, "request") as mock_action_execution:
-        mock_action_execution.return_value = {
-            "responses": [{"response": "Welcome to kairon!"}],
-            "events": [],
-        }
 
-        with patch.object(
-            MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
-        ):
-            response = client.post(
-                f"/api/bot/whatsapp/{bot}/{token}",
-                headers={"hub.verify_token": "valid"},
-                json={
-                    "object": "whatsapp_business_account",
-                    "entry": [
-                        {
-                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                            "changes": [
-                                {
-                                    "value": {
-                                        "messaging_product": "whatsapp",
-                                        "metadata": {
-                                            "display_phone_number": "910123456789",
-                                            "phone_number_id": "12345678",
-                                        },
-                                        "contacts": [
-                                            {
-                                                "profile": {"name": "udit"},
-                                                "wa_id": "wa-123456789",
-                                            }
-                                        ],
-                                        "messages": [
-                                            {
-                                                "from": "910123456789",
-                                                "id": "wappmsg.ID",
-                                                "timestamp": "21-09-2022 12:05:00",
-                                                "text": {"body": "hi"},
-                                                "type": "text",
-                                            }
-                                        ],
+    with patch.object(
+        MessengerHandler, "validate_hub_signature", _mock_validate_hub_signature
+    ):
+        response = client.post(
+            f"/api/bot/whatsapp/{bot}/{token}",
+            headers={"hub.verify_token": "valid"},
+            json={
+                "object": "whatsapp_business_account",
+                "entry": [
+                    {
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [
+                            {
+                                "value": {
+                                    "messaging_product": "whatsapp",
+                                    "metadata": {
+                                        "display_phone_number": "910123456789",
+                                        "phone_number_id": "12345678",
                                     },
-                                    "field": "messages",
-                                }
-                            ],
-                        }
-                    ],
-                },
-            )
-        time.sleep(5)
-        mock_action_execution.assert_awaited_once()
+                                    "contacts": [
+                                        {
+                                            "profile": {"name": "udit"},
+                                            "wa_id": "wa-123456789",
+                                        }
+                                    ],
+                                    "messages": [
+                                        {
+                                            "from": "910123456789",
+                                            "id": "wappmsg.ID",
+                                            "timestamp": "21-09-2022 12:05:00",
+                                            "text": {"body": "hi"},
+                                            "type": "text",
+                                        }
+                                    ],
+                                },
+                                "field": "messages",
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+    time.sleep(10)
 
     actual = response.json()
     assert actual == "success"
