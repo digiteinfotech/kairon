@@ -8,7 +8,8 @@ from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType
+from rasa_sdk.forms import REQUESTED_SLOT
+from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
@@ -54,12 +55,14 @@ class ActionPrompt(ActionsBase):
         llm = None
         llm_logs = None
         recommendations = None
+        user_msg = None
         bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         slots_to_fill = {}
 
         try:
-            user_msg = self.__get_user_msg(tracker)
             k_faq_action_config, bot_settings = self.retrieve_config()
+            prompt_question = k_faq_action_config.get('prompt_question')
+            user_msg = self.__get_user_msg(tracker, prompt_question)
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm = LLMFactory.get_instance("faq")(self.bot, bot_settings["llm_settings"])
             llm_response = await llm.predict(user_msg, **llm_params)
@@ -180,10 +183,14 @@ class ActionPrompt(ActionsBase):
         return response_context
     
     @staticmethod
-    def __get_user_msg(tracker: Tracker):
-        user_msg = tracker.latest_message.get('text')
-        if not ActionUtility.is_empty(user_msg) and user_msg.startswith("/"):
-            msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
-            if not ActionUtility.is_empty(msg):
-                user_msg = msg
+    def __get_user_msg(tracker: Tracker, prompt_question: UserMessageType):
+        if prompt_question == UserMessageType.from_slot.value:
+            slot = tracker.get_slot(REQUESTED_SLOT)
+            user_msg = tracker.get_slot(slot)
+        else:
+            user_msg = tracker.latest_message.get('text')
+            if not ActionUtility.is_empty(user_msg) and user_msg.startswith("/"):
+                msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
+                if not ActionUtility.is_empty(msg):
+                    user_msg = msg
         return user_msg

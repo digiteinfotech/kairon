@@ -495,10 +495,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'name': 'test_add_prompt_action_faq_action_with_default_values',
+        request = {'name': 'test_add_prompt_action_faq_action_with_default_values', 'prompt_question': 'from_slot',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                    'instructions': ['Answer in a short manner.', 'Keep it simple.'],
                    "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                                  {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
@@ -511,7 +511,7 @@ class TestMongoProcessor:
             {'name': 'test_add_prompt_action_faq_action_with_default_values',
              'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'enable_response_cache': False,
+             'enable_response_cache': False, 'prompt_question': 'from_slot',
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
@@ -519,9 +519,10 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-             'status': True, "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
-                                 {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
-                   "dispatch_response": False}]
+             'status': True, "set_slots": [
+                {"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
+                {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+             "dispatch_response": False}]
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
         processor = MongoProcessor()
@@ -752,8 +753,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'name': 'test_edit_prompt_action_faq_action',
-            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        request = {'name': 'test_edit_prompt_action_faq_action', 'prompt_question': 'from_user_message',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -782,6 +783,7 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
+             'prompt_question': 'from_user_message',
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt',
@@ -794,9 +796,10 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
              'status': True, 'instructions': [],
              "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
-                            {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
-                   "dispatch_response": False}]
-        request = {'name': 'test_edit_prompt_action_faq_action_again', 'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                           {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+             "dispatch_response": False}]
+        request = {'name': 'test_edit_prompt_action_faq_action_again', 'prompt_question': 'from_slot',
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static'}], 'instructions': ['Answer in a short manner.', 'Keep it simple.']}
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
@@ -804,7 +807,7 @@ class TestMongoProcessor:
         assert action == [
             {'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5, 'top_results': 10,
              'similarity_threshold': 0.7, 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'enable_response_cache': False,
+             'enable_response_cache': False, 'prompt_question': 'from_slot',
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
@@ -818,7 +821,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-        request = {'name': 'test_edit_prompt_action_with_less_hyperparameters',
+        request = {'name': 'test_edit_prompt_action_with_less_hyperparameters', 'prompt_question': 'from_slot',
             'llm_prompts': [
                 {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
                  'is_enabled': True},
@@ -850,6 +853,7 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
+             'prompt_question': 'from_slot',
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -877,6 +881,7 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
+             'prompt_question': 'from_slot',
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',

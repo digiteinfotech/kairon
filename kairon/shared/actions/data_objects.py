@@ -15,7 +15,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType
+    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType, UserMessageType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -664,6 +664,8 @@ class PromptAction(Auditlog):
     similarity_threshold = FloatField(default=0.70)
     enable_response_cache = BooleanField(default=False)
     failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
+    prompt_question = StringField(default=UserMessageType.from_user_message.value,
+                                  choices=[p_type.value for p_type in UserMessageType])
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

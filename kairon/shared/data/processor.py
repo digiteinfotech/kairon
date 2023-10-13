@@ -5433,6 +5433,7 @@ class MongoProcessor:
         action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
         action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")
+        action.prompt_question = request_data.get("prompt_question")
         action.top_results = request_data.get("top_results")
         action.enable_response_cache = request_data.get("enable_response_cache", False)
         action.similarity_threshold = request_data.get("similarity_threshold")

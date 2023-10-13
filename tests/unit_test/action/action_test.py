@@ -2692,12 +2692,14 @@ class TestActions:
         actual_config.pop("status")
         actual_config.pop("user")
         assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-                          'similarity_threshold': 0.7,
-                          'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                          'bot': 'test_action_server', 'enable_response_cache': False,
-                          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
-                                              'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
-                                              'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+                                 'prompt_question': 'from_user_message',
+                                 'similarity_threshold': 0.7,
+                                 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                                 'bot': 'test_action_server', 'enable_response_cache': False,
+                                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
+                                                     'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
+                                                     'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}
+                                                     },
                                  'dispatch_response': True, 'set_slots': [], 'llm_prompts': llm_prompts,
                                  'instructions': []}
         bot_settings.pop("_id")
@@ -3975,7 +3977,8 @@ class TestActions:
         assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
                                        'similarity_threshold': 0.7,
                                        'enable_response_cache': False,
-                'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+                                       'prompt_question': 'from_user_message',
+                                       'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                        'bot': 'test_bot_action_test', 'user': 'test_user_action_test',
                                        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',
                                                            'top_p': 0.0, 'n': 1, 'stream': False, 'stop': None,
