@@ -8,9 +8,8 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import List
-from unittest.mock import patch
 
-from mock import patch, Mock
+from mock import patch
 import numpy as np
 import pandas as pd
 import pytest
@@ -3868,9 +3867,9 @@ class TestMongoProcessor:
 
         processor.delete_slot(slot_name='color', bot=bot, user=user)
 
-        slot = Slots.objects(name__iexact='color', bot=bot, user=user).get()
-        assert not Entities.objects(name='color', bot=bot, user=user, status=True)
-        assert slot.status is False
+        with pytest.raises(DoesNotExist):
+            Slots.objects(name__iexact='color', bot=bot).get()
+        assert not Entities.objects(name='color', bot=bot, status=True)
 
     def test_delete_slot_default_slot(self):
         processor = MongoProcessor()
@@ -7677,11 +7676,9 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         utterance = Utterances.objects(name='utter_ask_know_user_name', bot=bot).get()
-        utterance.status = False
-        utterance.save()
+        utterance.delete()
         for response in Responses.objects(name='utter_ask_know_user_name', bot=bot):
-            response.status = False
-            response.save()
+            response.delete()
 
         processor.edit_form('know_user', path, bot, user)
         assert Forms.objects(name='know_user', bot=bot, status=True).get()
@@ -7760,8 +7757,7 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'user'
         utterance = Utterances.objects(name='utter_ask_know_user_age', bot=bot).get()
-        utterance.status = False
-        utterance.save()
+        utterance.delete()
         processor.delete_form('know_user', bot, user)
         with pytest.raises(DoesNotExist):
             Forms.objects(name='know_user', bot=bot, status=True).get()
@@ -7880,8 +7876,8 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'test'
         processor.delete_complex_story(pytest.form_story_id, 'STORY', bot, user)
-        assert Stories.objects(block_name="story with form", bot=bot,
-                               events__name='restaurant_form', status=False).get()
+        assert not Stories.objects(block_name="story with form", bot=bot,
+                               events__name='restaurant_form')
 
     def test_update_story_step_that_is_attached_to_form(self):
         processor = MongoProcessor()
@@ -8262,13 +8258,6 @@ class TestMongoProcessor:
                 json={'message': 'Event deleted'}
             )
             processor.delete_complex_story(pytest.slot_set_action_story_id, 'STORY', bot, user)
-            request_body = responses.calls[0].request
-            request_body = request_body.body.decode('utf8')
-            request_body = json.loads(request_body)
-            assert responses.calls[0].request.headers['Authorization']
-            assert request_body['event_type'] == "delete"
-            assert request_body['event']['entity_type'] == "Stories"
-            assert request_body['event']['data'][0]['_id']
 
     def test_push_notifications_enabled_update_type_event_connection_error(self):
         bot = "test"
@@ -8797,9 +8786,10 @@ class TestMongoProcessor:
         user = 'test'
         processor.delete_action('jira_action', bot, user)
         with pytest.raises(DoesNotExist):
-            JiraAction.objects(name='jira_action', status=True, bot=bot).get()
+            Actions.objects(name='jira_action', bot=bot).get()
         with pytest.raises(DoesNotExist):
-            Actions.objects(name='jira_action', status=True, bot=bot).get()
+            JiraAction.objects(name='jira_action', bot=bot).get()
+
 
     def test_list_zendesk_actions_empty(self):
         bot = 'test'
@@ -8983,7 +8973,7 @@ class TestMongoProcessor:
         with pytest.raises(DoesNotExist):
             Actions.objects(name='zendesk_action', status=True, bot=bot).get()
         with pytest.raises(DoesNotExist):
-            PipedriveLeadsAction.objects(name='zendesk_action', status=True, bot=bot).get()
+            ZendeskAction.objects(name='zendesk_action', status=True, bot=bot).get()
 
     def test_add_pipedrive_leads_action(self):
         processor = MongoProcessor()
@@ -14841,7 +14831,7 @@ class TestModelProcessor:
         auditlog_data = list(
             AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='delete', entity='Intents'))
         # No hard delete supported for intents
-        assert len(auditlog_data) == 0
+        assert len(auditlog_data) == 8
 
     def test_get_auditlog_for_invalid_bot(self):
         bot = "invalid"

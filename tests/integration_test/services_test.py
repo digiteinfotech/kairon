@@ -20752,7 +20752,7 @@ def test_get_auditlog_for_bot():
 
     counter = Counter(actions)
     assert counter.get(AuditlogActions.SAVE.value) > 5
-    assert counter.get(AuditlogActions.SOFT_DELETE.value) > 5
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 3
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
 
@@ -20779,7 +20779,7 @@ def test_get_auditlog_for_user_2():
 
     counter = Counter(actions)
     assert counter.get(AuditlogActions.SAVE.value) > 5
-    assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 2
+    assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 1
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
     print(audit_log_data)

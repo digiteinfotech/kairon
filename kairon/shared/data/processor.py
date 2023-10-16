@@ -2478,9 +2478,7 @@ class MongoProcessor:
         """
         try:
             entity = Entities.objects(name=name, bot=bot, status=True).get()
-            entity.status = False
-            entity.user = user
-            entity.save()
+            entity.delete()
         except DoesNotExist:
             if raise_exc_if_not_exists:
                 raise AppException("Entity not found")
@@ -3128,10 +3126,10 @@ class MongoProcessor:
         else:
             raise AppException("Invalid type")
         try:
-            data_class.objects(bot=bot, status=True, id=story_id).get()
+            document = data_class.objects(bot=bot, status=True).get(id=story_id)
+            document.delete()
         except DoesNotExist:
             raise AppException("Flow does not exists")
-        Utility.hard_delete_document([data_class], bot=bot, user=user, id=story_id)
 
     def get_all_stories(self, bot: Text):
         standard_stories = list(self.get_stories(bot=bot))
@@ -3599,13 +3597,11 @@ class MongoProcessor:
 
         try:
             intent_obj.user = user
-            intent_obj.status = False
-            intent_obj.timestamp = datetime.utcnow()
-            intent_obj.save(validate=False)
+            intent_obj.delete()
 
             if delete_dependencies:
                 Utility.hard_delete_document(
-                    [TrainingExamples], bot=bot, user=user, intent__iexact=intent
+                    [TrainingExamples], bot=bot, intent__iexact=intent
                 )
         except Exception as ex:
             logging.info(ex)
@@ -4322,9 +4318,7 @@ class MongoProcessor:
                     f'Slot is attached to multi-flow story: {[story["block_name"] for story in multi_stories]}'
                 )
 
-            slot.status = False
-            slot.user = user
-            slot.save()
+            slot.delete()
             self.delete_entity(slot_name, bot, user, False)
         except DoesNotExist as custEx:
             logging.info(custEx)
@@ -5545,10 +5539,7 @@ class MongoProcessor:
             regex = RegexFeatures.objects(
                 name__iexact=regex_name, bot=bot, status=True
             ).get()
-            regex.status = False
-            regex.user = user
-            regex.timestamp = datetime.utcnow()
-            regex.save()
+            regex.delete()
         except DoesNotExist:
             raise AppException("Regex name does not exist.")
 
@@ -5789,10 +5780,7 @@ class MongoProcessor:
         )
         for slot in slot_validations_to_delete:
             validation = existing_slot_validations.get(slot=slot)
-            validation.user = user
-            validation.timestamp = datetime.utcnow()
-            validation.status = False
-            validation.save()
+            validation.delete()
 
     def __add_form_responses(
         self, responses: list, utterance_name: Text, form: Text, bot: Text, user: Text
@@ -5966,8 +5954,7 @@ class MongoProcessor:
                     self.delete_utterance(utterance_name, bot, False)
                 except Exception as e:
                     logging.info(str(e))
-            form.status = False
-            form.save()
+            form.delete()
             if Utility.is_exist(
                 FormValidationAction,
                 raise_error=False,
@@ -6049,9 +6036,7 @@ class MongoProcessor:
                     f'Slot mapping is required for form: {[form["name"] for form in forms_with_slot]}'
                 )
             slot_mapping.user = user
-            slot_mapping.timestamp = datetime.utcnow()
-            slot_mapping.status = False
-            slot_mapping.save()
+            slot_mapping.delete()
         except DoesNotExist:
             raise AppException(f"No slot mapping exists for slot: {name}")
 
@@ -6140,69 +6125,67 @@ class MongoProcessor:
             )
             if action.type == ActionType.slot_set_action.value:
                 Utility.hard_delete_document(
-                    [SlotSetAction], name__iexact=name, bot=bot, user=user
+                    [SlotSetAction], name__iexact=name, bot=bot,
                 )
             elif action.type == ActionType.form_validation_action.value:
                 Utility.hard_delete_document(
-                    [FormValidationAction], name__iexact=name, bot=bot, user=user
+                    [FormValidationAction], name__iexact=name, bot=bot,
                 )
             elif action.type == ActionType.email_action.value:
                 Utility.hard_delete_document(
-                    [EmailActionConfig], action_name__iexact=name, bot=bot, user=user
+                    [EmailActionConfig], action_name__iexact=name, bot=bot,
                 )
             elif action.type == ActionType.google_search_action.value:
                 Utility.hard_delete_document(
-                    [GoogleSearchAction], name__iexact=name, bot=bot, user=user
+                    [GoogleSearchAction], name__iexact=name, bot=bot,
                 )
             elif action.type == ActionType.jira_action.value:
                 Utility.hard_delete_document(
-                    [JiraAction], name__iexact=name, bot=bot, user=user
+                    [JiraAction], name__iexact=name, bot=bot,
                 )
             elif action.type == ActionType.http_action.value:
                 Utility.hard_delete_document(
-                    [HttpActionConfig], action_name__iexact=name, bot=bot, user=user
+                    [HttpActionConfig], action_name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.zendesk_action.value:
                 Utility.hard_delete_document(
-                    [ZendeskAction], name__iexact=name, bot=bot, user=user
+                    [ZendeskAction], name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.pipedrive_leads_action.value:
                 Utility.hard_delete_document(
-                    [PipedriveLeadsAction], name__iexact=name, bot=bot, user=user
+                    [PipedriveLeadsAction], name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.hubspot_forms_action.value:
                 Utility.hard_delete_document(
-                    [HubspotFormsAction], name__iexact=name, bot=bot, user=user
+                    [HubspotFormsAction], name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.two_stage_fallback.value:
                 Utility.hard_delete_document(
                     [KaironTwoStageFallbackAction],
                     name__iexact=name,
-                    bot=bot,
-                    user=user,
+                    bot=bot
                 )
             elif action.type == ActionType.razorpay_action.value:
                 Utility.hard_delete_document(
-                    [RazorpayAction], name__iexact=name, bot=bot, user=user
+                    [RazorpayAction], name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.database_action.value:
                 Utility.hard_delete_document(
-                    [DatabaseAction], name__iexact=name, bot=bot, user=user
+                    [DatabaseAction], name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.web_search_action.value:
                 Utility.hard_delete_document(
-                    [WebSearchAction], name__iexact=name, bot=bot, user=user
+                    [WebSearchAction], name__iexact=name, bot=bot
                 )
             elif action.type == ActionType.prompt_action.value:
-                PromptAction.objects(name__iexact=name, bot=bot, user=user).delete()
+                Utility.hard_delete_document(
+                    [PromptAction], name__iexact=name, bot=bot
+                )
             elif action.type == ActionType.pyscript_action.value:
                 Utility.hard_delete_document(
-                    [PyscriptActionConfig], name__iexact=name, bot=bot, user=user
+                    [PyscriptActionConfig], name__iexact=name, bot=bot
                 )
-            action.status = False
-            action.user = user
-            action.timestamp = datetime.utcnow()
-            action.save()
+            action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
 

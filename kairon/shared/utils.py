@@ -634,7 +634,9 @@ class Utility:
         from kairon.shared.trackers import KMongoTrackerStore
 
         config = Utility.get_local_db()
-        logger.debug(f"Loading tracker host:{config.get('host')}, db:{config.get('db')}, collection:{bot}")
+        logger.debug(
+            f"Loading tracker host:{config.get('host')}, db:{config.get('db')}, collection:{bot}"
+        )
         return KMongoTrackerStore(
             domain=domain,
             host=config["host"],
