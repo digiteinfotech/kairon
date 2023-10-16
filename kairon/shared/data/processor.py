@@ -43,7 +43,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
+    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -5433,6 +5433,7 @@ class MongoProcessor:
         action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
         action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")
+        action.user_question = UserQuestion(**request_data.get("user_question"))
         action.top_results = request_data.get("top_results")
         action.enable_response_cache = request_data.get("enable_response_cache", False)
         action.similarity_threshold = request_data.get("similarity_threshold")

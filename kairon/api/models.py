@@ -9,7 +9,7 @@ from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, DbQueryValueType, \
-    DbActionOperationType
+    DbActionOperationType, UserMessageType
 from ..shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
 ValidationFailure = validators.ValidationFailure
@@ -889,10 +889,16 @@ class LlmPromptRequest(BaseModel):
     is_enabled: bool = True
 
 
+class UserQuestionModel(BaseModel):
+    type: UserMessageType = UserMessageType.from_user_message.value
+    value: str = None
+
+
 class PromptActionConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
+    user_question: UserQuestionModel = UserQuestionModel()
     top_results: int = 10
     similarity_threshold: float = 0.70
     enable_response_cache: bool = False
