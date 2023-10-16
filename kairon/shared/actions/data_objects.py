@@ -655,6 +655,12 @@ class LlmPrompt(EmbeddedDocument):
             raise ValidationError("System prompt must have static source!")
 
 
+class UserQuestion(EmbeddedDocument):
+    type = StringField(default=UserMessageType.from_user_message.value,
+                       choices=[p_type.value for p_type in UserMessageType])
+    value = StringField(default=None)
+
+
 @auditlogger.log
 @push_notification.apply
 class PromptAction(Auditlog):
@@ -664,8 +670,7 @@ class PromptAction(Auditlog):
     similarity_threshold = FloatField(default=0.70)
     enable_response_cache = BooleanField(default=False)
     failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
-    prompt_question = StringField(default=UserMessageType.from_user_message.value,
-                                  choices=[p_type.value for p_type in UserMessageType])
+    user_question = EmbeddedDocumentField(UserQuestion, default=UserQuestion())
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

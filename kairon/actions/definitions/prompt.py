@@ -8,7 +8,6 @@ from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
-from rasa_sdk.forms import REQUESTED_SLOT
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
@@ -61,8 +60,8 @@ class ActionPrompt(ActionsBase):
 
         try:
             k_faq_action_config, bot_settings = self.retrieve_config()
-            prompt_question = k_faq_action_config.get('prompt_question')
-            user_msg = self.__get_user_msg(tracker, prompt_question)
+            user_question = k_faq_action_config.get('user_question')
+            user_msg = self.__get_user_msg(tracker, user_question)
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm = LLMFactory.get_instance("faq")(self.bot, bot_settings["llm_settings"])
             llm_response = await llm.predict(user_msg, **llm_params)
@@ -183,9 +182,10 @@ class ActionPrompt(ActionsBase):
         return response_context
     
     @staticmethod
-    def __get_user_msg(tracker: Tracker, prompt_question: UserMessageType):
-        if prompt_question == UserMessageType.from_slot.value:
-            slot = tracker.get_slot(REQUESTED_SLOT)
+    def __get_user_msg(tracker: Tracker, user_question: Dict):
+        user_question_type = user_question.get('type')
+        if user_question_type == UserMessageType.from_slot.value:
+            slot = user_question.get('value')
             user_msg = tracker.get_slot(slot)
         else:
             user_msg = tracker.latest_message.get('text')

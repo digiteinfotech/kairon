@@ -16,7 +16,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
+    DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
@@ -9598,11 +9598,11 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_searc
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
-                 prompt_question="from_slot").save()
+                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
     BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
-    request_object["tracker"]["slots"] = {"bot": bot, "user_question": user_msg, "requested_slot": "user_question"}
+    request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
     request_object["next_action"] = action_name
     request_object["tracker"]["sender_id"] = user
     request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',

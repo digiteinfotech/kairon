@@ -2692,7 +2692,7 @@ class TestActions:
         actual_config.pop("status")
         actual_config.pop("user")
         assert actual_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
-                                 'prompt_question': 'from_user_message',
+                                 'user_question': {'type': 'from_user_message'},
                                  'similarity_threshold': 0.7,
                                  'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                  'bot': 'test_action_server', 'enable_response_cache': False,
@@ -3977,7 +3977,7 @@ class TestActions:
         assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5, 'top_results': 10,
                                        'similarity_threshold': 0.7,
                                        'enable_response_cache': False,
-                                       'prompt_question': 'from_user_message',
+                                       'user_question': {'type': 'from_user_message'},
                                        'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                                        'bot': 'test_bot_action_test', 'user': 'test_user_action_test',
                                        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo',

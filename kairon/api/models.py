@@ -889,11 +889,16 @@ class LlmPromptRequest(BaseModel):
     is_enabled: bool = True
 
 
+class UserQuestionModel(BaseModel):
+    type: UserMessageType = UserMessageType.from_user_message.value
+    value: str = None
+
+
 class PromptActionConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
-    prompt_question: UserMessageType = UserMessageType.from_user_message.value
+    user_question: UserQuestionModel = UserQuestionModel()
     top_results: int = 10
     similarity_threshold: float = 0.70
     enable_response_cache: bool = False

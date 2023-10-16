@@ -2036,7 +2036,7 @@ def test_add_prompt_action(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {'name': 'test_add_prompt_action', 'prompt_question': 'from_user_message',
+    action = {'name': 'test_add_prompt_action', 'user_question': {'type': 'from_user_message'},
               'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Similarity Prompt',
@@ -2268,7 +2268,7 @@ def test_update_prompt_action_with_query_prompt_with_false():
 
 
 def test_update_prompt_action():
-    action = {'name': 'test_update_prompt_action', 'prompt_question': 'from_slot',
+    action = {'name': 'test_update_prompt_action', 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
               'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Similarity_analytical Prompt',
@@ -2311,7 +2311,7 @@ def test_get_prompt_action():
     assert actual["data"] == [
         {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
          'enable_response_cache': False, 'failure_message': 'updated_failure_message',
-         'prompt_question': 'from_slot',
+         'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                              'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                              'logit_bias': {}},
