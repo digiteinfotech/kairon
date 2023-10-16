@@ -69,9 +69,13 @@ class UserActivityLogger:
                 user=email, action=AuditlogActions.ACTIVITY.value,
                 entity=UserActivityType.reset_password.value,
                 timestamp__gte=cooldown_period).order_by('-timestamp').get()
+            next_reset_time = log.timestamp + timedelta(minutes=reset_password_request_limit)
+            next_reset = (next_reset_time - datetime.utcnow()).seconds
+            next_login_duration = (int)((next_reset / 60) if (next_reset / 60) != 0 else next_reset)
+            unit = "minutes" if (next_reset / 60) != 0 else "seconds"
             raise AppException(
                 f'Password reset limit exhausted. Please come back in '
-                f'{str(timedelta(seconds=(datetime.utcnow() - log.timestamp).seconds))}'
+                f'{next_login_duration} {unit}!'
             )
 
     @staticmethod
@@ -89,15 +93,20 @@ class UserActivityLogger:
         logins_within_cutoff = AuditLogData.objects(
             user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.invalid_login.value, timestamp__gte=cutoff_time
         ).count()
-        first_login_within_cutoff = list(AuditLogData.objects(
-            user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.invalid_login.value, timestamp__gte=cutoff_time
-        ).order_by("timestamp"))
         if logins_within_cutoff >= login_request_limit:
+            first_login_within_cutoff = list(AuditLogData.objects(
+                user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.invalid_login.value,
+                timestamp__gte=cutoff_time
+            ).order_by("timestamp"))
+            next_login_time = first_login_within_cutoff[0].timestamp + timedelta(minutes=login_cooldown_period)
+            next_login = (next_login_time - datetime.utcnow()).seconds
+            next_login_duration = (int)((next_login / 60) if (next_login / 60) != 0 else next_login)
+            unit = "minutes" if (next_login / 60) != 0 else "seconds"
             raise AppException(f'Account frozen due to too many unsuccessful login attempts. '
-                               f'Please come back in {str(timedelta(seconds=(datetime.utcnow() - first_login_within_cutoff[0].timestamp).seconds))}')
+                               f'Please come back in {next_login_duration} {unit}!')
 
     @staticmethod
-    def is_token_alread_used(uuid_value, email):
+    def is_token_already_used(uuid_value, email):
         """
         Checks if password is already reset or not
 
