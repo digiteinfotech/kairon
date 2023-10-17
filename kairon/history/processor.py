@@ -1490,7 +1490,8 @@ class HistoryProcessor:
 
                 # Remove Archived Events
                 conversations.delete_many(filter={'sender_id': sender_id,
-                                                  "event.timestamp": {'$lte': till_date_timestamp}})
+                                                  "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
+                                                          {"timestamp": {"$lte": till_date_timestamp}}]})
         except Exception as e:
             logger.error(e)
             raise AppException(e)
