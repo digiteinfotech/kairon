@@ -12,7 +12,6 @@ from rasa.core.actions.action import (
     default_actions,
     ActionBotResponse,
     ActionExtractSlots,
-
 )
 from rasa.core.actions.forms import FormAction
 from rasa.core.actions.action import is_retrieval_action
@@ -152,6 +151,7 @@ class KaironMessageProcessor(MessageProcessor):
             tabname = message.metadata.get("tabname", "default")
         else:
             tabname = "default"
+            message.metadata = {"tabname": tabname}
         response = {
             "nlu": None,
             "action": None,
