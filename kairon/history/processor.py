@@ -233,6 +233,7 @@ class HistoryProcessor:
         :return: list of users with step and time in conversation
         """
         Utility.validate_from_date_and_to_date(from_date, to_date)
+        time_filter = {"$gte": Utility.get_timestamp_from_date(from_date), "$lte": Utility.get_timestamp_from_date(to_date)}
         users = []
         try:
             client = HistoryProcessor.get_mongo_connection()
@@ -241,14 +242,10 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 users = list(
-                    conversations.aggregate([{"$match": {"event.event": "user",
-                                                         "event.timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                             "$lte": Utility.get_timestamp_from_date(to_date)}}},
-                                             {"$sort": {"event.timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id",
-                                                         "latest_event_time": {"$last": "$event.timestamp"},
-                                                         "steps": {"$sum": 1},}
-                                              },
+                    conversations.aggregate([{"$match": {"timestamp": time_filter}},
+                                             {"$sort": {"timestamp": 1}},
+                                             {"$group": {"_id": "$sender_id", "latest_event_time": {"$last": "$timestamp"},
+                                                         "steps": {"$sum": 1}}},
                                              {"$sort": {"latest_event_time": -1}},
                                              {"$project": {
                                                  "sender_id": "$_id",

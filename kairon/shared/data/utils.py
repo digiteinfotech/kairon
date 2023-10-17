@@ -16,6 +16,7 @@ from .constant import ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, \
     ALLOWED_DOMAIN_FORMATS, ALLOWED_CONFIG_FORMATS, EVENT_STATUS, ALLOWED_RULES_FORMATS, ALLOWED_ACTIONS_FORMATS, \
     REQUIREMENTS, ACCESS_ROLES, TOKEN_TYPE, ALLOWED_CHAT_CLIENT_CONFIG_FORMATS, ALLOWED_MULTIFLOW_STORIES_FORMATS
 from .constant import RESPONSE
+from .data_objects import MultiflowStories
 from .training_data_generation_processor import TrainingDataGenerationProcessor
 from ...exceptions import AppException
 from ...shared.models import StoryStepType
@@ -426,8 +427,9 @@ class DataUtility:
         intent_count = Intents.objects(bot=bot, status=True).count()
         stories_count = Stories.objects(bot=bot, status=True).count()
         rule_count = Rules.objects(bot=bot, status=True).count()
+        multiflow_count = MultiflowStories.objects(bot=bot, status=True).count()
 
-        if intent_count < 2 or (stories_count < 2 and rule_count < 2):
+        if intent_count < 2 or (stories_count + rule_count + multiflow_count) < 2:
             raise AppException('Please add at least 2 flows and 2 intents before training the bot!')
 
     @staticmethod

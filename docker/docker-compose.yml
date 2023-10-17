@@ -104,10 +104,10 @@ services:
     networks:
       - chatbotnetwork
 
-  kairon-script-runner:
-    image: digite/kairon-script-runner:latest
-    container_name: kairon-script-runner
-    hostname: kairon-script-runner
+  kairon-script-executor:
+    image: digite/kairon-script-executor:latest
+    container_name: kairon-script-executor
+    hostname: kairon-script-executor
     ports:
       - 8087:8087
     environment:
