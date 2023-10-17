@@ -64,23 +64,23 @@ build-release:
   stage: build-release
   script:
     -  docker build -f ./docker/Dockerfile_Base -t kairon-base:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_api -t kairon-api:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_task -t kairon-task:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_paraphrase -t kairon-paraphrase:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_question_generation -t kairon-question-generation:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_action_server -t kairon-action-server:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_task_training_data_generator -t kairon-task-data-gen:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_task_data_importer -t kairon-data-importer:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_history_server -t kairon-history-server:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_evaluator_server -t kairon-script-runner:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_chat -t kairon-chat:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_task_model_testing -t kairon-model-tester:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_task_delete_history -t kairon-delete-history:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_event_server -t kairon-event-server:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_event_worker -t kairon-worker:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_task_multilingual_translator -t kairon-multilingual:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_task_delete_logs -t kairon-delete-logs:3.0.0 .
-    -  docker build -f ./docker/Dockerfile_task_message_broadcast -t kairon-broadcast:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_api --build-arg BASE_IMAGE=kairon-base:3.0.0 -t kairon-api:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_task --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-task:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_paraphrase --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-paraphrase:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_question_generation --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-question-generation:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_action_server --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-action-server:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_task_training_data_generator --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-task-data-gen:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_task_data_importer --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-data-importer:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_history_server --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-history-server:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_evaluator_server --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-script-runner:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_chat --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-chat:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_task_model_testing --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-model-tester:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_task_delete_history --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-delete-history:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_event_server --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-event-server:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_event_worker --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-worker:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_task_multilingual_translator --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-multilingual:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_task_delete_logs --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-delete-logs:3.0.0 .
+    -  docker build -f ./docker/Dockerfile_task_message_broadcast --build-arg BASE_IMAGE=kairon-base:3.0.0  -t kairon-broadcast:3.0.0 .
 cleanup:
   stage: cleanup
   script:
