@@ -792,7 +792,7 @@ class AccountProcessor:
         decoded_jwt = Utility.verify_token(token)
         email = decoded_jwt.get("mail_id")
         uuid_value = decoded_jwt.get("uuid")
-        UserActivityLogger.is_token_alread_used(uuid_value, email)
+        UserActivityLogger.is_token_already_used(uuid_value, email)
         user = User.objects(email__iexact=email, status=True).get()
         UserActivityLogger.is_password_reset_within_cooldown_period(email)
         previous_passwrd = user.password

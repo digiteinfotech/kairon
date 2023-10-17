@@ -15,7 +15,7 @@ from validators import ValidationFailure, url
 from validators import email
 
 from kairon.shared.actions.models import ActionType, ActionParameterType, HttpRequestContentType, \
-    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType
+    EvaluationType, DispatchType, DbQueryValueType, DbActionOperationType, UserMessageType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
@@ -655,6 +655,12 @@ class LlmPrompt(EmbeddedDocument):
             raise ValidationError("System prompt must have static source!")
 
 
+class UserQuestion(EmbeddedDocument):
+    type = StringField(default=UserMessageType.from_user_message.value,
+                       choices=[p_type.value for p_type in UserMessageType])
+    value = StringField(default=None)
+
+
 @auditlogger.log
 @push_notification.apply
 class PromptAction(Auditlog):
@@ -664,6 +670,7 @@ class PromptAction(Auditlog):
     similarity_threshold = FloatField(default=0.70)
     enable_response_cache = BooleanField(default=False)
     failure_message = StringField(default=DEFAULT_NLU_FALLBACK_RESPONSE)
+    user_question = EmbeddedDocumentField(UserQuestion, default=UserQuestion())
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
