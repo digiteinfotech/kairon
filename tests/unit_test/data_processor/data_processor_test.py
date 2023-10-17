@@ -67,7 +67,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, CognitionData, LLMSettings,
                                              MultiflowStoryEvents, Synonyms,
-                                             Lookup
+                                             Lookup, CognitionSchema
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -14299,12 +14299,18 @@ class TestMongoProcessor:
         content_id = '5349b4ddd2791d08c09890f3'
         with pytest.raises(AppException, match="Text already exists!"):
             processor.update_content(content_id, content, user, bot, None)
+        pytest.content_id_one = processor.save_content(content, user, bot, "Bot_two")
+        pytest.content_id_two = processor.save_content(content, user, bot, "Bot_three")
+        pytest.content_id_three = processor.save_content(content, user, bot, "Bot_four")
+        pytest.content_id_four = processor.save_content(content, user, bot, "Bot_five")
+        with pytest.raises(AppException, match="Collection limit exceeded!"):
+            processor.save_content(content, user, bot, "Bot_six")
 
     def test_save_content_invalid(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
-        collection = 'example'
+        collection = 'Bot'
         content = 'A bot, short for robot, is a program.'
         with pytest.raises(AppException, match="Content should contain atleast 10 words."):
             processor.save_content(content, user, bot, collection)
@@ -14323,7 +14329,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
-        collection = 'example_one'
+        collection = 'Bot_details'
         content = 'Bots are commonly used in various industries.'
         with pytest.raises(AppException, match="Content should contain atleast 10 words."):
             content_id = processor.save_content(content, user, bot, collection)
@@ -14346,6 +14352,10 @@ class TestMongoProcessor:
         bot = 'test'
         user = 'testUser'
         processor.delete_content(pytest.content_id, user, bot)
+        processor.delete_content(pytest.content_id_one, user, bot)
+        processor.delete_content(pytest.content_id_two, user, bot)
+        processor.delete_content(pytest.content_id_three, user, bot)
+        processor.delete_content(pytest.content_id_four, user, bot)
 
     def test_delete_content_does_not_exists(self):
         processor = MongoProcessor()
@@ -14383,7 +14393,7 @@ class TestMongoProcessor:
         collection = 'testing'
         content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
                   'application are tested in isolation to ensure that each unit functions as expected. '
-        pytest.content_id = processor.save_content(content, user, bot, collection)
+        pytest.content_id_unit = processor.save_content(content, user, bot, collection)
         kwargs = {'data': 'Unit testing'}
         data = list(processor.get_content(bot, **kwargs))
         assert data[0][
@@ -14410,7 +14420,113 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
-        processor.delete_content(pytest.content_id, user, bot)
+        processor.delete_content(pytest.content_id_unit, user, bot)
+
+    def test_save_payload_metadata(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        metadata = {
+            "metadata": [
+                {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "details_collection",
+            "bot": bot,
+            "user": user
+        }
+        pytest.metadata_id = processor.save_cognition_schema(metadata, user, bot)
+
+    def test_save_payload_metadata_with_update(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        metadata = {
+            "metadata": [
+                {"column_name": "language", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "bot": bot,
+            "user": user
+        }
+        pytest.metadata_id_two = processor.save_cognition_schema(metadata, user, bot)
+        metadata_id = '64b0f2d66707e9282a13f9cd'
+        with pytest.raises(AppException, match="Schema already exists!"):
+            processor.update_cognition_schema(metadata_id, metadata, user, bot)
+
+    def test_save_payload_metadata_column_name_empty(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        metadata = {
+            "metadata": [{"column_name": "", "data_type": "int", "enable_search": True,
+                          "create_embeddings": True}],
+            "bot": bot,
+            "user": user}
+        with pytest.raises(ValidationError, match="Column name cannot be empty"):
+            CognitionSchema(**metadata).save()
+
+    def test_save_payload_metadata_data_type_invalid(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        metadata = {
+            "metadata": [{"column_name": "name", "data_type": "bool", "enable_search": True,
+                          "create_embeddings": True}],
+            "bot": bot,
+            "user": user
+        }
+        with pytest.raises(ValidationError, match="Only str and int data types are supported"):
+            CognitionSchema(**metadata).save()
+
+    def test_update_payload_metadata(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        metadata = {
+            "metadata": [
+                {"column_name": "birthday", "data_type": "int", "enable_search": True, "create_embeddings": True}],
+            "bot": bot,
+            "user": user
+        }
+        processor.update_cognition_schema(pytest.metadata_id, metadata, user, bot)
+
+    def test_update_payload_metadata_not_found(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        metadata_id = '5349b4ddd2919d08c09890f3'
+        metadata = {
+            "metadata": [
+                {"column_name": "month", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "bot": bot,
+            "user": user
+        }
+        with pytest.raises(AppException, match="Schema with given id not found!"):
+            processor.update_cognition_schema(metadata_id, metadata, user, bot)
+
+    def test_delete_payload_metadata(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        processor.delete_cognition_schema(pytest.metadata_id, bot)
+
+    def test_delete_payload_metadata_does_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        with pytest.raises(AppException, match="Schema does not exists!"):
+            processor.delete_cognition_schema("507f191e050c19729de760ea", bot)
+
+    def test_get_payload_metadata_not_exists(self):
+        processor = MongoProcessor()
+        bot = 'testing'
+        assert list(processor.list_cognition_schema(bot)) == []
+
+    def test_get_payload_metadata(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        data = list(processor.list_cognition_schema(bot))
+        print(data)
+        assert data[0]
+        assert data[0]['_id']
 
     def test_save_payload_content_with_gpt_feature_disabled(self):
         processor = MongoProcessor()
@@ -14419,9 +14535,6 @@ class TestMongoProcessor:
         payload = {
             "data": {"name": "Sita", "engineer": "yes"},
             "content_type": "json",
-            "metadata": [{"column_name": "name", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}, {"column_name": "engineer", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}],
             "bot": bot,
             "user": user
         }
@@ -14437,12 +14550,46 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
+        metadata = {
+            "metadata": [
+                {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "bot": bot,
+            "user": user
+        }
+        processor.save_cognition_schema(metadata, user, bot)
+
         payload = {
             "data": {"name": "Nupur", "city": "Pune"},
-            "content_type": "json",
-            "metadata": [{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]}
+            "content_type": "json"}
         pytest.payload_id = processor.save_cognition_data(payload, user, bot)
+
+    def test_save_payload_content_metadata_missing(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        payload = {
+            "data": {"country": "India"},
+            "content_type": "json"}
+        with pytest.raises(AppException, match="Metadata related to payload not found!"):
+            processor.save_cognition_data(payload, user, bot)
+
+    def test_save_payload_content_invalid_data_type(self):
+        processor = MongoProcessor()
+        bot = 'test_bot_payload'
+        user = 'testUser'
+        metadata = {
+            "metadata": [
+                {"column_name": "number", "data_type": "int", "enable_search": True, "create_embeddings": True}],
+            "bot": bot,
+            "user": user
+        }
+        processor.save_cognition_schema(metadata, user, bot)
+        payload = {
+            "data": {"number": "Twenty-three"},
+            "content_type": "json"}
+        with pytest.raises(AppException, match="Invalid data type!"):
+            processor.save_cognition_data(payload, user, bot)
 
     def test_save_payload_content_with_update(self):
         processor = MongoProcessor()
@@ -14459,76 +14606,32 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Payload data already exists!"):
             processor.update_cognition_data(payload_id, payload, user, bot)
 
-    def test_save_payload_content_metadata_int(self):
+    def test_save_payload_content_data_empty(self):
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
         payload = {
-            "data": {"name": "Ram", "age": 23, "color": "red"},
+            "data": {},
             "content_type": "json",
-            "metadata": [{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
-            {"column_name": "color", "data_type": "str", "enable_search": False, "create_embeddings": True}]}
-        actual = processor.save_cognition_data(payload, user, bot)
-        assert actual
-
-    def test_save_payload_content_as_json(self):
-        processor = MongoProcessor()
-        bot = 'test_bot_payload'
-        user = 'testUser'
-        payload = {
-            "data": {"name": "Nupur", "age": 25, "city": "Bengaluru"},
-            "content_type": "json",
-            "metadata": [{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
-            {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}]}
-        actual = processor.save_cognition_data(payload, user, bot)
-        assert actual
-
-    def test_save_payload_content_column_name_empty(self):
-        processor = MongoProcessor()
-        bot = 'test_bot_payload'
-        user = 'testUser'
-        payload = {
-            "data": {"name": "Nupur"},
-            "content_type": "json",
-            "metadata": [{"column_name": "", "data_type": "int", "enable_search": True,
-                          "create_embeddings": True}],
-            "bot": bot,
-            "user": user}
-        with pytest.raises(ValidationError, match="Column name cannot be empty"):
-            CognitionData(**payload).save()
-
-    def test_save_payload_content_data_type_invalid(self):
-        processor = MongoProcessor()
-        bot = 'test_bot_payload'
-        user = 'testUser'
-        payload = {
-            "data": {"name": "Nupur"},
-            "content_type": "json",
-            "metadata": [{"column_name": "name", "data_type": "bool", "enable_search": True,
-                         "create_embeddings": True}],
             "bot": bot,
             "user": user
         }
-        with pytest.raises(ValidationError, match="Only str and int data types are supported"):
+        with pytest.raises(ValidationError, match="data cannot be empty"):
             CognitionData(**payload).save()
 
-    def test_save_payload_content_invalid_metadata_data_type(self):
+    def test_save_payload_content_type_text_data_json_invalid(self):
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
         payload = {
-            "data": {"name": "Ram", "age": "Twenty-Three", "color": "red"},
-            "content_type": "json",
-            "metadata": [
-                {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
-                {"column_name": "color", "data_type": "str", "enable_search": False, "create_embeddings": True}
-            ]
+            "data": {'color': 'red'},
+            "content_type": "text",
+            "bot": bot,
+            "user": user
         }
-        with pytest.raises(AppException, match="Invalid data type"):
-            actual = processor.save_cognition_data(payload, user, bot)
+        with pytest.raises(ValidationError, match="data of type dict is required if content type is json"):
+            CognitionData(**payload).save()
+
 
     def test_update_payload_content(self):
         processor = MongoProcessor()
@@ -14578,16 +14681,6 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot_payload'
         user = 'testUser'
-        payload = {
-            "data": {"subject": "DBMS", "year": "2"},
-            "content_type": "json",
-            "metadata": [{"column_name": "subject", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}, {"column_name": "year", "data_type": "str", "enable_search": True,
-                         "create_embeddings": True}],
-            "bot": bot,
-            "user": user
-        }
-        pytest.content_id = processor.save_cognition_data(payload, user, bot)
         data = list(processor.list_cognition_data(bot))
         assert data[0][
                    'content'] == 'Data science is an interdisciplinary field that involves extracting knowledge and insights from data using various scientific methods, algorithms, processes, and systems.'

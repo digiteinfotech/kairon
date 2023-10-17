@@ -11,7 +11,7 @@ from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT
-from kairon.shared.data.data_objects import CognitionData, LLMSettings
+from kairon.shared.data.data_objects import CognitionData, LLMSettings, CognitionSchema
 from kairon.shared.llm.factory import LLMFactory
 from kairon.shared.llm.gpt3 import GPT3FAQEmbedding, LLMBase
 from kairon.shared.utils import Utility
@@ -118,25 +118,35 @@ class TestLLM:
         bot = "test_embed_faq_text"
         user = "test"
         value = "nupurkhare"
+        CognitionSchema(
+            metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                      {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
+            collection_name="User_details",
+            bot=bot, user=user
+        ).save()
+        CognitionSchema(
+            metadata=[{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                      {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True},
+                      {"column_name": "role", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            collection_name="Country_details",
+            bot=bot, user=user).save()
+        # CognitionSchema(
+        #     metadata=[{"column_name": "role", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+        #     collection_name="Country_details",
+        #     bot=bot, user=user).save()
         test_content = CognitionData(
             data={"name": "Nupur", "city": "Pune"},
             content_type="json",
-            metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                      {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
             collection="User_details",
             bot=bot, user=user).save()
         test_content_two = CognitionData(
             data={"country": "Spain", "lang": "spanish"},
             content_type="json",
-            metadata=[{"column_name": "country", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                      {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True}],
             collection="Country_details",
             bot=bot, user=user).save()
         test_content_three = CognitionData(
             data={"role": "ds", "lang": "spanish"},
             content_type="json",
-            metadata=[{"column_name": "role", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                      {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True}],
             collection="Country_details",
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
@@ -207,7 +217,7 @@ class TestLLM:
                                                                                  "input": '{"country": "Spain", "lang": "spanish"}'}
             assert list(aioresponses.requests.values())[3][0].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][1].kwargs['json'] == {"model": "text-embedding-ada-002",
-                                                                                 "input": '{"role": "ds", "lang": "spanish"}'}
+                                                                                 "input": '{"lang": "spanish", "role": "ds"}'}
             assert list(aioresponses.requests.values())[3][1].kwargs['headers'] == request_header
             assert list(aioresponses.requests.values())[3][2].kwargs['json'] == {"model": "text-embedding-ada-002",
                                                                                  "input": '{"name": "Nupur", "city": "Pune"}'}
@@ -233,12 +243,14 @@ class TestLLM:
         bot = "test_embed_faq_json"
         user = "test"
         value = "nupurkhare"
-        test_content = CognitionData(
-            data={"name": "Ram", "age": "23", "color": "red"},
-            content_type="json",
+        CognitionSchema(
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
                       {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            bot=bot, user=user).save()
+        test_content = CognitionData(
+            data={"name": "Ram", "age": "23", "color": "red"},
+            content_type="json",
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -288,12 +300,15 @@ class TestLLM:
         bot = "test_embed_faq_int"
         user = "test"
         value = "nupurkhare"
-        test_content = CognitionData(
-            data={"name": "Ram", "age": 23, "color": "red"},
-            content_type="json",
+        CognitionSchema(
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
                       {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            collection_name="test_embed_faq_int_faq_embd",
+            bot=bot, user=user).save()
+        test_content = CognitionData(
+            data={"name": "Ram", "age": 23, "color": "red"},
+            content_type="json",
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -359,10 +374,12 @@ class TestLLM:
         bot = "test_embed_faq_json_no_metadata"
         user = "test"
         value = "nupurkhare"
+        CognitionSchema(
+            metadata=[],
+            bot=bot, user=user).save()
         test_content = CognitionData(
             data={"name": "Nupur", "age": 25, "city": "Bengaluru"},
             content_type="json",
-            metadata=[],
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 
@@ -485,6 +502,10 @@ class TestLLM:
         bot = "test_embed_faq_payload_upsert_error"
         user = "test"
         value = "nupurk"
+        CognitionSchema(
+            metadata=[],
+            bot=bot, user=user
+        ).save()
         test_content = CognitionData(
             data={
                 "filter": {
@@ -495,7 +516,6 @@ class TestLLM:
                 }
             },
             content_type="json",
-            metadata=[],
             bot=bot, user=user).save()
         secret = BotSecrets(secret_type=BotSecretType.gpt_key.value, value=value, bot=bot, user=user).save()
 

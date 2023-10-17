@@ -4,7 +4,7 @@ from fastapi import UploadFile, File, Security, APIRouter
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
-from kairon.api.models import Response, TextData, CognitiveDataRequest
+from kairon.api.models import Response, TextData, CognitiveDataRequest, CognitionSchemaRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import DESIGNER_ACCESS
@@ -131,6 +131,72 @@ async def list_collection(
     Fetches text content of the bot
     """
     return {"data": processor.list_collection(current_user.get_bot())}
+
+
+@router.post("/cognition/schema", response_model=Response)
+async def save_cognition_schema(
+        metadata: CognitionSchemaRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Saves and updates cognition metadata into the bot
+    """
+    return {
+        "message": "Schema saved!",
+        "data": {
+            "_id": processor.save_cognition_schema(
+                    metadata.dict(),
+                    current_user.get_user(),
+                    current_user.get_bot(),
+            )
+        }
+    }
+
+
+@router.put("/cognition/schema/{metadata_id}", response_model=Response)
+async def update_cognition_schema(
+        metadata_id: str,
+        metadata: CognitionSchemaRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Saves and updates cognition metadata into the bot
+    """
+    return {
+        "message": "Schema updated!",
+        "data": {
+            "_id": processor.update_cognition_schema(
+                    metadata_id,
+                    metadata.dict(),
+                    current_user.get_user(),
+                    current_user.get_bot(),
+            )
+        }
+    }
+
+
+@router.delete("/cognition/schema/{metadata_id}", response_model=Response)
+async def delete_cognition_schema(
+        metadata_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Deletes cognition content of the bot
+    """
+    processor.delete_cognition_schema(metadata_id, current_user.get_bot())
+    return {
+        "message": "Schema deleted!"
+    }
+
+
+@router.get("/cognition/schema", response_model=Response)
+async def list_cognition_schema(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches cognition content of the bot
+    """
+    return {"data": list(processor.list_cognition_schema(current_user.get_bot()))}
 
 
 @router.post("/cognition", response_model=Response)

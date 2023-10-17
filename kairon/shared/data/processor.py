@@ -90,7 +90,7 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, CognitionData, MultiFlowStoryMetadata,
-    Synonyms, Lookup, CognitionMetadata, LLMSettings, Analytics
+    Synonyms, Lookup, Analytics, CognitionSchema, ColumnMetadata
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
@@ -5758,7 +5758,29 @@ class MongoProcessor:
 
             yield action
 
+    def is_collection_limit_exceeded(self, bot, collection):
+        """
+        checks if collection limit is exhausted
+
+        :param bot: bot id
+        :param collection: Name of collection
+        :return: boolean
+        :raises: AppException
+        """
+
+        collections = self.list_collection(bot)
+        doc_count = CognitionData.objects(
+            bot=bot, collection__ne=None,
+        ).count()
+        if collection not in collections and doc_count >= BotSettings.objects(bot=bot).get().collection_limit:
+            return True
+        else:
+            return False
+
     def save_content(self, content: Text, user: Text, bot: Text, collection: Text = None):
+        if collection:
+            if self.is_collection_limit_exceeded(bot, collection):
+                raise AppException('Collection limit exceeded!')
         bot_settings = self.get_bot_settings(bot=bot, user=user)
         if not bot_settings["llm_settings"]['enable_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
@@ -5827,14 +5849,76 @@ class MongoProcessor:
         collections = list(CognitionData.objects(bot=bot).distinct(field='collection'))
         return collections
 
+    def save_cognition_schema(self, metadata: Dict, user: Text, bot: Text):
+        column_name = [meta['column_name'] for meta in metadata.get('metadata')]
+        for column in column_name:
+            Utility.is_exist(CognitionSchema, bot=bot, metadata__column_name=column,
+                             exp_message="Column already exists!")
+        metadata_obj = CognitionSchema(bot=bot, user=user)
+        metadata_obj.metadata = [ColumnMetadata(**meta) for meta in metadata.get('metadata')]
+        metadata_obj.collection_name = metadata.get('collection_name', None)
+        metadata_id = metadata_obj.save().to_mongo().to_dict()["_id"].__str__()
+        return metadata_id
+
+    def update_cognition_schema(self, metadata_id: str, metadata: Dict, user: Text, bot: Text):
+        metadata_items = metadata.get('metadata')
+        Utility.is_exist(CognitionSchema, bot=bot, id__ne=metadata_id, metadata=metadata_items,
+                         exp_message="Schema already exists!")
+        try:
+            metadata_obj = CognitionSchema.objects(bot=bot, id=metadata_id).get()
+            metadata_obj.metadata = [ColumnMetadata(**meta) for meta in metadata.get('metadata')]
+            metadata_obj.collection_name = metadata.get('collection_name')
+            metadata_obj.bot = bot
+            metadata_obj.user = user
+            metadata_obj.timestamp = datetime.utcnow()
+            metadata_obj.save()
+        except DoesNotExist:
+            raise AppException("Schema with given id not found!")
+
+    def delete_cognition_schema(self, metadata_id: str, bot: Text):
+        try:
+            metadata = CognitionSchema.objects(bot=bot, id=metadata_id).get()
+            metadata.delete()
+        except DoesNotExist:
+            raise AppException("Schema does not exists!")
+
+    def list_cognition_schema(self, bot: Text):
+        """
+        fetches metadata
+
+        :param bot: bot id
+        :return: yield dict
+        """
+        for value in CognitionSchema.objects(bot=bot):
+            final_data = {}
+            item = value.to_mongo().to_dict()
+            metadata = item.pop("metadata")
+            collection = item.pop('collection_name', None)
+            final_data["_id"] = item["_id"].__str__()
+            final_data['metadata'] = metadata
+            final_data['collection_name'] = collection
+            yield final_data
+
+    def __validate_metadata_and_payload(self, payload, bot: Text):
+        metadata = list(self.list_cognition_schema(bot))
+        data = payload.get('data')
+        collection = payload.get('collection', None)
+        matched_metadata = Utility.find_matching_metadata(data, metadata, collection)
+        if not matched_metadata:
+            raise AppException("Metadata related to payload not found!")
+        results = [metadata_entry for metadata_dict in matched_metadata for metadata_entry in metadata_dict['metadata']]
+        for metadata_dict in results:
+            Utility.retrieve_data(data, metadata_dict)
+
     def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
         bot_settings = self.get_bot_settings(bot=bot, user=user)
         if not bot_settings["llm_settings"]['enable_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
+        if payload.get('content_type') != CognitionDataType.text.value:
+            self.__validate_metadata_and_payload(payload, bot)
         payload_obj = CognitionData()
         payload_obj.data = payload.get('data')
         payload_obj.content_type = payload.get('content_type')
-        payload_obj.metadata = [CognitionMetadata(**meta) for meta in payload.get('metadata', [])]
         payload_obj.collection = payload.get('collection', None)
         payload_obj.user = user
         payload_obj.bot = bot
@@ -5877,10 +5961,8 @@ class MongoProcessor:
             item = value.to_mongo().to_dict()
             data = item.pop("data")
             data_type = item.pop("content_type")
-            metadata = item.pop("metadata")
             final_data["_id"] = item["_id"].__str__()
             final_data['content'] = data
             final_data['content_type'] = data_type
-            final_data['metadata'] = metadata
             final_data['collection'] = item.get('collection', None)
             yield final_data
