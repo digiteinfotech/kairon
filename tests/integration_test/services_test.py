@@ -1915,24 +1915,6 @@ def test_payload_upload_empty_data_text(monkeypatch):
     assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'data cannot be empty', 'type': 'value_error'}]
 
 
-def test_payload_upload_json_data_content_type_text(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    payload = {
-            "data": {"age": 23},
-            "content_type": "text",
-        }
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition",
-        json=payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'data of type dict is required if content type is json', 'type': 'value_error'}]
-
 
 def test_payload_updated_api():
     response = client.put(

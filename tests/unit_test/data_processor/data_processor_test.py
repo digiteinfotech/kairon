@@ -14676,19 +14676,6 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="data cannot be empty"):
             CognitionData(**payload).save()
 
-    def test_save_payload_content_type_text_data_json_invalid(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        payload = {
-            "data": {'color': 'red'},
-            "content_type": "text",
-            "bot": bot,
-            "user": user
-        }
-        with pytest.raises(ValidationError, match="data of type dict is required if content type is json"):
-            CognitionData(**payload).save()
-
     def test_update_payload_content(self):
         processor = CognitionDataProcessor()
         bot = 'test'

@@ -67,7 +67,5 @@ class CognitionData(Auditlog):
         if clean:
             self.clean()
 
-        if isinstance(self.data, dict) and self.content_type != CognitionDataType.json.value:
-            raise ValidationError("data of type dict is required if content type is json")
         if not self.data or (isinstance(self.data, str) and Utility.check_empty_string(self.data)):
             raise ValidationError("data cannot be empty")
