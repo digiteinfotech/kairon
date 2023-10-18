@@ -919,13 +919,8 @@ async def add_slots(
     :param current_user:
     :return: Success message with slot id
     """
-    try:
-        slot_value = request_data.dict()
-        slot_id = mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(),
-                                           user=current_user.get_bot(), raise_exception_if_exists=True)
-    except AppException as ae:
-        raise AppException(str(ae))
-
+    slot_id = mongo_processor.add_slot(slot_value=request_data.dict(), bot=current_user.get_bot(),
+                                       user=current_user.get_user(), raise_exception_if_exists=True)
     return {"message": "Slot added successfully!", "data": {"_id": slot_id}}
 
 
