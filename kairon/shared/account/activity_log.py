@@ -134,11 +134,10 @@ class UserActivityLogger:
 
         user_act_log = AuditLogData.objects(user=email, action=AuditlogActions.ACTIVITY.value,
                                             entity=UserActivityType.reset_password.value).order_by('-timestamp')
-        if email == password:
-            raise AppException("email and password cannot be same!")
-        if any(act_log.data is not None and act_log.data.get("password") is not None and
-               Utility.verify_password(password.strip(), act_log.data.get("password"))
-               for act_log in user_act_log):
+        if email.lower() == password.lower():
+            raise AppException("Email cannot be used as password!")
+        if any(act_log.data and act_log.data.get("password") and
+               Utility.verify_password(password.strip(), act_log.data.get("password")) for act_log in user_act_log):
             raise AppException("You have already used this password, try another!")
 
     @staticmethod

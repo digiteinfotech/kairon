@@ -13776,10 +13776,10 @@ def test_list_broadcast_config():
     actual["data"]['schedules'][1].pop("bot")
     actual["data"]['schedules'][1].pop("user")
     assert actual["data"] == {'schedules': [
-        {'name': 'first_scheduler_dynamic', 'connector_type': 'whatsapp', "pyscript_timeout": 10, "broadcast_type": "dynamic",
+        {'name': 'first_scheduler_dynamic', 'connector_type': 'whatsapp', "broadcast_type": "dynamic",
          'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *', "timezone": "Asia/Kolkata"},
          "pyscript": "send_msg('template_name', '9876543210')", 'status': True, "template_config": []},
-        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10, "broadcast_type": "static",
+        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "broadcast_type": "static",
          'recipients_config': {'recipients': '918958030541,'}, 'template_config': [
             {'template_id': 'brochure_pdf', "language": "en"}], 'status': True, "template_config": [{'template_id': 'brochure_pdf', "language": "en"}]}]}
 
@@ -13819,7 +13819,7 @@ def test_list_broadcast_():
     actual["data"]["schedules"][0].pop("timestamp")
     actual["data"]["schedules"][0].pop("user")
     assert actual["data"] == {'schedules': [
-        {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
+        {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
          'broadcast_type': 'static', 'recipients_config': {'recipients': '918958030541,'}, 'template_config': [
             {'template_id': 'brochure_pdf', "language": "en"}], 'bot': pytest.bot, 'status': True, }]}
 
@@ -13901,7 +13901,7 @@ def test_get_bot_settings():
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
                               'test_limit_per_day': 5,
-                              'training_limit_per_day': 5,
+                              'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 60,
                               'website_data_generator_depth_search_limit': 2,
                               'whatsapp': 'meta'}
 
@@ -13975,7 +13975,7 @@ def test_update_analytics_settings():
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
                               'test_limit_per_day': 5,
-                              'training_limit_per_day': 5,
+                              'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 60,
                               'website_data_generator_depth_search_limit': 2,
                               'whatsapp': 'meta'}
 

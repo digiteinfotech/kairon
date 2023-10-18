@@ -52,7 +52,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 
         script = self.config['pyscript']
-        timeout = self.config.get('pyscript_timeout', Utility.environment["actors"]["default_timeout"])
+        timeout = self.config.get('pyscript_timeout', 60)
         channel_client = self.__get_client()
         client = self.__get_db_client()
 

@@ -2699,7 +2699,7 @@ class TestActions:
                                 'rephrase_response': False,
                                 'test_limit_per_day': 5,
                                 'training_limit_per_day': 5,
-                                'user': 'test_user',
+                                'user': 'test_user', 'dynamic_broadcast_execution_timeout': 60,
                                 'website_data_generator_depth_search_limit': 2,
                                 'whatsapp': 'meta'}
 
@@ -3939,7 +3939,7 @@ class TestActions:
                                 'notification_scheduling_limit': 4,
                                 'refresh_token_expiry': 60,
                                 'rephrase_response': False,
-                                'status': True,
+                                'status': True, 'dynamic_broadcast_execution_timeout': 60,
                                 'test_limit_per_day': 5,
                                 'training_limit_per_day': 5,
                                 'website_data_generator_depth_search_limit': 2,

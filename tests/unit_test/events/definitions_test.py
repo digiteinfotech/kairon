@@ -1102,7 +1102,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
                           'recipients_config': {'recipients': "918958030541,"},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
@@ -1148,7 +1148,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
                           'recipients_config': {'recipients': "918958030541,"},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
@@ -1193,7 +1193,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
@@ -1233,7 +1233,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
@@ -1254,7 +1254,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
@@ -1282,7 +1282,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
-        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'pyscript_timeout': 10, "broadcast_type": "static",
+        assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}

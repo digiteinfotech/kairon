@@ -35,7 +35,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         whether the event trigger limit has exceeded.
         """
         date_today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        bot_settings = MongoProcessor().get_bot_settings(self.bot, self.user)
+        bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
         if bot_settings['notification_scheduling_limit'] <= \
                 len(list(MessageBroadcastProcessor.list_settings(self.bot, timestamp__gt=date_today))):
             raise AppException("Notification scheduling limit reached!")
@@ -129,6 +129,8 @@ class MessageBroadcastEvent(ScheduledEventsBase):
 
     def __retrieve_config(self, doc_id: Text):
         config = MessageBroadcastProcessor.get_settings(doc_id, self.bot)
+        bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
+        config["pyscript_timeout"] = bot_settings.get("dynamic_broadcast_execution_timeout", 60)
         reference_id = MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, user=self.user, config=config,
             status=EVENT_STATUS.INPROGRESS.value, broadcast_id=doc_id

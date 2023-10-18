@@ -895,6 +895,7 @@ class BotSettings(Auditlog):
     data_importer_limit_per_day = IntField(default=5)
     multilingual_limit_per_day = IntField(default=2)
     data_generation_limit_per_day = IntField(default=3)
+    dynamic_broadcast_execution_timeout = IntField(default=60)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 

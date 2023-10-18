@@ -1180,7 +1180,7 @@ class TestEventExecution:
         user = 'test_user'
         config = {
             "name": "one_time_schedule", "broadcast_type": "static",
-            "connector_type": "whatsapp", 'pyscript_timeout': 10,
+            "connector_type": "whatsapp",
             "recipients_config": {
                 "recipients": "918958030541,"
             },
@@ -1228,7 +1228,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
@@ -1249,6 +1249,7 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
         assert logged_config == config
         print(logs)
         assert logs[0][1] == {'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
@@ -1309,7 +1310,7 @@ class TestEventExecution:
 
         config = {
             "name": "one_time_schedule","broadcast_type": "static",
-            "connector_type": "whatsapp", 'pyscript_timeout': 30,
+            "connector_type": "whatsapp",
             "recipients_config": {
                 "recipients": "9876543210, 876543212345",
             },
@@ -1335,7 +1336,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
         mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
@@ -1356,6 +1357,7 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
         assert logged_config == config
         assert logs[0][2] == {'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
                               'status': 'Completed', 'user': 'test_user', 'broadcast_id': event_id,
@@ -1406,7 +1408,7 @@ class TestEventExecution:
         user = 'test_user'
         config = {
             "name": "one_time_schedule", "broadcast_type": "static",
-            "connector_type": "whatsapp", 'pyscript_timeout': 30,
+            "connector_type": "whatsapp",
             "recipients_config": {
                 "recipients": None,
             },
@@ -1426,7 +1428,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
@@ -1446,6 +1448,7 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
         assert not logged_config.pop("recipients_config")
         config.pop("recipients_config")
         assert logged_config == config
@@ -1483,7 +1486,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -1506,7 +1509,7 @@ class TestEventExecution:
         user = 'test_user'
         config = {
             "name": "one_time_schedule", "broadcast_type": "static",
-            "connector_type": "whatsapp", 'pyscript_timeout': 30,
+            "connector_type": "whatsapp",
             "recipients_config": {
                 "recipients": "918958030541"
             },
@@ -1526,7 +1529,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
         event = MessageBroadcastEvent(bot, user)
@@ -1549,6 +1552,7 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
         assert logged_config == config
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
@@ -1572,7 +1576,7 @@ class TestEventExecution:
 
         config = {
             "name": "one_time_schedule", "broadcast_type": "static",
-            "connector_type": "whatsapp", 'pyscript_timeout': 10,
+            "connector_type": "whatsapp",
             "recipients_config": {
                 "recipients": "918958030541,"
             },
@@ -1622,7 +1626,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
         mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10, "dynamic_broadcast_execution_timeout": 60}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
         with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
@@ -1647,6 +1651,7 @@ class TestEventExecution:
         logs[0][1].pop("timestamp")
         reference_id = logs[0][1].pop("reference_id")
         logged_config = logs[0][1].pop("config")
+        logged_config.pop('pyscript_timeout')
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
@@ -1704,7 +1709,7 @@ class TestEventExecution:
         script = textwrap.dedent(script)
         config = {
             "name": "one_time_schedule", "broadcast_type": "dynamic",
-            "connector_type": "whatsapp", 'pyscript_timeout': 30,
+            "connector_type": "whatsapp",
             "pyscript": script
         }
         template = [
@@ -1750,7 +1755,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "brochure_pdf", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
@@ -1816,6 +1821,7 @@ class TestEventExecution:
             assert log in expected_logs
 
         logged_config.pop("status")
+        logged_config.pop('pyscript_timeout')
         logged_config.pop("timestamp")
         logged_config.pop("_id")
         assert logged_config.pop("template_config") == []
@@ -1844,7 +1850,7 @@ class TestEventExecution:
         script = textwrap.dedent(script)
         config = {
             "name": "one_time_schedule", "broadcast_type": "dynamic",
-            "connector_type": "whatsapp", 'pyscript_timeout': 30,
+            "connector_type": "whatsapp",
             "pyscript": script
         }
 
@@ -1855,7 +1861,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -1870,6 +1876,7 @@ class TestEventExecution:
         [log.pop("timestamp") for log in logs[0]]
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0].pop("config")
+        logged_config.pop('pyscript_timeout')
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
@@ -1899,8 +1906,7 @@ class TestEventExecution:
         script = textwrap.dedent(script)
         config = {
             "name": "one_time_schedule", "broadcast_type": "dynamic",
-            "connector_type": "whatsapp", 'pyscript_timeout': 1,
-            "pyscript": script
+            "connector_type": "whatsapp", "pyscript": script
         }
 
         url = f"http://localhost:5001/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
@@ -1910,7 +1916,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 1}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -1933,6 +1939,7 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 

@@ -1135,7 +1135,7 @@ class TestAccountProcessor:
         monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('integ2@gmail.com')
         loop = asyncio.new_event_loop()
-        with pytest.raises(AppException, match='email and password cannot be same!'):
+        with pytest.raises(AppException, match='Email cannot be used as password!'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "integ2@gmail.com"))
 
     def test_reset_link_not_within_cooldown_period(self, monkeypatch):
