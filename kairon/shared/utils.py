@@ -19,7 +19,7 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict, Union, Any
+from typing import Text, List, Dict, Union
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
@@ -66,7 +66,7 @@ from .constants import EventClass
 from .constants import MaskingStrategy, SYSTEM_TRIGGERED_UTTERANCES, ChannelTypes, PluginTypes
 from .data.constant import TOKEN_TYPE, KAIRON_TWO_STAGE_FALLBACK, SLOT_TYPE
 from .data.dto import KaironStoryStep
-from .models import StoryStepType, LlmPromptType, LlmPromptSource, CognitionMetadataType
+from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
 
 
@@ -135,44 +135,6 @@ class Utility:
             return True
         else:
             return False
-
-    @staticmethod
-    def retrieve_data(data: Any, metadata: Dict):
-        if metadata and isinstance(data, dict):
-            data_type = metadata['data_type']
-            column_name = metadata['column_name']
-            if column_name in data and data[column_name] and data_type == CognitionMetadataType.int.value:
-                try:
-                    return int(data[column_name])
-                except ValueError:
-                    raise AppException("Invalid data type!")
-            else:
-                return data[column_name]
-
-    @staticmethod
-    def find_matching_metadata(data: Any, metadata: List, collection: Text = None):
-        matching_metadata = [
-            metadata_element for metadata_element in metadata
-            if (not collection or collection == metadata_element.get("collection_name")) and
-               any(entry["column_name"] in data for entry in metadata_element["metadata"])
-        ]
-        return matching_metadata if matching_metadata else None
-
-    @staticmethod
-    def get_embeddings_and_payload_data(data: Any, metadata: List):
-        search_payload = {}
-        create_embedding_data = {}
-        for metadata_item in metadata:
-            for metadata_dict in metadata_item["metadata"]:
-                column_name = metadata_dict["column_name"]
-                if column_name in data.keys():
-                    converted_value = Utility.retrieve_data(data, metadata_dict)
-                    if converted_value and metadata_dict["enable_search"]:
-                        search_payload[column_name] = converted_value
-                    if converted_value and metadata_dict["create_embeddings"]:
-                        create_embedding_data[column_name] = converted_value
-            create_embedding_data = json.dumps(create_embedding_data)
-            return search_payload, create_embedding_data
 
     @staticmethod
     def validate_slot_initial_value_and_values(slot_value: Dict):

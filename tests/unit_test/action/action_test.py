@@ -2721,7 +2721,8 @@ class TestActions:
                                 'user': 'test_user',
                                 'website_data_generator_depth_search_limit': 2,
                                 'whatsapp': 'meta',
-                                'collection_limit': 5}
+                                'cognition_collections_limit': 3,
+                              'cognition_columns_per_collection_limit': 5}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3964,7 +3965,8 @@ class TestActions:
                                 'training_limit_per_day': 5,
                                 'website_data_generator_depth_search_limit': 2,
                                 'whatsapp': 'meta',
-                                'collection_limit': 5}
+                                'cognition_collections_limit': 3,
+                                'cognition_columns_per_collection_limit': 5}
 
     def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"

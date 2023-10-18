@@ -7,6 +7,7 @@ from starlette.responses import FileResponse
 from kairon.api.models import Response, TextData, CognitiveDataRequest, CognitionSchemaRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
+from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
@@ -14,6 +15,7 @@ from kairon.shared.utils import Utility
 
 router = APIRouter()
 processor = MongoProcessor()
+cognition_processor = CognitionDataProcessor()
 
 
 @router.post("/faq/upload", response_model=Response)
@@ -63,7 +65,7 @@ async def save_bot_text(
     return {
         "message": "Text saved!",
         "data": {
-            "_id": processor.save_content(
+            "_id": cognition_processor.save_content(
                     text.data,
                     current_user.get_user(),
                     current_user.get_bot(),
@@ -86,7 +88,7 @@ async def update_bot_text(
     return {
         "message": "Text updated!",
         "data": {
-            "_id": processor.update_content(
+            "_id": cognition_processor.update_content(
                 text_id,
                 text.data,
                 current_user.get_user(),
@@ -105,7 +107,7 @@ async def delete_bot_text(
     """
     Deletes text content of the bot
     """
-    processor.delete_content(text_id, current_user.get_user(), current_user.get_bot())
+    cognition_processor.delete_content(text_id, current_user.get_user(), current_user.get_bot())
     return {
         "message": "Text deleted!"
     }
@@ -120,7 +122,7 @@ async def get_text(
     Fetches text content of the bot
     """
     kwargs = request.query_params._dict.copy()
-    return {"data": list(processor.get_content(current_user.get_bot(), **kwargs))}
+    return {"data": list(cognition_processor.get_content(current_user.get_bot(), **kwargs))}
 
 
 @router.get("/text/faq/collection", response_model=Response)
@@ -130,7 +132,7 @@ async def list_collection(
     """
     Fetches text content of the bot
     """
-    return {"data": processor.list_collection(current_user.get_bot())}
+    return {"data": cognition_processor.list_cognition_collections(current_user.get_bot())}
 
 
 @router.post("/cognition/schema", response_model=Response)
@@ -144,7 +146,7 @@ async def save_cognition_schema(
     return {
         "message": "Schema saved!",
         "data": {
-            "_id": processor.save_cognition_schema(
+            "_id": cognition_processor.save_cognition_schema(
                     metadata.dict(),
                     current_user.get_user(),
                     current_user.get_bot(),
@@ -165,7 +167,7 @@ async def update_cognition_schema(
     return {
         "message": "Schema updated!",
         "data": {
-            "_id": processor.update_cognition_schema(
+            "_id": cognition_processor.update_cognition_schema(
                     metadata_id,
                     metadata.dict(),
                     current_user.get_user(),
@@ -183,7 +185,7 @@ async def delete_cognition_schema(
     """
     Deletes cognition content of the bot
     """
-    processor.delete_cognition_schema(metadata_id, current_user.get_bot())
+    cognition_processor.delete_cognition_schema(metadata_id, current_user.get_bot())
     return {
         "message": "Schema deleted!"
     }
@@ -196,7 +198,7 @@ async def list_cognition_schema(
     """
     Fetches cognition content of the bot
     """
-    return {"data": list(processor.list_cognition_schema(current_user.get_bot()))}
+    return {"data": list(cognition_processor.list_cognition_schema(current_user.get_bot()))}
 
 
 @router.post("/cognition", response_model=Response)
@@ -210,7 +212,7 @@ async def save_cognition_data(
     return {
         "message": "Record saved!",
         "data": {
-            "_id": processor.save_cognition_data(
+            "_id": cognition_processor.save_cognition_data(
                     cognition.dict(),
                     current_user.get_user(),
                     current_user.get_bot(),
@@ -231,7 +233,7 @@ async def update_cognition_data(
     return {
         "message": "Record updated!",
         "data": {
-            "_id": processor.update_cognition_data(
+            "_id": cognition_processor.update_cognition_data(
                 cognition_id,
                 cognition.dict(),
                 current_user.get_user(),
@@ -249,7 +251,7 @@ async def delete_cognition_data(
     """
     Deletes cognition content of the bot
     """
-    processor.delete_cognition_data(cognition_id, current_user.get_bot())
+    cognition_processor.delete_cognition_data(cognition_id, current_user.get_bot())
     return {
         "message": "Record deleted!"
     }
@@ -262,4 +264,4 @@ async def list_cognition_data(
     """
     Fetches cognition content of the bot
     """
-    return {"data": list(processor.list_cognition_data(current_user.get_bot()))}
+    return {"data": list(cognition_processor.list_cognition_data(current_user.get_bot()))}

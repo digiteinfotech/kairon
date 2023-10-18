@@ -696,73 +696,6 @@ class Rules(Auditlog):
         DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
-class ColumnMetadata(EmbeddedDocument):
-    column_name = StringField(required=True)
-    data_type = StringField(required=True, default=CognitionMetadataType.str.value,
-                            choices=[CognitionMetadataType.str.value, CognitionMetadataType.int.value])
-    enable_search = BooleanField(default=True)
-    create_embeddings = BooleanField(default=True)
-
-    def validate(self, clean=True):
-        if clean:
-            self.clean()
-        if self.data_type not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value]:
-            raise ValidationError("Only str and int data types are supported")
-        if Utility.check_empty_string(self.column_name):
-            raise ValidationError("Column name cannot be empty")
-
-    def clean(self):
-        if not Utility.check_empty_string(self.column_name):
-            self.column_name = self.column_name.strip().lower()
-
-
-@auditlogger.log
-@push_notification.apply
-class CognitionSchema(Auditlog):
-    metadata = ListField(EmbeddedDocumentField(ColumnMetadata))
-    collection_name = StringField(default=None)
-    user = StringField(required=True)
-    bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
-
-    meta = {"indexes": [{"fields": ["bot"]}]}
-
-    def validate(self, clean=True):
-        if clean:
-            self.clean()
-
-        if self.metadata:
-            for metadata_dict in self.metadata:
-                metadata_dict.validate()
-
-
-@auditlogger.log
-@push_notification.apply
-class CognitionData(Auditlog):
-    vector_id = SequenceField(required=True)
-    data = DynamicField(required=True)
-    content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value,
-                                                            CognitionDataType.json.value])
-    collection = StringField(default=None)
-    user = StringField(required=True)
-    bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
-
-    meta = {"indexes": [{"fields": ["$data", "bot"]}]}
-
-    def validate(self, clean=True):
-        if clean:
-            self.clean()
-
-        from kairon.shared.utils import Utility
-
-        if isinstance(self.data, dict) and self.content_type != CognitionDataType.json.value:
-            raise ValidationError("data of type dict is required if content type is json")
-        if (not isinstance(self.data, dict) and Utility.check_empty_string(self.data)) or (
-                isinstance(self.data, dict) and self.data == {}):
-            raise ValidationError("data cannot be empty")
-
-
 @auditlogger.log
 @push_notification.apply
 class Configs(Auditlog):
@@ -917,7 +850,8 @@ class BotSettings(Auditlog):
     data_importer_limit_per_day = IntField(default=5)
     multilingual_limit_per_day = IntField(default=2)
     data_generation_limit_per_day = IntField(default=3)
-    collection_limit = IntField(default=5)
+    cognition_collections_limit = IntField(default=3)
+    cognition_columns_per_collection_limit = IntField(default=5)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 

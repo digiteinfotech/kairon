@@ -965,8 +965,8 @@ class ColumnMetadata(BaseModel):
 
 
 class CognitionSchemaRequest(BaseModel):
-    metadata: List[ColumnMetadata] = None
-    collection_name: str = None
+    metadata: List[ColumnMetadata]
+    collection_name: str
 
 
 class CognitiveDataRequest(BaseModel):
@@ -982,7 +982,7 @@ class CognitiveDataRequest(BaseModel):
         content_type = values.get("content_type")
         if isinstance(data, dict) and content_type != CognitionDataType.json.value:
             raise ValueError("data of type dict is required if content type is json")
-        if (not isinstance(data, dict) and Utility.check_empty_string(data)) or (isinstance(data, dict) and data == {}):
+        if not data or (isinstance(data, str) and Utility.check_empty_string(data)):
             raise ValueError("data cannot be empty")
         return values
 
