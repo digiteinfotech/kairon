@@ -175,7 +175,7 @@ class Authentication:
 
         claims_str = json.dumps(token_claims)
         encrypted_claims = Utility.encrypt_message(claims_str)
-        encoded_jwt = {"sub": encrypted_claims, "is_enc": True}
+        encoded_jwt = {"sub": encrypted_claims, "version": "2.0"}
         [encoded_jwt.update({claim: to_encode[claim]}) for claim in ["exp", "iat"] if to_encode.get(claim)]
         return encoded_jwt
 

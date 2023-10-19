@@ -271,7 +271,7 @@ class TestAccountProcessor:
 
     def test_update_bot_access(self):
         account_bot_info = \
-        AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
         assert ('test_version_2', 'fshaikh@digite.com', 'Fahad Ali', 'udit') == AccountProcessor.update_bot_access(
@@ -293,7 +293,7 @@ class TestAccountProcessor:
 
     def test_update_bot_access_invalid_role(self):
         account_bot_info = \
-        AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
 
@@ -303,7 +303,7 @@ class TestAccountProcessor:
 
     def test_update_bot_access_to_same_role(self):
         account_bot_info = \
-        AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
+            AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
 
@@ -827,7 +827,8 @@ class TestAccountProcessor:
         assert value[0]["action"] == 'activity'
         assert value[0]["user"] == "nupur@gmail.com"
         assert value[0]["timestamp"]
-        assert value[0]["data"] == {'message': ['Inactive Account Please contact system admin!'], 'username': 'nupur@gmail.com'}
+        assert value[0]["data"] == {'message': ['Inactive Account Please contact system admin!'],
+                                    'username': 'nupur@gmail.com'}
 
     @pytest.fixture
     def mock_user_inactive(self, monkeypatch):
@@ -1127,10 +1128,12 @@ class TestAccountProcessor:
         with pytest.raises(AppException, match='Password reset limit exhausted. Please come back in *'):
             loop.run_until_complete(AccountProcessor.overwrite_password(token, "Welcome@3"))
 
-    @mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_password_reset_within_cooldown_period', autospec=True)
+    @mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_password_reset_within_cooldown_period',
+                autospec=True)
     def test_overwrite_password_email_password_same(self, mock_password_reset, monkeypatch):
         def _password_reset(*args, **kwargs):
             return
+
         mock_password_reset.return_value = _password_reset
         monkeypatch.setattr(MailUtility, 'trigger_smtp', self.mock_smtp)
         token = Utility.generate_token('integ2@gmail.com')
@@ -1205,7 +1208,7 @@ class TestAccountProcessor:
         algorithm = Utility.environment['security']["algorithm"]
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         assert round((datetime.datetime.fromtimestamp(payload.get('exp')) - start_date).total_seconds() / 60) == 180
-        assert payload["is_enc"] == True
+        assert payload["version"] == "2.0"
         assert not Utility.check_empty_string(payload['sub'])
         claims = Utility.decrypt_message(payload['sub'])
         claims = json.loads(claims)
@@ -1238,7 +1241,8 @@ class TestAccountProcessor:
         )
         username = "nupur.khare@digite.com"
         password = "Welcome@15"
-        access_token, access_token_expiry, new_refresh_token, refresh_token_expiry = Authentication.authenticate(username, password)
+        access_token, access_token_expiry, new_refresh_token, refresh_token_expiry = Authentication.authenticate(
+            username, password)
         refresh_token_expiry = datetime.datetime.fromtimestamp(refresh_token_expiry, tz=datetime.timezone.utc)
 
         payload = Utility.decode_limited_access_token(access_token)
@@ -1255,7 +1259,8 @@ class TestAccountProcessor:
         assert data.get("primary-token-type") == TOKEN_TYPE.LOGIN.value
         assert data.get("role") == ACCESS_ROLES.TESTER.value
         assert data.get("access-limit") == ['/api/auth/token/refresh']
-        assert round((refresh_token_expiry - iat).total_seconds() / 60) == Utility.environment['security']["refresh_token_expire"]
+        assert round((refresh_token_expiry - iat).total_seconds() / 60) == Utility.environment['security'][
+            "refresh_token_expire"]
 
     def test_authenticate_incorrect_user(self):
         AccountProcessor.add_user(
@@ -1293,9 +1298,10 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token, refresh_token = Authentication.generate_integration_token(bot, user, name='integration_token', role='chat')
+        token, refresh_token = Authentication.generate_integration_token(bot, user, name='integration_token',
+                                                                         role='chat')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        assert payload["is_enc"] == True
+        assert payload["version"] == "2.0"
         assert not Utility.check_empty_string(payload['sub'])
         claims = Utility.decrypt_message(payload['sub'])
         payload = json.loads(claims)
@@ -1320,7 +1326,7 @@ class TestAccountProcessor:
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token, _ = Authentication.generate_integration_token(bot, user, name='integration_token', role='tester')
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        assert payload["is_enc"] == True
+        assert payload["version"] == "2.0"
         assert not Utility.check_empty_string(payload['sub'])
         claims = Utility.decrypt_message(payload['sub'])
         payload = json.loads(claims)
@@ -1346,7 +1352,7 @@ class TestAccountProcessor:
             bot, user, expiry=15, name='integration_token_with_expiry', role='designer'
         )
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        assert payload["is_enc"] == True
+        assert payload["version"] == "2.0"
         assert not Utility.check_empty_string(payload['sub'])
         claims = Utility.decrypt_message(payload['sub'])
         payload = json.loads(claims)
@@ -1383,12 +1389,14 @@ class TestAccountProcessor:
             return {"account": 1000}
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
-        token, refresh_token = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
-                                                          name='integration_token_with_access_limit', role='admin')
+        token, refresh_token = Authentication.generate_integration_token(bot, user, expiry=15,
+                                                                         access_limit=access_limit,
+                                                                         name='integration_token_with_access_limit',
+                                                                         role='admin')
         pytest.refresh_token = refresh_token
         pytest.dynamic_token = token
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        assert payload["is_enc"] == True
+        assert payload["version"] == "2.0"
         assert not Utility.check_empty_string(payload['sub'])
         claims = Utility.decrypt_message(payload['sub'])
         payload = json.loads(claims)
@@ -1411,7 +1419,8 @@ class TestAccountProcessor:
         del claims['iat']
         del claims['exp']
         assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': 'refresh', 'role': 'tester', 'account': 1000,
-                          'name': 'integration_token_with_access_limit', 'primary-token-type': TOKEN_TYPE.INTEGRATION.value,
+                          'name': 'integration_token_with_access_limit',
+                          'primary-token-type': TOKEN_TYPE.INTEGRATION.value,
                           'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
                           'access-limit': ['/api/auth/.+/token/refresh']}
 
@@ -1448,7 +1457,8 @@ class TestAccountProcessor:
         assert round((refresh_token_expiry - iat).total_seconds() / 60) == 60
         del claims['iat']
         del claims['exp']
-        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': TOKEN_TYPE.REFRESH.value, 'role': 'tester', 'account': 1000,
+        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': TOKEN_TYPE.REFRESH.value, 'role': 'tester',
+                          'account': 1000,
                           'name': 'integration_token_with_access_limit',
                           'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
                           'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
@@ -1471,7 +1481,8 @@ class TestAccountProcessor:
         assert round((new_refresh_token_expiry - iat).total_seconds() / 60) == 60
         del claims['iat']
         del claims['exp']
-        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': TOKEN_TYPE.REFRESH.value, 'role': 'tester', 'account': 1000,
+        assert claims == {'ttl': 15, 'bot': bot, 'sub': user, 'type': TOKEN_TYPE.REFRESH.value, 'role': 'tester',
+                          'account': 1000,
                           'name': 'from refresh token',
                           'primary-token-type': TOKEN_TYPE.DYNAMIC.value,
                           'primary-token-role': 'admin', 'primary-token-access-limit': access_limit,
@@ -1514,7 +1525,8 @@ class TestAccountProcessor:
         access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token,
                                                                                                           user)
         data_stack = Utility.decode_limited_access_token(refresh)
-        value = list(AuditLogData.objects(attributes__key='account', attributes__value=pytest.account, entity="login_refresh_token").order_by("-timestamp"))
+        value = list(AuditLogData.objects(attributes__key='account', attributes__value=pytest.account,
+                                          entity="login_refresh_token").order_by("-timestamp"))
         assert value[0]['entity'] == "login_refresh_token"
         assert value[0]['user'] == "nupurrkhare@digite.com"
         assert value[0]['timestamp']
@@ -1539,15 +1551,20 @@ class TestAccountProcessor:
         assert data.get("type") == TOKEN_TYPE.LOGIN.value
         refresh_token_expiry = datetime.datetime.fromtimestamp(refresh_token_exp, tz=datetime.timezone.utc)
         iat = datetime.datetime.fromtimestamp(payload.get('iat'), tz=datetime.timezone.utc)
-        assert round((refresh_token_expiry - iat).total_seconds() / 60) == Utility.environment['security']["refresh_token_expire"]
-        metering = list(AuditLogData.objects(attributes__key='account', attributes__value=user['account'], entity="login").order_by("-timestamp"))
+        assert round((refresh_token_expiry - iat).total_seconds() / 60) == Utility.environment['security'][
+            "refresh_token_expire"]
+        metering = list(
+            AuditLogData.objects(attributes__key='account', attributes__value=user['account'], entity="login").order_by(
+                "-timestamp"))
         assert metering[0]["entity"] == "login"
         assert metering[0]["user"] == "nupur.khare@digite.com"
         assert metering[0]["timestamp"]
 
-        access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token, user)
+        access, access_exp, refresh, refresh_exp = Authentication.generate_login_token_from_refresh_token(refresh_token,
+                                                                                                          user)
         data_stack = Utility.decode_limited_access_token(refresh)
-        value = list(AuditLogData.objects(attributes__key='account', attributes__value=user['account'], entity="login_refresh_token").order_by("-timestamp"))
+        value = list(AuditLogData.objects(attributes__key='account', attributes__value=user['account'],
+                                          entity="login_refresh_token").order_by("-timestamp"))
         assert value[0]["entity"] == "login_refresh_token"
         assert value[0]["user"] == "nupur.khare@digite.com"
         assert value[0]["timestamp"]
@@ -1601,9 +1618,9 @@ class TestAccountProcessor:
 
         monkeypatch.setattr(AccountProcessor, "get_bot", __mock_get_bot)
         token, _ = Authentication.generate_integration_token(bot, user, expiry=15, access_limit=access_limit,
-                                                          token_type=TOKEN_TYPE.DYNAMIC.value)
+                                                             token_type=TOKEN_TYPE.DYNAMIC.value)
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        assert payload["is_enc"] == True
+        assert payload["version"] == "2.0"
         assert not Utility.check_empty_string(payload['sub'])
         claims = Utility.decrypt_message(payload['sub'])
         payload = json.loads(claims)
@@ -2334,7 +2351,8 @@ class TestAccountProcessor:
         monkeypatch.setitem(Utility.email_conf["email"], 'enable', True)
         monkeypatch.setitem(Utility.environment['user'], "validate_trusted_device", True)
         request = Request({'type': 'http', 'headers': Headers({"X-Forwarded-For": "34.75.89.98"}).raw})
-        url, geo_location = AccountProcessor.get_location_and_add_trusted_device("trust@digite.com", "1234567890fghj", request)
+        url, geo_location = AccountProcessor.get_location_and_add_trusted_device("trust@digite.com", "1234567890fghj",
+                                                                                 request)
         assert not Utility.check_empty_string(url)
 
     def test_list_all_trusted_device(self):
@@ -2690,10 +2708,10 @@ class TestAccountProcessor:
         assert all([i for i in temp if type(i) is dict])
 
     def test_add_get_user_org_mapping(self):
-        user="test@demo.in"
-        organization="new_test"
-        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
-        value=True
+        user = "test@demo.in"
+        organization = "new_test"
+        feature_type = FeatureMappings.ONLY_SSO_LOGIN.value
+        value = True
         OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
 
         result = OrgProcessor.get_user_org_mapping(user=user, org=organization, feature=feature_type)
@@ -2701,23 +2719,23 @@ class TestAccountProcessor:
         assert result == value
 
     def test_add_get_user_org_mapping_another(self):
-        user="test_another@demo.in"
-        organization="new_test"
-        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
-        value=True
+        user = "test_another@demo.in"
+        organization = "new_test"
+        feature_type = FeatureMappings.ONLY_SSO_LOGIN.value
+        value = True
         OrgProcessor.upsert_user_org_mapping(user=user, org=organization, feature=feature_type, value=value)
         assert not None
 
     def test_validate_sso_only(self):
-        user="test@demo.in"
+        user = "test@demo.in"
         with pytest.raises(AppException, match="Login with your org SSO url, Login with username/password not allowed"):
             OrgProcessor.validate_sso_only(user=user)
 
     def test_update_user_specific_user_org_mapping(self):
-        user="test@demo.in"
-        organization="new_test"
-        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
-        value=False
+        user = "test@demo.in"
+        organization = "new_test"
+        feature_type = FeatureMappings.ONLY_SSO_LOGIN.value
+        value = False
 
         result = OrgProcessor.get_user_org_mapping(user=user, org=organization, feature=feature_type)
 
@@ -2730,9 +2748,9 @@ class TestAccountProcessor:
         assert result == value
 
     def test_update_user_org_mapping_org_specific(self):
-        organization="new_test"
-        feature_type=FeatureMappings.ONLY_SSO_LOGIN.value
-        value=False
+        organization = "new_test"
+        feature_type = FeatureMappings.ONLY_SSO_LOGIN.value
+        value = False
         OrgProcessor.update_org_mapping(org=organization, feature=feature_type, value=value)
 
         result = OrgProcessor.get_user_org_mapping(user="test@demo.in", org=organization, feature=feature_type)
@@ -2745,18 +2763,19 @@ class TestAccountProcessor:
         assert result == new_val
 
     def test_delete_org_mapping(self):
-        organization="new_test"
+        organization = "new_test"
         result = OrgProcessor.delete_org_mapping(organization)
         assert result >= 2
 
     def test_delete_org_mapping_not_exists(self):
-        organization="not_exists"
+        organization = "not_exists"
         result = OrgProcessor.delete_org_mapping(organization)
         assert result == 0
 
     def test_delete_org(self, monkeypatch):
         def _delete_idp(*args, **kwargs):
             return None
+
         monkeypatch.setattr(IDPProcessor, 'delete_idp', _delete_idp)
 
         account = 1234
@@ -2831,7 +2850,9 @@ class TestAccountProcessor:
         data = {'status': 'pending'}
         kwargs = {'message': ['Reset password'], 'action': 'activity'}
         AuditDataProcessor.log(entity, account['_id'], bot, None, data, **kwargs)
-        count = AuditLogData.objects(attributes=[{'key': 'account', 'value': account['_id']}, {'key': 'bot', 'value': bot}], user=user_name,  action='activity').count()
+        count = AuditLogData.objects(
+            attributes=[{'key': 'account', 'value': account['_id']}, {'key': 'bot', 'value': bot}], user=user_name,
+            action='activity').count()
         assert count == 1
 
     def test_get_attributes(self):
