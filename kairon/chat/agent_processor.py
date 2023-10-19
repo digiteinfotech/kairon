@@ -1,3 +1,4 @@
+import os
 from typing import Text
 
 from loguru import logger as logging
@@ -64,5 +65,5 @@ class AgentProcessor:
     def is_latest_version_in_mem(bot: Text):
         latest_ver = ModelProcessor.get_latest_model_version(bot)
         in_mem_model_ver = AgentProcessor.cache_provider.get(bot).model_ver
-        logging.debug(f"In memory model:{in_mem_model_ver}, latest trained model:{latest_ver}")
+        logging.debug(f"PID:{os.getpid()} In memory model:{in_mem_model_ver}, latest trained model:{latest_ver}")
         return latest_ver == in_mem_model_ver

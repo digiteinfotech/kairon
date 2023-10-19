@@ -130,7 +130,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
     def __retrieve_config(self, doc_id: Text):
         config = MessageBroadcastProcessor.get_settings(doc_id, self.bot)
         bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
-        config["pyscript_timeout"] = bot_settings.get("dynamic_broadcast_execution_timeout", 60)
+        config["pyscript_timeout"] = bot_settings["dynamic_broadcast_execution_timeout"]
         reference_id = MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, user=self.user, config=config,
             status=EVENT_STATUS.INPROGRESS.value, broadcast_id=doc_id
