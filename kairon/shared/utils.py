@@ -862,7 +862,7 @@ class Utility:
                 Utility.environment['security']["secret_key"],
                 algorithms=[Utility.environment['security']["algorithm"]],
             )
-            if decoded_jwt.get("is_enc"):
+            if decoded_jwt.get("version") == "2.0":
                 claims_str = Utility.decrypt_message(decoded_jwt["sub"])
                 decoded_jwt = json.loads(claims_str)
             return decoded_jwt
