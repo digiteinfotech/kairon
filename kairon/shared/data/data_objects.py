@@ -18,6 +18,7 @@ from mongoengine import (
     FloatField,
     SequenceField
 )
+from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.slots import (
     CategoricalSlot,
     FloatSlot,
@@ -30,10 +31,10 @@ from validators import domain
 from validators import url, ValidationFailure
 
 from kairon.exceptions import AppException
+from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import TemplateType, StoryStepType, StoryType, CognitionDataType, CognitionMetadataType
 from kairon.shared.utils import Utility
-from .base_data import Auditlog
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
 
@@ -723,11 +724,12 @@ class CognitionData(Auditlog):
     content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value,
                                                             CognitionDataType.json.value])
     metadata = ListField(EmbeddedDocumentField(CognitionMetadata), default=None)
+    collection = StringField(default=None)
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["bot"]}]}
+    meta = {"indexes": [{"fields": ["$data", "bot"]}]}
 
     def validate(self, clean=True):
         if clean:
@@ -867,6 +869,10 @@ class LLMSettings(EmbeddedDocument):
     api_version = StringField()
 
 
+class Analytics(EmbeddedDocument):
+    fallback_intent = StringField(default=DEFAULT_NLU_FALLBACK_INTENT_NAME)
+
+
 @auditlogger.log
 @push_notification.apply
 class BotSettings(Auditlog):
@@ -875,6 +881,7 @@ class BotSettings(Auditlog):
     rephrase_response = BooleanField(default=False)
     website_data_generator_depth_search_limit = IntField(default=2)
     llm_settings = EmbeddedDocumentField(LLMSettings, default=LLMSettings())
+    analytics = EmbeddedDocumentField(Analytics, default=Analytics())
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
     whatsapp = StringField(default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value])
@@ -888,6 +895,7 @@ class BotSettings(Auditlog):
     data_importer_limit_per_day = IntField(default=5)
     multilingual_limit_per_day = IntField(default=2)
     data_generation_limit_per_day = IntField(default=3)
+    dynamic_broadcast_execution_timeout = IntField(default=60)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 

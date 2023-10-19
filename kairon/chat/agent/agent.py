@@ -7,9 +7,10 @@ from kairon.chat.agent.message_processor import KaironMessageProcessor
 
 
 class KaironAgent(Agent):
+    model_ver: Text
 
     def create_processor(
-        self, preprocessor: Optional[Callable[[Text], Text]] = None
+            self, preprocessor: Optional[Callable[[Text], Text]] = None
     ):
         """Instantiates a processor based on the set state of the agent."""
         # Checks that the interpreter and tracker store are set and

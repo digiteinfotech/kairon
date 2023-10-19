@@ -385,8 +385,8 @@ def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_process
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback"
-        f"?from_date={from_date}&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=None",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
+        f"&fallback_intent=nlu_fallback",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'fallback_counts': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
@@ -410,8 +410,8 @@ def test_fallback_count_range_no_nlu_fallback_rule_with_from_date_and_to_date(mo
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?"
-        f"from_date={from_date}&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=None",
+        f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
+        f"&fallback_intent=nlu_fallback",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'fallback_counts': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
@@ -506,7 +506,7 @@ def test_visitor_hit_fallback_with_kairon_client(mock_auth, mock_mongo_processor
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback?from_date={from_date}&to_date={to_date}"
-        f"&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
+        f"&fallback_intent=nlu_fallback",
         status=200,
         json={"data": {'fallback_count': 10, 'total_count': 90}},
         match=[responses.matchers.json_params_matcher({})],
@@ -806,7 +806,7 @@ def test_successful_conversation_with_kairon_client(mock_auth, mock_mongo_proces
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/success?from_date={from_date}"
-        f"&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
+        f"&to_date={to_date}&fallback_intent=nlu_fallback",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'successful_conversations': 150}}
@@ -904,7 +904,7 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/success?from_date={from_date}"
-        f"&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
+        f"&to_date={to_date}&fallback_intent=nlu_fallback",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {"successful_sessions": {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
@@ -1003,7 +1003,7 @@ def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
-        f"&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
+        f"&fallback_intent=nlu_fallback",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'fallback_count_rate': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
@@ -1322,7 +1322,7 @@ def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback/dropoff?from_date={from_date}"
-        f"&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
+        f"&to_date={to_date}&fallback_intent=nlu_fallback",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'total_conversation_range': {1: 25, 2: 24, 3: 28, 4: 26, 5: 20, 6: 25}}}
@@ -1371,7 +1371,7 @@ def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_pro
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/unsuccessful?from_date={from_date}"
-        f"&to_date={to_date}&action_fallback=action_default_fallback&nlu_fallback=utter_please_rephrase",
+        f"&to_date={to_date}&fallback_intent=nlu_fallback",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'user_1': 25, 'user_2': 24}}

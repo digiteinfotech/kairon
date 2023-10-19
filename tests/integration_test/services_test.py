@@ -35,6 +35,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, TOKEN_TYPE, AuditlogActions, \
     KAIRON_TWO_STAGE_FALLBACK, FeatureMappings, DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.data.data_objects import Stories, Intents, TrainingExamples, Responses, ChatClientConfig, \
@@ -44,7 +45,6 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.training_data_generation_processor import TrainingDataGenerationProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.data_object import Metering
 from kairon.shared.models import StoryEventType
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
@@ -122,8 +122,8 @@ def test_api_wrong_login():
                                 'Cross-Origin-Resource-Policy': 'same-origin',
                                 'Access-Control-Allow-Origin': '*'
                                 }
-    value = list(Metering.objects(username="test@demo.ai"))
-    assert value[0]["metric_type"] == "invalid_login"
+    value = list(AuditLogData.objects(user="test@demo.ai", action='activity', entity='invalid_login'))
+    assert value[0]["entity"] == "invalid_login"
     assert value[0]["timestamp"]
     assert len(value) == 1
 
@@ -224,7 +224,7 @@ def test_account_registration_error():
     )
     actual = response.json()
     assert actual["message"] == [
-        {'loc': ['body', 'password'], 'msg': 'Missing 1 uppercase letter', 'type': 'value_error'}]
+        {'loc': ['body', 'password'], 'msg': 'Password length must be 10\nMissing 1 uppercase letter', 'type': 'value_error'}]
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["data"] is None
@@ -246,8 +246,8 @@ def test_recaptcha_verified_request(monkeypatch):
                 "email": "integration1234567890@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration1234567890",
                 "bot": "integration",
             },
@@ -267,8 +267,8 @@ def test_recaptcha_verified_request(monkeypatch):
                 "email": "integration1234567@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration1234567",
                 "bot": "integration",
                 "add_trusted_device": True
@@ -294,8 +294,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
                 "email": "integration1234567890@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -315,8 +315,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
                 "email": "integration1234567890@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -333,8 +333,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
                 "email": "integration1234567890@demo.ai",
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -373,8 +373,8 @@ def test_account_registation_temporary_email():
                 "email": email,
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -414,8 +414,8 @@ def test_account_registation_invalid_email():
                 "email": email,
                 "first_name": "Demo",
                 "last_name": "User",
-                "password": "Welcome@1",
-                "confirm_password": "Welcome@1",
+                "password": "Welcome@10",
+                "confirm_password": "Welcome@10",
                 "account": "integration",
                 "bot": "integration",
             },
@@ -473,8 +473,8 @@ def test_account_registration(monkeypatch):
             "email": "integration@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration",
             "bot": "integration",
         },
@@ -489,8 +489,8 @@ def test_account_registration(monkeypatch):
             "email": "INTEGRATIONTEST@DEMO.AI",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integrationtest",
             "bot": "integrationtest",
             "fingerprint": "asdfghj4567890"
@@ -506,8 +506,8 @@ def test_account_registration(monkeypatch):
             "email": "INTEGRATION2@DEMO.AI",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration2",
             "bot": "integration2",
             "fingerprint": "asdfghj4567890"
@@ -537,8 +537,8 @@ def test_account_registration_enable_sso_only(monkeypatch):
             "email": "integration@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration",
             "bot": "integration",
         },
@@ -557,10 +557,10 @@ def test_api_wrong_password():
     assert actual["error_code"] == 401
     assert not actual["success"]
     assert actual["message"] == "Incorrect username or password"
-    value = list(Metering.objects(username="INTEGRATION@DEMO.AI"))
-    assert value[0]["metric_type"] == "invalid_login"
+    value = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login'))
+    print(value)
+    assert value[0]["entity"] == "invalid_login"
     assert value[0]["timestamp"]
-    assert value[0]["error"] == "Incorrect username or password"
     assert len(value) == 1
 
 
@@ -576,7 +576,7 @@ def test_api_login_with_recaptcha(monkeypatch):
         )
         response = client.post(
             "/api/auth/login",
-            data={"username": email, "password": "Welcome@1", "recaptcha_response": "asdfghjkl2345"},
+            data={"username": email, "password": "Welcome@10", "recaptcha_response": "asdfghjkl2345"},
         )
         actual = response.json()
         assert all(
@@ -599,14 +599,14 @@ def test_api_login_with_recaptcha_failed(monkeypatch):
         )
         response = client.post(
             "/api/auth/login",
-            data={"username": email, "password": "Welcome@1", "recaptcha_response": "asdfghjkl23"},
+            data={"username": email, "password": "Welcome@10", "recaptcha_response": "asdfghjkl23"},
         )
         actual = response.json()
         assert actual == {'success': False, 'message': 'Failed to validate recaptcha', 'data': None, 'error_code': 422}
 
         response = client.post(
             "/api/auth/login",
-            data={"username": email, "password": "Welcome@1"},
+            data={"username": email, "password": "Welcome@10"},
         )
         actual = response.json()
         assert actual == {'success': False, 'message': 'recaptcha_response is required', 'data': None, 'error_code': 422}
@@ -616,7 +616,7 @@ def test_api_login():
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert all(
@@ -650,7 +650,7 @@ def test_api_login():
     email = "integrationtest@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert all(
@@ -665,7 +665,7 @@ def test_api_login():
     email = "integration2@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert all(
@@ -680,7 +680,7 @@ def test_api_login():
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
 
@@ -769,7 +769,7 @@ def test_api_login_enabled_with_fingerprint(monkeypatch):
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert actual["message"] == "fingerprint is required"
@@ -787,8 +787,8 @@ def test_add_trusted_device_on_signup_error(monkeypatch):
             "email": "integration1234567@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration1234567",
             "bot": "integration",
             "fingerprint": None
@@ -931,7 +931,7 @@ def test_api_login_enabled_sso_only(monkeypatch):
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert actual["message"] == "This feature is disabled"
@@ -983,7 +983,7 @@ def test_list_bots():
 
 def test_content_upload_api_with_gpt_feature_disabled():
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_details",
         json={
             "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
                     "used to inform decision-making. Data can take many forms, including text, numbers, images, "
@@ -1273,7 +1273,7 @@ def test_content_upload_api(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_details",
         json={
             "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
                        "used to inform decision-making. Data can take many forms, including text, numbers, images, "
@@ -1288,13 +1288,32 @@ def test_content_upload_api(monkeypatch):
     assert actual["error_code"] == 0
 
 
-def test_content_upload_api_invalid(monkeypatch):
+def test_content_upload_api_without_collection(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
+        json={
+            "data": "Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network."
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.content_id_two = actual["data"]["_id"]
+    assert actual["message"] == "Text saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+
+def test_content_upload_api_invalid(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data",
         json={
             "data": "Data"
         },
@@ -1310,12 +1329,12 @@ def test_content_upload_api_invalid(monkeypatch):
 
 def test_content_updated_api():
     response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}?collection=aws",
         json={
             "text_id": pytest.content_id,
             "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
                        "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
-                       "you can focus on developing and deploying your applications rather than managing the infrastructure."
+                       "you can focus on developing and deploying your applications rather than managing the infrastructure.",
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
@@ -1383,15 +1402,56 @@ def test_content_update_api_id_not_found():
     assert actual["error_code"] == 422
 
 
-def test_get_content():
+@mock.patch('kairon.shared.data.processor.MongoProcessor.get_content', autospec=True)
+def test_get_content(mock_get_content):
+    def _get_content(*args, **kwargs):
+        return [{'vector_id': 1,
+                '_id': '65266ff16f0190ca4fd09898',
+                 'data': 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.',
+                 'user': '"integration@demo.ai"', 'bot': pytest.bot,
+                 'content_type': 'text',
+                 'metadata': [],
+                 'collection': 'aws'}]
+
+    mock_get_content.return_value = _get_content()
+    filter_query = 'without having to manage'
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq?data={filter_query}&start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["data"][0]['collection']
+
+
+def test_get_content_without_data():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/text/faq",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
+    assert actual["data"][0]['collection'] == 'aws'
+    assert actual["data"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
+    assert actual["data"][1]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+
+
+def test_list_collection():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert set(actual["data"]) == {'aws'}
 
 
 def test_delete_content():
@@ -1407,6 +1467,18 @@ def test_delete_content():
     assert actual["message"] == "Text deleted!"
     assert actual["data"] is None
     assert actual["error_code"] == 0
+    response_two = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id_two}",
+        json={
+            "text_id": pytest.content_id_two,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_two = response_two.json()
+    assert actual_two["success"]
+    assert actual_two["message"] == "Text deleted!"
+    assert actual_two["data"] is None
+    assert actual_two["error_code"] == 0
 
 
 def test_delete_content_does_not_exist():
@@ -1431,6 +1503,7 @@ def test_get_content_not_exists():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
@@ -1463,6 +1536,7 @@ def test_payload_upload_api(monkeypatch):
     payload = {
             "data": {"details": "AWS"},
             "content_type": "json",
+            "collection": "Details",
             "metadata": [{"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}]
     }
     response = client.post(
@@ -1507,6 +1581,7 @@ def test_payload_updated_api():
         json={
             "payload_id": pytest.payload_id,
             "data": 'Data Collection means gathering relevant data from various sources, which can include databases, APIs, websites, sensors, social media, and more.',
+            "collection": "Collection",
             "content_type": "text"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1961,20 +2036,21 @@ def test_add_prompt_action(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    action = {'name': 'test_add_prompt_action',
-        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+    action = {'name': 'test_add_prompt_action', 'user_question': {'type': 'from_user_message'},
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'collection': 'Bot_collection',
               'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE, "top_results": 10, "similarity_threshold": 0.70}
     response = client.post(
@@ -2192,20 +2268,20 @@ def test_update_prompt_action_with_query_prompt_with_false():
 
 
 def test_update_prompt_action():
-    action = {'name': 'test_update_prompt_action',
-        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity_analytical Prompt',
-                                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True},
-                                   {'name': 'Query Prompt',
-                                    'data': 'If there is no specific query, assume that user is aking about java programming language,',
-                                    'instructions': 'Answer according to the context', 'type': 'query',
-                                    'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+    action = {'name': 'test_update_prompt_action', 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Similarity_analytical Prompt',
+                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True},
+                              {'name': 'Query Prompt',
+                               'data': 'If there is no specific query, assume that user is aking about java programming language,',
+                               'instructions': 'Answer according to the context', 'type': 'query',
+                               'source': 'static', 'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
               'num_bot_responses': 5,
               "failure_message": "updated_failure_message", "top_results": 9, "similarity_threshold": 0.50}
     response = client.put(
@@ -2235,6 +2311,7 @@ def test_get_prompt_action():
     assert actual["data"] == [
         {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'top_results': 9, 'similarity_threshold': 0.5,
          'enable_response_cache': False, 'failure_message': 'updated_failure_message',
+         'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
          'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                              'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                              'logit_bias': {}},
@@ -2404,7 +2481,6 @@ def test_list_entities():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert {e['name'] for e in actual["data"]} == {'bot', 'file', 'category', 'file_text', 'ticketid', 'file_error',
                                                    'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
@@ -5379,7 +5455,7 @@ def test_api_login_with_account_not_verified():
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
@@ -5388,10 +5464,10 @@ def test_api_login_with_account_not_verified():
     assert actual['error_code'] == 422
     assert actual['data'] is None
     assert actual['message'] == 'Please verify your mail'
-    value = list(Metering.objects(username="integration@demo.ai").order_by("-timestamp"))[0]
-    assert value["metric_type"] == "invalid_login"
+    value = list(AuditLogData.objects(user="integration@demo.ai", action='activity', entity='invalid_login').order_by("-timestamp"))[0]
+    assert value["entity"] == "invalid_login"
     assert value["timestamp"]
-    assert value["error"] == "Please verify your mail"
+    assert value["data"] == {'message': ['Please verify your mail'], 'username': 'integration@demo.ai'}
 
 
 def test_account_registration_with_confirmation(monkeypatch):
@@ -5403,8 +5479,8 @@ def test_account_registration_with_confirmation(monkeypatch):
             "email": "integ1@gmail.com",
             "first_name": "Dem",
             "last_name": "User22",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration33",
             "bot": "integration33",
         },
@@ -5429,7 +5505,7 @@ def test_account_registration_with_confirmation(monkeypatch):
 
     response = client.post(
         "/api/auth/login",
-        data={"username": 'integ1@gmail.com', "password": "Welcome@1"},
+        data={"username": 'integ1@gmail.com', "password": "Welcome@10"},
     )
     actual = response.json()
     pytest.add_member_token = actual["data"]["access_token"]
@@ -5550,7 +5626,7 @@ def test_add_member_as_owner(monkeypatch):
 def test_list_bot_invites():
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
     ).json()
 
     response = client.get(
@@ -5562,6 +5638,30 @@ def test_list_bot_invites():
     assert response['data']['active_invites'][0]['bot_name'] == 'Hi-Hello'
     assert response['error_code'] == 0
     assert response['success']
+
+
+def test_login_limit_exceeded():
+    response_one = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@3010"},
+    ).json()
+    response_two = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@3010"},
+    ).json()
+    response_three = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@3010"},
+    ).json()
+    response = client.post(
+        "/api/auth/login",
+        data={"username": "integration@demo.ai", "password": "Welcome@3010"},
+    ).json()
+    print(response)
+    assert not response['success']
+    assert response['message'].__contains__("Account frozen due to too many unsuccessful login attempts.")
+    assert response['data'] is None
+    assert response['error_code'] == 422
 
 
 def test_search_users(monkeypatch):
@@ -5613,7 +5713,7 @@ def test_accept_bot_invite(monkeypatch):
 def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
     response = client.post(
         "/api/auth/login",
-        data={"username": "integrationtest@demo.ai", "password": "Welcome@1"},
+        data={"username": "integrationtest@demo.ai", "password": "Welcome@10"},
     )
     actual = response.json()
     assert all([True if actual["data"][key] else False for key in ["access_token", "token_type"]])
@@ -5644,7 +5744,7 @@ def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
 def test_accept_bot_invite_logged_in_user():
     response = client.post(
         "/api/auth/login",
-        data={"username": "integration2@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration2@demo.ai", "password": "Welcome@10"},
     )
     actual = response.json()
     assert all([True if actual["data"][key] else False for key in ["access_token", "token_type"]])
@@ -5771,8 +5871,8 @@ def test_update_member_role_not_exists(monkeypatch):
             "email": "user@kairon.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "user@kairon.ai",
         },
     )
@@ -5805,8 +5905,8 @@ def test_update_member_role(monkeypatch):
             "email": "integration_email_false@demo.ai",
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration_email_false@demo.ai",
         },
     )
@@ -6125,7 +6225,7 @@ def test_login_for_verified():
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         "/api/auth/login",
-        data={"username": "integ1@gmail.com", "password": "Welcome@1"},
+        data={"username": "integ1@gmail.com", "password": "Welcome@10"},
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
@@ -6261,8 +6361,8 @@ def test_overwrite_password_enabled_sso_only(monkeypatch):
         "/api/account/password/change",
         json={
             "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
-            "password": "Welcome@2",
-            "confirm_password": "Welcome@2"},
+            "password": "Welcome@20",
+            "confirm_password": "Welcome@20"},
     )
     actual = response.json()
     assert actual["message"] == "This feature is disabled"
@@ -13676,10 +13776,10 @@ def test_list_broadcast_config():
     actual["data"]['schedules'][1].pop("bot")
     actual["data"]['schedules'][1].pop("user")
     assert actual["data"] == {'schedules': [
-        {'name': 'first_scheduler_dynamic', 'connector_type': 'whatsapp', "pyscript_timeout": 10, "broadcast_type": "dynamic",
+        {'name': 'first_scheduler_dynamic', 'connector_type': 'whatsapp', "broadcast_type": "dynamic",
          'scheduler_config': {'expression_type': 'cron', 'schedule': '21 11 * * *', "timezone": "Asia/Kolkata"},
          "pyscript": "send_msg('template_name', '9876543210')", 'status': True, "template_config": []},
-        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10, "broadcast_type": "static",
+        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', "broadcast_type": "static",
          'recipients_config': {'recipients': '918958030541,'}, 'template_config': [
             {'template_id': 'brochure_pdf', "language": "en"}], 'status': True, "template_config": [{'template_id': 'brochure_pdf', "language": "en"}]}]}
 
@@ -13719,7 +13819,7 @@ def test_list_broadcast_():
     actual["data"]["schedules"][0].pop("timestamp")
     actual["data"]["schedules"][0].pop("user")
     assert actual["data"] == {'schedules': [
-        {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp', "pyscript_timeout": 10,
+        {'_id': pytest.one_time_schedule_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
          'broadcast_type': 'static', 'recipients_config': {'recipients': '918958030541,'}, 'template_config': [
             {'template_id': 'brochure_pdf', "language": "en"}], 'bot': pytest.bot, 'status': True, }]}
 
@@ -13795,12 +13895,87 @@ def test_get_bot_settings():
                               'force_import': False,
                               'ignore_utterances': False,
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
+                              'analytics': {'fallback_intent': 'nlu_fallback'},
                               'multilingual_limit_per_day': 2,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
                               'test_limit_per_day': 5,
-                              'training_limit_per_day': 5,
+                              'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 60,
+                              'website_data_generator_depth_search_limit': 2,
+                              'whatsapp': 'meta'}
+
+
+def test_update_analytics_settings_with_empty_value():
+    bot_settings = {
+        "analytics": {'fallback_intent': ''},
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=bot_settings
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'analytics', 'fallback_intent'],
+                                  'msg': 'fallback_intent field cannot be empty', 'type': 'value_error'}]
+
+
+def test_update_analytics_settings_with_none():
+    bot_settings = {
+        "analytics": {'fallback_intent': None},
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=bot_settings
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'analytics', 'fallback_intent'],
+                                  'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}]
+
+
+def test_update_analytics_settings():
+    bot_settings = {
+        "analytics": {'fallback_intent': 'utter_please_rephrase'},
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=bot_settings
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Bot Settings updated"
+    response = client.get(
+        f"/api/bot/{pytest.bot}/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+    actual["data"].pop("bot")
+    actual["data"].pop("user")
+    actual["data"].pop("timestamp")
+    actual["data"].pop("status")
+    assert actual['data'] == {'chat_token_expiry': 30,
+                              'data_generation_limit_per_day': 3,
+                              'data_importer_limit_per_day': 5,
+                              'force_import': False,
+                              'ignore_utterances': False,
+                              'llm_settings': {'enable_faq': False, 'provider': 'openai'},
+                              'analytics': {'fallback_intent': 'utter_please_rephrase'},
+                              'multilingual_limit_per_day': 2,
+                              'notification_scheduling_limit': 4,
+                              'refresh_token_expiry': 60,
+                              'rephrase_response': False,
+                              'test_limit_per_day': 5,
+                              'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 60,
                               'website_data_generator_depth_search_limit': 2,
                               'whatsapp': 'meta'}
 
@@ -15948,7 +16123,7 @@ def test_get_auditlog_for_user_1():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.get(
@@ -15956,13 +16131,14 @@ def test_get_auditlog_for_user_1():
         headers={"Authorization": login["data"]["token_type"] + " " + login["data"]["access_token"]}
     )
     actual = response.json()
+    print(actual)
     assert actual["data"] is not None
-    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["entity"] == "BotAccess"
+    assert actual["data"][0]["action"] == AuditlogActions.ACTIVITY.value
+    assert actual["data"][0]["entity"] == "login"
     assert actual["data"][0]["user"] == email
 
-    assert actual["data"][0]["action"] == AuditlogActions.SAVE.value
-    assert actual["data"][0]["audit"]["Bot_id"] is not None
+    assert actual["data"][0]["action"] == AuditlogActions.ACTIVITY.value
+    assert actual["data"][0]["attributes"][0]["value"] is not None
 
 
 def test_get_auditlog_for_bot():
@@ -15973,7 +16149,9 @@ def test_get_auditlog_for_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
+    print(actual)
     audit_log_data = actual["data"]["logs"]
+    print(audit_log_data)
     assert audit_log_data is not None
     actions = [d['action'] for d in audit_log_data]
     from collections import Counter
@@ -15983,11 +16161,16 @@ def test_get_auditlog_for_bot():
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
 
-def test_get_auditlog_for_user_2():
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_get_auditlog_for_user_2(mock_password_reset):
+    def _password_reset(*args, **kwargs):
+        return
+
+    mock_password_reset.return_value = _password_reset
     email = "integration@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login_2 = response.json()
     response = client.get(
@@ -16005,8 +16188,8 @@ def test_get_auditlog_for_user_2():
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
     print(audit_log_data)
-    assert audit_log_data[0]["action"] == AuditlogActions.UPDATE.value
-    assert audit_log_data[0]["entity"] == "ModelTraining"
+    assert audit_log_data[0]["action"] == AuditlogActions.ACTIVITY.value
+    assert audit_log_data[0]["entity"] == "login"
     assert audit_log_data[0]["user"] == email
 
 
@@ -16057,8 +16240,8 @@ def test_add_member_with_view_role():
             "email": email,
             "first_name": "Dem",
             "last_name": "User22",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": email,
         },
     )
@@ -16079,7 +16262,7 @@ def test_add_member_with_view_role():
 
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
 
@@ -16400,7 +16583,7 @@ def test_add_organization():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.post(
@@ -16418,7 +16601,7 @@ def test_get_organization():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.get(
@@ -16436,7 +16619,7 @@ def test_update_organization():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.post(
@@ -16453,7 +16636,7 @@ def test_get_organization_after_update():
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.get(
@@ -16475,7 +16658,7 @@ def test_delete_organization(monkeypatch):
     email = "integration1234567890@demo.ai"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
     response = client.delete(
@@ -16497,10 +16680,15 @@ def test_get_model_testing_logs_accuracy():
     assert response["error_code"] == 0
 
 
-def test_delete_account():
+@mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
+def test_delete_account(mock_password_reset):
+    def _password_reset(*args, **kwargs):
+        return
+
+    mock_password_reset.return_value = _password_reset
     response_log = client.post(
         "/api/auth/login",
-        data={"username": "integration@demo.ai", "password": "Welcome@1"},
+        data={"username": "integration@demo.ai", "password": "Welcome@10"},
     )
     actual = response_log.json()
 
@@ -16535,8 +16723,8 @@ def test_get_responses_post_passwd_reset(monkeypatch):
             "email": email,
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "integration",
             "bot": "integration",
         },
@@ -16544,7 +16732,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     actual = regsiter_response.json()
     login_response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     login_actual = login_response.json()
     pytest.access_token = login_actual["data"]["access_token"]
@@ -16577,7 +16765,7 @@ def test_get_responses_post_passwd_reset(monkeypatch):
     actual = utter_response.json()
     message = actual["message"]
     error_code = actual['error_code']
-    assert message == 'Session expired. Please login again.'
+    assert message == 'Session expired. Please login again!'
     assert error_code == 401
 
 
@@ -16597,8 +16785,8 @@ def test_overwrite_password_for_matching_passwords(monkeypatch):
         "/api/account/password/change",
         json={
             "data": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJtYWlsX2lkIjoiaW50ZWcxQGdtYWlsLmNvbSJ9.Ycs1ROb1w6MMsx2WTA4vFu3-jRO8LsXKCQEB3fkoU20",
-            "password": "Welcome@2",
-            "confirm_password": "Welcome@2"},
+            "password": "Welcome@20",
+            "confirm_password": "Welcome@20"},
     )
     actual = response.json()
     assert actual["success"]
@@ -16610,7 +16798,7 @@ def test_overwrite_password_for_matching_passwords(monkeypatch):
 def test_login_new_password():
     response = client.post(
         "/api/auth/login",
-        data={"username": "integ1@gmail.com", "password": "Welcome@2"},
+        data={"username": "integ1@gmail.com", "password": "Welcome@20"},
     )
     actual = response.json()
 
@@ -16623,17 +16811,18 @@ def test_login_new_password():
 def test_login_old_password():
     response = client.post(
         "/api/auth/login",
-        data={"username": "integ1@gmail.com", "password": "Welcome@1"},
+        data={"username": "integ1@gmail.com", "password": "Welcome@10"},
     )
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 401
     assert actual["message"] == 'Incorrect username or password'
     assert actual['data'] is None
-    value = list(Metering.objects(username="integ1@gmail.com").order_by("-timestamp"))[0]
-    assert value["metric_type"] == "invalid_login"
+    value = list(AuditLogData.objects(user="integ1@gmail.com", action='activity', entity='invalid_login').order_by("-timestamp"))[0]
+    print(value['data'])
+    assert value["entity"] == "invalid_login"
     assert value["timestamp"]
-    assert value["error"] == "Incorrect username or password"
+    assert value["data"] == {'message': ['Incorrect username or password'], 'username': 'integ1@gmail.com'}
 
 
 def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
@@ -16644,8 +16833,8 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
             "email": email,
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "samepasswrd",
             "bot": "samepasswrd",
         },
@@ -16662,12 +16851,12 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
         "/api/account/password/change",
         json={
             "data": token,
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1"},
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10"},
     )
     response = passwrd_change_response.json()
     message = response.get("message")
-    assert message == "You have already used that password, try another"
+    assert message == "You have already used this password, try another!"
 
 
 def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
@@ -16679,8 +16868,8 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
             "email": email,
             "first_name": "Demo",
             "last_name": "User",
-            "password": "Welcome@1",
-            "confirm_password": "Welcome@1",
+            "password": "Welcome@10",
+            "confirm_password": "Welcome@10",
             "account": "samepasswrd2",
             "bot": "samepasswrd2",
         },
@@ -16714,7 +16903,7 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
     )
     response = passwrd_rechange_response.json()
     message = response.get("message")
-    assert message == "You have already used that password, try another"
+    assert message == "You have already used this password, try another!"
 
 
 def test_idp_provider_fields_unauth():
@@ -16728,7 +16917,7 @@ def test_idp_provider_fields_unauth():
 
 def test_allowed_origin_default():
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"}
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"}
     )
     actual = response.json()
     assert actual["error_code"] == 422
@@ -16752,7 +16941,7 @@ def test_allowed_origin(monkeypatch):
     monkeypatch.setitem(Utility.environment['cors'], 'origin', 'http://digite.com')
 
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"},
         headers={"origin": "http://digite.com"}
     )
     actual = response.json()
@@ -16777,21 +16966,21 @@ def test_allowed_origin(monkeypatch):
 def test_get_client_ip(monkeypatch):
     headers = {"X-Forwarded-For": "10.0.0.1"}
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"},
         headers=headers
     )
     assert Utility.get_client_ip(response.request) == "10.0.0.1"
 
     headers = {"X-Forwarded-For": "10.0.0.2, 10.0.1.1"}
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"},
         headers=headers
     )
-    assert Utility.get_client_ip(response.request) == "10.0.0.2"
+    assert Utility.get_client_ip(response.request) == "10.0.0.2, 10.0.1.1"
 
     headers = {"X-Real-IP": "10.0.0.3"}
     response = client.post(
-        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@1"},
+        "/api/auth/login", data={"username": "test@demo.ai", "password": "Welcome@10"},
         headers=headers
     )
     assert Utility.get_client_ip(response.request) == "10.0.0.3"
@@ -16806,7 +16995,7 @@ def test_allow_only_sso_login(monkeypatch):
 
     response = client.post(
         "/api/auth/login",
-        data={"username": user, "password": "Welcome@1"},
+        data={"username": user, "password": "Welcome@10"},
     )
     actual = response.json()
     assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"
@@ -16844,7 +17033,7 @@ def test_api_login_with_SSO_only_flag():
     email = "idp_user@demo.in"
     response = client.post(
         "/api/auth/login",
-        data={"username": email, "password": "Welcome@1"},
+        data={"username": email, "password": "Welcome@10"},
     )
     actual = response.json()
     assert actual["message"] == "Login with your org SSO url, Login with username/password not allowed"

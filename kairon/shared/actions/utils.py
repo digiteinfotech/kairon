@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, List, Text, Dict
 
 import requests
+from aiohttp import ContentTypeError
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa.shared.constants import UTTER_PREFIX
@@ -21,6 +22,7 @@ from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
 from ..data.constant import REQUEST_TIMESTAMP_HEADER, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
+from ..rest_client import AioRestClient
 from ..utils import Utility
 from ...exceptions import AppException
 
@@ -30,6 +32,37 @@ class ActionUtility:
     """
     Utility class to assist executing actions
     """
+
+    @staticmethod
+    async def execute_request_async(http_url: str, request_method: str, request_body=None, headers=None,
+                                    content_type: str = HttpRequestContentType.json.value):
+        """
+        Executes http urls provided in asynchronous fashion.
+
+        @param http_url: HTTP url to be executed
+        @param request_method: One of GET, PUT, POST, DELETE
+        @param request_body: Request body to be sent with the request
+        @param headers: header for the HTTP request
+        @param content_type: request content type HTTP request
+        :return: JSON/string response
+        """
+        timeout = Utility.environment['action'].get('request_timeout', 1)
+        headers = headers if headers else {}
+        headers.update({
+            REQUEST_TIMESTAMP_HEADER: datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        kwargs = {"content_type": content_type, "timeout": timeout, "return_json": False}
+        client = AioRestClient()
+        response = await client.request(request_method, http_url, request_body, headers, **kwargs)
+        if response.status not in [200, 202, 201, 204]:
+            raise ActionFailure(f"Got non-200 status code: {response.status_code} {response.text}")
+        try:
+            http_response = await response.json()
+        except (ContentTypeError, ValueError) as e:
+            logging.error(str(e))
+            http_response = await response.text()
+
+        return http_response
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
@@ -400,21 +433,24 @@ class ActionUtility:
 
     @staticmethod
     def perform_web_search(search_term: str, **kwargs):
-        search_engine_url = Utility.environment['web_search_url']['url']
+        trigger_task = Utility.environment['web_search']['trigger_task']
+        search_engine_url = Utility.environment['web_search']['url']
+        website = kwargs.get('website') if kwargs.get('website') else ''
+        request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
         results = []
         try:
-            website = kwargs.get('website') if kwargs.get('website') else ''
-            request_body = {"text": search_term, "site": website, "topn": kwargs.get("topn")}
-            if not ActionUtility.is_empty(search_engine_url):
+            if trigger_task:
+                lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
+                if CloudUtility.lambda_execution_failed(lambda_response):
+                    err = lambda_response['Payload'].get('body') or lambda_response
+                    raise ActionFailure(f"{err}")
+                search_results = lambda_response["Payload"].get('body')
+            else:
                 response = ActionUtility.execute_http_request(search_engine_url, 'POST', request_body)
                 if response.get('error_code') != 0:
                     raise ActionFailure(f"{response}")
                 search_results = response.get('data')
-            else:
-                lambda_response = CloudUtility.trigger_lambda(EventClass.web_search, request_body)
-                if lambda_response['StatusCode'] != 200:
-                    raise ActionFailure(f"{lambda_response}")
-                search_results = lambda_response["Payload"].get('body')
+
             if not search_results:
                 raise ActionFailure("No response retrieved!")
             for item in search_results:
@@ -531,18 +567,20 @@ class ActionUtility:
 
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):
+        trigger_task = Utility.environment['evaluator']['pyscript']['trigger_task']
         pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
         request_body = {"source_code": source_code, "predefined_objects": context}
-        if not ActionUtility.is_empty(pyscript_evaluator_url):
+        if trigger_task:
+            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body)
+            if CloudUtility.lambda_execution_failed(lambda_response):
+                err = lambda_response['Payload'].get('body') or lambda_response
+                raise ActionFailure(f"{err}")
+            result = lambda_response["Payload"].get('body')
+        else:
             resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
             if resp.get('error_code') != 0:
                 raise ActionFailure(f'Pyscript evaluation failed: {resp}')
             result = resp.get('data')
-        else:
-            lambda_response = CloudUtility.trigger_lambda(EventClass.pyscript_evaluator, request_body)
-            if lambda_response['StatusCode'] != 200:
-                raise ActionFailure(f"{lambda_response}")
-            result = lambda_response["Payload"].get('body')
 
         return result
 
@@ -854,16 +892,3 @@ class ActionUtility:
             raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
             rephrased_message = Utility.retrieve_gpt_response(raw_resp)
         return raw_resp, rephrased_message
-
-    @staticmethod
-    def format_recommendations(llm_response, k_faq_action_config):
-        recommendations = None
-        if llm_response['content']['result']:
-            recommendations = [
-                {"text": item['payload']['query'], "payload": item['payload']['query']}
-                for item in llm_response['content']['result']
-            ]
-            bot_response = k_faq_action_config.get('failure_message', DEFAULT_NLU_FALLBACK_RESPONSE)
-        else:
-            bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
-        return recommendations, bot_response

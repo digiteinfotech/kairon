@@ -122,6 +122,7 @@ telegram:
   "disable_notification":false,
   "reply_to_message_id":0}'
   video: '{"text":"<data>"}'
+  body_message: 'Please select from quick buttons:'
 
 msteams:
   body_message: "Please select from quick buttons:"

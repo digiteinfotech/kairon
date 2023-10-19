@@ -1,4 +1,6 @@
+import json
 import re
+from calendar import timegm
 from datetime import datetime, timedelta, timezone
 from typing import Text
 
@@ -11,18 +13,16 @@ from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from kairon.api.models import TokenData
+from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.processor import IntegrationProcessor
-from kairon.shared.constants import PluginTypes, ChannelTypes
+from kairon.shared.constants import PluginTypes, ChannelTypes, UserActivityType
 from kairon.shared.data.constant import INTEGRATION_STATUS, TOKEN_TYPE, ACCESS_ROLES
 from kairon.shared.data.utils import DataUtility
-from kairon.shared.metering.constants import MetricType
-from kairon.shared.metering.metering_processor import MeteringProcessor
 from kairon.shared.models import User
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.sso.factory import LoginSSOFactory
 from kairon.shared.utils import Utility, MailUtility
-from kairon.shared.account.data_objects import UserActivityLog, UserActivityType
 
 Utility.load_environment()
 
@@ -75,16 +75,7 @@ class Authentication:
                 user_model.alias_user = alias_user or username
                 user_model.role = payload.get('role')
             else:
-                iat_val = payload.get("iat")
-                if iat_val is not None:
-                    issued_at = datetime.utcfromtimestamp(iat_val)
-                    if Utility.is_exist(
-                            UserActivityLog, raise_error=False, user=username, type=UserActivityType.reset_password.value,
-                            timestamp__gte=issued_at, check_base_fields=False):
-                        raise HTTPException(
-                            status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail='Session expired. Please login again.',
-                        )
+                UserActivityLogger.is_password_reset(payload, username)
             return user_model
         except PyJWTError:
             raise credentials_exception
@@ -170,15 +161,38 @@ class Authentication:
             if to_encode.get("iat") is None:
                 to_encode.update({"iat": datetime.utcnow()})
         to_encode.update({"type": token_type})
+        to_encode = Authentication.encrypt_token_claims(to_encode)
         encoded_jwt = encode(to_encode, secret_key, algorithm=algorithm)
         return encoded_jwt
 
     @staticmethod
+    def encrypt_token_claims(to_encode: dict):
+        token_claims = to_encode.copy()
+        for time_claim in ["exp", "iat", "nbf"]:
+            # Convert datetime to a intDate value in known time-format claims
+            if isinstance(token_claims.get(time_claim), datetime):
+                token_claims[time_claim] = timegm(token_claims[time_claim].utctimetuple())
+
+        claims_str = json.dumps(token_claims)
+        encrypted_claims = Utility.encrypt_message(claims_str)
+        encoded_jwt = {"sub": encrypted_claims, "is_enc": True}
+        [encoded_jwt.update({claim: to_encode[claim]}) for claim in ["exp", "iat"] if to_encode.get(claim)]
+        return encoded_jwt
+
+    @staticmethod
+    def decrypt_token_claims(encypted_claims: str):
+        claims_str = Utility.decrypt_message(encypted_claims)
+        claims = json.loads(claims_str)
+        return claims
+
+    @staticmethod
     def __authenticate_user(username: str, password: str):
+        UserActivityLogger.is_login_within_cooldown_period(username)
         user = AccountProcessor.get_user_details(username, is_login_request=True)
         if not user or not Utility.verify_password(password, user["password"]):
-            kwargs = {"username": username, "error": "Incorrect username or password"}
-            MeteringProcessor.add_metrics(bot=None, metric_type=MetricType.invalid_login.value, account=user["account"], **kwargs)
+            data = {"username": username}
+            message = ["Incorrect username or password"]
+            UserActivityLogger.add_log(a_type=UserActivityType.invalid_login.value, account=user["account"], email=username.lower(), message=message, data=data)
             return False
         return user
 
@@ -212,12 +226,11 @@ class Authentication:
         ttl = Utility.environment['security']["token_expire"]
         refresh_token = Authentication.__create_refresh_token(claims, access_token_iat, ttl, refresh_token_expire_minutes)
         refresh_token_expiry = access_token_iat + timedelta(minutes=refresh_token_expire_minutes)
-        kwargs = {"username": username}
         if is_login:
-            metric_type = MetricType.login.value
+            metric_type = UserActivityType.login.value
         else:
-            metric_type = MetricType.login_refresh_token.value
-        MeteringProcessor.add_metrics(bot=None, metric_type=metric_type, account=user["account"], **kwargs)
+            metric_type = UserActivityType.login_refresh_token.value
+        UserActivityLogger.add_log(a_type=metric_type, account=user["account"], email=username, data={"username": username})
         return access_token, access_token_expiry.timestamp(), refresh_token, refresh_token_expiry.timestamp()
 
     @staticmethod

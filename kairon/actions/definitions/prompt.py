@@ -8,7 +8,7 @@ from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.actions.exception import ActionFailure
-from kairon.shared.actions.models import ActionType
+from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
@@ -54,23 +54,20 @@ class ActionPrompt(ActionsBase):
         llm = None
         llm_logs = None
         recommendations = None
+        user_msg = None
         bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
-        is_from_cache = False
         slots_to_fill = {}
 
         try:
-            user_msg = self.__get_user_msg(tracker)
             k_faq_action_config, bot_settings = self.retrieve_config()
+            user_question = k_faq_action_config.get('user_question')
+            user_msg = self.__get_user_msg(tracker, user_question)
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
             llm = LLMFactory.get_instance("faq")(self.bot, bot_settings["llm_settings"])
-            llm_response = llm.predict(user_msg, **llm_params)
+            llm_response = await llm.predict(user_msg, **llm_params)
             status = "FAILURE" if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")
-            is_from_cache = llm_response['is_from_cache']
-            if is_from_cache and not isinstance(llm_response['content'], str):
-                recommendations, bot_response = ActionUtility.format_recommendations(llm_response, k_faq_action_config)
-            else:
-                bot_response = llm_response['content']
+            bot_response = llm_response['content']
             tracker_data = ActionUtility.build_context(tracker, True)
             response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
             slot_values, slot_eval_log = ActionUtility.fill_slots_from_response(k_faq_action_config.get('set_slots', []),
@@ -100,7 +97,6 @@ class ActionPrompt(ActionsBase):
                 kairon_faq_action_config=k_faq_action_config,
                 llm_logs=llm_logs,
                 user_msg=user_msg,
-                is_from_cache=is_from_cache
             ).save()
         if k_faq_action_config.get('dispatch_response', True):
             dispatcher.utter_message(text=bot_response, buttons=recommendations)
@@ -177,6 +173,7 @@ class ActionPrompt(ActionsBase):
         params['similarity_prompt_name'] = similarity_prompt_name
         params['similarity_prompt_instructions'] = similarity_prompt_instructions
         params['instructions'] = k_faq_action_config.get('instructions', [])
+        params['collection'] = k_faq_action_config.get('collection')
         return params
 
     @staticmethod
@@ -185,10 +182,15 @@ class ActionPrompt(ActionsBase):
         return response_context
     
     @staticmethod
-    def __get_user_msg(tracker: Tracker):
-        user_msg = tracker.latest_message.get('text')
-        if not ActionUtility.is_empty(user_msg) and user_msg.startswith("/"):
-            msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
-            if not ActionUtility.is_empty(msg):
-                user_msg = msg
+    def __get_user_msg(tracker: Tracker, user_question: Dict):
+        user_question_type = user_question.get('type')
+        if user_question_type == UserMessageType.from_slot.value:
+            slot = user_question.get('value')
+            user_msg = tracker.get_slot(slot)
+        else:
+            user_msg = tracker.latest_message.get('text')
+            if not ActionUtility.is_empty(user_msg) and user_msg.startswith("/"):
+                msg = next(tracker.get_latest_entity_values(KAIRON_USER_MSG_ENTITY), None)
+                if not ActionUtility.is_empty(msg):
+                    user_msg = msg
         return user_msg

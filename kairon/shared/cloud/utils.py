@@ -6,7 +6,7 @@ from botocore.exceptions import ClientError
 
 from kairon.shared.utils import Utility
 from kairon.shared.constants import EventClass
-
+from loguru import logger
 
 class CloudUtility:
 
@@ -69,4 +69,10 @@ class CloudUtility:
             Payload=json.dumps(env_data).encode(),
         )
         response['Payload'] = json.loads(response['Payload'].read())
+        logger.debug(response)
         return response
+
+    @staticmethod
+    def lambda_execution_failed(response):
+        return (response['StatusCode'] != 200 or
+                (response['Payload'].get('statusCode') and response['Payload']['statusCode'] != 200))

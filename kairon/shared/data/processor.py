@@ -43,8 +43,9 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction
+    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
@@ -52,7 +53,6 @@ from kairon.shared.models import StoryEventType, TemplateType, StoryStepType, Ht
     LlmPromptSource, CognitionDataType
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
-from .base_data import AuditLogData
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -90,7 +90,7 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig, TrainingDataGenerator,
     MultiflowStories, MultiflowStoryEvents, CognitionData, MultiFlowStoryMetadata,
-    Synonyms, Lookup, CognitionMetadata
+    Synonyms, Lookup, CognitionMetadata, LLMSettings, Analytics
 )
 from .utils import DataUtility
 from ..constants import KaironSystemSlots, PluginTypes
@@ -3547,8 +3547,9 @@ class MongoProcessor:
         """
         query = {"bot": bot}
         if document.__name__ == "AuditLogData":
-            query = {"audit__Bot_id": bot}
-        kwargs.update(query)
+            query = {
+                "attributes__key": bot}
+        kwargs.update(__raw__=query)
         return document.objects(**kwargs).count()
 
     @staticmethod
@@ -3980,20 +3981,6 @@ class MongoProcessor:
                 config_obj['pipeline'].insert(property_idx + 1, fallback)
                 self.add_default_fallback_data(bot, user, True, False)
 
-    @staticmethod
-    def fetch_nlu_fallback_action(bot: Text):
-        action = None
-        event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
-        try:
-            rule = Rules.objects(bot=bot, status=True, events__match=event).get()
-            for event in rule.events:
-                if 'action' == event.type and event.name != RULE_SNIPPET_ACTION_NAME:
-                    action = event.name
-                    break
-        except DoesNotExist as e:
-            logging.error(e)
-        return action
-
     def add_default_fallback_data(self, bot: Text, user: Text, nlu_fallback: bool = True, action_fallback: bool = True):
         if nlu_fallback:
             if not Utility.is_exist(Responses, raise_error=False, bot=bot, status=True,
@@ -4257,6 +4244,22 @@ class MongoProcessor:
             logging.error(e)
             settings = BotSettings(bot=bot, user=user).save()
         return settings
+
+    @staticmethod
+    def edit_bot_settings(bot_settings: dict, bot: Text, user: Text):
+        """
+        Update bot settings with new values.
+        :param bot_settings: bot settings values
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if not Utility.is_exist(BotSettings, raise_error=False, bot=bot, status=True):
+            raise AppException(f'Bot Settings for the bot not found')
+
+        settings = BotSettings.objects(bot=bot, status=True).get()
+        analytics = Analytics(**bot_settings.get('analytics'))
+        settings.update(set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow())
 
     @staticmethod
     def enable_llm_faq(bot: Text, user: Text):
@@ -5430,6 +5433,7 @@ class MongoProcessor:
         action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
         action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")
+        action.user_question = UserQuestion(**request_data.get("user_question"))
         action.top_results = request_data.get("top_results")
         action.enable_response_cache = request_data.get("enable_response_cache", False)
         action.similarity_threshold = request_data.get("similarity_threshold")
@@ -5437,6 +5441,7 @@ class MongoProcessor:
         action.hyperparameters = request_data.get('hyperparameters', Utility.get_llm_hyperparameters())
         action.llm_prompts = [LlmPrompt(**prompt) for prompt in request_data.get('llm_prompts', [])]
         action.instructions = request_data.get('instructions', [])
+        action.collection = request_data.get('collection')
         action.set_slots = request_data.get('set_slots', [])
         action.dispatch_response = request_data.get('dispatch_response', True)
         action.timestamp = datetime.utcnow()
@@ -5501,8 +5506,8 @@ class MongoProcessor:
         if not to_date:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
-        data_filter = {"audit__Bot_id": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
-        auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').to_json()
+        data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date, "timestamp__lte": to_date}
+        auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by('-timestamp').to_json()
         return json.loads(auditlog_data)
 
     def get_logs(self, bot: Text, logtype: str, start_time: datetime, end_time: datetime):
@@ -5535,19 +5540,23 @@ class MongoProcessor:
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }
+            query = logs[logtype].objects(**filter_query).to_json()
         elif logtype == LogType.audit_logs.value:
             filter_query = {
-                "audit__Bot_id": bot,
+                'attributes__key': 'bot',
+                'attributes__value': bot,
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time
             }
+            query = logs[logtype].objects(**filter_query).order_by('-timestamp').to_json()
         else:
             filter_query = {
                 "bot": bot,
                 "start_timestamp__gte": start_time,
                 "start_timestamp__lte": end_time
             }
-        value = json.loads(logs[logtype].objects(**filter_query).to_json())
+            query = logs[logtype].objects(**filter_query).to_json()
+        value = json.loads(query)
         return value
     
     def delete_audit_logs(self):
@@ -5749,7 +5758,7 @@ class MongoProcessor:
 
             yield action
 
-    def save_content(self, content: Text, user: Text, bot: Text):
+    def save_content(self, content: Text, user: Text, bot: Text, collection: Text = None):
         bot_settings = self.get_bot_settings(bot=bot, user=user)
         if not bot_settings["llm_settings"]['enable_faq']:
             raise AppException('Faq feature is disabled for the bot! Please contact support.')
@@ -5758,6 +5767,7 @@ class MongoProcessor:
 
         content_obj = CognitionData()
         content_obj.data = content
+        content_obj.collection = collection
         content_obj.user = user
         content_obj.bot = bot
         id = (
@@ -5765,7 +5775,7 @@ class MongoProcessor:
         )
         return id
 
-    def update_content(self, content_id: str, content: Text, user: Text, bot: Text):
+    def update_content(self, content_id: str, content: Text, user: Text, bot: Text, collection: Text = None):
         if len(content.split()) < 10:
             raise AppException("Content should contain atleast 10 words.")
 
@@ -5775,6 +5785,7 @@ class MongoProcessor:
         try:
             content_obj = CognitionData.objects(bot=bot, id=content_id).get()
             content_obj.data = content
+            content_obj.collection = collection
             content_obj.user = user
             content_obj.timestamp = datetime.utcnow()
             content_obj.save()
@@ -5788,20 +5799,33 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Text does not exists!")
 
-    def get_content(self, bot: Text):
+    def get_content(self, bot: Text, **kwargs):
         """
         fetches content
 
         :param bot: bot id
         :return: yield dict
         """
-        for value in CognitionData.objects(bot=bot):
-            final_data = {}
+        kwargs["bot"] = bot
+        search = kwargs.pop('data', None)
+        start_idx = kwargs.pop('start_idx', 0)
+        page_size = kwargs.pop('page_size', 10)
+        cognition_data = CognitionData.objects(**kwargs)
+        if search:
+            cognition_data = cognition_data.search_text(search)
+        for value in cognition_data.skip(start_idx).limit(page_size):
             item = value.to_mongo().to_dict()
-            data = item.pop("data")
-            final_data["_id"] = item["_id"].__str__()
-            final_data['content'] = data
-            yield final_data
+            item.pop('timestamp')
+            item["_id"] = item["_id"].__str__()
+            yield item
+
+    def list_collection(self, bot: Text):
+        """
+        Retrieve cognition data.
+        :param bot: bot id
+        """
+        collections = list(CognitionData.objects(bot=bot).distinct(field='collection'))
+        return collections
 
     def save_cognition_data(self, payload: Dict, user: Text, bot: Text):
         bot_settings = self.get_bot_settings(bot=bot, user=user)
@@ -5811,6 +5835,7 @@ class MongoProcessor:
         payload_obj.data = payload.get('data')
         payload_obj.content_type = payload.get('content_type')
         payload_obj.metadata = [CognitionMetadata(**meta) for meta in payload.get('metadata', [])]
+        payload_obj.collection = payload.get('collection', None)
         payload_obj.user = user
         payload_obj.bot = bot
         payload_id = payload_obj.save().to_mongo().to_dict()["_id"].__str__()
@@ -5826,6 +5851,7 @@ class MongoProcessor:
             payload_obj = CognitionData.objects(bot=bot, id=payload_id).get()
             payload_obj.data = data
             payload_obj.content_type = content_type
+            payload_obj.collection = payload.get('collection', None)
             payload_obj.user = user
             payload_obj.timestamp = datetime.utcnow()
             payload_obj.save()
@@ -5856,4 +5882,5 @@ class MongoProcessor:
             final_data['content'] = data
             final_data['content_type'] = data_type
             final_data['metadata'] = metadata
+            final_data['collection'] = item.get('collection', None)
             yield final_data

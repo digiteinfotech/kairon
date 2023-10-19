@@ -50,7 +50,7 @@ from kairon.shared.admin.data_objects import BotSecrets
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.constants import SLOT_SET_TYPE
-from kairon.shared.data.base_data import AuditLogData
+from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import ENDPOINT_TYPE
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
@@ -496,9 +496,10 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {'name': 'test_add_prompt_action_faq_action_with_default_values',
+                   'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                              'source': 'static', 'is_enabled': True},
-                             {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
+                                    'source': 'static', 'is_enabled': True},
+                                   {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
                    'instructions': ['Answer in a short manner.', 'Keep it simple.'],
                    "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
                                  {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
@@ -511,7 +512,7 @@ class TestMongoProcessor:
             {'name': 'test_add_prompt_action_faq_action_with_default_values',
              'num_bot_responses': 5, 'top_results': 10, 'similarity_threshold': 0.7,
              'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'enable_response_cache': False,
+             'enable_response_cache': False, 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
@@ -519,9 +520,10 @@ class TestMongoProcessor:
                               'source': 'static', 'is_enabled': True},
                              {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-             'status': True, "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
-                                 {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
-                   "dispatch_response": False}]
+             'status': True, "set_slots": [
+                {"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
+                {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+             "dispatch_response": False}]
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
         processor = MongoProcessor()
@@ -753,7 +755,8 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {'name': 'test_edit_prompt_action_faq_action',
-            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                   'user_question': {'type': 'from_user_message'},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -782,6 +785,7 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
+             'user_question': {'type': 'from_user_message'},
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt',
@@ -794,9 +798,11 @@ class TestMongoProcessor:
                               'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
              'status': True, 'instructions': [],
              "set_slots": [{"name": "gpt_result", "value": "${data}", "evaluation_type": "expression"},
-                            {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
-                   "dispatch_response": False}]
-        request = {'name': 'test_edit_prompt_action_faq_action_again', 'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                           {"name": "gpt_result_type", "value": "${data.type}", "evaluation_type": "script"}],
+             "dispatch_response": False}]
+        request = {'name': 'test_edit_prompt_action_faq_action_again',
+                   'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static'}], 'instructions': ['Answer in a short manner.', 'Keep it simple.']}
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
@@ -805,6 +811,7 @@ class TestMongoProcessor:
             {'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5, 'top_results': 10,
              'similarity_threshold': 0.7, 'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
              'enable_response_cache': False,
+             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
@@ -819,20 +826,21 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         request = {'name': 'test_edit_prompt_action_with_less_hyperparameters',
-            'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
-                 'is_enabled': True},
-                {'name': 'Similarity Prompt',
-                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                {'name': 'Query Prompt',
-                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True},
-                {'name': 'Query Prompt',
-                 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                 'instructions': 'Answer according to the context', 'type': 'query',
-                 'source': 'static', 'is_enabled': True}],
+                   'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+                   'llm_prompts': [
+                       {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                        'source': 'static', 'is_enabled': True},
+                       {'name': 'Similarity Prompt',
+                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                       {'name': 'Query Prompt',
+                        'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                        'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                        'is_enabled': True},
+                       {'name': 'Query Prompt',
+                        'data': 'If there is no specific query, assume that user is aking about java programming.',
+                        'instructions': 'Answer according to the context', 'type': 'query',
+                        'source': 'static', 'is_enabled': True}],
                    "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
                    "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
                    "num_bot_responses": 5, "hyperparameters": {"temperature": 0.0,
@@ -850,6 +858,7 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
+             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -877,6 +886,7 @@ class TestMongoProcessor:
              'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-3.5-turbo', 'top_p': 0.0, 'n': 1,
                                  'stream': False, 'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
                                  'logit_bias': {}},
+             'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                               'source': 'static', 'is_enabled': True},
                              {'name': 'Similarity Prompt', 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -924,6 +934,31 @@ class TestMongoProcessor:
             )
         )
         assert result is None
+
+    def test_edit_bot_settings_does_not_exist(self):
+        processor = MongoProcessor()
+        bot_settings = {
+            "analytics": {'fallback_intent': 'nlu_fallback'},
+        }
+        with pytest.raises(AppException, match='Bot Settings for the bot not found'):
+            processor.edit_bot_settings(bot_settings, 'new_test_bot', 'test')
+
+    def test_edit_bot_settings(self):
+        processor = MongoProcessor()
+        BotSettings(bot='new_test_bot', user='test').save()
+        bot_settings = {
+            "analytics": {'fallback_intent': 'utter_please_rephrase'},
+        }
+        processor.edit_bot_settings(bot_settings, 'new_test_bot', 'test')
+        updated_settings = processor.get_bot_settings('new_test_bot', 'test')
+        assert not updated_settings.ignore_utterances
+        assert not updated_settings.force_import
+        assert updated_settings.status
+        assert updated_settings.timestamp
+        assert updated_settings.user
+        assert updated_settings.bot
+        assert updated_settings.analytics.to_mongo().to_dict() == {'fallback_intent': 'utter_please_rephrase'}
+        assert updated_settings.llm_settings.to_mongo().to_dict() == {'enable_faq': False, 'provider': 'openai'}
 
     @pytest.mark.asyncio
     async def test_save_from_path_yml(self):
@@ -2400,7 +2435,7 @@ class TestMongoProcessor:
         assert model_training.first().exception in str("Training data does not exists!")
 
     @patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-    @patch("kairon.shared.llm.gpt3.Utility.execute_http_request", autospec=True)
+    @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
     def test_start_training_with_llm_faq(
@@ -14069,16 +14104,16 @@ class TestMongoProcessor:
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
         AuditLogData(
-            audit={"Bot_id": "test"}, user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
+            attributes=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time, action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            audit={"Bot_id": "test"}, user="test", timestamp=start_time - timedelta(days=366),
+            attributes=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time - timedelta(days=366),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
         AuditLogData(
-            audit={"Bot_id": "test"}, user="test", timestamp=start_time - timedelta(days=480),
+            attributes=[{"key": "bot", "value": "test"}], user="test", timestamp=start_time - timedelta(days=480),
             action=AuditlogActions.SAVE.value,
             entity="ModelTraining"
         ).save()
@@ -14237,13 +14272,14 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = "Bot"
         content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
                   'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
                   ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
                   'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
                   'physical machines.'
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
-            processor.save_content(content, user, bot)
+            processor.save_content(content, user, bot, collection)
 
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
@@ -14253,41 +14289,45 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = "Bot"
         content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
                   'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
                   ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
                   'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
                   'physical machines.'
-        pytest.content_id = processor.save_content(content, user, bot)
+        pytest.content_id = processor.save_content(content, user, bot, collection)
         content_id = '5349b4ddd2791d08c09890f3'
         with pytest.raises(AppException, match="Text already exists!"):
-            processor.update_content(content_id, content, user, bot)
+            processor.update_content(content_id, content, user, bot, None)
 
     def test_save_content_invalid(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = 'example'
         content = 'A bot, short for robot, is a program.'
         with pytest.raises(AppException, match="Content should contain atleast 10 words."):
-            processor.save_content(content, user, bot)
+            processor.save_content(content, user, bot, collection)
 
     def test_update_content(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = 'Bot_details'
         content = 'Bots are commonly used in various industries, such as e-commerce, customer service, gaming, ' \
                   'and social media. Some bots are designed to interact with humans in a conversational manner and are ' \
                   'called chatbots or virtual assistants.'
-        processor.update_content(pytest.content_id, content, user, bot)
+        processor.update_content(pytest.content_id, content, user, bot, collection)
 
     def test_update_content_invalid(self):
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = 'example_one'
         content = 'Bots are commonly used in various industries.'
         with pytest.raises(AppException, match="Content should contain atleast 10 words."):
-            content_id = processor.save_content(content, user, bot)
-            processor.update_content(content_id, content, user, bot)
+            content_id = processor.save_content(content, user, bot, collection)
+            processor.update_content(content_id, content, user, bot, collection)
 
     def test_update_content_not_found(self):
         processor = MongoProcessor()
@@ -14299,7 +14339,7 @@ class TestMongoProcessor:
                   'MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License which is ' \
                   'deemed non-free by several distributions.'
         with pytest.raises(AppException, match="Content with given id not found!"):
-            processor.update_content(content_id, content, user, bot)
+            processor.update_content(content_id, content, user, bot, None)
 
     def test_delete_content(self):
         processor = MongoProcessor()
@@ -14314,23 +14354,57 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Text does not exists!"):
             processor.delete_content("507f191e810c19729de860ea", user, bot)
 
-    def test_get_content_not_exists(self):
+    @patch("kairon.shared.data.processor.MongoProcessor.get_content", autospec=True)
+    def test_get_content_not_exists(self, mock_get_content):
+        def _get_content(*args, **kwargs):
+            return []
+
+        mock_get_content.return_value = _get_content()
+        kwargs = {}
         processor = MongoProcessor()
         bot = 'test'
-        assert list(processor.get_content(bot)) == []
+        assert list(processor.get_content(bot, **kwargs)) == []
 
-    def test_get_content(self):
+    @patch("kairon.shared.data.processor.MongoProcessor.get_content", autospec=True)
+    def test_get_content(self, mock_get_content):
+        def _get_content(*args, **kwargs):
+            return [{'vector_id': 1,
+                     '_id': '65266ff16f0190ca4fd09898',
+                     'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
+                     'user': 'testUser', 'bot': 'test',
+                     'content_type': 'text',
+                     'metadata': [],
+                     'collection': 'testing'}]
+
+        mock_get_content.return_value = _get_content()
         processor = MongoProcessor()
         bot = 'test'
         user = 'testUser'
+        collection = 'testing'
         content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
                   'application are tested in isolation to ensure that each unit functions as expected. '
-        pytest.content_id = processor.save_content(content, user, bot)
-        data = list(processor.get_content(bot))
+        pytest.content_id = processor.save_content(content, user, bot, collection)
+        kwargs = {'data': 'Unit testing'}
+        data = list(processor.get_content(bot, **kwargs))
         assert data[0][
-                   'content'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
                                  'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['_id']
+        assert data[0]['collection'] == 'testing'
+        kwargs = {}
+        actual = list(processor.get_content(bot, **kwargs))
+        assert actual[0][
+                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                              'software application are tested in isolation to ensure that each unit functions as expected. '
+        assert actual[0]['_id']
+        assert actual[0]['collection'] == 'testing'
+
+    def test_list_content(self):
+        bot = 'test'
+        user = 'testUser'
+        processor = MongoProcessor()
+        contents = processor.list_collection(bot)
+        assert contents == ['testing']
 
     def test_delete_content_for_action(self):
         processor = MongoProcessor()
@@ -14860,24 +14934,23 @@ class TestModelProcessor:
         assert result.get("method") == "GET"
 
     def test_auditlog_for_chat_client_config(self):
-        auditlog_data = list(AuditLogData.objects(audit__Bot_id='test', user='testUser', entity='ChatClientConfig'))
+        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "bot", "value": "test"}], user='testUser', entity='ChatClientConfig').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data[0] is not None
-        assert auditlog_data[0].audit["Bot_id"] == "test"
+        assert auditlog_data[0].attributes[0]["value"] == "test"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "ChatClientConfig"
 
     def test_auditlog_for_intent(self):
-        auditlog_data = list(
-            AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='save', entity='Intents'))
+        auditlog_data = list(AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='save', entity='Intents').order_by('-timestamp'))
         assert len(auditlog_data) > 0
         assert auditlog_data is not None
-        assert auditlog_data[0].audit["Bot_id"] == "tests"
+        assert auditlog_data[0].attributes[0]["value"] == "tests"
         assert auditlog_data[0].user == "testUser"
         assert auditlog_data[0].entity == "Intents"
 
         auditlog_data = list(
-            AuditLogData.objects(audit__Bot_id='tests', user='testUser', action='delete', entity='Intents'))
+            AuditLogData.objects(attributes=[{"key": "bot", "value": "tests"}], user='testUser', action='delete', entity='Intents').order_by('-timestamp'))
         # No hard delete supported for intents
         assert len(auditlog_data) == 0
 
@@ -15090,10 +15163,10 @@ class TestModelProcessor:
         Channels(bot=bot, user=user, connector_type=connector_type, config=config, meta_config=meta_config).save()
 
         auditlog_data = processor.get_logs("secret", "audit_logs", start_time, end_time)
-        assert auditlog_data[0]["audit"]["Bot_id"] == bot
+        assert auditlog_data[0]["attributes"][0]["value"] == bot
         assert auditlog_data[0]["entity"] == "Channels"
         assert auditlog_data[0]["data"]["config"] != config
 
-        assert auditlog_data[2]["audit"]["Bot_id"] == bot
+        assert auditlog_data[2]["attributes"][0]["value"] == bot
         assert auditlog_data[2]["entity"] == "KeyVault"
         assert auditlog_data[2]["data"]["value"] != value

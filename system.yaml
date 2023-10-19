@@ -10,6 +10,8 @@ user:
   reset_password_request_limit: ${RESET_PASSWORD_REQUEST_LIMIT:3}
   reset_password_cooldown_period: ${RESET_PASSWORD_COOLDOWN_PERIOD:120}
   validate_trusted_device: ${VALIDATE_TRUSTED_DEVICE:false}
+  login_limit: ${LOGIN_LIMIT:3}
+  login_cooldown_period: ${LOGIN_COOLDOWN_PERIOD:120}
 
 storage:
   assets:
@@ -75,7 +77,8 @@ action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
   request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:1}
 
-web_search_url:
+web_search:
+  trigger_task: ${WEB_SEARCH_TRIGGER_TASK:false}
   url: ${WEB_SEARCH_URL}
 
 lock_store:
@@ -133,10 +136,14 @@ events:
     min_trigger_interval: ${MIN_SCHDULER_TRIGGER_INTERVAL:86340}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
+    attributes:
+      - account
+      - bot
 
 evaluator:
   url: ${EXPRESSION_EVALUATOR_ENDPOINT:"http://192.168.100.109:8085/evaluate"}
   pyscript:
+    trigger_task: ${PYSCRIPT_TRIGGER_TASK:false}
     url: ${PYSCRIPT_EVALUATOR_ENDPOINT:"http://192.168.100.109:8080/evaluate"}
 
 multilingual:

@@ -43,6 +43,7 @@ RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install tiktoken
 RUN python -m pip install uvicorn>=0.18.2
 RUN python -m pip install secure
+RUN python -m pip install aiohttp-retry
 
 COPY kairon/ /app/kairon/
 COPY metadata /app/metadata
