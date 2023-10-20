@@ -364,23 +364,6 @@ class HttpActionConfigRequest(BaseModel):
         return v.upper()
 
 
-class QueryConfig(BaseModel):
-    type: DbQueryValueType
-    value: DbActionOperationType
-
-    @root_validator
-    def check(cls, values):
-        from kairon.shared.utils import Utility
-
-        if Utility.check_empty_string(values.get('type')):
-            raise ValueError("type cannot be empty")
-
-        if Utility.check_empty_string(values.get('value')):
-            raise ValueError("value cannot be empty")
-
-        return values
-
-
 class PayloadConfig(BaseModel):
     type: DbQueryValueType
     value: Any
