@@ -32,7 +32,7 @@ class ColumnMetadata(EmbeddedDocument):
 @auditlogger.log
 @push_notification.apply
 class CognitionSchema(Auditlog):
-    metadata = ListField(EmbeddedDocumentField(ColumnMetadata))
+    metadata = ListField(EmbeddedDocumentField(ColumnMetadata, default=None))
     collection_name = StringField(required=True)
     user = StringField(required=True)
     bot = StringField(required=True)

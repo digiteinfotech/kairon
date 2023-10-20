@@ -53,7 +53,7 @@ class GPT3FAQEmbedding(LLMBase):
             await self.__create_collection__(collection)
             for content in tqdm(collections['content'], desc="Training FAQ"):
                 if content['content_type'] == CognitionDataType.json.value:
-                    metadata = processor.find_matching_metadata(content['data'], content.get('collection'))
+                    metadata = processor.find_matching_metadata(self.bot, content['data'], content.get('collection'))
                     search_payload, vector_embeddings = processor.get_embeddings_and_payload_data(content['data'], metadata)
                 else:
                     search_payload, vector_embeddings = {'content': content["data"]}, content["data"]

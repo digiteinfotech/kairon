@@ -16,8 +16,8 @@ from kairon.shared.actions.data_objects import HttpActionConfig, SlotSetAction, 
     EmailActionConfig, ActionServerLogs, GoogleSearchAction, JiraAction, ZendeskAction, PipedriveLeadsAction, SetSlots, \
     HubspotFormsAction, HttpActionResponse, HttpActionRequestBody, SetSlotsFromResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, TwoStageFallbackTextualRecommendations, RazorpayAction, PromptAction, FormSlotSet, \
-    DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
-from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType
+    DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
+from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets
@@ -2916,7 +2916,7 @@ def test_vectordb_action_execution_embedding_search_from_value():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="embedding_search"),
+        query=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -3007,7 +3007,7 @@ def test_vectordb_action_execution_payload_search_from_value():
     }
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="payload_search"),
+        query=DbActionOperationType.payload_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.0.city} with color ${data.0.color} is ${data.0.id}"),
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
@@ -3082,7 +3082,7 @@ def test_vectordb_action_execution_embedding_search_from_slot():
 
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="embedding_search"),
+        query=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_slot", value='name'),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
@@ -3167,7 +3167,7 @@ def test_vectordb_action_execution_payload_search_from_slot():
 
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="payload_search"),
+        query=DbActionOperationType.payload_search.value,
         payload=DbQuery(type="from_slot", value='color'),
         response=HttpActionResponse(value="The name of the city with id ${data.0.id} is ${data.0.city}"),
         set_slots=[SetSlotsFromResponse(name="city_name", value="${data.0.city}")],
@@ -3239,7 +3239,7 @@ def test_vectordb_action_execution_no_response_dispatch():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="embedding_search"),
+        query=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
                                     dispatch=False),
@@ -3323,7 +3323,7 @@ def test_vectordb_action_execution_invalid_operation_type():
     payload_body = {"ids": [0], "with_payload": True, "with_vector": True}
     DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="vector_search"),
+        query="vector_search",
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
                                     dispatch=False),
@@ -3383,7 +3383,7 @@ def test_vectordb_action_failed_execution(mock_action_config, mock_action):
                      user="user")
     action_config = DatabaseAction(
         name=action_name,
-        query=DbOperation(type="from_value", value="embedding_search"),
+        query=DbActionOperationType.embedding_search.value,
         payload=DbQuery(type="from_value", value=payload_body),
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector"),
         bot="5f50fd0a56b697ca10d35d2e",

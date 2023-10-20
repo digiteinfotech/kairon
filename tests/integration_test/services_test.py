@@ -1251,337 +1251,6 @@ def test_get_client_config_url_with_ip_info(monkeypatch):
     assert actual["data"]["logs"][0]['bot'] == pytest.bot
 
 
-def test_content_upload_api_with_gpt_feature_disabled():
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_details",
-        json={
-            "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
-                    "used to inform decision-making. Data can take many forms, including text, numbers, images, "
-                    "audio, and video."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    assert actual["message"] == "Faq feature is disabled for the bot! Please contact support."
-    assert not actual["data"]
-    assert actual["error_code"] == 422
-
-
-def test_content_upload_api(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_details",
-        json={
-            "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
-                       "used to inform decision-making. Data can take many forms, including text, numbers, images, "
-                       "audio, and video."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    pytest.content_id = actual["data"]["_id"]
-    assert actual["message"] == "Text saved!"
-    assert actual["data"]["_id"]
-    assert actual["error_code"] == 0
-
-    response_one = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_one",
-        json={
-            "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
-                    "used to inform decision-making. Data can take many forms, including text, numbers, images, "
-                    "audio, and video."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual_one = response_one.json()
-    pytest.content_id_one = actual_one["data"]["_id"]
-
-    response_two = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_two",
-        json={
-            "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
-                    "used to inform decision-making. Data can take many forms, including text, numbers, images, "
-                    "audio, and video."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual_two = response_two.json()
-    pytest.content_id_two = actual_two["data"]["_id"]
-
-    response_three = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_three",
-        json={
-            "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
-                    "used to inform decision-making. Data can take many forms, including text, numbers, images, "
-                    "audio, and video."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual_three = response_three.json()
-    assert actual_three["message"] == "Collection limit exceeded!"
-    assert not actual_three["data"]
-    assert actual_three["error_code"] == 422
-
-    response_four = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_two",
-        json={
-            "data": "MongoDB is known for its scalability, high performance, and ease of use, making it a popular choice for applications that require fast and flexible data storage and retrieval."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual_four = response_four.json()
-    pytest.content_id_four = actual_four["data"]["_id"]
-    assert actual_four["message"] == "Text saved!"
-    assert actual_four["data"]["_id"]
-    assert actual_four["error_code"] == 0
-
-
-def test_content_upload_api_without_collection(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
-        json={
-            "data": "Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    pytest.content_id_no_collection = actual["data"]["_id"]
-    assert actual["message"] == "Text saved!"
-    assert actual["data"]["_id"]
-    assert actual["error_code"] == 0
-
-
-def test_content_upload_api_invalid(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/text/faq?collection=data_two",
-        json={
-            "data": "Data"
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-
-    )
-    actual = response.json()
-    assert actual["message"] == "Content should contain atleast 10 words."
-    assert not actual["success"]
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
-
-
-def test_content_updated_api():
-    response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}?collection=aws",
-        json={
-            "text_id": pytest.content_id,
-            "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
-                       "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
-                       "you can focus on developing and deploying your applications rather than managing the infrastructure.",
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["message"] == "Text updated!"
-    assert actual["error_code"] == 0
-
-
-def test_content_update_api_invalid():
-    response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
-        json={
-            "text_id": pytest.content_id,
-            "data": "Data"
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["message"] == "Content should contain atleast 10 words."
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
-
-
-def test_content_update_api_already_exist():
-    content_id = '6009cb85e65f6dce28fb3e51'
-    response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{content_id}",
-        json={
-            "text_id": content_id,
-            "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
-                       "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
-                       "you can focus on developing and deploying your applications rather than managing the infrastructure."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["message"] == "Text already exists!"
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
-
-
-def test_content_update_api_id_not_found():
-    content_id = '594ced02ed345b2b049222c5'
-    response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{content_id}",
-        json={
-            "text_id": content_id,
-            "data": "Artificial intelligence (AI) involves using computers to do things that traditionally require human "
-                    "intelligence. AI can process large amounts of data in ways that humans cannot. The goal for AI is "
-                    "to be able to do things like recognize patterns, make decisions, and judge like humans."
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["message"] == "Content with given id not found!"
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
-
-
-@mock.patch('kairon.shared.cognition.processor.CognitionDataProcessor.get_content', autospec=True)
-def test_get_content(mock_get_content):
-    def _get_content(*args, **kwargs):
-        return [{'vector_id': 1,
-                '_id': '65266ff16f0190ca4fd09898',
-                 'data': 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.',
-                 'user': '"integration@demo.ai"', 'bot': pytest.bot,
-                 'content_type': 'text',
-                 'metadata': [],
-                 'collection': 'aws'}]
-
-    mock_get_content.return_value = _get_content()
-    filter_query = 'without having to manage'
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/text/faq?data={filter_query}&start_idx=0&page_size=10",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]
-    assert actual["data"][0]['collection']
-
-
-def test_get_content_without_data():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]
-    assert actual["data"][0]['collection'] == 'aws'
-    assert actual["data"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
-    assert actual["data"][1]['data'] == 'Data refers to any collection of facts, statistics, or information that can be analyzed or used to inform decision-making. Data can take many forms, including text, numbers, images, audio, and video.'
-
-
-def test_list_collection():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/collection",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    print(set(actual["data"]))
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert set(actual["data"]) == {'data_two', 'data_one', 'aws'}
-
-
-def test_delete_content():
-    response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id}",
-        json={
-            "text_id": pytest.content_id,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["message"] == "Text deleted!"
-    assert actual["data"] is None
-    assert actual["error_code"] == 0
-    response_two = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id_no_collection}",
-        json={
-            "text_id": pytest.content_id_no_collection,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual_two = response_two.json()
-    assert actual_two["success"]
-    assert actual_two["message"] == "Text deleted!"
-    assert actual_two["data"] is None
-    assert actual_two["error_code"] == 0
-    response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id_one}",
-        json={
-            "text_id": pytest.content_id_one,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id_two}",
-        json={
-            "text_id": pytest.content_id_two,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{pytest.content_id_four}",
-        json={
-            "text_id": pytest.content_id_four,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-
-
-def test_delete_content_does_not_exist():
-    content_id = '635981f6e40f61599e000064'
-    response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/text/faq/{content_id}",
-        json={
-            "text_id": content_id,
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["message"] == "Text does not exists!"
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
-
-
-def test_get_content_not_exists():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/text/faq",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert actual["message"] is None
-    assert actual["error_code"] == 0
-    assert actual["data"] == []
-
-
 def test_metadata_upload_api():
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -1598,20 +1267,66 @@ def test_metadata_upload_api():
     assert actual["data"]["_id"]
     assert actual["error_code"] == 0
 
-    response = client.post(
+    response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [
-                {"column_name": "details", "data_type": "str", "enable_search": False, "create_embeddings": True}],
-            "collection_name": "details_two",
+                {"column_name": "details_one", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "details_one"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["message"] == "Column already exists!"
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
+    actual_one = response_one.json()
+    print(actual_one)
+    pytest.metadata_id_one = actual_one["data"]["_id"]
+    assert actual_one["message"] == "Schema saved!"
+    assert actual_one["data"]["_id"]
+    assert actual_one["error_code"] == 0
+
+    response_two = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "details_two", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "details_two"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_two = response_two.json()
+    print(actual_two)
+    pytest.metadata_id_two = actual_two["data"]["_id"]
+    assert actual_two["message"] == "Schema saved!"
+    assert actual_two["data"]["_id"]
+    assert actual_two["error_code"] == 0
+
+    response_three = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "details_three", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "details_three"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_three = response_three.json()
+    assert actual_three["message"] == "Collection limit exceeded!"
+    assert not actual_three["data"]
+    assert actual_three["error_code"] == 422
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id_one}",
+        json={
+            "metadata_id": pytest.metadata_id_one,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id_two}",
+        json={
+            "metadata_id": pytest.metadata_id_two,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
 
 
 def test_metadata_upload_api_column_limit_exceeded():
@@ -1636,23 +1351,20 @@ def test_metadata_upload_api_column_limit_exceeded():
     assert actual["error_code"] == 422
 
 
-def test_metadata_upload_api_collection_already_exists():
+def test_metadata_upload_api_same_column_in_schema():
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": [
                 {"column_name": "tech", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
-                {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            ],
-            "collection_name": "details"
+                {"column_name": "tech", "data_type": "int", "enable_search": True, "create_embeddings": False}],
+            "collection_name": "test_metadata_upload_api_same_column_in_schema"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["message"] == "Collection already exists!"
+    assert actual["message"] == "Columns cannot be same in the schema!"
     assert actual["data"] is None
     assert actual["error_code"] == 422
 
@@ -1694,7 +1406,7 @@ def test_metadata_upload_column_name_empty():
 def test_metadata_update_api():
     metadata = {
             "metadata": [{"column_name": "language", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-        "collection_name": "language"
+        "collection_name": "details"
     }
     response = client.put(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id}",
@@ -1707,23 +1419,44 @@ def test_metadata_update_api():
     assert actual["error_code"] == 0
 
 
-def test_metadata_update_api_already_exists():
-    metadata_id = '594ced02ed345b2b049222c5'
-    metadata = {
-            "metadata": [{"column_name": "language", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "language"
-    }
-    response = client.put(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{metadata_id}",
-        json=metadata,
+def test_metadata_update_api_different_collection():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "different_collection"
+        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
     print(actual)
-    assert not actual["success"]
-    assert actual["message"] == "Schema already exists!"
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
+    pytest.metadata_id_two = actual["data"]["_id"]
+    assert actual["message"] == "Schema saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    updated_metadata = {
+            "metadata": [{"column_name": "language", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+        "collection_name": "details"
+    }
+    response_one = client.put(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id_two}",
+        json=updated_metadata,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_one = response_one.json()
+    print(actual_one)
+    assert actual_one["message"] == "Collection name cannot be updated!"
+    assert actual_one["error_code"] == 422
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id_two}",
+        json={
+            "metadata_id": pytest.metadata_id_two,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
 
 
 def test_metadata_update_api_not_found():
@@ -1801,6 +1534,359 @@ def test_get_payload_content_metadata_not_exists():
     assert actual["data"] == []
 
 
+def test_content_upload_api_with_gpt_feature_disabled():
+    payload = {
+        "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
+                    "used to inform decision-making. Data can take many forms, including text, numbers, images, "
+                    "audio, and video.",
+        "content_type": "text",
+        "collection": "data_details"}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Faq feature is disabled for the bot! Please contact support."
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_content_upload_api(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    response_one = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "collection_name": "details"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    payload = {
+        "data": "Data refers to any collection of facts, statistics, or information that can be analyzed or "
+                "used to inform decision-making. Data can take many forms, including text, numbers, images, "
+                "audio, and video.",
+        "content_type": "text",
+        "collection": "details"}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.content_id_text = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+    payload_two = {
+        "data": "Data refers to any collection of facts, statistics, or information that can be analyzed.",
+        "content_type": "text",
+        "collection": "payload_two"}
+    response_two = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload_two,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response_two.json()
+    assert actual["message"] == "Collection does not exist!"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+    response_three = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema",
+        json={
+            "metadata": [
+                {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "response_two"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    payload_three = {
+        "data": "Data can take many forms, including text, numbers, images, audio, and video.",
+        "content_type": "text",
+        "collection": "response_two"}
+    response_four = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload_three,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response_four.json()
+    assert actual["message"] == "Content type text cannot have metadata!"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+def test_content_upload_api_invalid_atleast_ten_words(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = {
+        "data": "Blockchain technology is an advanced"}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["message"] == "Content should contain atleast 10 words."
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_content_upload_empty_data_text(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = {
+            "data": "",
+            "content_type": "text",
+        }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'data cannot be empty', 'type': 'value_error'}]
+
+
+def test_content_upload_api_without_collection(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = {
+        "data": "Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network."}
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    pytest.content_id_no_collection = actual["data"]["_id"]
+    assert actual["message"] == "Record saved!"
+    assert actual["data"]["_id"]
+    assert actual["error_code"] == 0
+
+
+def test_content_update_api():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
+        json={
+            "cognition_id": pytest.content_id_text,
+            "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
+                       "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
+                       "you can focus on developing and deploying your applications rather than managing the infrastructure.",
+            "collection": "details",
+            "content_type": "text"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Record updated!"
+    assert actual["error_code"] == 0
+
+
+def test_content_update_api_collection_does_not_exist():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
+        json={
+            "cognition_id": pytest.content_id_text,
+            "data": "Docker containers without having to manage the underlying EC2 instances.",
+            "collection": "test_content_update_api_collection_does_not_exist",
+            "content_type": "text"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Collection does not exist!"
+    assert actual["error_code"] == 422
+
+
+def test_content_update_api_invalid():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
+        json={
+            "cognition_id": pytest.content_id_text,
+            "data": "AWS Fargate is a serverless compute engine.",
+            "collection": "details",
+            "content_type": "text"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Content should contain atleast 10 words."
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_content_update_api_already_exist():
+    content_id = '6009cb85e65f6dce28fb3e51'
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{content_id}",
+        json={
+            "cognition_id": content_id,
+            "data": "AWS Fargate is a serverless compute engine for containers that allows you to run "
+                       "Docker containers without having to manage the underlying EC2 instances. With Fargate, "
+                       "you can focus on developing and deploying your applications rather than managing the infrastructure.",
+            "collection": "details",
+            "content_type": "text"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Payload data already exists!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_content_update_api_id_not_found():
+    content_id = '594ced02ed345b2b049222c5'
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{content_id}",
+        json={
+            "cognition_id": content_id,
+            "data": "Artificial intelligence (AI) involves using computers to do things that traditionally require human "
+                    "intelligence. AI can process large amounts of data in ways that humans cannot. The goal for AI is "
+                    "to be able to do things like recognize patterns, make decisions, and judge like humans.",
+            "collection": "details",
+            "content_type": "text"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Payload with given id not found!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+@mock.patch('kairon.shared.cognition.processor.CognitionDataProcessor.get_content', autospec=True)
+def test_get_content(mock_get_content):
+    def _get_content(*args, **kwargs):
+        return [{'vector_id': 1,
+                '_id': '65266ff16f0190ca4fd09898',
+                 'data': 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.',
+                 'user': '"integration@demo.ai"', 'bot': pytest.bot,
+                 'content_type': 'text',
+                 'metadata': None,
+                 'collection': 'aws'}]
+
+    mock_get_content.return_value = _get_content()
+    filter_query = 'without having to manage'
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq?data={filter_query}&start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["data"][0]['collection']
+
+
+def test_get_content_without_data():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["data"][0]['collection'] == 'details'
+    assert actual["data"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
+    assert actual["data"][1]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+
+
+def test_list_collection():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(set(actual["data"]))
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert set(actual["data"]) == {'details'}
+
+
+def test_delete_content():
+    response_one = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_no_collection}",
+        json={
+            "cognition_id": pytest.content_id_no_collection,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual_one = response_one.json()
+    assert actual_one["success"]
+    assert actual_one["message"] == "Record deleted!"
+    assert actual_one["data"] is None
+    assert actual_one["error_code"] == 0
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.content_id_text}",
+        json={
+            "cognition_id": pytest.content_id_text,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Record deleted!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 0
+
+
+def test_delete_content_does_not_exist():
+    content_id = '635981f6e40f61599e000064'
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{content_id}",
+        json={
+            "cognition_id": content_id,
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Payload does not exists!"
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+
+
+def test_get_content_not_exists():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/text/faq",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["message"] is None
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
 def test_payload_upload_api_with_gpt_feature_disabled():
     payload = {
             "data": {"name": "Nupur", "age": 25, "city": "Bengaluru"},
@@ -1847,7 +1933,7 @@ def test_payload_upload_api(monkeypatch):
     assert actual["error_code"] == 0
 
 
-def test_payload_upload_metadata_missing(monkeypatch):
+def test_payload_upload_collection_does_not_exists(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
@@ -1855,7 +1941,27 @@ def test_payload_upload_metadata_missing(monkeypatch):
     payload = {
             "data": {"name": "Ram", "age": 23, "color": "red"},
             "content_type": "json",
-            "collection": "User_details_one"
+            "collection": "test_payload_upload_collection_does_not_exists"
+        }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/cognition",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == 'Collection does not exist!'
+
+
+def test_payload_upload_metadata_missing(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
+
+    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    payload = {
+            "data": {"city": "Pune", "color": "red"},
+            "content_type": "json",
+            "collection": "Details"
         }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -1874,7 +1980,7 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     metadata = {
         "metadata": [{"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": True}],
-        "collection_name": "age_details_one"
+        "collection_name": "Details"
     }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
@@ -1884,7 +1990,7 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
     payload = {
             "data": {"age": "Twenty-Three"},
             "content_type": "json",
-            "collection": "age_details_one"
+            "collection": "Details"
         }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
@@ -1896,24 +2002,22 @@ def test_payload_upload_metadata_invalid_data_type(monkeypatch):
     assert actual["message"] == 'Invalid data type!'
 
 
-def test_payload_upload_empty_data_text(monkeypatch):
-    def _mock_get_bot_settings(*args, **kwargs):
-        return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
-
-    monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
-    payload = {
-            "data": "",
-            "content_type": "text",
-        }
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition",
-        json=payload,
+def test_payload_updated_api_collection_does_not_exists():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
+        json={
+            "cognition_id": pytest.payload_id,
+            "data": {"details": "data science"},
+            "collection": "test_payload_updated_api_collection_does_not_exists",
+            "content_type": "json"
+        },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+
     )
     actual = response.json()
     assert not actual["success"]
-    assert actual["message"] == [{'loc': ['body', '__root__'], 'msg': 'data cannot be empty', 'type': 'value_error'}]
-
+    assert actual["message"] == "Collection does not exist!"
+    assert actual["error_code"] == 422
 
 
 def test_payload_updated_api():
@@ -1921,9 +2025,9 @@ def test_payload_updated_api():
         url=f"/api/bot/{pytest.bot}/data/cognition/{pytest.payload_id}",
         json={
             "cognition_id": pytest.payload_id,
-            "data": 'Data Collection means gathering relevant data from various sources, which can include databases, APIs, websites, sensors, social media, and more.',
-            "collection": "Collection",
-            "content_type": "text"
+            "data": {"details": "data science"},
+            "collection": "Details",
+            "content_type": "json"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
@@ -1944,8 +2048,8 @@ def test_payload_content_update_api_already_exists(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
             "cognition_id": payload_id,
-            "data": 'Data Collection means gathering relevant data from various sources, which can include databases, APIs, websites, sensors, social media, and more.',
-            "content_type": "text",
+            "data": {"details": "data science"},
+            "content_type": "json",
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
@@ -1964,8 +2068,8 @@ def test_payload_content_update_api_id_not_found():
         url=f"/api/bot/{pytest.bot}/data/cognition/{payload_id}",
         json={
             "cognition_id": payload_id,
-            "data": 'Data Science is an emerging field.',
-            "content_type": "text",
+            "data": {"details": "data"},
+            "content_type": "json",
             },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
 
@@ -7039,7 +7143,7 @@ def test_get_secret_2():
 def test_add_vectordb_action_empty_name():
     request_body = {
         "name": '',
-        "query": {"type": "from_value", "value": "embedding_search"},
+        "query": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
     }
@@ -7059,7 +7163,7 @@ def test_add_vectordb_action_empty_name():
 def test_add_vectordb_action_empty_operation_value():
     request_body = {
         "name": 'action_test_empty_operation_value',
-        "query": {"type": "from_value", "value": ""},
+        "query": "",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
     }
@@ -7072,19 +7176,16 @@ def test_add_vectordb_action_empty_operation_value():
     actual = response.json()
     print(actual)
     assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'query', 'value'],
+    assert actual["message"] == [{'loc': ['body', 'query'],
                                   'msg': "value is not a valid enumeration member; permitted: 'payload_search', 'embedding_search'",
-                                  'type': 'type_error.enum',
-                                  'ctx': {'enum_values': ['payload_search', 'embedding_search']}},
-                                 {'loc': ['body', 'query', '__root__'], 'msg': 'value cannot be empty',
-                                  'type': 'value_error'}]
+                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['payload_search', 'embedding_search']}}]
     assert not actual["success"]
 
 
 def test_add_vectordb_action_empty_operation_type():
     request_body = {
         "name": 'action_test_empty_operation_type',
-        "query": {"type": "", "value": "embedding_search"},
+        "query": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
     }
@@ -7096,19 +7197,15 @@ def test_add_vectordb_action_empty_operation_type():
 
     actual = response.json()
     print(actual)
-    assert actual["error_code"] == 422
-    assert actual["message"] == [{'loc': ['body', 'query', 'type'],
-                                  'msg': "value is not a valid enumeration member; permitted: 'from_value', 'from_slot'",
-                                  'type': 'type_error.enum', 'ctx': {'enum_values': ['from_value', 'from_slot']}},
-                                 {'loc': ['body', 'query', '__root__'], 'msg': 'type cannot be empty',
-                                  'type': 'value_error'}]
-    assert not actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
 
 
 def test_add_vectordb_action_empty_payload_type():
     request_body = {
         "name": 'test_add_vectordb_action_empty_payload_type',
-        "query": {"type": "from_value", "value": "payload_search"},
+        "query": "payload_search",
         "payload": {"type": "", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"}
     }
@@ -7132,7 +7229,7 @@ def test_add_vectordb_action_empty_payload_type():
 def test_add_vectordb_action_empty_payload_value():
     request_body = {
         "name": 'action_test_empty_value',
-        "query": {"type": "from_value", "value": "payload_search"},
+        "query": "payload_search",
         "payload": {"type": "from_value", "value": ''},
         "response": {"value": "0"}
     }
@@ -7152,7 +7249,7 @@ def test_add_vectordb_action_empty_payload_value():
 def test_add_vectordb_action():
     request_body = {
         "name": 'vectordb_action_test',
-        "query": {"type": "from_value", "value": "payload_search"},
+        "query": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -7179,7 +7276,7 @@ def test_add_vectordb_action():
 def test_add_vectordb_action_case_insensitivity():
     request_body = {
         "name": 'VECTORDB_ACTION_CASE_INSENSITIVE',
-        "query": {"type": "from_value", "value": "payload_search"},
+        "query": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -7224,7 +7321,7 @@ def test_add_vectordb_action_case_insensitivity():
 def test_add_vectordb_action_existing():
     request_body = {
         "name": 'test_add_vectordb_action_existing',
-        "query": {"type": "from_value", "value": "embedding_search"},
+        "query": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"},
         "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
@@ -7267,7 +7364,7 @@ def test_add_vectordb_action_with_slots():
 
     request_body = {
         "name": 'test_add_vectordb_action_with_slots',
-        "query": {"type": "from_value", "value": "payload_search"},
+        "query": "payload_search",
         "payload": {"type": "from_slot", "value": "vectordb"},
         "response": {"value": "0"}
     }
@@ -7284,39 +7381,10 @@ def test_add_vectordb_action_with_slots():
     assert actual["success"]
 
 
-def test_add_vectordb_action_with_invalid_operation_type():
-    request_body = {
-        "name": 'test_add_vectordb_action_with_invalid_operation_type',
-        "query": {"type": "from_val", "value": "payload_search"},
-        "payload": {"type": "from_value", "value": {
-            "filter": {
-                "should": [
-                    {"key": "city", "match": {"value": "London"}},
-                    {"key": "color", "match": {"value": "red"}}
-                ]
-            }
-        }},
-        "response": {"value": "0"}
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/action/db",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    print(actual)
-    assert not actual["success"]
-    assert str(actual['message']).__contains__("value is not a valid enumeration member")
-    assert actual["data"] is None
-    assert actual["error_code"] == 422
-
-
 def test_update_vectordb_action():
     request_body = {
         "name": 'test_update_vectordb_action',
-        "query": {"type": "from_value", "value": "payload_search"},
+        "query": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -7338,7 +7406,7 @@ def test_update_vectordb_action():
 
     request_body = {
         "name": 'test_update_vectordb_action',
-        "query": {"type": "from_value", "value": "embedding_search"},
+        "query": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [0], "with_payload": True, "with_vector": True}},
         "response": {"value": "0"},
         "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "script"}]
@@ -7365,7 +7433,7 @@ def test_update_vectordb_action():
 def test_update_vectordb_action_non_existing():
     request_body = {
         "name": 'test_update_vectordb_action_non_existing',
-        "query": {"type": "from_value", "value": "embedding_search"},
+        "query": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
         "set_slots": [{"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}]
@@ -7379,7 +7447,7 @@ def test_update_vectordb_action_non_existing():
 
     request_body = {
         "name": "test_update_vectordb_action_non_existing_new",
-        "query": {"type": "from_value", "value": "embedding_search"},
+        "query": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [6], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
         "set_slots": [{"name": "age", "value": "${RESPONSE}", "evaluation_type": "script"}]
@@ -7399,7 +7467,7 @@ def test_update_vectordb_action_non_existing():
 def test_update_vector_action_wrong_parameter():
     request_body = {
         "name": "test_update_vector_action_1",
-        "query": {"type": "from_value", "value": "embedding_search"},
+        "query": "embedding_search",
         "payload": {"type": "from_value", "value": {"ids": [8], "with_payload": True, "with_vector": True}},
         "response": {"value": "15"},
         "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
@@ -7415,7 +7483,7 @@ def test_update_vector_action_wrong_parameter():
 
     request_body = {
         "name": "test_update_vector_action_1",
-        "query": {"type": "from_value", "value": "embedding_search"},
+        "query": "embedding_search",
         "payload": {"type": "from_val", "value": {"ids": [81], "with_payload": True, "with_vector": True}},
         "response": {"value": "nupur"},
         "set_slots": [{"name": "bot", "value": "${RESPONSE}", "evaluation_type": "expression"}]
@@ -7459,15 +7527,16 @@ def test_list_vector_db_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert actual['data'][0]['name'] == 'vectordb_action_test'
+    assert actual['data'][0]['name'] == 'action_test_empty_operation_type'
 
 
 def test_delete_vectordb_action():
     request_body = {
         "name": "test_delete_vectordb_action",
-        "query": {"type": "from_value", "value": "payload_search"},
+        "query": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -7499,7 +7568,7 @@ def test_delete_vectordb_action():
 def test_delete_vectordb_action_non_existing():
     request_body = {
         "name": "test_delete_vectordb_action_non_existing",
-        "query": {"type": "from_value", "value": "payload_search"},
+        "query": "payload_search",
         "payload": {"type": "from_value", "value": {
             "filter": {
                 "should": [
@@ -8379,10 +8448,11 @@ def test_list_actions():
     assert Utility.check_empty_string(actual["message"])
     print(actual['data'])
     assert actual['data'] == {'actions': ['action_greet'],
-                              'database_action': ['vectordb_action_test', 'vectordb_action_case_insensitive',
-                                                  'test_add_vectordb_action_existing', 'test_add_vectordb_action_with_slots',
-                                                  'test_update_vectordb_action', 'test_update_vectordb_action_non_existing',
-                                                  'test_update_vector_action_1', 'test_delete_vectordb_action_non_existing'],
+                              'database_action': ['action_test_empty_operation_type', 'vectordb_action_test',
+                                                  'vectordb_action_case_insensitive', 'test_add_vectordb_action_existing',
+                                                  'test_add_vectordb_action_with_slots', 'test_update_vectordb_action',
+                                                  'test_update_vectordb_action_non_existing', 'test_update_vector_action_1',
+                                                  'test_delete_vectordb_action_non_existing'],
                               'http_action': ['test_add_http_action_no_token', 'test_add_http_action_with_valid_dispatch_type',
                                               'test_add_http_action_with_dynamic_params', 'test_update_http_action_with_dynamic_params',
                                               'test_add_http_action_with_sender_id_parameter_type',

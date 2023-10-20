@@ -422,7 +422,7 @@ class PyscriptActionRequest(BaseModel):
 
 class DatabaseActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
-    query: QueryConfig
+    query: DbActionOperationType
     payload: PayloadConfig
     response: ActionResponseEvaluation = None
     set_slots: List[SetSlotsUsingActionResponse] = []
@@ -965,13 +965,13 @@ class ColumnMetadata(BaseModel):
 
 
 class CognitionSchemaRequest(BaseModel):
-    metadata: List[ColumnMetadata]
+    metadata: List[ColumnMetadata] = None
     collection_name: str
 
 
 class CognitiveDataRequest(BaseModel):
     data: Any
-    content_type: CognitionDataType
+    content_type: CognitionDataType = CognitionDataType.text.value
     collection: str = None
 
     @root_validator

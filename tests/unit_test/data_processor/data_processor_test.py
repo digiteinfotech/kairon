@@ -9522,7 +9522,7 @@ class TestMongoProcessor:
         user = 'test_vector_user'
         action = 'test_vectordb_action_op_embedding_search'
         response = '0'
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload_body = {
             "ids": [
                 0
@@ -9544,8 +9544,7 @@ class TestMongoProcessor:
         assert actual_vectordb_action['name'] == action
         assert actual_vectordb_action['payload']['type'] == 'from_value'
         assert actual_vectordb_action['payload']['value'] == {'ids': [0], 'with_payload': True, 'with_vector': True}
-        assert actual_vectordb_action['query']['type'] == 'from_value'
-        assert actual_vectordb_action['query']['value'] == 'embedding_search'
+        assert actual_vectordb_action['query'] == 'embedding_search'
         assert actual_vectordb_action['response']['value'] == '0'
 
     def test_add_vector_embedding_action_config_op_payload_search(self):
@@ -9554,7 +9553,7 @@ class TestMongoProcessor:
         user = 'test_vector_user'
         action = 'test_vectordb_action_op_payload_search'
         response = '1'
-        query = {'type': 'from_value', 'value': 'payload_search'}
+        query = 'payload_search'
         payload_body = {
             "filter": {
                 "should": [
@@ -9577,8 +9576,7 @@ class TestMongoProcessor:
         assert actual_vectordb_action['name'] == action
         assert actual_vectordb_action['payload']['type'] == 'from_value'
         assert actual_vectordb_action['payload']['value'] == payload_body
-        assert actual_vectordb_action['query']['type'] == 'from_value'
-        assert actual_vectordb_action['query']['value'] == 'payload_search'
+        assert actual_vectordb_action['query'] == 'payload_search'
         assert actual_vectordb_action['response']['value'] == '1'
 
     def test_add_vector_embedding_action_config_op_embedding_search_from_slot(self):
@@ -9587,7 +9585,7 @@ class TestMongoProcessor:
         user = 'test_vector_user'
         action = 'test_vectordb_action_op_embedding_search_from_slot'
         response = 'nupur.khare'
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'email'}
         processor.add_slot({"name": "email", "type": "text", "initial_value": "nupur.khare@digite.com", "influence_conversation": True}, bot, user,
                            raise_exception_if_exists=False)
@@ -9605,8 +9603,7 @@ class TestMongoProcessor:
         assert actual_vectordb_action['name'] == action
         assert actual_vectordb_action['payload']['type'] == 'from_slot'
         assert actual_vectordb_action['payload']['value'] == 'email'
-        assert actual_vectordb_action['query']['type'] == 'from_value'
-        assert actual_vectordb_action['query']['value'] == 'embedding_search'
+        assert actual_vectordb_action['query'] == 'embedding_search'
         assert actual_vectordb_action['response']['value'] == 'nupur.khare'
 
     def test_add_vector_embedding_action_config_op_embedding_search_from_slot_does_not_exists(self):
@@ -9615,7 +9612,7 @@ class TestMongoProcessor:
         user = 'test_vector_user_slot'
         action = 'test_vectordb_action_slot'
         response = 'nupur.khare'
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'cuisine'}
         vectordb_action_config = DatabaseActionRequest(
             name=action,
@@ -9633,7 +9630,7 @@ class TestMongoProcessor:
         user = 'test_vector_user'
         action = 'test_vectordb_action_op_embedding_search'
         response = '0'
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload_body = {
             "ids": [
                 0
@@ -9657,7 +9654,7 @@ class TestMongoProcessor:
         user = 'test_vector_user_empty_name'
         action = 'test_add_vectordb_action_config_empty_name'
         response = '0'
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload_body = {
             "ids": [
                 0
@@ -9703,7 +9700,7 @@ class TestMongoProcessor:
         user = 'test_vector_user_empty_operation_values'
         action = 'test_add_vector_embedding_action_config_empty_operation_values'
         response = '0'
-        query = {'type': 'from_value', 'value': 'payload_search'}
+        query = 'payload_search'
         payload_body = {
             "ids": [
                 0
@@ -9729,19 +9726,9 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response)
         )
         vectordb_action_two = vectordb_action_config_two.dict()
-        vectordb_action_two['query']['value'] = ''
+        vectordb_action_two['query'] = ''
         with pytest.raises(ValidationError, match="query value is required"):
             processor.add_db_action(vectordb_action_two, user, bot)
-        vectordb_action_config_three = DatabaseActionRequest(
-            name=action,
-            query=query,
-            payload=payload,
-            response=ActionResponseEvaluation(value=response)
-        )
-        vectordb_action_three = vectordb_action_config_three.dict()
-        vectordb_action_three['query']['type'] = ''
-        with pytest.raises(ValidationError, match="query type is required"):
-            processor.add_db_action(vectordb_action_three, user, bot)
 
     def test_get_vector_embedding_action(self):
         processor = MongoProcessor()
@@ -9750,7 +9737,7 @@ class TestMongoProcessor:
         action = 'test_get_vectordb_action'
         response = 'nupur.khare'
 
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'email'}
         DatabaseAction(
             name=action,
@@ -9764,7 +9751,7 @@ class TestMongoProcessor:
         actual = processor.get_db_action_config(bot=bot, action=action)
         assert actual is not None
         assert actual['name'] == action
-        assert actual['query'] == {'type': 'from_value', 'value': 'embedding_search'}
+        assert actual['query'] == 'embedding_search'
         assert actual['payload'] == {'type': 'from_slot', 'value': 'email'}
         assert actual['collection'] == 'test_vector_bot_get_faq_embd'
         assert actual['response'] == {'value': 'nupur.khare', 'dispatch': True, 'evaluation_type': 'expression', 'dispatch_type': 'text'}
@@ -9778,7 +9765,7 @@ class TestMongoProcessor:
         action = 'test_get_vectordb_action'
         response = 'nupur.khare'
 
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload = {'type': 'from_slot', 'value': 'email'}
         DatabaseAction(
             name=action,
@@ -9808,7 +9795,7 @@ class TestMongoProcessor:
         user = 'test_update_vectordb_action_user'
         action = 'test_update_vectordb_action'
         response = '15'
-        query = {'type': 'from_value', 'value': 'payload_search'}
+        query = 'payload_search'
         payload_body = {
             "filter": {
                 "should": [
@@ -9855,7 +9842,7 @@ class TestMongoProcessor:
         user = 'test_update_vectordb_action_user'
         action = 'test_update_vectordb_action_does_not_exists'
         response = 'Digite'
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload_body = {
             "ids": [
                 0
@@ -9879,7 +9866,7 @@ class TestMongoProcessor:
         user = 'test_vector_user'
         action = 'test_delete_vector_embedding_action_config'
         response = '0'
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload_body = {
             "ids": [
                 0
@@ -9911,7 +9898,7 @@ class TestMongoProcessor:
         user = 'test_vector_user'
         action = 'test_delete_vector_embedding_action_config_non_existing'
         response = '0'
-        query = {'type': 'from_value', 'value': 'embedding_search'}
+        query = 'embedding_search'
         payload_body = {
             "ids": [
                 0
@@ -14270,156 +14257,6 @@ class TestMongoProcessor:
         assert Utility.is_exist(Utterances, raise_error=False, name='utter_ask', bot='test')
         assert Utility.is_exist(Responses, raise_error=False, name='utter_ask', bot='test')
 
-    def test_save_content_with_gpt_feature_disabled(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        collection = "Bot"
-        content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
-                  'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
-                  ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
-                  'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
-                  'physical machines.'
-        with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
-            processor.save_content(content, user, bot, collection)
-
-        settings = BotSettings.objects(bot=bot).get()
-        settings.llm_settings = LLMSettings(enable_faq=True)
-        settings.save()
-
-    def test_save_content(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        collection = "Bot"
-        content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
-                  'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
-                  ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
-                  'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
-                  'physical machines.'
-        pytest.content_id = processor.save_content(content, user, bot, collection)
-        content_id = '5349b4ddd2791d08c09890f3'
-        with pytest.raises(AppException, match="Text already exists!"):
-            processor.update_content(content_id, content, user, bot, None)
-        pytest.content_id_one = processor.save_content(content, user, bot, "Bot_two")
-        pytest.content_id_two = processor.save_content(content, user, bot, "Bot_three")
-        with pytest.raises(AppException, match="Collection limit exceeded!"):
-            processor.save_content(content, user, bot, "Bot_four")
-
-    def test_save_content_invalid(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        collection = 'Bot'
-        content = 'A bot, short for robot, is a program.'
-        with pytest.raises(AppException, match="Content should contain atleast 10 words."):
-            processor.save_content(content, user, bot, collection)
-
-    def test_update_content(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        collection = 'Bot_details'
-        content = 'Bots are commonly used in various industries, such as e-commerce, customer service, gaming, ' \
-                  'and social media. Some bots are designed to interact with humans in a conversational manner and are ' \
-                  'called chatbots or virtual assistants.'
-        processor.update_content(pytest.content_id, content, user, bot, collection)
-
-    def test_update_content_invalid(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        collection = 'Bot_details'
-        content = 'Bots are commonly used in various industries.'
-        with pytest.raises(AppException, match="Content should contain atleast 10 words."):
-            content_id = processor.save_content(content, user, bot, collection)
-            processor.update_content(content_id, content, user, bot, collection)
-
-    def test_update_content_not_found(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        content_id = '5349b4ddd2781d08c09890f3'
-        content = 'MongoDB is a source-available cross-platform document-oriented database program. ' \
-                  'Classified as a NoSQL database program, MongoDB uses JSON-like documents with optional schemas. ' \
-                  'MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License which is ' \
-                  'deemed non-free by several distributions.'
-        with pytest.raises(AppException, match="Content with given id not found!"):
-            processor.update_content(content_id, content, user, bot, None)
-
-    def test_delete_content(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        processor.delete_content(pytest.content_id, user, bot)
-        processor.delete_content(pytest.content_id_one, user, bot)
-        processor.delete_content(pytest.content_id_two, user, bot)
-
-    def test_delete_content_does_not_exists(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        with pytest.raises(AppException, match="Text does not exists!"):
-            processor.delete_content("507f191e810c19729de860ea", user, bot)
-
-    @patch("kairon.shared.cognition.processor.CognitionDataProcessor.get_content", autospec=True)
-    def test_get_content_not_exists(self, mock_get_content):
-        def _get_content(*args, **kwargs):
-            return []
-
-        mock_get_content.return_value = _get_content()
-        kwargs = {}
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        assert list(processor.get_content(bot, **kwargs)) == []
-
-    @patch("kairon.shared.cognition.processor.CognitionDataProcessor.get_content", autospec=True)
-    def test_get_content(self, mock_get_content):
-        def _get_content(*args, **kwargs):
-            return [{'vector_id': 1,
-                     '_id': '65266ff16f0190ca4fd09898',
-                     'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
-                     'user': 'testUser', 'bot': 'test',
-                     'content_type': 'text',
-                     'metadata': [],
-                     'collection': 'testing'}]
-
-        mock_get_content.return_value = _get_content()
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        collection = 'testing'
-        content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
-                  'application are tested in isolation to ensure that each unit functions as expected. '
-        pytest.content_id_unit = processor.save_content(content, user, bot, collection)
-        kwargs = {'data': 'Unit testing'}
-        data = list(processor.get_content(bot, **kwargs))
-        assert data[0][
-                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
-                                 'software application are tested in isolation to ensure that each unit functions as expected. '
-        assert data[0]['_id']
-        assert data[0]['collection'] == 'testing'
-        kwargs = {}
-        actual = list(processor.get_content(bot, **kwargs))
-        assert actual[0][
-                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
-                              'software application are tested in isolation to ensure that each unit functions as expected. '
-        assert actual[0]['_id']
-        assert actual[0]['collection'] == 'testing'
-
-    def test_list_content(self):
-        bot = 'test'
-        user = 'testUser'
-        processor = CognitionDataProcessor()
-        contents = processor.list_cognition_collections(bot)
-        assert contents == ['testing']
-
-    def test_delete_content_for_action(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        processor.delete_content(pytest.content_id_unit, user, bot)
-
     def test_save_payload_metadata(self):
         processor = CognitionDataProcessor()
         bot = 'test'
@@ -14433,19 +14270,35 @@ class TestMongoProcessor:
         }
         pytest.metadata_id = processor.save_cognition_schema(metadata, user, bot)
 
-    def test_save_payload_metadata_column_already_exists(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        metadata = {
+        metadata_one = {
             "metadata": [
-                {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "details_column",
+                {"column_name": "metadata_one", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "metadata_one",
             "bot": bot,
             "user": user
         }
-        with pytest.raises(AppException, match="Column already exists!"):
-            processor.save_cognition_schema(metadata, user, bot)
+        pytest.metadata_id_one = processor.save_cognition_schema(metadata_one, user, bot)
+
+        metadata_two = {
+            "metadata": [
+                {"column_name": "metadata_two", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "metadata_two",
+            "bot": bot,
+            "user": user
+        }
+        pytest.metadata_id_two = processor.save_cognition_schema(metadata_two, user, bot)
+
+        metadata_three = {
+            "metadata": [
+                {"column_name": "metadata_three", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "metadata_three",
+            "bot": bot,
+            "user": user
+        }
+        with pytest.raises(AppException, match="Collection limit exceeded!"):
+            processor.save_cognition_schema(metadata_three, user, bot)
+        processor.delete_cognition_schema(pytest.metadata_id_one, bot)
+        processor.delete_cognition_schema(pytest.metadata_id_two, bot)
 
     def test_save_payload_metadata_column_limit_exceeded(self):
         processor = CognitionDataProcessor()
@@ -14466,38 +14319,20 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Column limit exceeded for collection!"):
             processor.save_cognition_schema(metadata, user, bot)
 
-    def test_save_payload_metadata_collection_already_exists(self):
+    def test_save_payload_metadata_same_columns(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
         metadata = {
             "metadata": [
                 {"column_name": "tech", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
-                {"column_name": "color", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            ],
+                {"column_name": "tech", "data_type": "int", "enable_search": True, "create_embeddings": False}],
             "collection_name": "details_collection",
             "bot": bot,
             "user": user
         }
-        with pytest.raises(AppException, match="Collection already exists!"):
+        with pytest.raises(AppException, match="Columns cannot be same in the schema!"):
             processor.save_cognition_schema(metadata, user, bot)
-
-    def test_save_payload_metadata_with_update(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        metadata = {
-            "metadata": [
-                {"column_name": "language", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "bot": bot,
-            "user": user
-        }
-        pytest.metadata_id_two = processor.save_cognition_schema(metadata, user, bot)
-        metadata_id = '64b0f2d66707e9282a13f9cd'
-        with pytest.raises(AppException, match="Schema already exists!"):
-            processor.update_cognition_schema(metadata_id, metadata, user, bot)
 
     def test_save_payload_metadata_column_name_empty(self):
         processor = CognitionDataProcessor()
@@ -14506,6 +14341,7 @@ class TestMongoProcessor:
         metadata = {
             "metadata": [{"column_name": "", "data_type": "int", "enable_search": True,
                           "create_embeddings": True}],
+            "collection_name": "column_name_empty",
             "bot": bot,
             "user": user}
         with pytest.raises(ValidationError, match="Column name cannot be empty"):
@@ -14524,6 +14360,20 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only str and int data types are supported"):
             CognitionSchema(**metadata).save()
 
+    def test_update_payload_metadata_different_collection_name(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        metadata = {
+            "metadata": [
+                {"column_name": "birthday", "data_type": "int", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "test_update_payload_metadata_different_collection_name",
+            "bot": bot,
+            "user": user
+        }
+        with pytest.raises(AppException, match="Collection name cannot be updated!"):
+            processor.update_cognition_schema(pytest.metadata_id, metadata, user, bot)
+
     def test_update_payload_metadata(self):
         processor = CognitionDataProcessor()
         bot = 'test'
@@ -14531,6 +14381,7 @@ class TestMongoProcessor:
         metadata = {
             "metadata": [
                 {"column_name": "birthday", "data_type": "int", "enable_search": True, "create_embeddings": True}],
+            "collection_name": "details_collection",
             "bot": bot,
             "user": user
         }
@@ -14551,6 +14402,15 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Schema with given id not found!"):
             processor.update_cognition_schema(metadata_id, metadata, user, bot)
 
+    def test_get_payload_metadata(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        data = list(processor.list_cognition_schema(bot))
+        print(data)
+        assert data[0]
+        assert data[0]['_id']
+
     def test_delete_payload_metadata(self):
         processor = CognitionDataProcessor()
         bot = 'test'
@@ -14569,14 +14429,232 @@ class TestMongoProcessor:
         bot = 'testing'
         assert list(processor.list_cognition_schema(bot)) == []
 
-    def test_get_payload_metadata(self):
+
+    def test_save_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        data = list(processor.list_cognition_schema(bot))
-        print(data)
-        assert data[0]
+        collection = "Bot"
+        content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
+                  'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
+                  ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
+                  'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
+                  'physical machines.'
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
+            processor.save_cognition_data(payload, user, bot)
+
+        settings = BotSettings.objects(bot=bot).get()
+        settings.llm_settings = LLMSettings(enable_faq=True)
+        settings.save()
+
+    def test_save_content_atleast_ten_words(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = 'Bot'
+        content = 'A bot, short for robot, is a program.'
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        with pytest.raises(AppException, match="Content should contain atleast 10 words."):
+            processor.save_cognition_data(payload, user, bot)
+
+    def test_save_content_collection_does_not_exist(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = 'Bot'
+        content = 'A bot, short for robot, is a program. Bots can be programmed to perform a wide range of tasks.'
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        with pytest.raises(AppException, match="Collection does not exist!"):
+            processor.save_cognition_data(payload, user, bot)
+
+    def test_save_content_text_with_metadata_invalid(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = "test_save_content_text_with_metadata_invalid"
+        content = 'A large language model is a type of artificial intelligence system designed to understand and generate human language.'
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        metadata = {
+            "metadata": [
+                {"column_name": "LLM", "data_type": "str", "enable_search": True, "create_embeddings": True}],
+            "collection_name": collection,
+            "bot": bot,
+            "user": user
+        }
+        processor.save_cognition_schema(metadata, user, bot)
+        with pytest.raises(AppException, match="Content type text cannot have metadata!"):
+            processor.save_cognition_data(payload, user, bot)
+
+    def test_save_content(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = "Bot"
+        content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
+                  'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
+                  ' to perform a wide range of tasks, from simple tasks like answering basic questions or sending ' \
+                  'automated messages to complex tasks like performing data analysis, playing games, or even controlling ' \
+                  'physical machines.'
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        metadata = {
+            "metadata": None,
+            "collection_name": collection,
+            "bot": bot,
+            "user": user
+        }
+        processor.save_cognition_schema(metadata, user, bot)
+        pytest.content_id = processor.save_cognition_data(payload, user, bot)
+        content_id = '5349b4ddd2791d08c09890f3'
+        with pytest.raises(AppException, match="Payload data already exists!"):
+            processor.update_cognition_data(content_id, payload, user, bot)
+
+    def test_update_content_atleast_ten_words(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = 'Bot'
+        content = 'Bots are commonly used in various industries.'
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        with pytest.raises(AppException, match="Content should contain atleast 10 words."):
+            processor.update_cognition_data(pytest.content_id, payload, user, bot)
+
+    def test_update_content_collection_does_not_exists(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = 'test_update_content_collection_does_not_exists'
+        content = 'LLMs can be used for a wide range of applications, including chatbots, language translation, content generation, sentiment analysis, and many other natural language processing tasks. '
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        with pytest.raises(AppException, match="Collection does not exist!"):
+            processor.update_cognition_data(pytest.content_id, payload, user, bot)
+
+    def test_update_content(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = 'Bot'
+        content = 'Bots are commonly used in various industries, such as e-commerce, customer service, gaming, ' \
+                  'and social media. Some bots are designed to interact with humans in a conversational manner and are ' \
+                  'called chatbots or virtual assistants.'
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        processor.update_cognition_data(pytest.content_id, payload, user, bot)
+
+    def test_update_content_not_found(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        content_id = '5349b4ddd2781d08c09890f3'
+        collection = 'Bot'
+        content = 'MongoDB is a source-available cross-platform document-oriented database program. ' \
+                  'Classified as a NoSQL database program, MongoDB uses JSON-like documents with optional schemas. ' \
+                  'MongoDB is developed by MongoDB Inc. and licensed under the Server Side Public License which is ' \
+                  'deemed non-free by several distributions.'
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        with pytest.raises(AppException, match="Payload with given id not found!"):
+            processor.update_cognition_data(content_id, payload, user, bot)
+
+    def test_delete_content(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        processor.delete_cognition_data(pytest.content_id, bot)
+
+    def test_delete_content_does_not_exists(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        with pytest.raises(AppException, match="Payload does not exists!"):
+            processor.delete_cognition_data("507f191e810c19729de860ea", bot)
+
+    @patch("kairon.shared.cognition.processor.CognitionDataProcessor.get_content", autospec=True)
+    def test_get_content_not_exists(self, mock_get_content):
+        def _get_content(*args, **kwargs):
+            return []
+
+        mock_get_content.return_value = _get_content()
+        kwargs = {}
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        assert list(processor.get_content(bot, **kwargs)) == []
+
+    @patch("kairon.shared.cognition.processor.CognitionDataProcessor.get_content", autospec=True)
+    def test_get_content(self, mock_get_content):
+        def _get_content(*args, **kwargs):
+            return [{'vector_id': 1,
+                     '_id': '65266ff16f0190ca4fd09898',
+                     'data': 'Unit testing is a software testing technique in which individual units or components of a software application are tested in isolation to ensure that each unit functions as expected. ',
+                     'user': 'testUser', 'bot': 'test',
+                     'content_type': 'text',
+                     'metadata': None,
+                     'collection': 'testing'}]
+
+        mock_get_content.return_value = _get_content()
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        collection = 'Bot'
+        content = 'Unit testing is a software testing technique in which individual units or components of a software ' \
+                  'application are tested in isolation to ensure that each unit functions as expected. '
+        payload = {
+            "data": content,
+            "content_type": "text",
+            "collection": collection}
+        pytest.content_id_unit = processor.save_cognition_data(payload, user, bot)
+        kwargs = {'data': 'Unit testing'}
+        data = list(processor.get_content(bot, **kwargs))
+        assert data[0][
+                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                                 'software application are tested in isolation to ensure that each unit functions as expected. '
         assert data[0]['_id']
+        assert data[0]['collection'] == 'testing'
+        kwargs = {}
+        actual = list(processor.get_content(bot, **kwargs))
+        assert actual[0][
+                   'data'] == 'Unit testing is a software testing technique in which individual units or components of a ' \
+                              'software application are tested in isolation to ensure that each unit functions as expected. '
+        assert actual[0]['_id']
+        assert actual[0]['collection'] == 'testing'
+
+    def test_list_content(self):
+        bot = 'test'
+        user = 'testUser'
+        processor = CognitionDataProcessor()
+        contents = processor.list_cognition_collections(bot)
+        print(contents)
+        assert contents == ['Bot']
+
+    def test_delete_content_for_action(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        processor.delete_cognition_data(pytest.content_id_unit, bot)
 
     def test_save_payload_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()
@@ -14599,6 +14677,17 @@ class TestMongoProcessor:
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
 
+    def test_save_payload_content_collection_does_not_exists(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        payload = {
+            "data": {"name": "Nupur", "city": "Pune"},
+            "collection": "test_save_payload_content_collection_does_not_exists",
+            "content_type": "json"}
+        with pytest.raises(AppException, match="Collection does not exist!"):
+            processor.save_cognition_data(payload, user, bot)
+
     def test_save_payload_content(self):
         processor = CognitionDataProcessor()
         bot = 'test'
@@ -14618,13 +14707,17 @@ class TestMongoProcessor:
             "collection": "test_save_payload_content",
             "content_type": "json"}
         pytest.payload_id = processor.save_cognition_data(payload, user, bot)
+        payload_id = '64b0f2e66707e9282a13f6cd'
+        with pytest.raises(AppException, match="Payload data already exists!"):
+            processor.update_cognition_data(payload_id, payload, user, bot)
 
-    def test_save_payload_content_metadata_missing(self):
+    def test_save_payload_content_metadata_does_not_exists(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
         payload = {
-            "data": {"country": "India"},
+            "data": {"number": 15, "group": "a"},
+            "collection": "test_save_payload_content",
             "content_type": "json"}
         with pytest.raises(AppException, match="Metadata related to payload not found!"):
             processor.save_cognition_data(payload, user, bot)
@@ -14636,7 +14729,7 @@ class TestMongoProcessor:
         metadata = {
             "metadata": [
                 {"column_name": "number", "data_type": "int", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "test_save_payload_content_invalid_data_type",
+            "collection_name": "Bot",
             "bot": bot,
             "user": user
         }
@@ -14644,24 +14737,9 @@ class TestMongoProcessor:
         payload = {
             "data": {"number": "Twenty-three"},
             "content_type": "json",
-            "collection": "test_save_payload_content_invalid_data_type",}
+            "collection": "Bot"}
         with pytest.raises(AppException, match="Invalid data type!"):
             processor.save_cognition_data(payload, user, bot)
-
-    def test_save_payload_content_with_update(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        payload = {
-            "data": 'Data science is an interdisciplinary field that involves extracting knowledge and insights from data using various scientific methods, algorithms, processes, and systems.',
-            "content_type": "text",
-            "bot": bot,
-            "user": user
-        }
-        pytest.payload_id_two = processor.save_cognition_data(payload, user, bot)
-        payload_id = '64b0f2e66707e9282a13f6cd'
-        with pytest.raises(AppException, match="Payload data already exists!"):
-            processor.update_cognition_data(payload_id, payload, user, bot)
 
     def test_save_payload_content_data_empty(self):
         processor = CognitionDataProcessor()
@@ -14676,31 +14754,56 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="data cannot be empty"):
             CognitionData(**payload).save()
 
-    def test_update_payload_content(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        payload = {
-            "data": 'AI can process large amounts of data in ways that humans cannot.',
-            "content_type": "text",
-            "bot": bot,
-            "user": user
-        }
-        processor.update_cognition_data(pytest.payload_id, payload, user, bot)
-
     def test_update_payload_content_not_found(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
         payload_id = '5349b4ddd2719d08c09890f3'
         payload = {
-            "data": 'Data science plays a crucial role in various industries, including finance, healthcare, marketing, e-commerce, and many others.',
-            "content_type": "text",
+            "data": {"city": "Pune", "color": "red"},
+            "content_type": "json",
             "bot": bot,
             "user": user
         }
         with pytest.raises(AppException, match="Payload with given id not found!"):
             processor.update_cognition_data(payload_id, payload, user, bot)
+
+    def test_update_payload_content_collection_does_not_exists(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        payload = {
+            "data": {"city": "Pune", "color": "red"},
+            "content_type": "json",
+            "collection": "test_update_payload_content_collection_does_not_exists",
+            "bot": bot,
+            "user": user
+        }
+        with pytest.raises(AppException, match="Collection does not exist!"):
+            processor.update_cognition_data(pytest.payload_id, payload, user, bot)
+
+    def test_update_payload_content(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        payload = {
+            "data": {"name": "Digite", "city": "Mumbai"},
+            "content_type": "json",
+            "collection": "test_save_payload_content",
+            "bot": bot,
+            "user": user
+        }
+        processor.update_cognition_data(pytest.payload_id, payload, user, bot)
+
+    def test_get_payload_content(self):
+        processor = CognitionDataProcessor()
+        bot = 'test'
+        user = 'testUser'
+        data = list(processor.list_cognition_data(bot))
+        print(data)
+        assert data[0][
+                   'content'] == {"name": "Digite", "city": "Mumbai"}
+        assert data[0]['_id']
 
     def test_delete_payload_content(self):
         processor = CognitionDataProcessor()
@@ -14719,15 +14822,6 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'testing'
         assert list(processor.list_cognition_data(bot)) == []
-
-    def test_get_payload_content(self):
-        processor = CognitionDataProcessor()
-        bot = 'test'
-        user = 'testUser'
-        data = list(processor.list_cognition_data(bot))
-        assert data[0][
-                   'content'] == 'Data science is an interdisciplinary field that involves extracting knowledge and insights from data using various scientific methods, algorithms, processes, and systems.'
-        assert data[0]['_id']
 
 
 class TestTrainingDataProcessor:

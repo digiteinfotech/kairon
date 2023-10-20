@@ -4,7 +4,7 @@ from fastapi import UploadFile, File, Security, APIRouter
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
-from kairon.api.models import Response, TextData, CognitiveDataRequest, CognitionSchemaRequest
+from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -51,66 +51,6 @@ async def download_faq_files(
         "Content-Disposition"
     ] = "attachment; filename=" + os.path.basename(file)
     return response
-
-
-@router.post("/text/faq", response_model=Response)
-async def save_bot_text(
-        text: TextData,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-        collection: str = None
-):
-    """
-    Saves text content into the bot
-    """
-    return {
-        "message": "Text saved!",
-        "data": {
-            "_id": cognition_processor.save_content(
-                    text.data,
-                    current_user.get_user(),
-                    current_user.get_bot(),
-                    collection
-            )
-        }
-    }
-
-
-@router.put("/text/faq/{text_id}", response_model=Response)
-async def update_bot_text(
-        text_id: str,
-        text: TextData,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-        collection: str = None,
-):
-    """
-    Updates text content into the bot
-    """
-    return {
-        "message": "Text updated!",
-        "data": {
-            "_id": cognition_processor.update_content(
-                text_id,
-                text.data,
-                current_user.get_user(),
-                current_user.get_bot(),
-                collection
-            )
-        }
-    }
-
-
-@router.delete("/text/faq/{text_id}", response_model=Response)
-async def delete_bot_text(
-        text_id: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-):
-    """
-    Deletes text content of the bot
-    """
-    cognition_processor.delete_content(text_id, current_user.get_user(), current_user.get_bot())
-    return {
-        "message": "Text deleted!"
-    }
 
 
 @router.get("/text/faq", response_model=Response)

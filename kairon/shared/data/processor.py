@@ -43,7 +43,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, HttpActionReque
     SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, SetSlotsFromResponse, \
     CustomActionRequestParameters, KaironTwoStageFallbackAction, QuickReplies, RazorpayAction, PromptAction, \
-    LlmPrompt, FormSlotSet, DatabaseAction, DbOperation, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
+    LlmPrompt, FormSlotSet, DatabaseAction, DbQuery, PyscriptActionConfig, WebSearchAction, UserQuestion
 from kairon.shared.actions.models import ActionType, HttpRequestContentType, ActionParameterType, DbQueryValueType
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.importer.processor import DataImporterLogProcessor
@@ -3207,7 +3207,7 @@ class MongoProcessor:
             raise AppException(f'Action with name "{request_data.get("name")}" not found')
         self.__validate_payload(request_data.get('payload'), bot)
         action = DatabaseAction.objects(name=request_data.get('name'), bot=bot, status=True).get()
-        action.query = DbOperation(**request_data['query'])
+        action.query = request_data['query']
         action.payload = DbQuery(**request_data['payload'])
         action.response = HttpActionResponse(**request_data.get('response', {}))
         action.set_slots = [SetSlotsFromResponse(**slot).to_mongo().to_dict() for slot in
@@ -3230,7 +3230,7 @@ class MongoProcessor:
         set_slots = [SetSlotsFromResponse(**slot) for slot in vector_db_action_config.get('set_slots')]
         action_id = DatabaseAction(
             name=vector_db_action_config['name'],
-            query=DbOperation(**vector_db_action_config.get('query')),
+            query=vector_db_action_config.get('query'),
             payload=DbQuery(**vector_db_action_config.get('payload')),
             response=HttpActionResponse(**vector_db_action_config.get('response', {})),
             set_slots=set_slots,
