@@ -15,8 +15,7 @@ from mongoengine import (
     DictField,
     DynamicField,
     IntField,
-    FloatField,
-    SequenceField
+    FloatField
 )
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.slots import (
@@ -33,7 +32,7 @@ from validators import url, ValidationFailure
 from kairon.exceptions import AppException
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
-from kairon.shared.models import TemplateType, StoryStepType, StoryType, CognitionDataType, CognitionMetadataType
+from kairon.shared.models import TemplateType, StoryStepType, StoryType
 from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
 from ..constants import WhatsappBSPTypes, LLMResourceProvider

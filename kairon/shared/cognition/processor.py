@@ -238,7 +238,7 @@ class CognitionDataProcessor:
                                                         Q(collection_name=collection) &
                                                         Q(bot=bot)).get()
             return matching_metadata
-        except DoesNotExist as e:
+        except AppException:
             raise AppException("Metadata related to payload not found!")
 
 
