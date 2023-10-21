@@ -47,6 +47,7 @@ RUN python -m pip install pymongo==3.12.0
 RUN python -m pip install torch==1.11.0
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install croniter
+RUN python -m pip install uuid6
 
 RUN mkdir ssl
 RUN mkdir testing_data

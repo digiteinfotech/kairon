@@ -40,6 +40,7 @@ RUN python -m pip install blinker
 RUN python -m pip install google-cloud-translate
 RUN python -m pip install pyjwt==2.6.0
 RUN python -m pip install croniter
+RUN python -m pip install uuid6
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp

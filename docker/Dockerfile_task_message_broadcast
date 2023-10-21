@@ -45,6 +45,7 @@ RUN python -m pip install RestrictedPython
 RUN python -m pip install AccessControl
 RUN python -m pip install pykka==3.1.1
 RUN python -m pip install timeout-decorator
+RUN python -m pip install uuid6
 
 RUN mkdir ssl
 RUN chmod 777 -R /tmp
