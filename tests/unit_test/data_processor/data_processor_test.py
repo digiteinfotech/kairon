@@ -1508,7 +1508,6 @@ class TestMongoProcessor:
         story_graph = processor.load_stories("all")
         assert isinstance(story_graph, StoryGraph) is True
         assert story_graph.story_steps.__len__() == 16
-        assert story_graph.story_steps[5].events[2].name == 'ticket_file_form'
         assert story_graph.story_steps[14].events[2].intent['name'] == 'user_feedback'
         assert story_graph.story_steps[14].events[2].entities[0]['value'] == 'like'
         assert story_graph.story_steps[14].events[2].entities[0]['entity'] == 'fdresponse'

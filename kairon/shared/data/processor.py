@@ -1367,7 +1367,6 @@ class MongoProcessor:
                 Stories.objects.insert(new_stories)
 
     def __prepare_training_story_events(self, events, timestamp, bot):
-        forms = set(Forms.objects(bot=bot, status=True).values_list("name"))
         for event in events:
             if event.type == UserUttered.type_name:
                 entities = []
@@ -1401,11 +1400,8 @@ class MongoProcessor:
                 )
             elif event.type == ActionExecuted.type_name:
                 yield ActionExecuted(action_name=event.name, timestamp=timestamp)
-                if event.name in forms:
-                    yield ActiveLoop(name=event.name, timestamp=timestamp)
             elif event.type == ActiveLoop.type_name:
-                if event.name == None:
-                    yield ActiveLoop(name=None, timestamp=timestamp)
+                yield ActiveLoop(name=event.name, timestamp=timestamp)
             elif event.type == SlotSet.type_name:
                 yield SlotSet(key=event.name, value=event.value, timestamp=timestamp)
 
