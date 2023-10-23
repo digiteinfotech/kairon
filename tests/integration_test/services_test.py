@@ -1424,7 +1424,7 @@ def test_get_content(mock_get_content):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-    assert actual["data"][0]['collection']
+    assert actual["data"]["logs"][0]['collection']
 
 
 def test_get_content_without_data():
@@ -1437,9 +1437,9 @@ def test_get_content_without_data():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-    assert actual["data"]["logs"][0]['collection'] == 'aws'
-    assert actual["data"]["logs"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
-    assert actual["data"]["logs"][1]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"]["logs"][0]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"]["logs"][1]['collection'] == 'aws'
+    assert actual["data"]["logs"][1]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
     assert actual["data"]["total"] == 2
 
 
