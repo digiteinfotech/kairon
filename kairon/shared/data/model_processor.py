@@ -122,8 +122,3 @@ class ModelProcessor:
         latest_log = ModelTraining.objects(bot=bot).order_by('-id').first()
         if latest_log and latest_log.status == EVENT_STATUS.ENQUEUED.value:
             latest_log.delete()
-
-    @staticmethod
-    def get_latest_model_version(bot: str):
-        latest_log = ModelTraining.objects(bot=bot, status=EVENT_STATUS.DONE.value).order_by('-start_timestamp').first()
-        return latest_log.model_path.split("/")[-1]

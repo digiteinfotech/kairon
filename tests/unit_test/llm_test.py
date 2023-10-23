@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 import mock
 import numpy as np
 import pytest
+from aiohttp import ClientConnectionError
 from mongoengine import connect
 
 from kairon.exceptions import AppException
@@ -835,8 +836,9 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             assert list(aioresponses.requests.values())[0][0].kwargs['json'] == {'vector': embedding, 'limit': 10, 'with_payload': True, 'score_threshold': 0.70}
 
     @pytest.mark.asyncio
+    @mock.patch("kairon.shared.rest_client.AioRestClient._AioRestClient__trigger", autospec=True)
     @mock.patch.object(GPT3FAQEmbedding, "_GPT3FAQEmbedding__get_embedding", autospec=True)
-    async def test_gpt3_faq_embedding_predict_exact_match(self, mock_embedding):
+    async def test_gpt3_faq_embedding_predict_exact_match(self, mock_embedding, mock_llm_request):
         embedding = list(np.random.random(GPT3FAQEmbedding.__embedding__))
 
         test_content = CognitionData(
@@ -852,6 +854,7 @@ Instructions on how to use Similarity Prompt: Answer according to this context.
             'similarity_prompt_instructions': 'Answer according to this context.', "enable_response_cache": True}
 
         mock_embedding.return_value = embedding
+        mock_llm_request.side_effect = ClientConnectionError()
 
         with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': 'test'}}):
             gpt3 = GPT3FAQEmbedding(test_content.bot, LLMSettings(provider="openai").to_mongo().to_dict())

@@ -152,7 +152,7 @@ class TestAgentProcessor:
         assert AgentProcessor.cache_provider.len() >= 1
 
     @mock.patch("kairon.chat.agent_processor.AgentProcessor.reload", autospec=True)
-    @mock.patch("kairon.shared.data.model_processor.ModelProcessor.get_latest_model_version")
+    @mock.patch("kairon.shared.utils.Utility.get_latest_model")
     def test_get_agent_after_new_model_training(self, mock_get_latest_model_version, mock_reload):
         mock_get_latest_model_version.return_value = "v1.tar.zip"
         assert AgentProcessor.get_agent(pytest.bot)

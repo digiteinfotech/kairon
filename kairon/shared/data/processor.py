@@ -5799,21 +5799,21 @@ class MongoProcessor:
         except DoesNotExist:
             raise AppException("Text does not exists!")
 
-    def get_content(self, bot: Text, **kwargs):
+    def get_content(self, bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         """
         fetches content
 
         :param bot: bot id
+        :param start_idx: start index
+        :param page_size: page size
         :return: yield dict
         """
         kwargs["bot"] = bot
         search = kwargs.pop('data', None)
-        start_idx = kwargs.pop('start_idx', 0)
-        page_size = kwargs.pop('page_size', 10)
         cognition_data = CognitionData.objects(**kwargs)
         if search:
             cognition_data = cognition_data.search_text(search)
-        for value in cognition_data.skip(start_idx).limit(page_size):
+        for value in cognition_data.order_by('-vector_id').skip(start_idx).limit(page_size):
             item = value.to_mongo().to_dict()
             item.pop('timestamp')
             item["_id"] = item["_id"].__str__()

@@ -8,6 +8,7 @@ from kairon.api.models import Response, TextData, CognitiveDataRequest
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.shared.auth import Authentication
 from kairon.shared.constants import DESIGNER_ACCESS
+from kairon.shared.data.data_objects import CognitionData
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
@@ -114,13 +115,21 @@ async def delete_bot_text(
 @router.get("/text/faq", response_model=Response)
 async def get_text(
         request: Request,
+        start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches text content of the bot
     """
     kwargs = request.query_params._dict.copy()
-    return {"data": list(processor.get_content(current_user.get_bot(), **kwargs))}
+    kwargs.pop("start_idx", None)
+    kwargs.pop("page_size", None)
+    row_cnt = processor.get_row_count(CognitionData, current_user.get_bot())
+    data = {
+        "logs": list(processor.get_content(current_user.get_bot(), start_idx, page_size, **kwargs)),
+        "total": row_cnt
+    }
+    return {"data": data}
 
 
 @router.get("/text/faq/collection", response_model=Response)

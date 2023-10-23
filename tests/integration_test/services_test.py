@@ -1437,9 +1437,10 @@ def test_get_content_without_data():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-    assert actual["data"][0]['collection'] == 'aws'
-    assert actual["data"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
-    assert actual["data"][1]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"]["logs"][0]['collection'] == 'aws'
+    assert actual["data"]["logs"][0]['data'] == 'AWS Fargate is a serverless compute engine for containers that allows you to run Docker containers without having to manage the underlying EC2 instances. With Fargate, you can focus on developing and deploying your applications rather than managing the infrastructure.'
+    assert actual["data"]["logs"][1]['data'] == 'Blockchain technology is an advanced database mechanism that allows transparent information sharing within a business network.'
+    assert actual["data"]["total"] == 2
 
 
 def test_list_collection():
@@ -1507,7 +1508,7 @@ def test_get_content_not_exists():
     assert actual["success"]
     assert actual["message"] is None
     assert actual["error_code"] == 0
-    assert actual["data"] == []
+    assert actual["data"] == {'logs': [], 'total': 0}
 
 
 def test_payload_upload_api_with_gpt_feature_disabled():
@@ -13901,7 +13902,7 @@ def test_get_bot_settings():
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
                               'test_limit_per_day': 5,
-                              'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 60,
+                              'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 21600,
                               'website_data_generator_depth_search_limit': 2,
                               'whatsapp': 'meta'}
 
@@ -13975,7 +13976,7 @@ def test_update_analytics_settings():
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
                               'test_limit_per_day': 5,
-                              'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 60,
+                              'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 21600,
                               'website_data_generator_depth_search_limit': 2,
                               'whatsapp': 'meta'}
 

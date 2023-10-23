@@ -1228,7 +1228,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
                        "waba_account_id": "asdfghjk"}}
@@ -1336,7 +1336,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
         mock_get_partner_auth_token.return_value = None
@@ -1428,7 +1428,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
@@ -1486,7 +1486,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -1529,7 +1529,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
         event = MessageBroadcastEvent(bot, user)
@@ -1626,7 +1626,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
         )
         mock_channel_config.return_value = {"config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10, "dynamic_broadcast_execution_timeout": 60}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 10, "dynamic_broadcast_execution_timeout": 21600}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
 
         with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
@@ -1755,7 +1755,7 @@ class TestEventExecution:
                 {"category": "MARKETING", "components": template, "name": "brochure_pdf", "language": "hi"}]}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415", "waba_account_id": "asdfghjk"}}
         mock_send.return_value = {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
@@ -1861,7 +1861,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 60}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 

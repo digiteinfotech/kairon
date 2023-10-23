@@ -41,6 +41,7 @@ RUN python -m pip install pandas
 RUN python -m pip install croniter
 RUN python -m pip install pydantic==1.10.11
 RUN python -m pip install uuid6
+RUN python -m pip install aiohttp-retry
 
 RUN mkdir ssl
 RUN mkdir training_data

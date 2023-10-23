@@ -63,7 +63,8 @@ class AgentProcessor:
 
     @staticmethod
     def is_latest_version_in_mem(bot: Text):
-        latest_ver = ModelProcessor.get_latest_model_version(bot)
+        model_path = Utility.get_latest_model(bot)
+        latest_ver = model_path.split("/")[-1]
         in_mem_model_ver = AgentProcessor.cache_provider.get(bot).model_ver
         logging.debug(f"PID:{os.getpid()} In memory model:{in_mem_model_ver}, latest trained model:{latest_ver}")
         return latest_ver == in_mem_model_ver
