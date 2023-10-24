@@ -14457,6 +14457,9 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
+        settings = BotSettings.objects(bot=bot).get()
+        settings.llm_settings = LLMSettings(enable_faq=False)
+        settings.save()
         collection = "Bot"
         content = 'A bot, short for robot, is a program or software application designed to automate certain tasks or ' \
                   'perform specific functions, usually in an automated or semi-automated manner. Bots can be programmed' \
