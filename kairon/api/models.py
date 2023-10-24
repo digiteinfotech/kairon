@@ -3,9 +3,9 @@ from typing import List, Any, Dict, Optional, Text
 import validators
 from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
+from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 
 from kairon.exceptions import AppException
-from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from kairon.shared.data.constant import EVENT_STATUS, SLOT_MAPPING_TYPE, SLOT_TYPE, ACCESS_ROLES, ACTIVITY_STATUS, \
     INTEGRATION_STATUS, FALLBACK_MESSAGE, DEFAULT_NLU_FALLBACK_RESPONSE
 from ..shared.actions.models import ActionParameterType, EvaluationType, DispatchType, DbQueryValueType, \
@@ -422,7 +422,7 @@ class PyscriptActionRequest(BaseModel):
 
 class DatabaseActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
-    query: QueryConfig
+    query_type: DbActionOperationType
     payload: PayloadConfig
     response: ActionResponseEvaluation = None
     set_slots: List[SetSlotsUsingActionResponse] = []
@@ -947,17 +947,31 @@ class PromptActionConfigRequest(BaseModel):
         return values
 
 
-class Metadata(BaseModel):
+class ColumnMetadata(BaseModel):
     column_name: str
     data_type: CognitionMetadataType
     enable_search: bool = True
     create_embeddings: bool = True
 
+    @root_validator
+    def check(cls, values):
+        from kairon.shared.utils import Utility
+
+        if values.get('data_type') not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value]:
+            raise ValueError("Only str and int data types are supported")
+        if Utility.check_empty_string(values.get('column_name')):
+            raise ValueError("Column name cannot be empty")
+        return values
+
+
+class CognitionSchemaRequest(BaseModel):
+    metadata: List[ColumnMetadata] = None
+    collection_name: str
+
 
 class CognitiveDataRequest(BaseModel):
     data: Any
-    content_type: CognitionDataType
-    metadata: List[Metadata] = None
+    content_type: CognitionDataType = CognitionDataType.text.value
     collection: str = None
 
     @root_validator
@@ -965,10 +979,11 @@ class CognitiveDataRequest(BaseModel):
         from kairon.shared.utils import Utility
 
         data = values.get("data")
-        metadata = values.get("metadata", [])
-        if metadata:
-            for metadata_item in metadata:
-                Utility.retrieve_data(data, metadata_item.dict())
+        content_type = values.get("content_type")
+        if isinstance(data, dict) and content_type != CognitionDataType.json.value:
+            raise ValueError("data of type dict is required if content type is json")
+        if not data or (isinstance(data, str) and Utility.check_empty_string(data)):
+            raise ValueError("data cannot be empty")
         return values
 
 
