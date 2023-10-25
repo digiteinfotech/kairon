@@ -63,22 +63,22 @@ class CognitionDataProcessor:
         unique_column_names = set(column_names)
         return len(unique_column_names) < len(column_names)
 
-    def save_cognition_schema(self, metadata: Dict, user: Text, bot: Text):
-        if CognitionDataProcessor.is_collection_limit_exceeded(bot, user, metadata.get('collection_name')):
+    def save_cognition_schema(self, schema: Dict, user: Text, bot: Text):
+        if CognitionDataProcessor.is_collection_limit_exceeded(bot, user, schema.get('collection_name')):
             raise AppException('Collection limit exceeded!')
-        if metadata.get('metadata') and CognitionDataProcessor.is_column_collection_limit_exceeded(bot, user, metadata.get('metadata')):
+        if schema.get('metadata') and CognitionDataProcessor.is_column_collection_limit_exceeded(bot, user, schema.get('metadata')):
             raise AppException('Column limit exceeded for collection!')
-        if metadata.get('metadata') and CognitionDataProcessor.is_same_column_in_metadata(metadata.get('metadata')):
+        if schema.get('metadata') and CognitionDataProcessor.is_same_column_in_metadata(schema.get('metadata')):
             raise AppException('Columns cannot be same in the schema!')
         metadata_obj = CognitionSchema(bot=bot, user=user)
-        metadata_obj.metadata = [ColumnMetadata(**meta) for meta in metadata.get('metadata') or []]
-        metadata_obj.collection_name = metadata.get('collection_name')
+        metadata_obj.metadata = [ColumnMetadata(**meta) for meta in schema.get('metadata') or []]
+        metadata_obj.collection_name = schema.get('collection_name')
         metadata_id = metadata_obj.save().to_mongo().to_dict()["_id"].__str__()
         return metadata_id
 
-    def delete_cognition_schema(self, metadata_id: str, bot: Text):
+    def delete_cognition_schema(self, schema_id: str, bot: Text):
         try:
-            metadata = CognitionSchema.objects(bot=bot, id=metadata_id).get()
+            metadata = CognitionSchema.objects(bot=bot, id=schema_id).get()
             cognition_data = list(CognitionData.objects(Q(collection=metadata['collection_name']) &
                                                         Q(bot=bot)))
             if cognition_data:
@@ -184,6 +184,8 @@ class CognitionDataProcessor:
         """
         kwargs["bot"] = bot
         search = kwargs.pop('data', None)
+        kwargs.pop('start_idx', None)
+        kwargs.pop('page_size', None)
         cognition_data = CognitionData.objects(**kwargs)
         if search:
             cognition_data = cognition_data.search_text(search)

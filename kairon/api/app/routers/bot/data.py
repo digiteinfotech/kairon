@@ -55,7 +55,7 @@ async def download_faq_files(
 
 @router.post("/cognition/schema", response_model=Response)
 async def save_cognition_schema(
-        metadata: CognitionSchemaRequest,
+        schema: CognitionSchemaRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -65,7 +65,7 @@ async def save_cognition_schema(
         "message": "Schema saved!",
         "data": {
             "_id": cognition_processor.save_cognition_schema(
-                    metadata.dict(),
+                    schema.dict(),
                     current_user.get_user(),
                     current_user.get_bot(),
             )
@@ -73,15 +73,15 @@ async def save_cognition_schema(
     }
 
 
-@router.delete("/cognition/schema/{metadata_id}", response_model=Response)
+@router.delete("/cognition/schema/{schema_id}", response_model=Response)
 async def delete_cognition_schema(
-        metadata_id: str,
+        schema_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Deletes cognition content of the bot
     """
-    cognition_processor.delete_cognition_schema(metadata_id, current_user.get_bot())
+    cognition_processor.delete_cognition_schema(schema_id, current_user.get_bot())
     return {
         "message": "Schema deleted!"
     }
@@ -156,8 +156,8 @@ async def delete_cognition_data(
 @router.get("/cognition", response_model=Response)
 async def list_cognition_data(
         request: Request,
+        start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-        start_idx: int = 0, page_size: int = 10
 ):
     """
     Fetches cognition content of the bot

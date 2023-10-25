@@ -14264,14 +14264,14 @@ class TestMongoProcessor:
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
-        metadata = {
+        schema = {
             "metadata": [
                 {"column_name": "details", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "details_collection",
             "bot": bot,
             "user": user
         }
-        pytest.metadata_id = processor.save_cognition_schema(metadata, user, bot)
+        pytest.schema_id = processor.save_cognition_schema(schema, user, bot)
 
         payload = {
             "data": {"details": "Pune"},
@@ -14279,25 +14279,25 @@ class TestMongoProcessor:
             "content_type": "json"}
         processor.save_cognition_data(payload, user, bot)
 
-        metadata_one = {
+        schema_one = {
             "metadata": [
                 {"column_name": "metadata_one", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "metadata_one",
             "bot": bot,
             "user": user
         }
-        pytest.metadata_id_one = processor.save_cognition_schema(metadata_one, user, bot)
+        pytest.schema_id_one = processor.save_cognition_schema(schema_one, user, bot)
 
-        metadata_two = {
+        schema_two = {
             "metadata": [
                 {"column_name": "metadata_two", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "metadata_two",
             "bot": bot,
             "user": user
         }
-        pytest.metadata_id_two = processor.save_cognition_schema(metadata_two, user, bot)
+        pytest.schema_id_two = processor.save_cognition_schema(schema_two, user, bot)
 
-        metadata_three = {
+        schema_three = {
             "metadata": [
                 {"column_name": "metadata_three", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "metadata_three",
@@ -14305,9 +14305,9 @@ class TestMongoProcessor:
             "user": user
         }
         with pytest.raises(AppException, match="Collection limit exceeded!"):
-            processor.save_cognition_schema(metadata_three, user, bot)
-        processor.delete_cognition_schema(pytest.metadata_id_one, bot)
-        processor.delete_cognition_schema(pytest.metadata_id_two, bot)
+            processor.save_cognition_schema(schema_three, user, bot)
+        processor.delete_cognition_schema(pytest.schema_id_one, bot)
+        processor.delete_cognition_schema(pytest.schema_id_two, bot)
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=False)
         settings.save()
@@ -14316,7 +14316,7 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        metadata = {
+        schema = {
             "metadata": [
                 {"column_name": "tech", "data_type": "str", "enable_search": True, "create_embeddings": True},
                 {"column_name": "age", "data_type": "int", "enable_search": True, "create_embeddings": False},
@@ -14329,13 +14329,13 @@ class TestMongoProcessor:
             "user": user
         }
         with pytest.raises(AppException, match="Column limit exceeded for collection!"):
-            processor.save_cognition_schema(metadata, user, bot)
+            processor.save_cognition_schema(schema, user, bot)
 
     def test_save_payload_metadata_same_columns(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        metadata = {
+        schema = {
             "metadata": [
                 {"column_name": "tech", "data_type": "str", "enable_search": True, "create_embeddings": True},
                 {"column_name": "tech", "data_type": "int", "enable_search": True, "create_embeddings": False}],
@@ -14344,33 +14344,33 @@ class TestMongoProcessor:
             "user": user
         }
         with pytest.raises(AppException, match="Columns cannot be same in the schema!"):
-            processor.save_cognition_schema(metadata, user, bot)
+            processor.save_cognition_schema(schema, user, bot)
 
     def test_save_payload_metadata_column_name_empty(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        metadata = {
+        schema = {
             "metadata": [{"column_name": "", "data_type": "int", "enable_search": True,
                           "create_embeddings": True}],
             "collection_name": "column_name_empty",
             "bot": bot,
             "user": user}
         with pytest.raises(ValidationError, match="Column name cannot be empty"):
-            CognitionSchema(**metadata).save()
+            CognitionSchema(**schema).save()
 
     def test_save_payload_metadata_data_type_invalid(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        metadata = {
+        schema = {
             "metadata": [{"column_name": "name", "data_type": "bool", "enable_search": True,
                           "create_embeddings": True}],
             "bot": bot,
             "user": user
         }
         with pytest.raises(ValidationError, match="Only str and int data types are supported"):
-            CognitionSchema(**metadata).save()
+            CognitionSchema(**schema).save()
 
     def test_get_payload_metadata(self):
         processor = CognitionDataProcessor()
@@ -14387,21 +14387,21 @@ class TestMongoProcessor:
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        processor.delete_cognition_schema(pytest.metadata_id, bot)
+        processor.delete_cognition_schema(pytest.schema_id, bot)
 
     def test_save_payload_metadata_and_delete_with_no_cognition_data(self):
         processor = CognitionDataProcessor()
         bot = 'test'
         user = 'testUser'
-        metadata = {
+        schema = {
             "metadata": [
                 {"column_name": "employee", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "details_collection",
             "bot": bot,
             "user": user
         }
-        pytest.metadata_id_final = processor.save_cognition_schema(metadata, user, bot)
-        processor.delete_cognition_schema(pytest.metadata_id_final, bot)
+        pytest.schema_id_final = processor.save_cognition_schema(schema, user, bot)
+        processor.delete_cognition_schema(pytest.schema_id_final, bot)
 
     def test_delete_payload_metadata_does_not_exists(self):
         processor = CognitionDataProcessor()

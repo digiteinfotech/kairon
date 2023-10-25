@@ -1267,7 +1267,7 @@ def test_metadata_upload_api(monkeypatch):
     )
     actual = response.json()
     print(actual)
-    pytest.metadata_id = actual["data"]["_id"]
+    pytest.schema_id = actual["data"]["_id"]
     assert actual["message"] == "Schema saved!"
     assert actual["data"]["_id"]
     assert actual["error_code"] == 0
@@ -1296,7 +1296,7 @@ def test_metadata_upload_api(monkeypatch):
     )
     actual_one = response_one.json()
     print(actual_one)
-    pytest.metadata_id_one = actual_one["data"]["_id"]
+    pytest.schema_id_one = actual_one["data"]["_id"]
     assert actual_one["message"] == "Schema saved!"
     assert actual_one["data"]["_id"]
     assert actual_one["error_code"] == 0
@@ -1312,7 +1312,7 @@ def test_metadata_upload_api(monkeypatch):
     )
     actual_two = response_two.json()
     print(actual_two)
-    pytest.metadata_id_two = actual_two["data"]["_id"]
+    pytest.schema_id_two = actual_two["data"]["_id"]
     assert actual_two["message"] == "Schema saved!"
     assert actual_two["data"]["_id"]
     assert actual_two["error_code"] == 0
@@ -1332,16 +1332,16 @@ def test_metadata_upload_api(monkeypatch):
     assert actual_three["error_code"] == 422
 
     response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id_one}",
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id_one}",
         json={
-            "metadata_id": pytest.metadata_id_one,
+            "metadata_id": pytest.schema_id_one,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id_two}",
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id_two}",
         json={
-            "metadata_id": pytest.metadata_id_two,
+            "metadata_id": pytest.schema_id_two,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1375,7 +1375,9 @@ def test_metadata_upload_api_same_column_in_schema():
         json={
             "metadata": [
                 {"column_name": "tech", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "tech", "data_type": "int", "enable_search": True, "create_embeddings": False}],
+                {"column_name": "ai", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "ds", "data_type": "str", "enable_search": True, "create_embeddings": True},
+                {"column_name": "tech", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             "collection_name": "test_metadata_upload_api_same_column_in_schema"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
@@ -1436,9 +1438,9 @@ def test_get_payload_metadata():
 
 def test_delete_payload_content_metadata():
     response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id}",
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id}",
         json={
-            "metadata_id": pytest.metadata_id,
+            "metadata_id": pytest.schema_id,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1466,15 +1468,15 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
     )
     actual = response.json()
     print(actual)
-    pytest.metadata_id = actual["data"]["_id"]
+    pytest.schema_id = actual["data"]["_id"]
     assert actual["message"] == "Schema saved!"
     assert actual["data"]["_id"]
     assert actual["error_code"] == 0
 
     response_one = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.metadata_id}",
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{pytest.schema_id}",
         json={
-            "metadata_id": pytest.metadata_id,
+            "metadata_id": pytest.schema_id,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -1486,11 +1488,11 @@ def test_metadata_upload_api_and_delete_with_no_cognition_data(monkeypatch):
 
 
 def test_delete_payload_content_metadata_does_not_exist():
-    metadata_id = '61f3a2c0aef98d5b4c58e90f'
+    schema_id = '61f3a2c0aef98d5b4c58e90f'
     response = client.delete(
-        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{metadata_id}",
+        url=f"/api/bot/{pytest.bot}/data/cognition/schema/{schema_id}",
         json={
-            "metadata_id": metadata_id,
+            "schema_id": schema_id,
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
