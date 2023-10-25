@@ -1,4 +1,3 @@
-import json
 from typing import Text, Dict, List
 from urllib.parse import urljoin
 
@@ -10,9 +9,10 @@ from tqdm import tqdm
 from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.cognition.data_objects import CognitionData
+from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import GPT3ResourceTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
-from kairon.shared.data.data_objects import CognitionData
 from kairon.shared.llm.base import LLMBase
 from kairon.shared.llm.clients.factory import LLMClientFactory
 from kairon.shared.models import CognitionDataType
@@ -42,6 +42,7 @@ class GPT3FAQEmbedding(LLMBase):
     async def train(self, *args, **kwargs) -> Dict:
         await self.__delete_collections()
         count = 0
+        processor = CognitionDataProcessor()
         collection_groups = list(CognitionData.objects.aggregate([
             {'$match': {'bot': self.bot}},
             {'$group': {'_id': "$collection", 'content': {'$push': "$$ROOT"}}},
@@ -52,14 +53,12 @@ class GPT3FAQEmbedding(LLMBase):
             await self.__create_collection__(collection)
             for content in tqdm(collections['content'], desc="Training FAQ"):
                 if content['content_type'] == CognitionDataType.json.value:
-                    if not content['metadata'] or []:
-                        search_payload, vector_embeddings = content['data'], json.dumps(content['data'])
-                    else:
-                        search_payload, vector_embeddings = Utility.get_embeddings_and_payload_data(content['data'], content['metadata'])
+                    metadata = processor.find_matching_metadata(self.bot, content['data'], content.get('collection'))
+                    search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(content['data'], metadata)
                 else:
-                    search_payload, vector_embeddings = {'content': content["data"]}, content["data"]
+                    search_payload, embedding_payload = {'content': content["data"]}, content["data"]
                 search_payload['collection_name'] = collection
-                embeddings = await self.__get_embedding(vector_embeddings)
+                embeddings = await self.__get_embedding(embedding_payload)
                 points = [{'id': content['vector_id'], 'vector': embeddings, 'payload': search_payload}]
                 await self.__collection_upsert__(collection, {'points': points}, err_msg="Unable to train FAQ! Contact support")
                 count += 1
