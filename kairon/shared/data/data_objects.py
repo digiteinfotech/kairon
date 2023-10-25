@@ -15,8 +15,7 @@ from mongoengine import (
     DictField,
     DynamicField,
     IntField,
-    FloatField,
-    SequenceField
+    FloatField
 )
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.slots import (
@@ -33,7 +32,7 @@ from validators import url, ValidationFailure
 from kairon.exceptions import AppException
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
-from kairon.shared.models import TemplateType, StoryStepType, StoryType, CognitionDataType, CognitionMetadataType
+from kairon.shared.models import TemplateType, StoryStepType, StoryType
 from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, TrainingDataSourceType
 from ..constants import WhatsappBSPTypes, LLMResourceProvider
@@ -696,51 +695,6 @@ class Rules(Auditlog):
         DataUtility.validate_flow_events(self.events, "RULE", self.block_name)
 
 
-class CognitionMetadata(EmbeddedDocument):
-    column_name = StringField(required=True)
-    data_type = StringField(required=True, default=CognitionMetadataType.str.value,
-                            choices=[CognitionMetadataType.str.value, CognitionMetadataType.int.value])
-    enable_search = BooleanField(default=True)
-    create_embeddings = BooleanField(default=True)
-
-    def validate(self, clean=True):
-        if clean:
-            self.clean()
-        if self.data_type not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value]:
-            raise ValidationError("Only str and int data types are supported")
-        if Utility.check_empty_string(self.column_name):
-            raise ValidationError("Column name cannot be empty")
-
-    def clean(self):
-        if not Utility.check_empty_string(self.column_name):
-            self.column_name = self.column_name.strip().lower()
-
-
-@auditlogger.log
-@push_notification.apply
-class CognitionData(Auditlog):
-    vector_id = SequenceField(required=True)
-    data = DynamicField(required=True)
-    content_type = StringField(default=CognitionDataType.text.value, choices=[CognitionDataType.text.value,
-                                                            CognitionDataType.json.value])
-    metadata = ListField(EmbeddedDocumentField(CognitionMetadata), default=None)
-    collection = StringField(default=None)
-    user = StringField(required=True)
-    bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
-
-    meta = {"indexes": [{"fields": ["$data", "bot"]}]}
-
-    def validate(self, clean=True):
-        if clean:
-            self.clean()
-
-        if self.metadata:
-            for metadata_item in self.metadata or []:
-                metadata_item.validate()
-                Utility.retrieve_data(self.data, metadata_item.to_mongo().to_dict())
-
-
 @auditlogger.log
 @push_notification.apply
 class Configs(Auditlog):
@@ -895,6 +849,8 @@ class BotSettings(Auditlog):
     data_importer_limit_per_day = IntField(default=5)
     multilingual_limit_per_day = IntField(default=2)
     data_generation_limit_per_day = IntField(default=3)
+    cognition_collections_limit = IntField(default=3)
+    cognition_columns_per_collection_limit = IntField(default=5)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 

@@ -1,9 +1,9 @@
 import json
 import os
-import mock
 import re
 from unittest import mock
 
+import mock
 from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
@@ -21,7 +21,6 @@ from kairon.actions.definitions.set_slot import ActionSetSlot
 from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.web_search import ActionWebSearch
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
-from kairon.exceptions import AppException
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
@@ -2721,7 +2720,9 @@ class TestActions:
                                 'training_limit_per_day': 5,
                                 'user': 'test_user',
                                 'website_data_generator_depth_search_limit': 2,
-                                'whatsapp': 'meta'}
+                                'whatsapp': 'meta',
+                                'cognition_collections_limit': 3,
+                              'cognition_columns_per_collection_limit': 5}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -3963,7 +3964,9 @@ class TestActions:
                                 'test_limit_per_day': 5,
                                 'training_limit_per_day': 5,
                                 'website_data_generator_depth_search_limit': 2,
-                                'whatsapp': 'meta'}
+                                'whatsapp': 'meta',
+                                'cognition_collections_limit': 3,
+                                'cognition_columns_per_collection_limit': 5}
 
     def test_get_prompt_action_config_2(self):
         bot = "test_bot_action_test"
